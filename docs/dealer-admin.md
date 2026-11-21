@@ -436,8 +436,9 @@ app store and no outside service.
   other failure is logged by its status only and never stops what caused it. Removing someone from the team removes their devices. Staff
   are not covered by data requests (customers are), the same as their WhatsApp phone: each person removes their own devices here, and
   leaving the team removes the rest.
-- **Keys.** A VAPID key pair per environment: `VAPID_PUBLIC_KEY` a var in `wrangler.jsonc`, `VAPID_PRIVATE_KEY` a Worker secret, made
-  by `node scripts/vapid-keys.mjs` (README, "Going live"). With either missing, Settings says notifications are not set up yet and nothing
+- **Keys.** A VAPID key pair per environment, made by `node scripts/vapid-keys.mjs` (README, "Going live"). `VAPID_PRIVATE_KEY` is a
+  Worker secret. `VAPID_PUBLIC_KEY` is not secret, so it may be a var in `wrangler.jsonc` or a Worker secret (as on the deployed
+  environments now, set without a PR), but never both under the same name: the code reads either the same way (`process.env`). With either missing, Settings says notifications are not set up yet and nothing
   is sent. A new pair turns notifications off on every device until each person turns them on again. The push services allowed are
   Google's, Apple's, Mozilla's and Microsoft's (`validSub`), so the Worker never posts to any other address.
 - **Not tested here:** real delivery to a phone. The unit tests open what was sent with the phone's own keys; the E2E suite stubs the

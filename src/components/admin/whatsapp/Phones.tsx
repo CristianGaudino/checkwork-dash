@@ -67,7 +67,7 @@ function Phone({ label, title, status, msgs, mine, small = false, onTap, onSend,
     <section aria-label={label} className="flex w-full flex-col overflow-hidden rounded-[2rem] border-[6px] border-ink bg-ink shadow-lift ring-1 ring-hairline">
       <div className="flex items-center gap-2.5 bg-wa-bar px-3 py-2.5 text-white">
         <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-white/15">
-          <WhatsAppIcon className="size-5 text-whatsapp" />
+          <WhatsAppIcon className="shrink-0 size-5 text-whatsapp" />
         </span>
         <div className="min-w-0">
           <p className="truncate text-meta font-semibold leading-tight">{title}</p>

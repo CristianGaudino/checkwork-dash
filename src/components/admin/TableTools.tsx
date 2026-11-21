@@ -60,7 +60,7 @@ export function LiveSearch({ placeholder, label }: { placeholder: string; label:
   };
   return (
     <form role="search" aria-busy={pending} onSubmit={(e) => (e.preventDefault(), run(value))} className="relative w-full sm:max-w-sm">
-      <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2 text-text-2" />
+      <SearchIcon className="shrink-0 pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2 text-text-2" />
       <input
         ref={input}
         type="text"
@@ -90,7 +90,7 @@ export function LiveSearch({ placeholder, label }: { placeholder: string; label:
           }}
           className={`absolute right-1 top-1/2 inline-flex size-9 -translate-y-1/2 items-center justify-center rounded-control text-text-2 hover:text-text ${press}`}
         >
-          <CloseIcon className="size-4" />
+          <CloseIcon className="shrink-0 size-4" />
         </button>
       )}
     </form>
@@ -114,7 +114,7 @@ export function SortHeader({ k, label, active, dir, align }: { k: string; label:
 export function DensityToggle() {
   const { compact, setCompact } = useDensity();
   return (
-    <button type="button" aria-pressed={compact} onClick={() => setCompact(!compact)} className={`inline-flex h-11 shrink-0 items-center gap-2 rounded-control border px-3 text-meta font-medium ${compact ? "border-text bg-text text-ink" : "border-hairline bg-card text-text hover:border-control"} ${press}`}>
+    <button type="button" aria-pressed={compact} onClick={() => setCompact(!compact)} className={`inline-flex h-11 shrink-0 items-center gap-2 rounded-control px-3 text-meta font-medium transition-colors ${compact ? "bg-text text-ink" : "bg-hairline text-text hover:bg-accent-soft hover:text-accent-text"} ${press}`}>
       <span aria-hidden className="flex flex-col gap-1">
         {[0, 1, 2].map((i) => (
           <span key={i} className="block h-[2px] w-3.5 rounded-full bg-current" />
@@ -147,8 +147,8 @@ export function Filters({ groups }: { groups: FilterGroup[] }) {
   const place = () => placeSheet(panel.current, button.current);
   return (
     <>
-      <button ref={button} type="button" popoverTarget={id} onClick={place} className={`inline-flex h-11 shrink-0 items-center gap-2 rounded-control border border-control bg-card px-4 text-meta font-semibold text-text ${press}`}>
-        <SlidersIcon className="size-4" />
+      <button ref={button} type="button" popoverTarget={id} onClick={place} className={`inline-flex h-11 shrink-0 items-center gap-2 rounded-control bg-accent-soft px-4 text-meta font-semibold text-accent-text transition-colors hover:bg-accent-soft-hover ${press}`}>
+        <SlidersIcon className="shrink-0 size-4" />
         Filters
         {on > 0 && (
           <span className="inline-flex size-5 items-center justify-center rounded-full bg-accent text-[0.75rem] text-on-accent tabular-nums">
@@ -167,7 +167,7 @@ export function Filters({ groups }: { groups: FilterGroup[] }) {
         <div className="flex items-center justify-between border-b border-hairline px-4 py-3">
           <h2 className="text-body font-semibold">Filters</h2>
           <button type="button" aria-label="Close the filters" onClick={() => panel.current?.hidePopover()} className={`inline-flex size-9 items-center justify-center rounded-control text-text-2 hover:text-text ${press}`}>
-            <CloseIcon className="size-4" />
+            <CloseIcon className="shrink-0 size-4" />
           </button>
         </div>
         <div className="flex flex-col gap-4 overflow-y-auto overscroll-contain px-4 py-3">
@@ -212,7 +212,7 @@ export function AppliedFilters({ groups }: { groups: FilterGroup[] }) {
   return (
     <div role="group" aria-label="Filters on" className="flex flex-wrap items-center gap-2">
       {on.map(({ g, label }) => (
-        <Link key={g.name} href={hrefWith({ [g.name]: undefined })} replace scroll={false} className={`inline-flex min-h-9 items-center gap-1.5 rounded-full border border-hairline bg-card pl-3 pr-2 text-meta ${press}`}>
+        <Link key={g.name} href={hrefWith({ [g.name]: undefined })} replace scroll={false} className={`inline-flex min-h-11 pointer-fine:min-h-9 items-center gap-1.5 rounded-full bg-hairline pl-3 pr-2 text-meta transition-colors hover:bg-accent-soft hover:text-accent-text ${press}`}>
           <span className="text-text-2">{g.label}:</span>
           <span className="font-medium">{label}</span>
           <CloseIcon aria-hidden className="size-3.5 text-text-2" />
@@ -220,7 +220,7 @@ export function AppliedFilters({ groups }: { groups: FilterGroup[] }) {
         </Link>
       ))}
       {on.length > 1 && (
-        <Link href={hrefWith(Object.fromEntries(groups.map((g) => [g.name, undefined])))} replace scroll={false} className="min-h-9 px-1 text-meta font-medium text-accent-text underline">
+        <Link href={hrefWith(Object.fromEntries(groups.map((g) => [g.name, undefined])))} replace scroll={false} className="min-h-11 pointer-fine:min-h-9 px-1 text-meta font-medium text-accent-text underline">
           Clear all
         </Link>
       )}
@@ -255,9 +255,9 @@ export function TableFooter({ page, pageCount, total, per, exportHref }: { page:
     csv = p.size ? `${path}?${p}` : path;
   }
   const pageHref = (n: number) => hrefWith({ page: n > 1 ? String(n) : undefined }, true);
-  const step = `inline-flex h-11 min-w-11 items-center justify-center rounded-control border border-hairline bg-card px-3 text-meta font-medium text-text transition-colors hover:border-control ${press}`;
+  const step = `inline-flex h-11 min-w-11 items-center justify-center rounded-control px-3 text-meta font-medium text-accent-text transition-colors hover:bg-accent-soft ${press}`;
   // An end with nowhere to go: muted text with no fill, not faded, so it still passes contrast.
-  const stepOff = "inline-flex h-11 min-w-11 items-center justify-center rounded-control border border-dashed border-hairline px-3 text-meta font-medium text-text-2";
+  const stepOff = "inline-flex h-11 min-w-11 items-center justify-center rounded-control px-3 text-meta font-medium text-text-2";
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -292,7 +292,7 @@ export function TableFooter({ page, pageCount, total, per, exportHref }: { page:
                     …
                   </span>
                 ) : (
-                  <Link key={n} href={pageHref(n)} aria-current={n === page ? "page" : undefined} className={`${step} ${n === page ? "border-accent text-accent-text" : ""}`}>
+                  <Link key={n} href={pageHref(n)} aria-current={n === page ? "page" : undefined} className={`${step} ${n === page ? "bg-accent-soft" : ""}`}>
                     {n}
                   </Link>
                 ),

@@ -7,6 +7,7 @@ import { loadNotices, readNotices } from "@/app/notifications/actions";
 import { fmtAgo } from "@/lib/admin/format";
 import { BellIcon, CalendarIcon, CarIcon, CloseIcon, HelpIcon, InboxIcon, ReceiptIcon, SyncIcon, TruckIcon, UsersIcon, WhatsAppIcon, WrenchIcon } from "@/components/stock/icons";
 import { press } from "@/components/ui";
+import { rowButton } from "./kit";
 import { placeSheet, sheetPanel } from "./sheet";
 
 type Data = Awaited<ReturnType<typeof loadNotices>>;
@@ -52,7 +53,7 @@ export function NotificationBell() {
   return (
     <>
       <button ref={button} type="button" popoverTarget={id} onClick={place} aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"} className={`relative inline-flex size-11 shrink-0 items-center justify-center rounded-control text-text-2 transition-colors hover:bg-card hover:text-text ${press}`}>
-        <BellIcon className="size-5" />
+        <BellIcon className="shrink-0 size-5" />
         {unread > 0 && <span aria-hidden className="absolute right-1.5 top-1.5 inline-flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-bad px-1 text-[0.6875rem] font-semibold leading-none text-on-accent tabular-nums">{unread > 9 ? "9+" : unread}</span>}
       </button>
       <div
@@ -66,12 +67,12 @@ export function NotificationBell() {
           <h2 className="text-body font-semibold">Notifications</h2>
           <span className="flex items-center gap-1">
             {unread > 0 && (
-              <button type="button" onClick={() => read()} className="min-h-9 px-2 text-meta font-medium text-accent-text underline">
+              <button type="button" onClick={() => read()} className={`${rowButton} group-data-[density=compact]/shell:h-11!`}>
                 Mark all as read
               </button>
             )}
             <button type="button" aria-label="Close the notifications" onClick={() => panel.current?.hidePopover()} className={`inline-flex size-9 items-center justify-center rounded-control text-text-2 hover:text-text ${press}`}>
-              <CloseIcon className="size-4" />
+              <CloseIcon className="shrink-0 size-4" />
             </button>
           </span>
         </div>

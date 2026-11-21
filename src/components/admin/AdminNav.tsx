@@ -147,7 +147,7 @@ function TabBar({ items, label, current }: { items: NavItem[]; label: string; cu
             })}
             <li>
               <button type="button" aria-haspopup="dialog" aria-current={inMore ? "page" : undefined} onClick={open} className={`w-full ${tab(inMore)}`}>
-                <MenuIcon className="size-6" />
+                <MenuIcon className="shrink-0 size-6" />
                 More
               </button>
             </li>

@@ -30,10 +30,10 @@ export function SlotPicker({ days, taken, windowMin, now, date, time, onChange, 
           <legend className="text-meta font-medium">Day</legend>
           <span className="flex gap-1">
             <button type="button" aria-label="Earlier days" disabled={week === 0} onClick={() => setWeek(week - 1)} className={`inline-flex size-11 items-center justify-center rounded-control text-text-2 hover:bg-surface disabled:opacity-30 ${press}`}>
-              <ChevronLeftIcon className="size-4" />
+              <ChevronLeftIcon className="shrink-0 size-4" />
             </button>
             <button type="button" aria-label="Later days" disabled={(week + 1) * 7 >= days.length} onClick={() => setWeek(week + 1)} className={`inline-flex size-11 items-center justify-center rounded-control text-text-2 hover:bg-surface disabled:opacity-30 ${press}`}>
-              <ChevronRightIcon className="size-4" />
+              <ChevronRightIcon className="shrink-0 size-4" />
             </button>
           </span>
         </div>

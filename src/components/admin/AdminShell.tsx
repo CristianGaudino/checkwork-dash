@@ -63,7 +63,7 @@ export function AdminShell({ title, profile, subtitle, nav, navLabel, openGroups
               </a>
             )}
             <button type="button" onClick={toggleRail} aria-label={rail ? "Expand the menu" : "Collapse the menu"} title={rail ? "Expand the menu" : "Collapse the menu"} className={`inline-flex size-11 shrink-0 items-center justify-center rounded-control text-text-2 transition-colors hover:bg-card hover:text-text ${press}`}>
-              {rail ? <ChevronRightIcon className="size-5" /> : <ChevronLeftIcon className="size-5" />}
+              {rail ? <ChevronRightIcon className="shrink-0 size-5" /> : <ChevronLeftIcon className="shrink-0 size-5" />}
             </button>
           </div>
         </aside>

@@ -10,10 +10,13 @@ const where = prod ? "production (env.production in wrangler.jsonc)" : "dev (the
 
 console.log(`VAPID keys for ${where}
 
-1. The public key is not a secret. Add it to that environment's "vars" in wrangler.jsonc, and deploy:
+1. The public key is not a secret, so it may be a var or a secret, but never both: a var and a secret with the same name clash.
+   Either add it to that environment's "vars" in wrangler.jsonc, and deploy:
    "VAPID_PUBLIC_KEY": "${publicKey}"
+   or keep it out of wrangler.jsonc and make it a secret (no deploy needed):
+   npx wrangler secret put VAPID_PUBLIC_KEY${prod ? " --env production" : ""}
 
-2. The private key is a Worker secret. Run this and paste the key when asked:
+2. The private key is always a Worker secret. Run this and paste the key when asked:
    npx wrangler secret put VAPID_PRIVATE_KEY${prod ? " --env production" : ""}
 
    ${privateKey}

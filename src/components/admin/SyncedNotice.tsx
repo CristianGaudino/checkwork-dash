@@ -11,7 +11,7 @@ export async function SyncedNotice() {
       <p className="max-w-measure text-body text-text-2">Add, edit and sell cars on {site}. The site updates within 15 minutes.</p>
       <a href={url} {...NEW_TAB} className={`${adminButton} self-start`}>
         Open {site}
-        <ExternalIcon className="size-4" />
+        <ExternalIcon className="shrink-0 size-4" />
         <span className="sr-only"> (opens in a new tab)</span>
       </a>
     </Panel>

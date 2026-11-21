@@ -76,16 +76,23 @@ test("our own stock has Add car, no sync and no DoneDeal service", async ({ page
 });
 
 test("a car for sale is posted to social from its stock row; a sold car has no Post to social", async ({ page }) => {
-  await page.setViewportSize({ width: 1280, height: 900 }); // the row's buttons are from 640px
+  await page.setViewportSize({ width: 1280, height: 900 }); // the row's buttons are from 640px; below 1536px Post is under More
   await page.goto("/stock");
   const row = page.getByRole("row").nth(1);
+  await row.getByRole("button", { name: /^More for/ }).click();
   const post = row.getByRole("link", { name: "Post to social" });
   await expect(post).toHaveAttribute("href", /^\/marketing\/new\?car=/);
   await post.click();
   await expect(page).toHaveURL(/\/marketing\/new\?car=/);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("New post");
   await page.goto("/stock?view=sold");
-  await expect(page.getByRole("row").nth(1).getByRole("link", { name: "Post to social" })).toHaveCount(0);
+  const sold = page.getByRole("row").nth(1);
+  await sold.getByRole("button", { name: /^More for/ }).click();
+  await expect(sold.getByRole("link", { name: "Post to social" })).toHaveCount(0);
+  // From 1536px it is in the row itself, in words.
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.goto("/stock");
+  await expect(page.getByRole("row").nth(1).getByRole("link", { name: "Post to social" })).toHaveText("Post to social");
 });
 
 test("the summary tiles are the filter: one press filters the table and marks the tile", async ({ page }) => {

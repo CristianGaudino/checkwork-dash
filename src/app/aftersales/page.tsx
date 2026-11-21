@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ClaimStatusBadge, CoverBadge } from "@/components/admin/badges";
-import { DataTable, EmptyState, PageHeader, SummaryTabs, TableFooter, TableToolbar, adminButton, pageOf, rowButton, sortRows, type Column } from "@/components/admin/kit";
+import { DataTable, EmptyState, PageHeader, SummaryTabs, TableFooter, TableToolbar, adminButton, pageOf, rowButtonStrong, sortRows, type Column } from "@/components/admin/kit";
 import { ChoiceAct } from "@/components/admin/ActButton";
 import { PlusIcon } from "@/components/stock/icons";
 import { CLAIM_STATUSES, CLAIM_STATUS_LABELS, claimOpen, claimsStore, customersStore, leadsStore, type Claim, type ClaimStatus } from "@/lib/admin/collections";
@@ -18,7 +18,7 @@ function NextStep({ c }: { c: Claim }) {
   if (!next) return null;
   return (
     <span className="relative z-10">
-      <ChoiceAct action={setClaimStatusAction.bind(null, c.id)} set={{ status: next[0], from: c.status }} back={{ status: c.status, from: next[0] }} active={false} done={`${c.carTitle}: ${CLAIM_STATUS_LABELS[next[0]]}`} label={`${next[1]}: ${c.carTitle}`} className={rowButton}>
+      <ChoiceAct action={setClaimStatusAction.bind(null, c.id)} set={{ status: next[0], from: c.status }} back={{ status: c.status, from: next[0] }} active={false} done={`${c.carTitle}: ${CLAIM_STATUS_LABELS[next[0]]}`} label={`${next[1]}: ${c.carTitle}`} className={rowButtonStrong}>
         {next[1]}
       </ChoiceAct>
     </span>
@@ -71,7 +71,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
         text="Warranty claims on cars you sold. New requests from your website come first."
         actions={
           <Link href="/aftersales/new" className={adminButton}>
-            <PlusIcon className="size-4" />
+            <PlusIcon className="shrink-0 size-4" />
             Open a claim
           </Link>
         }
@@ -112,7 +112,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
               align: "right",
               nowrap: true,
               cell: (l) => (
-                <Link href={`/aftersales/new?lead=${l.id}`} className={`${rowButton} relative z-10 border-accent text-accent-text`}>
+                <Link href={`/aftersales/new?lead=${l.id}`} className={`${rowButtonStrong} relative z-10`}>
                   <PlusIcon aria-hidden="true" className="size-4" />
                   Open a claim
                 </Link>

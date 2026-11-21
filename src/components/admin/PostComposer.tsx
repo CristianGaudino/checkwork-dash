@@ -126,7 +126,7 @@ export function PostComposer({ cars, initialSlug, initialFormat = "post", initia
             {NETWORKS.map((n) => (
               <button key={n} type="button" role="radio" aria-checked={network === n} onClick={() => pick(n, format)} className={`${card(network === n)} flex min-h-14 items-center justify-between gap-3 px-4 text-body font-medium`}>
                 <span className="inline-flex items-center gap-2"><BrandIcon name={n} className="size-5" />{n}</span>
-                {network === n && <CheckIcon className="size-4 text-accent-text" />}
+                {network === n && <CheckIcon className="shrink-0 size-4 text-accent-text" />}
               </button>
             ))}
           </div>
@@ -177,7 +177,7 @@ export function PostComposer({ cars, initialSlug, initialFormat = "post", initia
                       <img src={src} alt="" className="size-full object-cover" />
                       {on && (
                         <span className="absolute right-1 top-1 inline-flex size-5 items-center justify-center rounded-full bg-accent text-on-accent">
-                          <CheckIcon className="size-3" />
+                          <CheckIcon className="shrink-0 size-3" />
                         </span>
                       )}
                     </button>

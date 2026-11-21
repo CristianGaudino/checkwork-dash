@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { DataTable, EmptyState, Notice, PageHeader, Panel, SummaryTabs, TableFooter, TableToolbar, Task, TaskList, adminButton, pageOf, rowButton, sortRows, type Column, type FilterGroup } from "@/components/admin/kit";
+import { DataTable, EmptyState, Notice, PageHeader, Panel, SummaryTabs, TableFooter, TableToolbar, Task, TaskList, adminButton, pageOf, rowButton, rowButtonStrong, sortRows, type Column, type FilterGroup } from "@/components/admin/kit";
 import { CarFlags, ListingButton, PostToSocial, ViewOnSite, daysInStock } from "@/components/admin/CarActions";
 import { ActButton } from "@/components/admin/ActButton";
 import { RowMenu } from "@/components/admin/RowMenu";
@@ -47,7 +47,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
   // A sold car with no sale recorded gets the button: Mark sold in our version records it; after the DoneDeal sync it is asked for here.
   const recordSale = (c: Car) =>
     isSold(c) && !sales.has(c.id) ? (
-      <Link href={`/stock/${c.id}/sale`} aria-label={`Record sale: ${carName(c)}`} className={rowButton}>
+      <Link href={`/stock/${c.id}/sale`} aria-label={`Record sale: ${carName(c)}`} className={rowButtonStrong}>
         Record sale
       </Link>
     ) : null;
@@ -73,6 +73,14 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
       </Link>
     ) : null;
   const social = await hasModule("social");
+  // Post and View as More items below 1536px (in the row from there); anyLaptopItems mirrors when they show (CarActions), so More is never empty.
+  const laptopItems = (c: Car) => (
+    <>
+      {social && <PostToSocial car={c} className={`${rowButton} 2xl:hidden`} />}
+      <ViewOnSite car={c} shown={conditionShown(mods, c.condition)} className={`${rowButton} 2xl:hidden`} />
+    </>
+  );
+  const anyLaptopItems = (c: Car) => (social && forSale(c)) || (conditionShown(mods, c.condition) && Boolean(siteUrl) && onPublicSite(c, rules.soldVisibleDays));
 
   const columns: Column<Car>[] = [
     // Tick several cars to change them at once (#104). Our version only: DoneDeal stock is changed on DoneDeal.
@@ -153,32 +161,38 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
       hide: "sm", // on a phone the row opens the car, and its page has these at the top
       cell: (c) => (
         // Above the row's own link, so these buttons are what a press on them hits. The most used ones are in the row, labelled; the rest
-        // are under More. On a smaller laptop Post and View show their icon only (CarActions), so the row fits.
+        // are under More. Post and View are in the row from 1536px and under More below it, so a laptop row fits, always in words.
         <div className="relative z-10 flex justify-end gap-2">
           {recordSale(c)}
-          {social && <PostToSocial car={c} short className={rowButton} />}
-          <ViewOnSite car={c} shown={conditionShown(mods, c.condition)} short className={rowButton} />
+          {social && <PostToSocial car={c} className={`${rowButton} max-2xl:hidden`} />}
+          <ViewOnSite car={c} shown={conditionShown(mods, c.condition)} className={`${rowButton} max-2xl:hidden`} />
           {synced ? (
             <>
               {undoSale(c)}
               {!c.takenDownAt && (
               <a href={listingHref(c, listingUrl)} {...NEW_TAB} className={rowButton} aria-label={`Edit ${carName(c)} on ${listingSite} (opens in a new tab)`}>
-                <PencilIcon className="size-4" />
+                <PencilIcon className="shrink-0 size-4" />
                 Edit on {listingSite}
               </a>
+              )}
+              {/* Synced stock has no other menu items: More is there only while Post and View are out of the row. */}
+              {anyLaptopItems(c) && (
+                <span className="contents 2xl:hidden">
+                  <RowMenu label={`More for ${carName(c)}`}>{laptopItems(c)}</RowMenu>
+                </span>
               )}
             </>
           ) : (
             <>
               {!isSold(c) && (
-                <Link href={`/stock/${c.id}/sale`} aria-label={`Mark sold: ${carName(c)}`} className={rowButton}>
-                  <CheckIcon className="size-4" />
+                <Link href={`/stock/${c.id}/sale`} aria-label={`Mark sold: ${carName(c)}`} className={rowButtonStrong}>
+                  <CheckIcon className="shrink-0 size-4" />
                   Mark sold
                 </Link>
               )}
               <RowMenu label={`More for ${carName(c)}`}>
                 <Link href={`/stock/${c.id}`} className={rowButton}>
-                  <PencilIcon className="size-4" />
+                  <PencilIcon className="shrink-0 size-4" />
                   Edit details and photos
                 </Link>
                 {deposits && (forSale(c) || c.reserved) && !isSold(c) && (
@@ -186,6 +200,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
                     {c.reserved ? "Deposit" : "Reserve"}
                   </Link>
                 )}
+                {laptopItems(c)}
                 <ListingButton car={c} className={rowButton} />
                 {undoSale(c)}
                 {/* Back on sale only where no sale is recorded: undoing a recorded sale keeps its record (Undo sale). */}
@@ -226,11 +241,11 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
     // One at a time, oldest first: the row and its button open the next sale to record, so the count and the page behind it agree.
     toRecord.length > 0 && (
       <Task key="sale" urgency="now" icon={<ReceiptIcon />} count={toRecord.length} title={one(toRecord, "sold cars with no sale recorded", "sold car with no sale recorded")} detail={phoneless("Add the buyer and the price, so your reports are right.")} href={`/stock/${toRecord[0].id}/sale`}
-        action={<Link href={`/stock/${toRecord[0].id}/sale`} aria-label={`Record sale: ${carName(toRecord[0])}`} className={rowButton}>Record sale</Link>} />
+        action={<Link href={`/stock/${toRecord[0].id}/sale`} aria-label={`Record sale: ${carName(toRecord[0])}`} className={rowButtonStrong}>Record sale</Link>} />
     ),
     !synced && needPhotos.length > 0 && (
       <Task key="photos" urgency="soon" icon={<CameraIcon />} count={needPhotos.length} title={one(needPhotos, "cars need more photos", "car needs more photos")} detail={phoneless(`Cars with ${FEW_PHOTOS} or more photos get more enquiries.`)} href={href("photos")}
-        action={<Link href={`/stock/${needPhotos[0].id}#photos`} className={rowButton}>Add photos</Link>} />
+        action={<Link href={`/stock/${needPhotos[0].id}#photos`} className={rowButtonStrong}>Add photos</Link>} />
     ),
     old.length > 0 && (
       <Task key="old" urgency="soon" icon={<HistoryIcon />} count={old.length} title={one(old, `cars for sale ${OLD_DAYS} days or more`, `car for sale ${OLD_DAYS} days or more`)} detail={phoneless(synced ? `Think about a price drop on ${listingSite}.` : social ? "Tick them below to drop the price, or post them to social." : "Tick them below to drop the price.")} href={href("old")}
@@ -251,13 +266,13 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
           <>
             {synced ? (
               <a href={listingUrl} {...NEW_TAB} className={adminButton}>
-                <SyncIcon className="size-4" />
+                <SyncIcon className="shrink-0 size-4" />
                 Open {listingSite}
                 <span className="sr-only"> (opens in a new tab)</span>
               </a>
             ) : (
               <Link href="/stock/new" className={adminButton}>
-                <PlusIcon className="size-4" />
+                <PlusIcon className="shrink-0 size-4" />
                 Add a car
               </Link>
             )}
@@ -303,7 +318,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
                   <span className="text-meta text-text-2">Ad came down {fmtDate(Date.parse(`${c.takenDownAt}T12:00:00Z`))}</span>
                 </span>
                 <span className="flex flex-wrap gap-2">
-                  <Link href={`/stock/${c.id}/sale`} className={rowButton}>It sold</Link>
+                  <Link href={`/stock/${c.id}/sale`} className={rowButtonStrong}>It sold</Link>
                   <ActButton act={withdrawnAction.bind(null, c.id)} confirm={{ title: `${carName(c)} did not sell?`, text: `It stays off the website. If the ad goes back up on ${listingSite}, the car comes back too.`, yes: "It did not sell" }} className={rowButton}>
                     It did not sell
                   </ActButton>

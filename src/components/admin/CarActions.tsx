@@ -13,32 +13,26 @@ import { dealerProfile } from "@/lib/tenancy/current";
 
 // What a dealer does with one car, the same on the stock list and on the car's own page, and the warnings that say what a car needs.
 
-// `short`: on the stock list on a smaller screen the words go to screen readers only and the icon shows (with its name on hover), so the
-// row fits a laptop: Post to social is labelled from 1280px, View on the website from 1536px.
-const words = (text: string, short: false | "xl" | "2xl") => <span className={short === "xl" ? "max-xl:sr-only" : short === "2xl" ? "max-2xl:sr-only" : ""}>{text}</span>;
-
 // A post for this car on Facebook and Instagram. Posts are for cars in stock: never a sold car. The caller checks the social module.
-export function PostToSocial({ car, className, short = false }: { car: Car; className: string; short?: boolean }) {
-  const at = short && "xl";
+export function PostToSocial({ car, className }: { car: Car; className: string }) {
   if (!forSale(car)) return null; // the composer offers only cars for sale: a hidden car, a draft or a sold one would be dropped there
   return (
     <Link href={`/marketing/new?car=${encodeURIComponent(car.slug)}`} title="Post to Facebook and Instagram" aria-label={`Post to social: ${carName(car)}`} className={className}>
       <ShareIcon className="size-4 shrink-0" />
-      {words("Post to social", at)}
+      Post to social
     </Link>
   );
 }
 
 // The car as a customer sees it, in a new tab. A hidden car or a draft has no page on the website.
 // `shown`: the car's kind (new, commercial) is on the site with the dealer's modules (conditionShown).
-export async function ViewOnSite({ car, shown, className, short = false }: { car: Car; shown: boolean; className: string; short?: boolean }) {
-  const at = short && "2xl";
+export async function ViewOnSite({ car, shown, className }: { car: Car; shown: boolean; className: string }) {
   const { siteUrl, rules } = await dealerProfile();
   if (!shown || !siteUrl || !onPublicSite(car, rules.soldVisibleDays)) return null; // no link to a page that answers "gone" or not found, nor with no website
   return (
     <a href={siteCarUrl(siteUrl, car.slug)} {...NEW_TAB} title="Open the car's page on your website" aria-label={`View on the website: ${carName(car)} (opens in a new tab)`} className={className}>
       <ExternalIcon className="size-4 shrink-0" />
-      {words("View on the website", at)}
+      View on the website
     </a>
   );
 }

@@ -13,7 +13,7 @@ export { TableFooter, type FilterGroup } from "./TableTools";
 // The page's own bar: its title and its actions. From 1024px it stays at the top while the page scrolls, so where you are and what you can
 // do are always in view; the title is sized as a working tool's, not a headline.
 // `back` is the way up from an inner page: one small link above the title, the same on every page, never a button among the actions.
-export function PageHeader({ title, text, actions, back }: { title: string; text?: string; actions?: React.ReactNode; back?: { href: string; label: string } }) {
+export function PageHeader({ title, text, actions, back }: { title: string; text?: React.ReactNode; actions?: React.ReactNode; back?: { href: string; label: string } }) {
   return (
     <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 lg:sticky lg:top-0 lg:z-20 lg:-mx-10 lg:min-h-20 lg:border-b lg:border-hairline lg:bg-surface lg:px-10 lg:py-4">
       <div className="min-w-0">
@@ -263,8 +263,14 @@ export function paginate<T>(rows: T[], asked: string | undefined, size = PER_PAG
 // A table's page from the URL (?page=, ?per=), ready for its footer: <TableFooter {...pageOf(rows, sp)} />.
 export const pageOf = <T,>(rows: T[], sp: { page?: string; per?: string }) => paginate(rows, sp.page, perPage(sp.per));
 
-// A small button in a table row: always a word, sometimes an icon before it.
-export const rowButton = `inline-flex h-11 group-data-[density=compact]/shell:h-8 items-center justify-center gap-1.5 whitespace-nowrap rounded-control border border-hairline bg-card px-3 text-meta font-medium text-text transition-colors hover:border-control ${press}`;
+// Buttons in a row or a list: always a word, sometimes an icon before it. The levels are in docs/dashboard-polish.md (Buttons).
+const rowBase = `inline-flex h-11 group-data-[density=compact]/shell:h-8 items-center justify-center gap-1.5 whitespace-nowrap rounded-control px-3 text-meta font-medium transition-colors ${press}`;
+// Tertiary: text only, for the rest of a row's actions, See all, More.
+export const rowButton = `${rowBase} text-accent-text hover:bg-accent-soft`;
+// The row's most used action (Call, Confirm, Record sale): tonal, one per row.
+export const rowButtonStrong = `${rowBase} bg-accent-soft text-accent-text hover:bg-accent-soft-hover`;
+// Delete or remove in a row: red text, a red tint on hover.
+export const rowDanger = `${rowBase} text-bad hover:bg-bad-soft`;
 
 // A page's views, one at a time (Today, Week, List): links, so the view is in the URL. Not a filter: a view changes how the page is laid out.
 export function Segmented({ items, label }: { items: { label: string; href: string; active: boolean }[]; label: string }) {
@@ -304,10 +310,12 @@ export function Facts({ items }: { items: (readonly [string, React.ReactNode, st
 }
 
 export const adminInput = "h-11 rounded-control border border-control bg-card px-3 text-body";
+// Primary: filled, the main thing to do in a panel or screen area, one per area.
 export const adminButton = `inline-flex h-11 items-center justify-center gap-2 rounded-control bg-accent px-5 text-meta font-semibold text-on-accent ${press}`;
-export const adminButtonQuiet = `inline-flex h-11 items-center justify-center gap-2 rounded-control border border-control bg-card px-5 text-meta font-semibold ${press}`;
-// For what cannot be taken back: outlined in red, never filled, so it never reads as the main action.
-export const dangerButton = `inline-flex h-11 items-center justify-center gap-2 rounded-control border border-bad bg-card px-5 text-meta font-semibold text-bad ${press}`;
+// Secondary: a tonal fill, no outline, for the other actions beside the primary.
+export const adminButtonQuiet = `inline-flex h-11 items-center justify-center gap-2 rounded-control bg-accent-soft px-5 text-meta font-semibold text-accent-text transition-colors hover:bg-accent-soft-hover ${press}`;
+// For what cannot be taken back: a red tint, never solid, so it never reads as the main action.
+export const dangerButton = `inline-flex h-11 items-center justify-center gap-2 rounded-control bg-bad-soft px-5 text-meta font-semibold text-bad ${press}`;
 
 // A labelled form control. `children` is the control itself, so selects, textareas and inputs share one frame.
 export function Field({ label, hint, error, children, className = "" }: { label: string; hint?: string; error?: string; children: React.ReactNode; className?: string }) {
@@ -357,7 +365,8 @@ export function Avatar({ name, className = "" }: { name: string; className?: str
 
 // One choice among several, as a button that posts on its own: a server action gets the `name` and `value`. The chosen one is filled.
 // A choice among a few (a status, who has it), filled when it is the one now. ChoiceAct (ActButton.tsx) runs it with Undo in its toast.
-export const choicePill = (active: boolean) => `inline-flex min-h-11 items-center gap-2 rounded-full border px-4 text-meta font-medium ${active ? "border-text bg-text text-ink" : "border-control bg-card text-text"} ${press}`;
+// A neutral chip, not an outline, so a row of choices never reads as a row of buttons of equal weight.
+export const choicePill = (active: boolean) => `inline-flex min-h-11 items-center gap-2 rounded-full px-4 text-meta font-medium transition-colors ${active ? "bg-text text-ink" : "bg-hairline text-text hover:bg-accent-soft hover:text-accent-text"} ${press}`;
 
 // What needs doing, as a list a person works down: each row says what it is, why it matters now (`detail`) and has the button that does
 // it (`action`), so nobody has to work out where to go. The marker on the left is the urgency: `now` (red) is late or due today, `soon`

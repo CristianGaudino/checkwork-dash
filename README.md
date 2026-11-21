@@ -75,7 +75,7 @@ never the only way: `npm run deploy:prod` from a laptop with a logged-in wrangle
 - [ ] Secrets in each environment: `CRON_KEY` and the others in `.env.example` (`wrangler secret put <NAME>`, add `--env production`).
 - [ ] Push notifications in each environment (#11, a key pair of its own each): `node scripts/vapid-keys.mjs` for dev, or
   `node scripts/vapid-keys.mjs --env production`. It prints the two steps: `VAPID_PUBLIC_KEY` into that environment's `vars` in
-  `wrangler.jsonc` (not a secret), and `npx wrangler secret put VAPID_PRIVATE_KEY` (add `--env production`). Until both are set,
+  `wrangler.jsonc` or as a secret (never both), and `npx wrangler secret put VAPID_PRIVATE_KEY` (add `--env production`). Until both are set,
   Settings says notifications are not set up yet and nothing is sent.
 - [ ] The GitHub secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` for the deploy workflow.
 - [ ] The first deploy and migrations of each: `npm run deploy`, then `npm run deploy:prod`.
