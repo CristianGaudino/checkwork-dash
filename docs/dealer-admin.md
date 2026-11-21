@@ -290,10 +290,16 @@ cars are added, changed and sold on DoneDeal only. The dashboard never edits the
 
 ## Cloudflare Access (owner set-up, once)
 
-1. Zero Trust, Access, Applications, Add, Self-hosted. Add the whole of `www.dash.checkwork.ie`. Access only proves the email (a one-time
-   PIN is enough, #4): who may open which dealer is the app's decision, from the directory, so there is nothing to change here per person. Give `/api/owner*` its own application with a Bypass policy (the owner's program brings its own token, `docs/owner-api.md`).
-2. Copy the application's Audience tag. Your team domain is `<team>.cloudflareaccess.com`.
-3. On the Worker, add two variables (not secrets): `CF_ACCESS_TEAM_DOMAIN` and `CF_ACCESS_AUD`.
+1. Zero Trust, Access, Applications, Add, Self-hosted. Add the whole of `www.dash.checkwork.ie` and `dash.checkwork.ie`, with the one-time
+   PIN login. The policy is **Allow** for **named emails only** (an Emails include, or an Access group of them): never Everyone, never a
+   whole email domain. The dashboard is private: sign-in only, with no sign-up and no public demo (owner, 2026-11-22). Which dealer a
+   person opens, and as what, is still the app's decision, from the directory (#4).
+   Give `/api/owner*` and `/api/site/*` their own applications with a Bypass policy (each brings its own token or key, `docs/owner-api.md`,
+   `docs/site-api.md`).
+2. **Adding a person** takes both, until our own sign-in replaces Access (#10): they are added in Settings, Team (the directory), and their
+   email is added to the Access policy (ours to do). Removing someone: take them off both.
+3. Copy the application's Audience tag. Your team domain is `<team>.cloudflareaccess.com`.
+4. On the Worker, add two variables (not secrets): `CF_ACCESS_TEAM_DOMAIN` and `CF_ACCESS_AUD`.
 
 Until both are set every page answers 404 for everyone. The Worker checks Access's signed token itself (`src/lib/access.ts`), so a missing policy fails closed instead of open.
 

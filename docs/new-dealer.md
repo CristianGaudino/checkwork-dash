@@ -69,8 +69,9 @@ until the owner says so.
    have people); without `--profile` it is then the demo business. An existing dealer or member is left as it is, so it is safe to run
    again (change an existing dealer's profile as below).
 
-5. Nothing to change in Cloudflare Access: it only proves the email (#4), and the app lets in whoever the directory has. The owner signs in,
-   checks their details in Settings, Your business, adds the team in Settings, Team (which writes the directory), then Lead emails.
+5. Add the owner's email to the Cloudflare Access policy (named emails only, never Everyone: `docs/dealer-admin.md`, "Cloudflare
+   Access"). The owner signs in, checks their details in Settings, Your business, adds the team in Settings, Team (which writes the
+   directory), then Lead emails. Each person they add needs their email added to the Access policy too, until our own sign-in (#10).
 
 ## Every deploy
 
