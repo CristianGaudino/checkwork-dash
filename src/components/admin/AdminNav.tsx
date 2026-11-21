@@ -6,7 +6,8 @@ import { useEffect, useId, useRef, useState } from "react";
 import { navGroups, openGroupsCookie, type NavGroup, type NavIcon, type NavItem } from "@/lib/admin/nav";
 import { Sheet, leaveSheet } from "@/components/Sheet";
 import { CalendarIcon, CarIcon, ChartIcon, ChevronDownIcon, CogIcon, HistoryIcon, ReportIcon, ReceiptIcon, HelpIcon, WhatsAppIcon, ShieldCheckIcon, TruckIcon, WrenchIcon, HomeIcon, InboxIcon, MegaphoneIcon, MenuIcon, PercentIcon, StarIcon, UsersIcon } from "@/components/stock/icons";
-import { press } from "@/components/ui";
+import { NEW_TAB, press } from "@/components/ui";
+import { useDealerFacts } from "@/components/DealerFacts";
 
 const ICONS: Record<NavIcon, typeof HomeIcon> = { home: HomeIcon, inbox: InboxIcon, car: CarIcon, calendar: CalendarIcon, users: UsersIcon, megaphone: MegaphoneIcon, chart: ChartIcon, percent: PercentIcon, star: StarIcon, cog: CogIcon, history: HistoryIcon, report: ReportIcon, shield: ShieldCheckIcon, wrench: WrenchIcon, truck: TruckIcon, whatsapp: WhatsAppIcon, receipt: ReceiptIcon, help: HelpIcon };
 
@@ -123,6 +124,7 @@ function TabBar({ items, label, current }: { items: NavItem[]; label: string; cu
   // Each item under its sidebar group, so More shows the same headings.
   const more = items.map((it) => ({ ...it, section: it.group ?? "" })).filter((i) => !TABS.includes(i.href));
   const inMore = more.some((i) => current(i.href));
+  const { siteUrl } = useDealerFacts();
   const tab = (on: boolean) => `flex min-h-14 flex-col items-center justify-center gap-0.5 text-[0.75rem] font-medium leading-tight ${on ? "text-accent-text" : "text-text-2"} ${press}`;
   return (
     <Sheet
@@ -167,9 +169,11 @@ function TabBar({ items, label, current }: { items: NavItem[]; label: string; cu
             </div>
           );
         })}
-        <Link href="/" onClick={leaveSheet} className="mt-4 flex min-h-12 items-center border-t border-hairline text-body text-text-2 underline">
-          View the public site
-        </Link>
+        {siteUrl && (
+          <a href={siteUrl} {...NEW_TAB} onClick={leaveSheet} className="mt-4 flex min-h-12 items-center border-t border-hairline text-body text-text-2 underline">
+            View your website<span className="sr-only"> (opens in a new tab)</span>
+          </a>
+        )}
       </nav>
     </Sheet>
   );

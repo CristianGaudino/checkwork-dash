@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
-vi.mock("next/headers", () => ({ cookies: async () => ({ get: () => undefined }), headers: async () => ({ get: () => null }) }));
+// The demo bar's plan switch (a cookie): it counts here because the tests' dealer is the demo dealer (src/lib/tenancy/current.ts demoCookie).
+let plan: string | undefined;
+vi.mock("next/headers", () => ({ cookies: async () => ({ get: (n: string) => (n === "checkwork-demo-modules" && plan ? { value: plan } : undefined) }), headers: async () => ({ get: () => null }) }));
 vi.mock("next/navigation", () => ({ notFound: () => { throw new Error("not-found"); } }));
 const { writeAction } = await import("./actions");
 const { saveBilling, monthCounts, recordUsage } = await import("@/lib/billing/usage");
@@ -14,7 +16,7 @@ const count = async (kind: string) => (await monthCounts()).find((c) => c.servic
 describe("writeWithAI behind the dashboard", () => {
   afterEach(async () => {
     await saveBilling({ caps: {}, aiModel: "opus" });
-    delete process.env.NEXT_PUBLIC_SITE_MODULES;
+    plan = undefined;
   });
 
   it("writes a post from the car, counted under the dealer's model, and an adjust the same way", async () => {
@@ -52,7 +54,7 @@ describe("writeWithAI behind the dashboard", () => {
   });
 
   it("does not exist for a dealer without the AI module", async () => {
-    process.env.NEXT_PUBLIC_SITE_MODULES = "dashboard";
+    plan = "dashboard";
     await expect(writeAction({ task: "newsletter" })).rejects.toThrow("not-found");
   });
 });

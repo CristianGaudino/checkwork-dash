@@ -10,7 +10,7 @@ vi.mock("@/lib/tenancy/membership", async (orig) => ({
   ...(await orig<typeof import("@/lib/tenancy/membership")>()),
   dealerAccess: async () => ({
     state: "ok",
-    dealer: { id: "checkwork-motors", name: "Checkwork Motors", binding: "DB_CHECKWORK_MOTORS", demo: true, status: "active", createdAt: 0 },
+    dealer: { id: "checkwork-motors", name: "Checkwork Motors", binding: "DB_CHECKWORK_MOTORS", demo: true, status: "active", createdAt: 0, profile: (await import("@/lib/tenancy/profile")).DEMO_PROFILE },
     role: null,
     email: "",
     choices: [{ id: "checkwork-motors", name: "Checkwork Motors" }],

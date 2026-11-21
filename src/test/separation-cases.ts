@@ -25,6 +25,31 @@ export function separationCases() {
     await runAsDealer(B, async () => expect(await c.list()).toEqual([{ id: "x", n: 9 }]));
   });
 
+  it("gives each dealer its own name, logo, website, plan, stock source and rules, from its profile, and a change to one leaves the other", async () => {
+    const { currentDealer, runAsDealer } = await import("@/lib/tenancy/current");
+    const { patchDealer } = await import("@/lib/tenancy/directory");
+    const { DEFAULT_PROFILE } = await import("@/lib/tenancy/profile");
+    const { enabledModules } = await import("@/lib/modules");
+    const { listing, stockSource } = await import("@/lib/stock-source");
+    const { MODULE_IDS } = await import("@/lib/modules-rules");
+    const seen = () => Promise.all([currentDealer(), enabledModules(), stockSource(), listing()]).then(([d, mods, source, l]) => ({ name: d.name, profile: d.profile, mods: [...mods], source, site: l.site }));
+    await patchDealer(B, "Test Motors", { siteUrl: "https://www.test-motors.example", modules: "dashboard,testDrives", stock: { source: "donedeal", listingSite: "CarsIreland", listingUrl: "https://www.carsireland.ie/" }, rules: { ...DEFAULT_PROFILE.rules, oldStockDays: 60 } });
+    try {
+      const a = await runAsDealer(A, seen);
+      const b = await runAsDealer(B, seen);
+      expect(a).toMatchObject({ name: "Checkwork Motors", source: "checkwork", site: "DoneDeal", profile: { siteUrl: "https://www.demo.checkwork.ie", logo: { onDark: "/brand/logo.svg" }, rules: { oldStockDays: 120 } } });
+      expect(a.mods).toHaveLength(MODULE_IDS.length);
+      expect(b).toMatchObject({ name: "Test Motors", mods: ["dashboard", "testDrives"], source: "donedeal", site: "CarsIreland", profile: { siteUrl: "https://www.test-motors.example", rules: { oldStockDays: 60, slowDropEur: 500 } } });
+      expect(b.profile.logo).toBeUndefined();
+      // The dealer's own facts (Settings) merge into the profile: our plan, stock source and rules stay, and the other dealer is untouched.
+      await patchDealer(B, "Test Motors Ltd", { phone: "01 000 0000", rules: { slowDropEur: 300 } as never });
+      expect(await runAsDealer(B, seen)).toMatchObject({ name: "Test Motors Ltd", mods: ["dashboard", "testDrives"], source: "donedeal", profile: { phone: "01 000 0000", rules: { oldStockDays: 60, slowDropEur: 300 } } });
+      expect(await runAsDealer(A, seen)).toMatchObject({ name: "Checkwork Motors", profile: { phone: "+353 1 906 0045" } });
+    } finally {
+      await patchDealer(B, "Test Motors", null);
+    }
+  });
+
   it("gives the demo dealer its made-up records and a dealer that is not a demo none", async () => {
     const { leadsStore } = await import("@/lib/admin/collections");
     const { runAsDealer } = await import("@/lib/tenancy/current");

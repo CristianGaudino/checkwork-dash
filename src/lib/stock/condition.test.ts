@@ -5,7 +5,7 @@ import { DEFAULT_QUERY } from "./query";
 import type { Car } from "./types";
 
 const car = (id: string, o: Partial<Car> = {}): Car => ({ id, slug: `make-model-2020-${id}`, make: "Make", makeSlug: "make", model: "Model", modelSlug: "model", year: 2020, priceEur: 10000, photos: [], ...o });
-const engine = createStockEngine([car("1"), car("2", { condition: "used" }), car("3", { condition: "new" }), car("4", { condition: "commercial", vat: "ex" })]);
+const engine = createStockEngine([car("1"), car("2", { condition: "used" }), car("3", { condition: "new" }), car("4", { condition: "commercial", vat: "ex" })], { soldDays: 30 });
 const ids = async (condition?: Car["condition"]) => (await engine.query({ ...DEFAULT_QUERY, condition })).cars.map((c) => c.id).sort();
 
 describe("stock condition", () => {
@@ -21,7 +21,7 @@ describe("stock condition", () => {
   it("keeps new and commercial out of the make and body lists the used pages use", async () => {
     const t = await engine.taxonomy();
     expect(t.makes).toHaveLength(1);
-    const withNew = createStockEngine([car("1"), car("3", { condition: "new", make: "Kia", makeSlug: "kia" })]);
+    const withNew = createStockEngine([car("1"), car("3", { condition: "new", make: "Kia", makeSlug: "kia" })], { soldDays: 30 });
     expect((await withNew.taxonomy()).makes.map((m) => m.slug)).toEqual(["make"]);
   });
   it("facets on a kind count only that kind", async () => {

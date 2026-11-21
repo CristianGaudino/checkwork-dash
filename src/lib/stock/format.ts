@@ -1,6 +1,5 @@
 import { FUEL_LABELS, GEARBOX_LABELS, onRequest } from "./types";
 import { PRICING } from "./pricing.config";
-import { SITE_URL } from "@/lib/site";
 import type { Car } from "./types";
 
 const eur = new Intl.NumberFormat("en-IE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
@@ -15,8 +14,9 @@ export const carTitle = (car: Pick<Car, "make" | "model" | "variant">) => [car.m
 export const carName = (car: Pick<Car, "year" | "make" | "model">) => `${car.year} ${car.make} ${car.model}`;
 // A car's own page, whatever kind it is (used, new or commercial all live under /used-cars).
 export const carHref = (slug: string) => `/used-cars/${slug}`;
-// The same page as a full address on the dealer's website: the website is a separate app, so the dashboard links there in a new tab.
-export const siteCarUrl = (slug: string) => `${SITE_URL}${carHref(slug)}`;
+// The same page as a full address on the dealer's website (`siteUrl`, their profile's): the website is a separate app, so the dashboard
+// links there in a new tab. A dealer with no website has no such page: callers check `siteUrl` first.
+export const siteCarUrl = (siteUrl: string, slug: string) => `${siteUrl}${carHref(slug)}`;
 // What a lead dialog shows of a car (CarSummary). Only these fields cross into client components, never the Car (LED-02).
 // The price as words: the figure, or Price on request for a price of 0.
 export const priceLabel = (car: Pick<Car, "priceEur">) => (onRequest(car) ? PRICING.labels.onRequest : fmtEur(car.priceEur));

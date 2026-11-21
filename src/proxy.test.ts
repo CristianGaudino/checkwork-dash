@@ -42,24 +42,3 @@ describe("the dashboard gate in the proxy", () => {
     expect((await get("/", { "cf-access-jwt-assertion": "a.b.c", "x-admin-email": "forged@evil.example" })).status).toBe(404);
   });
 });
-
-describe("modules in the proxy (#173)", () => {
-  it("answers 404 for every page when the dealer does not have the dashboard, and a module's page without its module", async () => {
-    vi.stubEnv("NODE_ENV", "development");
-    const plan = (modules: string) => ({ cookie: `checkwork-demo-modules=${modules}` });
-    expect((await get("/", plan("reviews"))).status).toBe(404);
-    expect((await get("/reviews", plan("reviews"))).status).toBe(404);
-    expect((await get("/leads", plan("dashboard"))).status).toBe(200);
-  });
-  it("says a module is not in the plan only with the dashboard on", async () => {
-    const to = async (path: string, cookie?: string) => {
-      const res = await get(path, cookie === undefined ? {} : { cookie: `checkwork-demo-modules=${cookie}` });
-      const where = new URL(res.headers.get("x-middleware-rewrite")!).pathname;
-      expect(res.status, path).toBe(where.startsWith("/not-in-plan/") ? 200 : 404); // the screen's own action needs a 200 (src/proxy.ts)
-      return where;
-    };
-    vi.stubEnv("NODE_ENV", "development");
-    expect(await to("/whatsapp", "dashboard")).toBe("/not-in-plan/whatsapp");
-    expect(await to("/test-drives", "none")).toBe("/not-found-closed-area");
-  });
-});

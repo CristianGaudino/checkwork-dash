@@ -4,9 +4,10 @@ import { useKeptForm } from "@/components/admin/useKeptForm";
 import { Select } from "@/components/Select";
 import { startTransition, useActionState, useState } from "react";
 import { Field, adminButton, adminButtonQuiet, adminInput } from "@/components/admin/kit";
-import { addTeamAction, setRoleAction, saveLeadEmailsAction, saveMarketingAction, sendTestEmailAction, saveNotificationsAction, saveTargetsAction, type SettingsState } from "@/app/settings/actions";
+import { addTeamAction, setRoleAction, saveBusinessAction, saveLeadEmailsAction, saveMarketingAction, sendTestEmailAction, saveNotificationsAction, saveTargetsAction, type SettingsState } from "@/app/settings/actions";
 import type { DealerSettings, TeamMember } from "@/lib/admin/collections";
 import { ROLES } from "@/lib/permission-rules";
+import type { DealerProfile } from "@/lib/tenancy/profile";
 import { CheckIcon } from "@/components/stock/icons";
 
 const ROLE_OPTIONS = ROLES.map((r) => [r, r] as const);
@@ -34,6 +35,56 @@ function Save({ pending, saved, add = false }: { pending: boolean; saved?: boole
         </p>
       )}
     </div>
+  );
+}
+
+// The dealer's own facts. Hours: a time each for opening and closing, empty for a closed day.
+export function BusinessForm({ name, profile }: { name: string; profile: Pick<DealerProfile, "siteUrl" | "phone" | "email" | "address" | "hours"> }) {
+  const f = useSave(saveBusinessAction);
+  return (
+    <form {...f.run} className="flex flex-col gap-4" noValidate>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Field label="Name" error={f.errors.name}>
+          <input name="name" defaultValue={name} className={adminInput} />
+        </Field>
+        <Field label="Website" hint="The full address, like https://www.yourname.ie" error={f.errors.siteUrl}>
+          <input name="siteUrl" type="url" defaultValue={profile.siteUrl} className={adminInput} />
+        </Field>
+        <Field label="Phone" error={f.errors.phone}>
+          <input name="phone" type="tel" defaultValue={profile.phone} className={adminInput} />
+        </Field>
+        <Field label="Email" error={f.errors.email}>
+          <input name="email" type="email" defaultValue={profile.email} className={adminInput} />
+        </Field>
+        <Field label="Street" error={f.errors.street}>
+          <input name="street" defaultValue={profile.address.street} className={adminInput} />
+        </Field>
+        <Field label="Town" error={f.errors.town}>
+          <input name="town" defaultValue={profile.address.town} className={adminInput} />
+        </Field>
+        <Field label="County" error={f.errors.county}>
+          <input name="county" defaultValue={profile.address.county} className={adminInput} />
+        </Field>
+        <Field label="Eircode" error={f.errors.eircode}>
+          <input name="eircode" defaultValue={profile.address.eircode} className={adminInput} />
+        </Field>
+      </div>
+      <fieldset className="flex flex-col gap-2">
+        <legend className="mb-1 text-meta font-semibold">Opening hours</legend>
+        {profile.hours.map((h, i) => (
+          <div key={h.day} className="grid grid-cols-[6rem_minmax(0,1fr)_minmax(0,1fr)] items-start gap-2">
+            <span className="flex h-11 items-center text-body">{h.day}</span>
+            <Field label={`${h.day} opens`} error={f.errors[`opens${i}`]} className="[&>span:first-child]:sr-only">
+              <input name={`opens${i}`} type="time" defaultValue={h.opens ?? ""} className={adminInput} />
+            </Field>
+            <Field label={`${h.day} closes`} className="[&>span:first-child]:sr-only">
+              <input name={`closes${i}`} type="time" defaultValue={h.closes ?? ""} className={adminInput} />
+            </Field>
+          </div>
+        ))}
+      </fieldset>
+      <Save pending={f.pending} saved={f.state?.saved} />
+    </form>
   );
 }
 

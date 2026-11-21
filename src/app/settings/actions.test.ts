@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
-// These act as the demo's roles (the demo bar's cookie), which count only on the demo deploy (src/lib/demo.ts, demoCookiesCount).
+// These act as the demo's roles (the demo bar's cookie), which count only for a demo dealer, as the tests' dealer is (src/lib/tenancy/current.ts).
 beforeEach(() => vi.stubEnv("APP_ENV", "demo"));
 
 // The demo acts as the role in the demo bar's cookie (src/lib/permissions.ts); set per test, the owner by default.
@@ -12,14 +12,41 @@ vi.mock("next/headers", () => ({
   cookies: async () => ({ get: (n: string) => (n === "checkwork-demo-role" && role ? { value: role } : undefined) }),
   headers: async () => ({ get: () => null }),
 }));
-const { addTeamAction, removeTeamAction, resetDemoAction, saveLeadEmailsAction, saveMarketingAction, saveNotificationsAction, saveTargetsAction, sendTestEmailAction, setRoleAction } = await import("./actions");
+const { addTeamAction, removeTeamAction, resetDemoAction, saveBusinessAction, saveLeadEmailsAction, saveMarketingAction, saveNotificationsAction, saveTargetsAction, sendTestEmailAction, setRoleAction } = await import("./actions");
 const { adminCars, saveCar } = await import("@/lib/admin/stock-admin");
 const { getSettings, leadsStore, settingsStore } = await import("@/lib/admin/collections");
 const { listActivity } = await import("@/lib/admin/activity");
-const { resetMemoryDirectory } = await import("@/lib/tenancy/directory");
+const { dealerById, resetMemoryDirectory } = await import("@/lib/tenancy/directory");
 beforeEach(() => resetMemoryDirectory()); // who is on the team, and as what, is the directory's
 
 const form = (o: Record<string, string>) => Object.entries(o).reduce((f, [k, v]) => (f.set(k, v), f), new FormData());
+
+describe("business details", () => {
+  const HOURS = Object.fromEntries([0, 1, 2, 3, 4].flatMap((i) => [[`opens${i}`, "09:00"], [`closes${i}`, "17:30"]]));
+  const facts = { name: "Checkwork Motors", siteUrl: "https://www.example.ie/", phone: "01 234 5678", email: "sales@example.ie", street: "Main Street", town: "Naas", county: "Co. Kildare", eircode: "W91 X2Y3", ...HOURS };
+
+  it("lets an owner or manager change the dealer's own facts in the directory, and logs it; the plan stays ours", async () => {
+    role = "Manager";
+    const before = (await listActivity({ area: "settings" }, 1, 1)).total;
+    expect(await saveBusinessAction(undefined, form(facts))).toEqual({ saved: true });
+    const d = (await dealerById("checkwork-motors"))!;
+    expect(d.profile).toMatchObject({ siteUrl: "https://www.example.ie", phone: "01 234 5678", address: { town: "Naas" }, modules: "all" });
+    expect(d.profile.hours[0]).toEqual({ day: "Monday", opens: "09:00", closes: "17:30" });
+    expect(d.profile.hours[6]).toEqual({ day: "Sunday" });
+    expect((await listActivity({ area: "settings" }, 1, 1)).rows[0]).toMatchObject({ summary: "Changed the business details" });
+    expect((await listActivity({ area: "settings" }, 1, 1)).total).toBe(before + 1);
+  });
+
+  it("refuses sales, a website that is not https, and a day that closes before it opens", async () => {
+    role = "Sales";
+    expect((await saveBusinessAction(undefined, form(facts)))?.errors?.name).toMatch(/owner or manager/);
+    role = "Owner";
+    expect((await saveBusinessAction(undefined, form({ ...facts, siteUrl: "http://www.example.ie" })))?.errors?.siteUrl).toBeTruthy();
+    expect((await saveBusinessAction(undefined, form({ ...facts, opens1: "18:00" })))?.errors?.opens1).toBeTruthy();
+    expect((await saveBusinessAction(undefined, form({ ...facts, closes2: "" })))?.errors?.opens2).toBeTruthy();
+    expect((await dealerById("checkwork-motors"))!.profile.phone).toBe("+353 1 906 0045"); // nothing saved
+  });
+});
 
 describe("team settings", () => {
   beforeEach(async () => {

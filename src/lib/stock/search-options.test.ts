@@ -39,7 +39,7 @@ describe("newest first by listing date", () => {
       { ...base, id: "3", slug: "kia-rio-2019-3", listedAt: "2026-10-01" },
       { ...base, id: "2", slug: "kia-rio-2019-2", listedAt: "2026-11-05" },
       { ...base, id: "1", slug: "kia-rio-2019-1" },
-    ]);
+    ], { soldDays: 30 });
     const r = await engine.query({ ...DEFAULT_QUERY, sort: "newest" });
     expect(r.cars.map((c) => c.id)).toEqual(["2", "3", "1"]);
   });

@@ -1,7 +1,6 @@
 import { carName, carHref, fmtEur } from "@/lib/stock/format";
 import { priceInfo } from "@/lib/stock/price";
 import { FUEL_LABELS, GEARBOX_LABELS, forSale, isReduced, type Car } from "@/lib/stock/types";
-import { SITE_NAME, SITE_URL } from "@/lib/site";
 import { DAY } from "@/lib/time";
 import type { Ad, DealerSettings, Network, SocialPost } from "./collections";
 import { addDays, dublinDay } from "./format";
@@ -18,8 +17,9 @@ const priceText = (c: Car) => {
   return [p.headline, p.vatLine].filter(Boolean).join(" ");
 };
 
-// What a writer may say about a car: its own fields, its price as the site shows it, and its link.
-export function carFacts(c: Car): CarFacts {
+// What a writer may say about a car: its own fields, its price as the site shows it, and its link on the dealer's website (`siteUrl`, none
+// without one).
+export function carFacts(c: Car, siteUrl: string): CarFacts {
   return {
     name: `${carName(c)}${c.variant ? ` ${c.variant}` : ""}`,
     year: c.year, mileageKm: c.mileageKm, fuel: c.fuel && FUEL_LABELS[c.fuel], gearbox: c.gearbox && GEARBOX_LABELS[c.gearbox], body: c.bodyType, engineLitres: c.engineLitres,
@@ -27,14 +27,14 @@ export function carFacts(c: Car): CarFacts {
     price: priceText(c),
     was: isReduced(c) ? fmtEur(c.wasPriceEur!) : undefined,
     features: c.features?.slice(0, 12),
-    link: `${SITE_URL}${carHref(c.slug)}`,
+    link: siteUrl ? `${siteUrl}${carHref(c.slug)}` : undefined,
   };
 }
 
 // The cars for sale, newest first (the highest id was added last): the first `n`, or all of them.
 export const newestForSale = (cars: Car[], n?: number) => cars.filter(forSale).sort((a, b) => Number(b.id) - Number(a.id)).slice(0, n);
 
-export const writePost = (car: Car, network: Network, voice: Voice, format: PostFormat = "post") => postText(carFacts(car), network, voice, format);
+export const writePost = (car: Car, siteUrl: string, network: Network, voice: Voice, format: PostFormat = "post") => postText(carFacts(car, siteUrl), network, voice, format);
 export function postText(c: CarFacts, network: Network, voice: Voice, format: PostFormat = "post"): string {
   const lead = { post: "Just in", story: "Just in", reel: "Walkaround", carousel: "More photos" }[format];
   const head = `${lead}: ${c.name}.`;
@@ -65,10 +65,11 @@ export function calendarWeek(posts: SocialPost[], ads: Ad[], days: string[]): Re
   return out;
 }
 
-export function writeNewsletter(cars: Car[], voice: Voice): { subject: string; body: string } {
+// `dealer`: their name and website, from the directory.
+export function writeNewsletter(cars: Car[], voice: Voice, dealer: { name: string; siteUrl: string }): { subject: string; body: string } {
   return {
-    subject: cars.length ? `New arrivals at ${SITE_NAME}` : `News from ${SITE_NAME}`,
-    body: newsletterText(cars.map((c) => ({ name: carName(c), price: priceText(c), link: `${SITE_URL}${carHref(c.slug)}` })), voice),
+    subject: cars.length ? `New arrivals at ${dealer.name}` : `News from ${dealer.name}`,
+    body: newsletterText(cars.map((c) => ({ name: carName(c), price: priceText(c), link: dealer.siteUrl ? `${dealer.siteUrl}${carHref(c.slug)}` : undefined })), voice),
   };
 }
 export function newsletterText(cars: Pick<CarFacts, "name" | "price" | "link">[], voice: Voice): string {

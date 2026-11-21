@@ -16,14 +16,14 @@ async function memoryStock() {
   const d = await currentDealer();
   if (!memory.has(d.id)) {
     const cars = d.demo ? [...(demoCars as Car[]), ...(extraCars as Car[])] : [];
-    memory.set(d.id, { cars, engine: createStockEngine(cars) });
+    memory.set(d.id, { cars, engine: createStockEngine(cars, { soldDays: d.profile.rules.soldVisibleDays }) });
   }
   return memory.get(d.id)!;
 }
 export const memoryCars = async () => (await memoryStock()).cars;
 export const refreshMemoryStock = async () => {
   const m = await memoryStock();
-  m.engine = createStockEngine(m.cars);
+  m.engine = createStockEngine(m.cars, { soldDays: (await currentDealer()).profile.rules.soldVisibleDays });
 };
 const files: StockProvider = {
   query: async (q) => (await source()).query(q),

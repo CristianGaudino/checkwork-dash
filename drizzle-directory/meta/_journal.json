@@ -8,6 +8,13 @@
       "when": 1795275830928,
       "tag": "0000_directory",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1795277841359,
+      "tag": "0001_dealer_profile",
+      "breakpoints": true
     }
   ]
 }

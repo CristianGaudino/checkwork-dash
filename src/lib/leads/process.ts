@@ -1,3 +1,4 @@
+import { dealerProfile } from "@/lib/tenancy/current";
 import { z } from "zod";
 import { logLead } from "@/lib/log";
 import { isSold } from "@/lib/stock/types";
@@ -194,7 +195,7 @@ export async function processLead(fd: FormData, ctx: { ip: string }, deps: Deps)
     // Awaited inline, not deferred: after() work can be cut off on Workers (research Anti-Patterns).
     try {
       const photoPaths = await Promise.all(keys.map(async (k) => signPhotoPath(k, deps.photoLinkSecret())));
-      await deps.mailer.send({ ...buildLeadEmail(row, { demo: deps.demo, photoPaths }), replyTo: row.email ?? undefined });
+      await deps.mailer.send({ ...buildLeadEmail(row, { demo: deps.demo, siteUrl: (await dealerProfile()).siteUrl, photoPaths }), replyTo: row.email ?? undefined });
     } catch {
       // The dealer was not emailed, so the buyer is not told "thanks": they see "we could not send this, call us" and their details
       // stay in the form. The lead still reaches the dashboard, marked as not emailed, so it is not lost if they never retry or call.

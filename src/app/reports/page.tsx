@@ -1,3 +1,4 @@
+import { dealerProfile } from "@/lib/tenancy/current";
 import { notFound } from "next/navigation";
 import { AreaChart, BarList } from "@/components/admin/charts";
 import { ChevronDownIcon } from "@/components/stock/icons";
@@ -26,8 +27,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ p
   );
   if (!(await can("margins"))) return <Personal period={period} tabs={tabs} />;
 
-  const [sales, cars, leads, costs, prep, { team }] = await Promise.all([salesStore.list(), adminCars(), (await leadsStore.list()).filter(isSalesLead), carCosts(), prepStore.list(), getSettings()]);
-  const r = fullReport({ sales, cars, leads, team: team.map((t) => t.name), costs: new Map([...costs].map(([id, c]) => [id, c.total])), prep, period, now: now() });
+  const [sales, cars, leads, costs, prep, { team }, { rules }] = await Promise.all([salesStore.list(), adminCars(), (await leadsStore.list()).filter(isSalesLead), carCosts(), prepStore.list(), getSettings(), dealerProfile()]);
+  const r = fullReport({ sales, cars, leads, team: team.map((t) => t.name), costs: new Map([...costs].map(([id, c]) => [id, c.total])), prep, period, now: now(), oldDays: rules.oldStockDays });
   const best = r.months.reduce((a, b) => (b.value > a.value ? b : a), r.months[0]);
 
   return (

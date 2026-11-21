@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { billingSettings, usageAllowed, recordUsage } from "@/lib/billing/usage";
 import { requireModule } from "@/lib/modules";
-import { SITE_NAME } from "@/lib/site";
+import { currentDealer } from "@/lib/tenancy/current";
 import { POST_FORMATS, STORY_LAYOUTS, NETWORKS } from "@/lib/admin/networks";
 import { buildFacts } from "./facts";
 import { ADJUSTS, adjustsFor, maskContacts, unmaskContacts, type Adjust, type WriteRequest, type WriteResult } from "./tasks";
@@ -27,7 +27,8 @@ export async function writeAction(req: WriteRequest, adjust?: Adjust, current = 
   if (!parsed.success) return { ok: false, reason: "failed" };
   if (adjust && !(Object.hasOwn(ADJUSTS, adjust) && adjustsFor(parsed.data.task).includes(adjust))) return { ok: false, reason: "failed" };
   if (!(await usageAllowed("ai"))) return { ok: false, reason: "limit" };
-  const built = await buildFacts(parsed.data as WriteRequest, SITE_NAME);
+  const { name, profile } = await currentDealer();
+  const built = await buildFacts(parsed.data as WriteRequest, name, profile.siteUrl);
   if (!built) return { ok: false, reason: "failed" };
   // The dealer's draft too: no phone or email reaches the AI provider, and theirs go back into the answer.
   const masked = maskContacts(current, true); // masked before it is cut, so a cut never leaves part of a number

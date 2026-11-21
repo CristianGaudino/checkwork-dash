@@ -2,9 +2,10 @@ import "server-only";
 import { addMessage, isStaffAlert, lastWeek, messagesStore, staffStore, type Msg } from "./store";
 import { modeOf } from "@/lib/integrations";
 import { recordUsage, usageAllowed } from "@/lib/billing/usage";
-import { EVENTS, SLOW_DAYS, SLOW_DROP_EUR, alertText, eventOfLead, firstName, inQuiet, type EventId, type Facts } from "./rules";
+import { EVENTS, alertText, eventOfLead, firstName, inQuiet, type EventId, type Facts } from "./rules";
 import { enabledModules } from "@/lib/modules";
-import { SITE_NAME, TIME_ZONE } from "@/lib/site";
+import { TIME_ZONE } from "@/lib/site";
+import { currentDealer } from "@/lib/tenancy/current";
 import type { Lead } from "@/lib/admin/collections";
 import { drivesStore, getSettings, leadsStore, reviewsStore, salesStore } from "@/lib/admin/collections";
 import { adminCars } from "@/lib/admin/stock-admin";
@@ -47,7 +48,7 @@ export async function alertStaffOnWhatsApp(lead: Lead): Promise<void> {
     const event = eventOfLead(lead.type, modules);
     const text = alertText(event, { first: firstName(lead.name), car: lead.carTitle, reg: lead.reg, text: lead.message, sell: lead.type === "sell", warranty: lead.type === "warranty" });
     const drafts = await staffCopies(event, text, { leadId: lead.id, ref: lead.id, ...(event === "enquiry" && !lead.carTitle && { buttons: ["call", "handled"] }), ...(lead.photoKeys?.length && { photoKeys: lead.photoKeys }) });
-    if (lead.whatsappOptIn && lead.phone) drafts.push({ thread: "buyer", from: "site", leadId: lead.id, text: `Hi ${firstName(lead.name)}, thanks for your message to ${SITE_NAME}. We have it and will be in touch soon.` });
+    if (lead.whatsappOptIn && lead.phone) drafts.push({ thread: "buyer", from: "site", leadId: lead.id, text: `Hi ${firstName(lead.name)}, thanks for your message to ${(await currentDealer()).name}. We have it and will be in touch soon.` });
     // By email instead only where there is an address: a buyer with only a phone gets nothing rather than an email nobody receives.
     await deliver(drafts, "alert", (d) => d.thread !== "buyer" || Boolean(lead.email));
   } catch {
@@ -70,21 +71,22 @@ export async function alertStaff(event: EventId, facts: Facts, extra: Partial<Dr
 // A car going on the website for the first time (added, or a draft published): a nudge to post it.
 export const alertNewIn = (car: Car) => alertStaff("new-in", { car: carTitleOf(car) }, { ref: car.id });
 
-// The morning job (worker.mjs, /api/whatsapp/daily): each old stock car (OLD_STOCK_DAYS) and each review from the last two days, once while its
+// The morning job (worker.mjs, /api/whatsapp/daily): each old stock car (the dealer's oldStockDays) and each review from the last two days, once while its
 // alert is kept (30 days, so a car still unsold a month on is raised again), and on a Monday last week's summary.
 export async function sendDailyAlerts(now = Date.now()): Promise<{ sent: number }> {
   if (!(await enabledModules()).has("whatsapp")) return { sent: 0 };
   const said = new Set((await messagesStore.list()).filter(isStaffAlert).map((m) => `${m.event}:${m.ref}`));
-  const [cars, reviews] = await Promise.all([adminCars(), reviewsStore.list()]);
+  const [cars, reviews, { profile }] = await Promise.all([adminCars(), reviewsStore.list(), currentDealer()]);
+  const { oldStockDays, slowDropEur } = profile.rules;
   let sent = 0;
   for (const c of cars) {
     const days = c.listedAt ? daysSince(c.listedAt, now) : 0;
-    if (forSale(c) && !onRequest(c) && days >= SLOW_DAYS && !said.has(`slow-stock:${c.id}`)) sent += await alertStaff("slow-stock", { car: carTitleOf(c), days, dropEur: SLOW_DROP_EUR }, { ref: c.id });
+    if (forSale(c) && !onRequest(c) && days >= oldStockDays && !said.has(`slow-stock:${c.id}`)) sent += await alertStaff("slow-stock", { car: carTitleOf(c), days, dropEur: slowDropEur }, { ref: c.id });
   }
   for (const r of reviews) if (r.createdAt > now - 2 * DAY && !said.has(`review:${r.id}`)) sent += await alertStaff("review", { stars: r.rating, author: r.author, text: r.text }, { ref: r.id });
   if (new Date(`${dublinDay(now)}T12:00:00Z`).getUTCDay() === 1) {
     const [leads, sales, drives] = await Promise.all([leadsStore.list(), salesStore.list(), drivesStore.list()]);
-    sent += await alertStaff("monday", lastWeek({ leads, cars, sales, reviews }, drives, now));
+    sent += await alertStaff("monday", lastWeek({ leads, cars, sales, reviews }, drives, now, profile));
   }
   return { sent };
 }

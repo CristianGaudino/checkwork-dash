@@ -1,3 +1,5 @@
+import { dealerProfile } from "@/lib/tenancy/current";
+import type { Hours } from "@/lib/tenancy/profile";
 import Link from "next/link";
 import { DriveStatusBadge } from "@/components/admin/badges";
 import { DriveSteps } from "@/components/admin/DriveSteps";
@@ -30,7 +32,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
   const sp = await searchParams;
   const view: View = (VIEWS as readonly string[]).includes(sp.view ?? "") ? (sp.view as View) : "today";
   const mine = sp.mine === "1";
-  const [all, cars, me, { team }] = await Promise.all([drivesStore.list(), adminCars(), currentMember(), getSettings()]);
+  const [all, cars, me, { team }, { hours }] = await Promise.all([drivesStore.list(), adminCars(), currentMember(), getSettings(), dealerProfile()]);
   const gone = new Set(cars.filter((c) => !forSale(c)).map((c) => c.slug)); // a booking still open on a car no longer for sale needs a call
   const drives = mine ? all.filter((d) => d.assignedTo === me.name) : all;
   const today = dublinDay();
@@ -77,7 +79,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
       {view === "today" && (
         <>
           <Panel title={`Today, ${fmtDay(today)}`} count={onDay(today).length}>
-            <Agenda drives={onDay(today)} gone={gone} empty={driveTimes(today).length ? "Nothing booked today." : "We're closed today."} />
+            <Agenda drives={onDay(today)} gone={gone} empty={driveTimes(today, hours).length ? "Nothing booked today." : "We're closed today."} />
           </Panel>
           {/* Today's are listed above with their buttons; this is the rest, so no booking shows twice. */}
           {later.length > 0 && (
@@ -101,7 +103,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
         </>
       )}
 
-      {view === "week" && <Week day={day} today={today} onDay={onDay} gone={gone} link={link} />}
+      {view === "week" && <Week day={day} today={today} onDay={onDay} gone={gone} link={link} hours={hours} />}
 
       {view === "list" && <List drives={drives} sp={sp} team={team.map((t) => t.name)} gone={gone} />}
     </>
@@ -143,7 +145,7 @@ function Agenda({ drives, gone, empty = "Nothing booked.", withDay = false }: { 
 }
 
 // Seven days from Monday. From 1024px a column a day; on a phone a strip of the seven days, each with its count, and the chosen day below.
-function Week({ day, today, onDay, gone, link }: { day: string; today: string; onDay: (iso: string) => TestDrive[]; gone: Set<string>; link: (over: Partial<Params>) => string }) {
+function Week({ day, today, onDay, gone, link, hours }: { day: string; today: string; onDay: (iso: string) => TestDrive[]; gone: Set<string>; link: (over: Partial<Params>) => string; hours: Hours }) {
   const monday = mondayOf(day);
   const days = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
   const sunday = days[6];
@@ -182,7 +184,7 @@ function Week({ day, today, onDay, gone, link }: { day: string; today: string; o
           })}
         </nav>
         <Panel title={fmtDay(day)}>
-          <Agenda drives={onDay(day)} gone={gone} empty={driveTimes(day).length ? "Nothing booked." : "Closed."} />
+          <Agenda drives={onDay(day)} gone={gone} empty={driveTimes(day, hours).length ? "Nothing booked." : "Closed."} />
         </Panel>
       </div>
 
@@ -196,7 +198,7 @@ function Week({ day, today, onDay, gone, link }: { day: string; today: string; o
                 {fmtDay(d, "weekday")}
                 <span className="text-body font-semibold tabular-nums text-text">{fmtDay(d, "day")}</span>
               </h3>
-              {list.length === 0 && <p className="px-1 text-meta text-text-2">{driveTimes(d).length ? "" : "Closed"}</p>}
+              {list.length === 0 && <p className="px-1 text-meta text-text-2">{driveTimes(d, hours).length ? "" : "Closed"}</p>}
               {list.map((x) => (
                 <Link key={x.id} href={`/test-drives/${x.id}`} className={`flex min-w-0 flex-col rounded-control border-l-4 bg-surface px-2 py-1.5 text-meta hover:bg-row-alt ${EDGE[x.status]}`}>
                   <span className="font-semibold tabular-nums">{fmtTime(x.startsAt)}</span>

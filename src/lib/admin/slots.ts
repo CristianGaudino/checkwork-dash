@@ -1,6 +1,5 @@
 // Whether a test drive time can still be booked, as the dashboard's slot picker shows it. Plain strings in Irish time ("2026-11-12",
 // "14:30"), no stores, so the picker (a client component) uses the same rule the server checks with (checkSlot). Pure, so it is tested.
-import { driveTimes } from "@/lib/leads/constants";
 
 const mins = (hhmm: string) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5));
 
@@ -13,8 +12,8 @@ export function slotState(day: string, time: string, taken: string[], windowMin:
 }
 
 // The first of `days` after `after` with a time still open for the car, and that time: where the picker opens, and its "Next available"
-// (#238). Undefined when nothing is free in the days offered.
-export function firstOpen(days: string[], taken: string[], windowMin: number, now: string, after = "", timesOf = driveTimes): { date: string; time: string } | undefined {
+// (#238). Undefined when nothing is free in the days offered. `timesOf`: a day's times in the dealer's hours (driveTimes).
+export function firstOpen(days: string[], taken: string[], windowMin: number, now: string, timesOf: (date: string) => string[], after = ""): { date: string; time: string } | undefined {
   for (const date of days) {
     if (date <= after) continue;
     const time = timesOf(date).find((t) => slotState(date, t, taken, windowMin, now) === "open");

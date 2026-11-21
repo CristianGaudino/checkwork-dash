@@ -1,9 +1,10 @@
 import type { AdminReview, Lead, Sale } from "@/lib/admin/collections";
 import { addDays, addMonths, daysSince, dublinMs } from "@/lib/admin/format";
-import { OPENING_HOURS, TIME_ZONE } from "@/lib/site";
+import { TIME_ZONE } from "@/lib/site";
+import type { DealerProfile, Hours } from "@/lib/tenancy/profile";
 import { forSale, isReduced, isSold, type Car } from "@/lib/stock/types";
 import { DAY } from "@/lib/time";
-import { OLD_STOCK_DAYS, isOldStock } from "@/lib/admin/overview";
+import { isOldStock } from "@/lib/admin/overview";
 
 // The dealer's figures for a range of Irish days, worked out from the records. One module for the monthly report, its email and the owner
 // API (#174, #175), so the three never disagree. Pure, so every figure is tested. Counts only: nothing here holds a name, phone or email.
@@ -15,11 +16,11 @@ export const monthRange = (month: string) => ({ from: `${month}-01`, to: addDays
 export const monthBefore = (month: string) => addMonths(`${month}-01`, -1).slice(0, 7);
 
 const PARTS = new Intl.DateTimeFormat("en-GB", { weekday: "long", hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: TIME_ZONE });
-// The weekday (0 is Monday, as OPENING_HOURS lists them) and whether the shop was open at that moment.
-export function openingAt(t: number): { weekday: number; open: boolean } {
+// The weekday (0 is Monday, as the dealer's `hours` list them) and whether the shop was open at that moment.
+export function openingAt(t: number, hours: Hours): { weekday: number; open: boolean } {
   const p = Object.fromEntries(PARTS.formatToParts(t).map((x) => [x.type, x.value]));
-  const i = OPENING_HOURS.findIndex((o) => o.day === p.weekday);
-  const h = OPENING_HOURS[i];
+  const i = hours.findIndex((o) => o.day === p.weekday);
+  const h = hours[i];
   const hm = `${p.hour}:${p.minute}`;
   return { weekday: i, open: Boolean(h?.opens && h.closes && hm >= h.opens && hm < h.closes) };
 }
@@ -38,16 +39,17 @@ export type Summary = {
   // Minutes from a lead arriving to the first note on it (a call or message logged), split by when the lead came in. `none` is the leads
   // that nobody wrote to within 24 hours, once those 24 hours have passed.
   replies: { medianInHoursMin: number | null; medianOutOfHoursMin: number | null; none: number };
-  // `inStock`, `avgDaysInStock`, `oldStock` (for sale OLD_STOCK_DAYS or more) and `priceDrops` are the stock now; `added` and `sold` are the range.
+  // `inStock`, `avgDaysInStock`, `oldStock` (for sale the dealer's oldStockDays or more) and `priceDrops` are the stock now; `added` and `sold` are the range.
   stock: { inStock: number; added: number; sold: number; avgDaysInStock: number | null; oldStock: number; priceDrops: number };
   sales: { count: number; valueEur?: number };
   reviews: { count: number; average: number | null };
 };
 
-export function summarise(data: ReportData, from: string, to: string, now: number, opts: { money?: boolean } = {}): Summary {
+// `dealer`: the dealer's opening hours (in or out of hours) and rules (old stock), from their profile.
+export function summarise(data: ReportData, from: string, to: string, now: number, dealer: Pick<DealerProfile, "hours" | "rules">, opts: { money?: boolean } = {}): Summary {
   const [a, b] = bounds(from, to);
   const leads = data.leads.filter((l) => l.createdAt >= a && l.createdAt < b);
-  const open = leads.map((l) => ({ l, ...openingAt(l.createdAt) }));
+  const open = leads.map((l) => ({ l, ...openingAt(l.createdAt, dealer.hours) }));
   const byWeekday = [0, 0, 0, 0, 0, 0, 0];
   for (const x of open) byWeekday[x.weekday]++;
   // The first note written after the lead came in: the site's own note at that moment (the email did not reach the dealer) is not a reply,
@@ -78,7 +80,7 @@ export function summarise(data: ReportData, from: string, to: string, now: numbe
       // A car sold in the range: marked sold on the stock, or with a sale recorded (a live sale's id is its car's id), counted once.
       sold: new Set([...data.cars.filter((c) => isSold(c) && c.soldAt! >= from && c.soldAt! <= to).map((c) => c.id), ...sales.map((s) => s.id)]).size,
       avgDaysInStock: ages.length ? Math.round(ages.reduce((n, d) => n + d, 0) / ages.length) : null,
-      oldStock: data.cars.filter((c) => isOldStock(c, now)).length, // the dashboard's own rule
+      oldStock: data.cars.filter((c) => isOldStock(c, now, dealer.rules.oldStockDays)).length, // the dashboard's own rule
       priceDrops: live.filter(isReduced).length,
     },
     sales: { count: sales.length, ...(opts.money && { valueEur: sales.reduce((n, s) => n + s.priceEur, 0) }) },
@@ -95,9 +97,9 @@ export function compare(now: number, before: number): string {
 }
 
 // One plain line on what to do, from fixed rules: the first that applies.
-export function advice(s: Summary): string {
+export function advice(s: Summary, oldDays: number): string {
   const n = (k: number, one: string, many: string) => `${k} ${k === 1 ? one : many}`;
-  if (s.stock.oldStock) return `${n(s.stock.oldStock, "car", "cars")} for sale ${OLD_STOCK_DAYS} days or more: a price drop on ${s.stock.oldStock === 1 ? "this one" : "these"} could move ${s.stock.oldStock === 1 ? "it" : "them"}.`;
+  if (s.stock.oldStock) return `${n(s.stock.oldStock, "car", "cars")} for sale ${oldDays} days or more: a price drop on ${s.stock.oldStock === 1 ? "this one" : "these"} could move ${s.stock.oldStock === 1 ? "it" : "them"}.`;
   if (s.replies.none) return `${n(s.replies.none, "lead", "leads")} had no reply in 24 hours: set up a follow-up so none are missed.`;
   if (s.leads.total >= TOO_FEW && s.leads.outOfHours / s.leads.total >= 0.4) return "Many leads came in out of hours: an automatic first reply could win them.";
   return "Nothing needs attention. Keep the stock fresh and the replies quick.";

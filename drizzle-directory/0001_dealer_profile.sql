@@ -1,0 +1,1 @@
+ALTER TABLE `dealers` ADD `profile` text DEFAULT '{}' NOT NULL;

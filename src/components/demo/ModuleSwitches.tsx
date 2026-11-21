@@ -2,7 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
-import { setDemoModules, useModules } from "@/lib/demo-role";
+import { setDemoModules } from "@/lib/demo-role";
+import { useModules } from "@/components/DealerFacts";
 import { MODULES, MODULE_IDS, withModule, withoutModule, type ModuleId } from "@/lib/modules-rules";
 import { MODULE_EUR, TIERS, SHOW_PRICING, eur, planFor, setupEur, switchTier } from "@/lib/billing/rules";
 import { press } from "@/components/ui";
@@ -10,8 +11,8 @@ import { press } from "@/components/ui";
 // The presets: the tiers, the only plans sold (one branch). Prices a month, before VAT, as the Billing page shows them.
 const PLANS = TIERS;
 
-// The demo bar's module switches (#173): show the site as a dealer with only some modules, so each version can be shown. A real site has
-// none: its modules are the build setting NEXT_PUBLIC_SITE_MODULES. Turning one on brings what it needs; turning one off takes what needs it.
+// The demo bar's module switches (#173): show a demo dealer with only some modules, so each version can be shown. Any other dealer has
+// none: their modules are their plan, in their profile. Turning one on brings what it needs; turning one off takes what needs it.
 // `inline`: in the phone panel the list opens in place, under the button, rather than as a popup that would run off a narrow screen.
 export function ModuleSwitches({ chip, inline = false }: { chip: string; inline?: boolean }) {
   const router = useRouter();

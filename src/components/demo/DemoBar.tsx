@@ -3,9 +3,9 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useId, useState, useSyncExternalStore } from "react";
 import { THEME_KEY, type Theme } from "@/lib/demo";
-import { setDealerRole, setDemoStockSource, useDealerRole, useModules, useStockSource } from "@/lib/demo-role";
+import { setDealerRole, setDemoStockSource, useDealerRole } from "@/lib/demo-role";
+import { useDealerFacts, useModules } from "@/components/DealerFacts";
 import { ROLES, type Role } from "@/lib/permission-rules";
-import { LISTING_SITE } from "@/lib/stock-source-rules";
 import { ChevronDownIcon } from "@/components/stock/icons";
 import { ModuleSwitches } from "./ModuleSwitches";
 import { press } from "@/components/ui";
@@ -44,16 +44,17 @@ function useRoomFor(extra: number) {
   );
 }
 
-// The demo's own controls: the role and where the stock comes from, the plan, and the theme. Not part of the app: a real dealer has none
-// (NEXT_PUBLIC_DEMO_BAR=off). On a phone and tablet it folds into a small pill at the bottom right that opens the controls above it; from
+// The demo's own controls: the role and where the stock comes from, the plan, and the theme. A dealer that is not a demo (`demo` false,
+// the directory's flag) gets the theme only: the server ignores the other switches' cookies for them anyway. `donedeal`: the stock source
+// the server worked out for this request. On a phone and tablet it folds into a small pill at the bottom right that opens the controls above it; from
 // 1024px it is one slim line at the foot of the screen (docs/mobile-navigation.md).
-export function DemoBar({ showAreas = true }: { showAreas?: boolean }) {
+export function DemoBar({ demo, donedeal }: { demo: boolean; donedeal: boolean }) {
   const router = useRouter();
   // A plan without the dashboard (Showroom) has nothing to show here, so only the Plan switch and the theme stay, to go back.
   const dashboard = useModules().has("dashboard");
+  const { listingSite } = useDealerFacts();
   const theme = useSyncExternalStore(subscribe, read, () => "light" as Theme);
   const dealerRole = useDealerRole();
-  const donedeal = useStockSource() === "donedeal";
   const [open, setOpen] = useState(false); // mirrors the popover, for the chevron and aria-expanded
   const panelId = useId();
   const barRoom = useRoomFor(0);
@@ -63,7 +64,7 @@ export function DemoBar({ showAreas = true }: { showAreas?: boolean }) {
   // `phone`: the controls in the pill's panel, where the row wraps and the module list opens in place; else the slim bar.
   const controls = (phone: boolean) => (
     <>
-      {dashboard && showAreas && (
+      {dashboard && demo && (
         <div className={`flex items-center gap-2 ${phone ? "w-full flex-wrap" : ""}`}>
           {/* Which member of the team the demo acts as: the role decides what they may see (src/lib/permissions.ts). The browser's own
               select, not the site's Combobox: one compact control in a bar fixed to the foot of the screen, where a list would open off it. */}
@@ -95,12 +96,12 @@ export function DemoBar({ showAreas = true }: { showAreas?: boolean }) {
             }}
             className={`${chip} ${donedeal ? "border-accent bg-accent text-on-accent" : "border-hairline text-text-2"} ${press}`}
           >
-            {LISTING_SITE} sync<span className="ml-1">{donedeal ? "on" : "off"}</span>
+            {listingSite} sync<span className="ml-1">{donedeal ? "on" : "off"}</span>
           </button>
         </div>
       )}
       {/* Which modules the dealer has (#173), so a smaller site can be shown. One switch in one place, so choosing a plan keeps it open. */}
-      {showAreas && <ModuleSwitches chip={chip} inline={phone} />}
+      {demo && <ModuleSwitches chip={chip} inline={phone} />}
       <button type="button" aria-pressed={theme === "dark"} onClick={() => setTheme(theme === "dark" ? "light" : "dark")} className={`flex h-11 items-center px-2 text-text-2 ${press}`}>
         {theme === "dark" ? "Dark" : "Light"}
       </button>
@@ -128,8 +129,14 @@ export function DemoBar({ showAreas = true }: { showAreas?: boolean }) {
           popoverTarget={panelId}
           className={`flex h-10 items-center gap-1.5 rounded-full border border-hairline bg-band pl-4 pr-3 shadow-panel ${press}`}
         >
-          <span className="text-text-2">Demo</span>
-          <span className="font-semibold">Dealer</span>
+          {demo ? (
+            <>
+              <span className="text-text-2">Demo</span>
+              <span className="font-semibold">Dealer</span>
+            </>
+          ) : (
+            <span className="font-semibold">Theme</span>
+          )}
           <ChevronDownIcon className={`size-4 text-text-2 transition-transform motion-reduce:transition-none ${open ? "" : "rotate-180"}`} />
         </button>
       </div>

@@ -1,3 +1,4 @@
+import { DEMO_PROFILE } from "@/lib/tenancy/profile";
 import { z } from "zod";
 import { FINANCE } from "@/lib/finance/finance.config";
 import { PRICE_STOPS } from "@/lib/stock/types";
@@ -141,7 +142,7 @@ const finance = {
 // have passed, so that day's grace never books a slot that is already over.
 const testDrive = {
   carId,
-  driveDate: given(z.string({ error: BAD_DRIVE_DAY }).refine((v) => driveDays().includes(v) || driveDays(new Date(Date.now() - DAY)).includes(v), BAD_DRIVE_DAY)),
+  driveDate: given(z.string({ error: BAD_DRIVE_DAY }).refine((v) => driveDays(INTAKE_HOURS).includes(v) || driveDays(INTAKE_HOURS, new Date(Date.now() - DAY)).includes(v), BAD_DRIVE_DAY)),
   driveTime: given(z.string({ error: BAD_DRIVE_TIME })),
 };
 
@@ -154,6 +155,8 @@ const alert = {
   alertKind: z.enum(ALERT_KINDS, { error: "Choose an alert." }),
 };
 
+// shortcut: the website's booking is checked against the demo business's hours; the site API (#7) takes the dealer's own (their profile).
+const INTAKE_HOURS = DEMO_PROFILE.hours;
 export const leadSchema = z
   .discriminatedUnion("type", [
     z.object({ type: z.literal("enquiry"), carId, ...contact }),
@@ -169,7 +172,7 @@ export const leadSchema = z
     z
       .object({ type: z.literal("finance"), ...contact, ...finance })
       .refine((d) => typeof d.term !== "number" || Boolean((d.product === "pcp" ? FINANCE.pcp?.terms : FINANCE.terms)?.includes(d.term)), { path: ["term"], message: "Choose a term from the list.", when: (p) => typeof p.value === "object" && p.value !== null }),
-    z.object({ type: z.literal("test_drive"), ...contact, ...testDrive }).refine((d) => driveTimes(d.driveDate ?? "").includes(d.driveTime ?? "") && dublinMs(d.driveDate ?? "", d.driveTime ?? "") > Date.now(), { path: ["driveTime"], message: BAD_DRIVE_TIME, when: (p) => typeof p.value === "object" && p.value !== null }),
+    z.object({ type: z.literal("test_drive"), ...contact, ...testDrive }).refine((d) => driveTimes(d.driveDate ?? "", INTAKE_HOURS).includes(d.driveTime ?? "") && dublinMs(d.driveDate ?? "", d.driveTime ?? "") > Date.now(), { path: ["driveTime"], message: BAD_DRIVE_TIME, when: (p) => typeof p.value === "object" && p.value !== null }),
     z.object({ type: z.literal("alert"), ...contact, ...alert }),
   ])
   // D-12. `when` runs it even if another field failed, so a blank form shows every error at once.

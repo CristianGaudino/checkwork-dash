@@ -8,12 +8,13 @@ import { drivesStore, getSettings, leadsStore, ordersStore, reservationsStore, r
 import { marginOf } from "@/lib/admin/margins";
 import { can } from "@/lib/permissions";
 import { dublinDay, fmtAgo, fmtDateTime, fmtDay, fmtEur, fmtNum, fmtTime, plural } from "@/lib/admin/format";
-import { OLD_STOCK_DAYS, overview } from "@/lib/admin/overview";
+import { overview } from "@/lib/admin/overview";
 import { SyncPanel } from "@/components/admin/SyncPanel";
 import { adminCars } from "@/lib/admin/stock-admin";
 import { syncStatus } from "@/lib/donedeal/sync";
 import { stockSource } from "@/lib/stock-source";
-import { DONEDEAL_DEALER_URL, LISTING_SITE } from "@/lib/stock-source-rules";
+import { listing } from "@/lib/stock-source";
+import { dealerProfile } from "@/lib/tenancy/current";
 import { forSale, isSold, onRequest } from "@/lib/stock/types";
 import { isSalesLead } from "@/lib/admin/leads";
 import { enabledModules } from "@/lib/modules";
@@ -59,12 +60,13 @@ const row = "relative flex min-h-16 items-center gap-3 px-1 py-3 transition-colo
 // the newest leads with Call and Reply in the row, and a few numbers last. No chart (docs/dashboard-polish.md #72): Analytics has them.
 export default async function Page() {
   const [leads, drives, reviews, all, settings, source, sales, reservations, orders, mods] = await Promise.all([leadsStore.list(), drivesStore.list(), reviewsStore.list(), adminCars(), getSettings(), stockSource(), salesStore.list(), reservationsStore.list(), ordersStore.list(), enabledModules()]);
+  const [{ site: listingSite, url: listingUrl }, { rules }] = await Promise.all([listing(), dealerProfile()]);
   const synced = source === "donedeal";
   const sync = synced ? await syncStatus() : null;
   const cars = all.filter((c) => !isSold(c));
   // Only for staff with the margins permission: the costs are not read without it.
   const costs = (await can("margins")) ? new Map([...(await carCosts())].map(([id, c]) => [id, c.total])) : null;
-  const o = overview({ leads: leads.filter(isSalesLead), drives, reviews, cars: all, costs: costs ? new Set(costs.keys()) : undefined, sales: new Set(sales.map((s) => s.id)), reservations, orders, syncProblem: Boolean(sync?.problem), slaHours: settings.leadSlaHours });
+  const o = overview({ leads: leads.filter(isSalesLead), drives, reviews, rules, listingSite, cars: all, costs: costs ? new Set(costs.keys()) : undefined, sales: new Set(sales.map((s) => s.id)), reservations, orders, syncProblem: Boolean(sync?.problem), slaHours: settings.leadSlaHours });
   // What a module that is off would show goes with it (#173): its buttons, figures and to-dos.
   // Orders and deposits are our version only: with DoneDeal stock their pages are not there, so their to-dos go too.
   const attention = o.attention.filter((a) => (!MODULE_OF[a.key] || mods.has(MODULE_OF[a.key])) && !(synced && (a.key === "orders" || a.key === "deposits")));
@@ -128,7 +130,7 @@ export default async function Page() {
       <ActionTiles>
         {/* Stock from DoneDeal is added there, never here. */}
         {synced ? (
-          <ActionTile external primary href={DONEDEAL_DEALER_URL} icon={<ExternalIcon />} label={`Open ${LISTING_SITE}`} text="Add or change a car" />
+          <ActionTile external primary href={listingUrl} icon={<ExternalIcon />} label={`Open ${listingSite}`} text="Add or change a car" />
         ) : (
           <ActionTile primary href="/stock/new" icon={<CarIcon />} label="Add a car" text="Photos, price and details" />
         )}
@@ -170,7 +172,7 @@ export default async function Page() {
             <Panel plain title="Your numbers">
               <StatGrid>
                 <StatCard label="Leads this week" value={fmtNum(thisWeek)} hint={`${fmtNum(o.usualWeek)} in a usual week`} tone={thisWeek > o.usualWeek ? "good" : undefined} />
-                <StatCard href="/stock" label="Cars for sale" value={fmtNum(cars.filter(forSale).length)} hint={o.oldStock ? `${o.oldStock} for sale ${OLD_STOCK_DAYS} days or more` : undefined} tone={o.oldStock ? "warn" : undefined} />
+                <StatCard href="/stock" label="Cars for sale" value={fmtNum(cars.filter(forSale).length)} hint={o.oldStock ? `${o.oldStock} for sale ${rules.oldStockDays} days or more` : undefined} tone={o.oldStock ? "warn" : undefined} />
                 {costs && <StatCard href="/margins" label="Expected margin" value={fmtEur(margin)} />}
                 {mods.has("reviews") && <StatCard href="/reviews" label="Review rating" value={o.reviewCount ? o.averageRating.toFixed(1) : "None"} hint={plural(o.reviewCount, "review")} />}
               </StatGrid>

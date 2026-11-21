@@ -8,6 +8,7 @@ import { MODULE_IDS } from "@/lib/modules-rules";
 import { enabledModules } from "@/lib/modules";
 import { summarise } from "@/lib/reports/monthly";
 import { loadReportData } from "@/lib/reports/load";
+import { dealerProfile } from "@/lib/tenancy/current";
 import { countsBetween } from "./counters";
 
 export const API_VERSION = 1;
@@ -39,7 +40,7 @@ export async function usageBody(from: string, to: string) {
 
 export async function summaryBody(from: string, to: string, money: boolean) {
   const [data, counts, sync, mods, usage] = await Promise.all([loadReportData(), countsBetween(from, to), syncStatus(), modulesBody(), usageBody(from, to)]);
-  const s = summarise(data, from, to, Date.now(), { money });
+  const s = summarise(data, from, to, Date.now(), await dealerProfile(), { money });
   return {
     version: API_VERSION,
     appVersion: pkg.version,

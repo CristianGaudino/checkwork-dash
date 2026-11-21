@@ -8,7 +8,9 @@ import { card, NEW_TAB } from "@/components/ui";
 import { ActButton } from "@/components/admin/ActButton";
 import { AITextarea } from "@/components/admin/AIWriter";
 import { carFields } from "@/lib/admin/car-fields";
-import { LISTING_SITE, listingHref } from "@/lib/stock-source-rules";
+import { listingHref } from "@/lib/stock-source-rules";
+import { listing } from "@/lib/stock-source";
+import { dealerProfile } from "@/lib/tenancy/current";
 import { CheckIcon, PencilIcon, ReceiptIcon, TrashIcon } from "@/components/stock/icons";
 import { costsStore, heldFor, prepStore, reservationsStore, salesStore } from "@/lib/admin/collections";
 import { RETURN_WINDOW_DAYS, withinReturnWindow } from "@/lib/admin/deposits";
@@ -55,6 +57,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
   // The car's one main step, in the header so a phone has it on its first screen: Mark sold, or Record sale for a sold car with none, or
   // for synced stock Edit on DoneDeal. The other things to do with the car sit under it, labelled, in the car's summary.
   const synced = (await stockSource()) === "donedeal";
+  const [{ site: listingSite, url: listingUrl }, { rules }] = await Promise.all([listing(), dealerProfile()]);
   const sold = Boolean(car.soldAt);
   const sale = sales.find((s) => s.id === id);
   const main = sold && !sale ? (
@@ -63,7 +66,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
     // The ad came down on DoneDeal: the question is whether it sold (It did not sell is on the stock list, with the other taken-down ads).
     <Link href={`/stock/${id}/sale`} className={adminButton}><ReceiptIcon className="size-4" />It sold</Link>
   ) : synced ? (
-    !car.takenDownAt && <a href={listingHref(car)} {...NEW_TAB} className={adminButton}><PencilIcon className="size-4" />Edit on {LISTING_SITE}<span className="sr-only"> (opens in a new tab)</span></a>
+    !car.takenDownAt && <a href={listingHref(car, listingUrl)} {...NEW_TAB} className={adminButton}><PencilIcon className="size-4" />Edit on {listingSite}<span className="sr-only"> (opens in a new tab)</span></a>
   ) : !sold ? (
     <Link href={`/stock/${id}/sale`} className={adminButton}><CheckIcon className="size-4" />Mark sold</Link>
   ) : undefined;
@@ -73,8 +76,8 @@ export default async function Page({ params, searchParams }: { params: Promise<{
     <ViewOnSite key="view" car={car} shown={conditionShown(await enabledModules(), car.condition)} className={quiet} />,
     deposits && !synced && !sold && (held || forSale(car)) && <Link key="reserve" href={`/stock/${id}/reserve`} className={quiet}>{held ? "See the deposit" : "Reserve with a deposit"}</Link>,
     // A sold car too, while it is still on the site as Sold; one sold long ago is off it already.
-    !synced && (!sold || onPublicSite({ soldAt: car.soldAt })) && <ListingButton key="listing" car={car} className={quiet} />,
-    synced && sold && !sale && !car.takenDownAt && <a key="dd" href={listingHref(car)} {...NEW_TAB} className={quiet}>Edit on {LISTING_SITE}<span className="sr-only"> (opens in a new tab)</span></a>,
+    !synced && (!sold || onPublicSite({ soldAt: car.soldAt }, rules.soldVisibleDays)) && <ListingButton key="listing" car={car} className={quiet} />,
+    synced && sold && !sale && !car.takenDownAt && <a key="dd" href={listingHref(car, listingUrl)} {...NEW_TAB} className={quiet}>Edit on {listingSite}<span className="sr-only"> (opens in a new tab)</span></a>,
     sold && sale && canDelete && <Link key="change" href={`/stock/${id}/sale`} className={quiet}>Change the sale</Link>,
     sold && sale && canDelete && <Link key="undo" href={`/stock/${id}/undo-sale`} className={quiet}>Undo sale</Link>,
   ].filter(Boolean);
@@ -106,14 +109,14 @@ export default async function Page({ params, searchParams }: { params: Promise<{
   if (synced) {
     return (
       <>
-        <PageHeader title={carName(car)} text={`This car comes from ${LISTING_SITE}. Change it there; your website updates within 15 minutes.`} actions={main} back={{ href: "/stock", label: "Stock" }} />
+        <PageHeader title={carName(car)} text={`This car comes from ${listingSite}. Change it there; your website updates within 15 minutes.`} actions={main} back={{ href: "/stock", label: "Stock" }} />
         {summary}
         {/* The site shows the feed's text, so a better one is written here and pasted into the listing site (#225). Not for an ad that is gone. */}
         {!sold && !car.takenDownAt && (await hasModule("ai")) && (
           <Panel title="Improve this description">
-            <AITextarea label="Description" task="carDescription" defaultValue={car.description ?? ""} rows={8} request={{ task: "carDescription", fields: carFields(car) }} copy={`Copy for ${LISTING_SITE}`} />
+            <AITextarea label="Description" task="carDescription" defaultValue={car.description ?? ""} rows={8} request={{ task: "carDescription", fields: carFields(car) }} copy={`Copy for ${listingSite}`} />
             <p className="max-w-measure text-body text-text-2">
-              Paste it into {LISTING_SITE}; the site updates within 15 minutes.
+              Paste it into {listingSite}; the site updates within 15 minutes.
             </p>
           </Panel>
         )}

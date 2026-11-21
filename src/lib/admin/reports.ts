@@ -4,7 +4,6 @@ import { isSold, type Car } from "@/lib/stock/types";
 import { DAY } from "@/lib/time";
 import { daysSince, dublinDay, threeLetter } from "./format";
 import { followUpDue } from "./follow-ups";
-import { OLD_STOCK_DAYS } from "./overview";
 import { sourceText } from "@/lib/visit-rules";
 
 // The Reports page's figures, worked out from the records. Pure, so every figure is tested.
@@ -43,7 +42,8 @@ export type FullReport = {
 
 // `costs`: each car's whole cost (cost price and prep), for profit. A sale with no cost is counted in sales and value, not in profit,
 // and `costed` says how many were.
-export function fullReport(input: { sales: Sale[]; cars: Car[]; leads: Lead[]; team: string[]; costs: Map<string, number>; prep: { id: string; lines: PrepLine[] }[]; period: Period; now: number }): FullReport {
+// `oldDays`: the dealer's old stock rule (their profile).
+export function fullReport(input: { sales: Sale[]; cars: Car[]; leads: Lead[]; team: string[]; costs: Map<string, number>; prep: { id: string; lines: PrepLine[] }[]; period: Period; now: number; oldDays: number }): FullReport {
   const today = dublinDay(input.now);
   const months = monthsOf(input.period, today);
   const inPeriod = new Set(months);
@@ -82,10 +82,11 @@ export function fullReport(input: { sales: Sale[]; cars: Car[]; leads: Lead[]; t
 
   // Cars for sale now, by how long they have been listed.
   // The last band is old stock, whatever the dealer set it to; the bands before it stop short of it.
-  const edges = [...[0, 30, 60].filter((d) => d < OLD_STOCK_DAYS), OLD_STOCK_DAYS];
+  const { oldDays } = input;
+  const edges = [...[0, 30, 60].filter((d) => d < oldDays), oldDays];
   const BANDS: [string, number, number][] = [
     ...edges.slice(0, -1).map((from, i): [string, number, number] => [from === 0 ? `Under ${edges[i + 1]} days` : `${from} to ${edges[i + 1] - 1} days`, from, edges[i + 1]]),
-    [`${OLD_STOCK_DAYS} days or more`, OLD_STOCK_DAYS, Infinity],
+    [`${oldDays} days or more`, oldDays, Infinity],
   ];
   const ageOf = (c: Car) => daysSince(c.listedAt!, input.now);
   const forSale = input.cars.filter((c) => !isSold(c) && c.listedAt);

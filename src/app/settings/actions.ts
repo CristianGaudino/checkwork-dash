@@ -12,6 +12,9 @@ import { fieldErrors } from "@/lib/admin/validation";
 import { can, currentMember } from "@/lib/permissions";
 import { ROLES, type Role } from "@/lib/permission-rules";
 import { logActivity } from "@/lib/admin/activity";
+import { currentDealer } from "@/lib/tenancy/current";
+import { patchDealer } from "@/lib/tenancy/directory";
+import { FACTS_SCHEMA } from "@/lib/tenancy/profile";
 import { requireStaff } from "@/lib/staff";
 import { staffStore } from "@/lib/whatsapp/store";
 
@@ -71,6 +74,29 @@ export async function saveMarketingAction(_p: SettingsState, data: FormData): Pr
   const was = await getSettings();
   await change((s) => ({ ...s, marketing: r.data }));
   if (!same(was.marketing, r.data)) await logActivity("settings", "Changed the marketing voice");
+  return { saved: true };
+}
+
+// The dealer's own facts (name, website, phone, email, address, hours), kept in their profile in the directory, not in their store. Only
+// the facts: the plan, stock source and rules are ours to set. Hours come as opens0..6 and closes0..6, Monday first; a day with neither is
+// closed, and a day with one needs both, closing after opening.
+const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+export async function saveBusinessAction(_p: SettingsState, data: FormData): Promise<SettingsState> {
+  await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
+  const no = await refused("name");
+  if (no) return no;
+  const raw = Object.fromEntries(data);
+  const r = FACTS_SCHEMA.safeParse({ ...raw, hours: DAYS.map((_, i) => ({ opens: raw[`opens${i}`] ?? "", closes: raw[`closes${i}`] ?? "" })) });
+  if (!r.success) return { errors: Object.fromEntries(r.error.issues.map((i) => [i.path[0] === "hours" ? `opens${String(i.path[1])}` : String(i.path[0]), i.message])) };
+  const { name, siteUrl, phone, email, street, town, county, eircode, hours } = r.data;
+  const bad = hours.findIndex((h) => Boolean(h.opens) !== Boolean(h.closes) || (h.opens && h.opens >= h.closes));
+  if (bad >= 0) return { errors: { [`opens${bad}`]: "Give an opening time before the closing time, or leave both empty" } };
+  const dealer = await currentDealer();
+  const facts = { siteUrl, phone, email, address: { street, town, county, eircode }, hours: hours.map((h, i) => (h.opens ? { day: DAYS[i], ...h } : { day: DAYS[i] })) };
+  await patchDealer(dealer.id, name, facts);
+  const p = dealer.profile;
+  if (!same([dealer.name, p.siteUrl, p.phone, p.email, p.address, p.hours], [name, facts.siteUrl, phone, email, facts.address, facts.hours])) await logActivity("settings", "Changed the business details");
+  revalidatePath("/", "layout"); // the name and website show in the menu on every page
   return { saved: true };
 }
 

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { DEMO_PROFILE } from "@/lib/tenancy/profile";
 
 vi.mock("server-only", () => ({}));
 vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
@@ -71,8 +72,8 @@ describe("moving a test drive", () => {
     await drivesStore.put({ id: "drive-d", name: "Sam", email: "", phone: "083 000 0000", carSlug: "move-car-1", carTitle: "2018 Kia Rio", startsAt: Date.now() - 86_400_000, status: "completed", notes: "", createdAt: 0 });
     // The next day the dealer is open, and its first driving time.
     let day = today;
-    for (let i = 1; i < 14 && (!driveTimes((day = addDays(today, i))).length || isBankHoliday(day)); i++);
-    const time = driveTimes(day)[0];
+    for (let i = 1; i < 14 && (!driveTimes((day = addDays(today, i)), DEMO_PROFILE.hours).length || isBankHoliday(day)); i++);
+    const time = driveTimes(day, DEMO_PROFILE.hours)[0];
     expect((await moveDriveAction("drive-d", undefined, form({ date: day, time })))?.errors?.date).toMatch(/no longer be moved/);
     expect((await moveDriveAction("drive-m", undefined, form({ date: "2020-01-01", time })))?.errors?.date).toMatch(/not passed/);
     expect((await moveDriveAction("drive-m", undefined, form({ date: day, time: "23:00" })))?.errors?.time).toMatch(/Choose a time/);

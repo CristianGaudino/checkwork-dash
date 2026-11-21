@@ -6,10 +6,10 @@ import { ActButton } from "@/components/admin/ActButton";
 import { setListingAction } from "@/app/stock/actions";
 import { NEW_TAB } from "@/components/ui";
 import { daysSince } from "@/lib/admin/format";
-import { OLD_STOCK_DAYS } from "@/lib/admin/overview";
 import { FEW_PHOTOS } from "@/lib/admin/stock-views";
 import { carName, siteCarUrl } from "@/lib/stock/format";
 import { forSale, isSold, onPublicSite, type Car } from "@/lib/stock/types";
+import { dealerProfile } from "@/lib/tenancy/current";
 
 // What a dealer does with one car, the same on the stock list and on the car's own page, and the warnings that say what a car needs.
 
@@ -31,11 +31,12 @@ export function PostToSocial({ car, className, short = false }: { car: Car; clas
 
 // The car as a customer sees it, in a new tab. A hidden car or a draft has no page on the website.
 // `shown`: the car's kind (new, commercial) is on the site with the dealer's modules (conditionShown).
-export function ViewOnSite({ car, shown, className, short = false }: { car: Car; shown: boolean; className: string; short?: boolean }) {
+export async function ViewOnSite({ car, shown, className, short = false }: { car: Car; shown: boolean; className: string; short?: boolean }) {
   const at = short && "2xl";
-  if (!shown || !onPublicSite(car)) return null; // no link to a page that answers "gone" or not found
+  const { siteUrl, rules } = await dealerProfile();
+  if (!shown || !siteUrl || !onPublicSite(car, rules.soldVisibleDays)) return null; // no link to a page that answers "gone" or not found, nor with no website
   return (
-    <a href={siteCarUrl(car.slug)} {...NEW_TAB} title="Open the car's page on your website" aria-label={`View on the website: ${carName(car)} (opens in a new tab)`} className={className}>
+    <a href={siteCarUrl(siteUrl, car.slug)} {...NEW_TAB} title="Open the car's page on your website" aria-label={`View on the website: ${carName(car)} (opens in a new tab)`} className={className}>
       <ExternalIcon className="size-4 shrink-0" />
       {words("View on the website", at)}
     </a>
@@ -49,18 +50,18 @@ export const daysInStock = (listedAt: string) => {
 };
 
 // What needs doing about a car, in words: off the website, too few photos, in stock too long. Nothing for a sold car.
-function carWarnings(car: Car): string[] {
+function carWarnings(car: Car, oldDays: number): string[] {
   if (isSold(car)) return [];
   const out: string[] = [];
   if (car.listing === "hidden") out.push("Hidden from the website");
   if (car.photos.length < FEW_PHOTOS) out.push(car.photos.length === 0 ? "No photos" : `Only ${car.photos.length} ${car.photos.length === 1 ? "photo" : "photos"}`);
-  if (forSale(car) && car.listedAt && daysSince(car.listedAt) >= OLD_STOCK_DAYS) out.push(`In stock ${daysSince(car.listedAt)} days`);
+  if (forSale(car) && car.listedAt && daysSince(car.listedAt) >= oldDays) out.push(`In stock ${daysSince(car.listedAt)} days`);
   return out;
 }
 
 // The car's status, and a warning badge for each thing that needs doing. `status`: leave the status out where every row has the same one.
-export function CarFlags({ car, status = true }: { car: Car; status?: boolean }) {
-  const warnings = carWarnings(car);
+export async function CarFlags({ car, status = true }: { car: Car; status?: boolean }) {
+  const warnings = carWarnings(car, (await dealerProfile()).rules.oldStockDays);
   const showStatus = status || car.listing === "draft" || Boolean(car.reserved) || isSold(car);
   if (!showStatus && warnings.length === 0) return null;
   return (

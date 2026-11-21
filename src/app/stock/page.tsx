@@ -13,13 +13,14 @@ import { daysSince, fmtDate, fmtEur, fmtNum } from "@/lib/admin/format";
 import { carName, siteCarUrl, priceLabel } from "@/lib/stock/format";
 import { FUEL_LABELS, FUELS, GEARBOXES, GEARBOX_LABELS, forSale, isReduced, isSold, onRequest, type Car, onPublicSite } from "@/lib/stock/types";
 import { stockSource } from "@/lib/stock-source";
-import { LISTING_SITE, DONEDEAL_DEALER_URL, listingHref } from "@/lib/stock-source-rules";
+import { listingHref } from "@/lib/stock-source-rules";
+import { listing } from "@/lib/stock-source";
+import { dealerProfile } from "@/lib/tenancy/current";
 import { SyncPanel } from "@/components/admin/SyncPanel";
 import { StockBulk, StockPick } from "@/components/admin/StockBulk";
 import { CarThumb } from "@/components/admin/CarThumb";
 import { AgeBar } from "@/components/admin/charts";
-import { OLD_STOCK_DAYS, SALE_NUDGE_DAYS } from "@/lib/admin/overview";
-import { FEW_PHOTOS, STOCK_VIEWS, parseStockList, stockList, type StockView } from "@/lib/admin/stock-views";
+import { FEW_PHOTOS, stockViews, parseStockList, stockList, type StockView } from "@/lib/admin/stock-views";
 import { salesStore } from "@/lib/admin/collections";
 import { syncStatus } from "@/lib/donedeal/sync";
 import { toggleSoldAction, withdrawnAction } from "./actions";
@@ -33,7 +34,9 @@ export const metadata = { title: "Stock" };
 export default async function Page({ searchParams }: { searchParams: Promise<{ view?: string; status?: string; q?: string; make?: string; fuel?: string; gearbox?: string; sort?: string; dir?: string; per?: string; saved?: string; deleted?: string; sale?: string; reserved?: string; undone?: string; page?: string }> }) {
   const sp = await searchParams;
   const { view, q, make, fuel, gearbox } = parseStockList(sp);
-  const [all, source, deposits] = await Promise.all([adminCars(), stockSource(), hasModule("sales")]);
+  const [all, source, deposits, { site: listingSite, url: listingUrl }, { siteUrl, rules }] = await Promise.all([adminCars(), stockSource(), hasModule("sales"), listing(), dealerProfile()]);
+  const OLD_DAYS = rules.oldStockDays;
+  const STOCK_VIEWS = stockViews(OLD_DAYS);
   const synced = source === "donedeal";
   const sync = synced ? await syncStatus() : null;
   const sales = new Map((await salesStore.list()).map((s) => [s.id, s]));
@@ -52,7 +55,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
   const costs = (await can("margins")) ? new Map([...(await carCosts())].map(([id, c]) => [id, c.total])) : null;
   // The makes in stock, for the make filter.
   const makes = [...new Map(all.map((c) => [c.makeSlug, c.make])).entries()].sort((a, b) => a[1].localeCompare(b[1], "en-IE"));
-  const matching = stockList(all, view, q, { make, fuel, gearbox });
+  const matching = stockList(all, view, q, OLD_DAYS, { make, fuel, gearbox });
   const saved = sp.saved ? all.find((c) => c.id === sp.saved) : undefined;
   // A view keeps the search and the filters; the sort and the page start again.
   const href = (v: StockView) => `/stock?${new URLSearchParams(Object.entries({ view: v, q, make, fuel, gearbox }).filter((e): e is [string, string] => Boolean(e[1])))}`;
@@ -60,7 +63,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
   // A synced car off the website (its ad came down) has no page there, so it opens here; so does every car with AI, to improve its description.
   const ai = synced && (await hasModule("ai"));
   const mods = await enabledModules();
-  const open = (c: Car) => (synced && !ai && onPublicSite(c) && conditionShown(mods, c.condition) ? siteCarUrl(c.slug) : `/stock/${c.id}`);
+  const open = (c: Car) => (synced && !ai && siteUrl && onPublicSite(c, rules.soldVisibleDays) && conditionShown(mods, c.condition) ? siteCarUrl(siteUrl, c.slug) : `/stock/${c.id}`);
   const takenDown = synced ? all.filter((c) => c.takenDownAt) : [];
   const canUndo = await can("settings"); // undoing a sale is money going back: owners and managers
   const undoSale = (c: Car) =>
@@ -122,7 +125,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
     },
     ...(costs ? [{ key: "margin", header: "Margin", align: "right" as const, hide: "md" as const, nowrap: true, sort: (c: Car) => (costs.has(c.id) && !onRequest(c) ? marginOf(c.priceEur, costs.get(c.id)!).eur : undefined), cell: (c: Car) => (onRequest(c) ? "" : costs.has(c.id) ? fmtEur(marginOf(c.priceEur, costs.get(c.id)!).eur) : <span className="text-text-2">Not set</span>) }] : []),
     // How long a car has been for sale: what a dealer watches to decide on a price drop.
-    // The days, and a bar that turns amber at OLD_STOCK_DAYS (the old stock view): which cars are ageing, down the column at a glance.
+    // The days, and a bar that turns amber at the dealer's old stock days (the old stock view): which cars are ageing, down the column at a glance.
     {
       key: "age",
       header: "In stock",
@@ -135,7 +138,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
           <span className="inline-flex items-center gap-2">
             {/* Amber exactly for the cars the old stock view counts (for sale: not reserved or hidden). */}
             <span className="hidden 2xl:contents">
-              <AgeBar days={daysSince(c.listedAt)} late={forSale(c) ? OLD_STOCK_DAYS : Infinity} />
+              <AgeBar days={daysSince(c.listedAt)} late={forSale(c) ? OLD_DAYS : Infinity} oldDays={OLD_DAYS} />
             </span>
             <span className={STOCK_VIEWS.old.test(c) ? "font-medium text-warn" : ""}>{daysInStock(c.listedAt)}</span>
           </span>
@@ -159,9 +162,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
             <>
               {undoSale(c)}
               {!c.takenDownAt && (
-              <a href={listingHref(c)} {...NEW_TAB} className={rowButton} aria-label={`Edit ${carName(c)} on ${LISTING_SITE} (opens in a new tab)`}>
+              <a href={listingHref(c, listingUrl)} {...NEW_TAB} className={rowButton} aria-label={`Edit ${carName(c)} on ${listingSite} (opens in a new tab)`}>
                 <PencilIcon className="size-4" />
-                Edit on {LISTING_SITE}
+                Edit on {listingSite}
               </a>
               )}
             </>
@@ -212,7 +215,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
 
   // What needs doing about the stock, at the top, each with the button that does it. A sale is asked for while it is recent, as the
   // overview does; photos and price drops for the cars still to sell. Drafts only in our version (DoneDeal stock has none).
-  const toRecord = all.filter((c) => isSold(c) && !sales.has(c.id) && daysSince(c.soldAt!) <= SALE_NUDGE_DAYS).sort((a, b) => a.soldAt!.localeCompare(b.soldAt!));
+  const toRecord = all.filter((c) => isSold(c) && !sales.has(c.id) && daysSince(c.soldAt!) <= rules.saleNudgeDays).sort((a, b) => a.soldAt!.localeCompare(b.soldAt!));
   const needPhotos = all.filter((c) => !isSold(c) && c.photos.length < FEW_PHOTOS);
   const old = all.filter((c) => STOCK_VIEWS.old.test(c));
   const drafts = synced ? [] : all.filter((c) => c.listing === "draft" && !isSold(c));
@@ -230,7 +233,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
         action={<Link href={`/stock/${needPhotos[0].id}#photos`} className={rowButton}>Add photos</Link>} />
     ),
     old.length > 0 && (
-      <Task key="old" urgency="soon" icon={<HistoryIcon />} count={old.length} title={one(old, `cars for sale ${OLD_STOCK_DAYS} days or more`, `car for sale ${OLD_STOCK_DAYS} days or more`)} detail={phoneless(synced ? `Think about a price drop on ${LISTING_SITE}.` : social ? "Tick them below to drop the price, or post them to social." : "Tick them below to drop the price.")} href={href("old")}
+      <Task key="old" urgency="soon" icon={<HistoryIcon />} count={old.length} title={one(old, `cars for sale ${OLD_DAYS} days or more`, `car for sale ${OLD_DAYS} days or more`)} detail={phoneless(synced ? `Think about a price drop on ${listingSite}.` : social ? "Tick them below to drop the price, or post them to social." : "Tick them below to drop the price.")} href={href("old")}
         action={<Link href={href("old")} className={rowButton}>See them</Link>} />
     ),
     drafts.length > 0 && (
@@ -243,13 +246,13 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
     <>
       <PageHeader
         title="Stock"
-        text={synced ? `Your cars come from ${LISTING_SITE}. Add, change and sell them there; changes show here within 15 minutes.` : "Every car on your website. Press a car to change its price, photos or details."}
+        text={synced ? `Your cars come from ${listingSite}. Add, change and sell them there; changes show here within 15 minutes.` : "Every car on your website. Press a car to change its price, photos or details."}
         actions={
           <>
             {synced ? (
-              <a href={DONEDEAL_DEALER_URL} {...NEW_TAB} className={adminButton}>
+              <a href={listingUrl} {...NEW_TAB} className={adminButton}>
                 <SyncIcon className="size-4" />
-                Open {LISTING_SITE}
+                Open {listingSite}
                 <span className="sr-only"> (opens in a new tab)</span>
               </a>
             ) : (
@@ -290,7 +293,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
       {undoneNow && <Notice tone="neutral">Sale undone for {carName(undoneNow)}. The record is kept.</Notice>}
       {/* DoneDeal does not say why an ad came down, so the car is hidden until the dealer says. Above the table, so a phone has it too. */}
       {takenDown.length > 0 && (
-        <Panel title={`Ads taken down on ${LISTING_SITE}`}>
+        <Panel title={`Ads taken down on ${listingSite}`}>
           <p className="max-w-measure text-body text-text-2">These cars are off the website. Did they sell?</p>
           <ul className="divide-y divide-hairline">
             {takenDown.map((c) => (
@@ -301,7 +304,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
                 </span>
                 <span className="flex flex-wrap gap-2">
                   <Link href={`/stock/${c.id}/sale`} className={rowButton}>It sold</Link>
-                  <ActButton act={withdrawnAction.bind(null, c.id)} confirm={{ title: `${carName(c)} did not sell?`, text: `It stays off the website. If the ad goes back up on ${LISTING_SITE}, the car comes back too.`, yes: "It did not sell" }} className={rowButton}>
+                  <ActButton act={withdrawnAction.bind(null, c.id)} confirm={{ title: `${carName(c)} did not sell?`, text: `It stays off the website. If the ad goes back up on ${listingSite}, the car comes back too.`, yes: "It did not sell" }} className={rowButton}>
                     It did not sell
                   </ActButton>
                 </span>

@@ -6,7 +6,10 @@ import extraCars from "./demo-cars-extra.json";
 import { createStockEngine } from "./engine";
 import { stock } from "./index";
 import { DEFAULT_QUERY } from "./query";
-import { FUELS, GEARBOXES, SOLD_VISIBLE_DAYS, TEXT_LIMITS } from "./types";
+import { FUELS, GEARBOXES, TEXT_LIMITS } from "./types";
+import { DEMO_PROFILE } from "@/lib/tenancy/profile";
+
+const SOLD_VISIBLE_DAYS = DEMO_PROFILE.rules.soldVisibleDays;
 import type { Car } from "./types";
 
 const cars = demoCars as Car[];
@@ -117,7 +120,7 @@ describe("generated demo cars", () => {
     const sold = cars.filter((c) => c.soldAt);
     // Never the real clock: the day after the newest sale date, so the result does not change as the calendar moves.
     const now = new Date(Math.max(...sold.map((c) => Date.parse(c.soldAt!))) + DAY);
-    const provider = createStockEngine(cars, { now: () => now });
+    const provider = createStockEngine(cars, { now: () => now, soldDays: SOLD_VISIBLE_DAYS });
 
     it("has a sale date that is absent or an ISO date", () => {
       for (const c of cars) if (c.soldAt !== undefined) expect(c.soldAt).toMatch(/^\d{4}-\d{2}-\d{2}$/);

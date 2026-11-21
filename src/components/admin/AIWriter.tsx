@@ -3,7 +3,7 @@
 import { useId, useRef, useState, useTransition } from "react";
 import { SparkleIcon } from "@/components/stock/icons";
 import { press } from "@/components/ui";
-import { useModules } from "@/lib/demo-role";
+import { useModules } from "@/components/DealerFacts";
 import { SHOW_PRICING } from "@/lib/billing/rules";
 import { writeAction } from "@/lib/ai/actions";
 import { ADJUSTS, adjustsFor, type Adjust, type Task, type WriteRequest } from "@/lib/ai/tasks";

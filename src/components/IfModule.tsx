@@ -1,6 +1,6 @@
 "use client";
 
-import { useModules } from "@/lib/demo-role";
+import { useModules } from "@/components/DealerFacts";
 import { pathAllowed, type ModuleId } from "@/lib/modules-rules";
 
 // Shows its children only while the dealer has the module (#173): named by `id`, the one a link's `href` belongs to, or any of `hrefs` (a

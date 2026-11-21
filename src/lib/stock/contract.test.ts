@@ -274,7 +274,7 @@ export function runContract(name: string, makeProvider: (cars: Car[], opts: Cloc
 
 // Behaves like a remote provider: its own copy of the data, async I/O, answers through the file logic.
 function createStubProvider(cars: Car[], opts: Clock): StockProvider {
-  const inner = createStockEngine(structuredClone(cars), opts);
+  const inner = createStockEngine(structuredClone(cars), { ...opts, soldDays: 30 });
   const io = () => new Promise((r) => setTimeout(r, 0));
   return {
     async query(query) {
@@ -304,5 +304,5 @@ function createStubProvider(cars: Car[], opts: Clock): StockProvider {
   };
 }
 
-runContract("file", createStockEngine);
+runContract("file", (cars, opts) => createStockEngine(cars, { ...opts, soldDays: 30 }));
 runContract("stub", createStubProvider);

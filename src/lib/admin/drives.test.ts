@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { DEMO_PROFILE } from "@/lib/tenancy/profile";
 
 vi.mock("server-only", () => ({}));
 const { DRIVE_NEXT, clashes, filterDrives, parseDriveStatus, seededSlot, settleSeededDrive, slotData, waitingDrives } = await import("./drives");
@@ -24,7 +25,7 @@ describe("test drive agenda", () => {
   it("offers today's open days on, and each car's open bookings in Irish time, but the one being moved", () => {
     const now = Date.UTC(2026, 10, 12, 10, 0); // Thursday 12 November, 10:00 in Dublin
     const list = [drive("a", Date.UTC(2026, 10, 13, 11, 0)), drive("b", Date.UTC(2026, 10, 13, 15, 0), { status: "cancelled" }), drive("c", Date.UTC(2026, 10, 14, 12, 30))];
-    const s = slotData(list, "c", now);
+    const s = slotData(list, DEMO_PROFILE.hours, "c", now);
     expect(s.now).toBe("2026-11-12 10:00");
     expect(s.days[0]).toBe("2026-11-12");
     expect(s.taken).toEqual({ "car-1": ["2026-11-13 11:00"] });
@@ -83,7 +84,7 @@ describe("test drive agenda", () => {
   it("every demo booking is inside opening hours, whatever day the demo is opened", () => {
     for (let d = 0; d < 7; d++) {
       vi.useFakeTimers({ now: Date.UTC(2026, 10, 16 + d, 8 + d * 2, 0) }); // each weekday, morning to evening
-      for (const b of demoDrives()) expect(inDriveHours(dublinDateTime(b.startsAt).slice(0, 10), dublinDateTime(b.startsAt).slice(11)), dublinDateTime(b.startsAt)).toBe(true);
+      for (const b of demoDrives()) expect(inDriveHours(dublinDateTime(b.startsAt).slice(0, 10), dublinDateTime(b.startsAt).slice(11), DEMO_PROFILE.hours), dublinDateTime(b.startsAt)).toBe(true);
       vi.useRealTimers();
     }
   });

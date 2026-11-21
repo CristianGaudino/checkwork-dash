@@ -8,53 +8,53 @@ const TODAY = "2026-11-11";
 describe("planSync", () => {
   it("changes nothing when DoneDeal has what we have", () => {
     const stock = [car("1"), car("2"), car("3", { soldAt: "2026-10-20" })];
-    expect(planSync(stock, [car("1"), car("2")], TODAY)).toEqual({ added: [], changed: [], gone: [] });
+    expect(planSync(stock, [car("1"), car("2")], TODAY, { site: "DoneDeal" })).toEqual({ added: [], changed: [], gone: [] });
   });
 
   it("adds a new listing, dated today unless DoneDeal dates it", () => {
-    const p = planSync([car("1")], [car("1"), car("2", { listedAt: undefined }), car("3", { listedAt: "2026-11-09" })], TODAY);
+    const p = planSync([car("1")], [car("1"), car("2", { listedAt: undefined }), car("3", { listedAt: "2026-11-09" })], TODAY, { site: "DoneDeal" });
     expect(p.added.map((c) => [c.id, c.listedAt])).toEqual([["2", TODAY], ["3", "2026-11-09"]]);
   });
 
   it("updates a changed car and keeps the site's own listing date", () => {
-    const p = planSync([car("1")], [car("1", { priceEur: 9500, listedAt: undefined })], TODAY);
+    const p = planSync([car("1")], [car("1", { priceEur: 9500, listedAt: undefined })], TODAY, { site: "DoneDeal" });
     expect(p.changed).toHaveLength(1);
     expect(p.changed[0].after).toMatchObject({ priceEur: 9500, listedAt: "2026-10-01" });
     expect(p.changed[0].before.priceEur).toBe(10000);
   });
 
   it("puts a sold car back on sale when DoneDeal lists it again", () => {
-    const p = planSync([car("1", { soldAt: "2026-11-01" })], [car("1")], TODAY);
+    const p = planSync([car("1", { soldAt: "2026-11-01" })], [car("1")], TODAY, { site: "DoneDeal" });
     expect(p.changed[0].after.soldAt).toBeUndefined();
   });
 
   it("hides a car when DoneDeal stops listing it, to ask the dealer whether it sold", () => {
-    const p = planSync([car("1"), car("2"), car("3"), car("4")], [car("1"), car("2"), car("3")], TODAY);
+    const p = planSync([car("1"), car("2"), car("3"), car("4")], [car("1"), car("2"), car("3")], TODAY, { site: "DoneDeal" });
     expect(p.gone.map((c) => [c.id, c.listing, c.takenDownAt, c.soldAt])).toEqual([["4", "hidden", TODAY, undefined]]);
     // Once hidden it is not taken down again, and it counts for nothing in the hold rule.
-    expect(planSync([car("1"), car("4", { listing: "hidden", takenDownAt: TODAY })], [car("1")], TODAY)).toEqual({ added: [], changed: [], gone: [] });
+    expect(planSync([car("1"), car("4", { listing: "hidden", takenDownAt: TODAY })], [car("1")], TODAY, { site: "DoneDeal" })).toEqual({ added: [], changed: [], gone: [] });
   });
 
   it("puts a hidden car back when its ad goes up again", () => {
-    const p = planSync([car("1", { listing: "hidden", takenDownAt: "2026-11-05" })], [car("1")], TODAY);
+    const p = planSync([car("1", { listing: "hidden", takenDownAt: "2026-11-05" })], [car("1")], TODAY, { site: "DoneDeal" });
     expect(p.changed[0].after).not.toHaveProperty("listing", "hidden");
     expect(p.changed[0].after.takenDownAt).toBeUndefined();
   });
 
   it("holds, changing nothing, when DoneDeal's answer looks broken", () => {
     const stock = ["1", "2", "3", "4", "5", "6"].map((id) => car(id));
-    expect(planSync(stock, [], TODAY).held).toMatch(/sent no cars/);
-    const half = planSync(stock, [car("1"), car("2")], TODAY);
+    expect(planSync(stock, [], TODAY, { site: "DoneDeal" }).held).toMatch(/sent no cars/);
+    const half = planSync(stock, [car("1"), car("2")], TODAY, { site: "DoneDeal" });
     expect(half).toMatchObject({ added: [], changed: [], gone: [] });
     expect(half.held).toMatch(/no longer lists 4 of the 6/);
     // A small dealer selling two of three is real, not broken: fewer than three gone never holds.
-    expect(planSync([car("1"), car("2"), car("3")], [car("1")], TODAY).held).toBeUndefined();
+    expect(planSync([car("1"), car("2"), car("3")], [car("1")], TODAY, { site: "DoneDeal" }).held).toBeUndefined();
     // The dealer can apply it anyway.
-    expect(planSync(stock, [], TODAY, { force: true }).gone).toHaveLength(6);
+    expect(planSync(stock, [], TODAY, { force: true, site: "DoneDeal" }).gone).toHaveLength(6);
   });
 
   it("an empty site takes whatever DoneDeal has", () => {
-    expect(planSync([], [], TODAY)).toEqual({ added: [], changed: [], gone: [] });
-    expect(planSync([], [car("1")], TODAY).added).toHaveLength(1);
+    expect(planSync([], [], TODAY, { site: "DoneDeal" })).toEqual({ added: [], changed: [], gone: [] });
+    expect(planSync([], [car("1")], TODAY, { site: "DoneDeal" }).added).toHaveLength(1);
   });
 });

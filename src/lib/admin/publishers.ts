@@ -24,7 +24,7 @@ export async function startAd(ad: Ad): Promise<SendResult> {
 }
 
 // Every newsletter and stock alert email carries its own unsubscribe link and headers: unsubscribeParts (src/lib/unsubscribe.ts) for that
-// subscriber or alert, with UNSUBSCRIBE_SECRET and SITE_URL. Never send one without them.
+// subscriber or alert, with UNSUBSCRIBE_SECRET and the dealer's website address (their profile). Never send one without them.
 export async function sendNewsletter(n: Newsletter): Promise<SendResult> {
   void n;
   return run("newsletter");

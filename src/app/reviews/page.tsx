@@ -3,7 +3,7 @@ import { Stars } from "@/components/admin/Stars";
 import { AITextarea } from "@/components/admin/AIWriter";
 import { reviewsStore, type AdminReview } from "@/lib/admin/collections";
 import { fmtDate, plural } from "@/lib/admin/format";
-import { SITE_NAME } from "@/lib/site";
+import { currentDealer } from "@/lib/tenancy/current";
 import { REVIEW_FILTERS, filterReviews, parseReviewFilter, ratingSummary } from "@/lib/admin/reviews";
 import { replyAction } from "./actions";
 import { SubmitButton } from "@/components/admin/SubmitButton";
@@ -22,7 +22,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ f
   const sp = await searchParams;
   const filter = parseReviewFilter(sp.filter);
   const notice = sp.notice ? NOTICES[sp.notice] : undefined;
-  const all = await reviewsStore.list();
+  const [all, { name }] = await Promise.all([reviewsStore.list(), currentDealer()]);
   const s = ratingSummary(all);
   // The ones waiting for a reply first, a low rating first among them, newest first within each: the work is at the top of every view.
   const rank = (r: AdminReview) => (r.reply ? 2 : r.rating <= 3 ? 0 : 1);
@@ -33,7 +33,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ f
 
   return (
     <>
-      <PageHeader title="Reviews" text={`Your Google reviews. Replies are posted on Google as ${SITE_NAME}.`} />
+      <PageHeader title="Reviews" text={`Your Google reviews. Replies are posted on Google as ${name}.`} />
       {notice && (
         <Notice tone={notice.tone}>{notice.text}</Notice>
       )}

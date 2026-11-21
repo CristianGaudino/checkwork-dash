@@ -1,7 +1,5 @@
 import "server-only";
 
-import { SITE_NAME } from "@/lib/site";
-import { LISTING_SITE } from "@/lib/stock-source-rules";
 
 // Every outside service the site can use, in one list. A service is "connected" when all its settings are present. Nothing here holds a
 // secret: `env` names the variables to set (Cloudflare dashboard, or `.dev.vars` for local work). The admin shows this list, and any
@@ -15,26 +13,34 @@ export type Integration = {
   env: readonly string[];
   // Where the owner gets the keys.
   where: string;
-  // The made-up account shown while the service is simulated (the demo), so the page reads like a connected one.
+  // The made-up account shown while the service is simulated (the demo), so the page reads like a connected one: "{name}" is the dealer's
+  // name, "{handle}" the same as a handle, "{site}" their listing site (integrationText fills them in).
   demoAccount?: string;
 };
 
-const HANDLE = SITE_NAME.toLowerCase().replace(/[^a-z0-9]/g, "");
-
 export const INTEGRATIONS: readonly Integration[] = [
-  { id: "reviews", name: "Google reviews", purpose: "Shows the dealer's real reviews on the site.", env: ["GOOGLE_PLACE_ID", "GOOGLE_PLACES_API_KEY"], where: "Google Cloud console, Places API" },
-  { id: "social", demoAccount: `@${HANDLE}`, name: "Facebook and Instagram posting", purpose: "Publishes the posts written in Marketing.", env: ["META_PAGE_ID", "META_PAGE_ACCESS_TOKEN", "META_INSTAGRAM_ID"], where: "Meta for developers, a page access token" },
-  { id: "ads", demoAccount: `${SITE_NAME} ad account`, name: "Ads (Meta and Google)", purpose: "Creates and reports on the ads built in Marketing.", env: ["META_AD_ACCOUNT_ID", "GOOGLE_ADS_CUSTOMER_ID", "GOOGLE_ADS_DEVELOPER_TOKEN"], where: "Meta Ads Manager and Google Ads API centre" },
-  { id: "newsletter", demoAccount: `news@${HANDLE}.example`, name: "Newsletter sending", purpose: "Sends the newsletters written in Marketing and the stock alerts.", env: ["NEWSLETTER_API_KEY", "NEWSLETTER_FROM_EMAIL", "UNSUBSCRIBE_SECRET"], where: "The email sending provider, a verified sending domain, and a random secret for the unsubscribe links" },
-  { id: "email", name: "Lead email", purpose: "Emails each new lead to the dealer.", env: ["LEAD_TO_EMAIL"], where: "Cloudflare Email Service (the EMAIL binding) and this address" },
+  // The place is the dealer's (their profile's placeId); the key is ours.
+  { id: "reviews", name: "Google reviews", purpose: "Shows the dealer's real reviews on the site.", env: ["GOOGLE_PLACES_API_KEY"], where: "Google Cloud console, Places API" },
+  { id: "social", demoAccount: "@{handle}", name: "Facebook and Instagram posting", purpose: "Publishes the posts written in Marketing.", env: ["META_PAGE_ID", "META_PAGE_ACCESS_TOKEN", "META_INSTAGRAM_ID"], where: "Meta for developers, a page access token" },
+  { id: "ads", demoAccount: "{name} ad account", name: "Ads (Meta and Google)", purpose: "Creates and reports on the ads built in Marketing.", env: ["META_AD_ACCOUNT_ID", "GOOGLE_ADS_CUSTOMER_ID", "GOOGLE_ADS_DEVELOPER_TOKEN"], where: "Meta Ads Manager and Google Ads API centre" },
+  { id: "newsletter", demoAccount: "news@{handle}.example", name: "Newsletter sending", purpose: "Sends the newsletters written in Marketing and the stock alerts.", env: ["NEWSLETTER_API_KEY", "NEWSLETTER_FROM_EMAIL", "UNSUBSCRIBE_SECRET"], where: "The email sending provider, a verified sending domain, and a random secret for the unsubscribe links" },
+  // The addresses are the dealer's (Settings, Lead emails, else their profile's leadEmail, which is what Settings shows as connected); the
+  // sending is the EMAIL binding. Nothing here to set.
+  { id: "email", name: "Lead email", purpose: "Emails each new lead to the dealer.", env: [], where: "Cloudflare Email Service (the EMAIL binding)" },
   { id: "botcheck", name: "Bot check on forms", purpose: "Keeps spam out of the lead forms.", env: ["TURNSTILE_SECRET_KEY", "NEXT_PUBLIC_TURNSTILE_SITE_KEY"], where: "Cloudflare Turnstile" },
-  { id: "reglookup", demoAccount: `${SITE_NAME} on Cartell`, name: "Registration lookup", purpose: "Fills in the make, model and details from a registration on the trade-in, sell and stock forms.", env: ["CARTELL_API_KEY"], where: "Cartell, a business account" },
-  { id: "gbp", demoAccount: `${SITE_NAME} on Google`, name: "Google review replies", purpose: "Lists every Google review in Reviews and posts the replies written there.", env: ["GOOGLE_BUSINESS_LOCATION", "GOOGLE_BUSINESS_REFRESH_TOKEN"], where: "Google Business Profile API, for the dealer's verified profile, signed in as its owner or a manager" },
+  { id: "reglookup", demoAccount: "{name} on Cartell", name: "Registration lookup", purpose: "Fills in the make, model and details from a registration on the trade-in, sell and stock forms.", env: ["CARTELL_API_KEY"], where: "Cartell, a business account" },
+  { id: "gbp", demoAccount: "{name} on Google", name: "Google review replies", purpose: "Lists every Google review in Reviews and posts the replies written there.", env: ["GOOGLE_BUSINESS_LOCATION", "GOOGLE_BUSINESS_REFRESH_TOKEN"], where: "Google Business Profile API, for the dealer's verified profile, signed in as its owner or a manager" },
   // Only for a dealer whose stock comes from a listing site, DoneDeal or CarsIreland (src/lib/stock-source.ts): Settings lists it then.
-  { id: "donedeal", demoAccount: `${SITE_NAME} on ${LISTING_SITE}`, name: `${LISTING_SITE} stock`, purpose: `Brings the dealer's ${LISTING_SITE} ads onto the site every 15 minutes.`, env: ["DONEDEAL_API_KEY"], where: `${LISTING_SITE}, an API key for the dealer's own site, given with the dealer's written consent (DoneDeal and CarsIreland work the same way)` },
-  { id: "whatsapp", demoAccount: `${SITE_NAME} on WhatsApp`, name: "WhatsApp Business", purpose: "Sends leads to staff phones and buyers' updates, and takes replies from WhatsApp.", env: ["WHATSAPP_PHONE_NUMBER_ID", "WHATSAPP_ACCESS_TOKEN", "WHATSAPP_APP_SECRET"], where: "Meta for developers, the WhatsApp Business Platform (Cloud API), for the dealer's own business number" },
+  { id: "donedeal", demoAccount: "{name} on {site}", name: "{site} stock", purpose: "Brings the dealer's {site} ads onto the site every 15 minutes.", env: ["DONEDEAL_API_KEY"], where: `{site}, an API key for the dealer's own site, given with the dealer's written consent (DoneDeal and CarsIreland work the same way)` },
+  { id: "whatsapp", demoAccount: "{name} on WhatsApp", name: "WhatsApp Business", purpose: "Sends leads to staff phones and buyers' updates, and takes replies from WhatsApp.", env: ["WHATSAPP_PHONE_NUMBER_ID", "WHATSAPP_ACCESS_TOKEN", "WHATSAPP_APP_SECRET"], where: "Meta for developers, the WhatsApp Business Platform (Cloud API), for the dealer's own business number" },
   { id: "ai", demoAccount: "Included with your site", name: "AI writing", purpose: "Writes drafts of posts, car descriptions and replies for staff to check.", env: ["ANTHROPIC_API_KEY"], where: "The Claude Console, an API key for the dealer's site" },
 ];
+
+// A service's words for one dealer: their name and listing site in place of "{name}", "{handle}" and "{site}".
+export function integrationText(i: Integration, dealer: { name: string; site: string }): Integration {
+  const fill = (t: string) => t.replaceAll("{name}", dealer.name).replaceAll("{handle}", dealer.name.toLowerCase().replace(/[^a-z0-9]/g, "")).replaceAll("{site}", dealer.site);
+  return { ...i, name: fill(i.name), purpose: fill(i.purpose), where: fill(i.where), ...(i.demoAccount && { demoAccount: fill(i.demoAccount) }) };
+}
 
 // The demo shows every feature working. With no keys, a simulated service does its work in the admin's own records and sends nothing
 // outside. A production site (APP_ENV=production) does not simulate unless SIMULATE_INTEGRATIONS=on, and SIMULATE_INTEGRATIONS=off turns it off anywhere. Then a service without keys says it is not connected.

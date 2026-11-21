@@ -1,7 +1,6 @@
 import { Meter } from "@/components/admin/kit";
 import { BrandIcon } from "@/components/admin/BrandIcon";
 import { fmtNum } from "@/lib/admin/format";
-import { DEALER_RULES } from "@/lib/dealer.config";
 
 // Charts drawn by hand in SVG and HTML: no library, nothing to load. Colours come from the tokens, so both themes work. Each chart
 // carries its numbers as text for a screen reader, and never relies on colour alone.
@@ -74,11 +73,12 @@ export function BarList({ items, of, format = fmtNum }: { items: { label: string
   );
 }
 
-// How long a car has been for sale, on a scale to 90 days: amber from `late`, when it is worth a price check. The days are written beside.
-export function AgeBar({ days, late }: { days: number; late: number }) {
+// How long a car has been for sale, on a scale to half again the dealer's old stock days (`oldDays`): amber from `late`, when it is worth a
+// price check. The days are written beside.
+export function AgeBar({ days, late, oldDays }: { days: number; late: number; oldDays: number }) {
   return (
     <span aria-hidden className="block h-1.5 w-16 overflow-hidden rounded-full bg-hairline">
-      <span className={`block h-full rounded-full ${days >= late ? "bg-warn" : "bg-control"}`} style={{ width: `${Math.min(100, (days / (DEALER_RULES.oldStockDays * 1.5)) * 100)}%` }} />
+      <span className={`block h-full rounded-full ${days >= late ? "bg-warn" : "bg-control"}`} style={{ width: `${Math.min(100, (days / (oldDays * 1.5)) * 100)}%` }} />
     </span>
   );
 }

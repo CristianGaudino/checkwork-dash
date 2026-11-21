@@ -10,6 +10,7 @@ export const dealers = sqliteTable("dealers", {
   binding: text().notNull().unique(), // the dealer's D1 binding in wrangler.jsonc, e.g. DB_CHECKWORK_MOTORS
   demo: integer({ mode: "boolean" }).notNull().default(false), // made-up records, and the demo reset
   status: text().$type<"active" | "paused">().notNull().default("active"), // paused: nobody opens it and no job runs for it
+  profile: text().notNull().default("{}"), // the dealer's facts, plan, stock source and rules, as JSON (src/lib/tenancy/profile.ts)
   createdAt: integer("created_at", { mode: "timestamp_ms" })
     .notNull()
     .$defaultFn(() => new Date()),

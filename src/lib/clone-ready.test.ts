@@ -2,11 +2,12 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { expect, it } from "vitest";
 
-// The site is meant to be cloned for another business (issue #134). The brand and the dealer's facts live in src/lib/site.ts, and
-// everything else reads them from there. This fails when a page or component writes the brand, town or phone in by hand again.
-// Allowed: src/lib/site.ts itself, tests and their helpers (src/test), and the demo stock data and fixtures (replaced per clone, see docs/new-site-checklist.md).
-const ALLOWED = [/^src\/lib\/site\.ts$/, /\.test\.tsx?$/, /^src\/test\//, /demo-cars\.json$/, /worst-cars\.ts$/, /^src\/lib\/reviews\//];
-const WORDS = /checkwork motors|demotown|co. demo|D00 ?0000|906 ?0045/i;
+// One app serves every dealer (#5): each dealer's name and facts are in their profile in the directory (src/lib/tenancy/profile.ts), read
+// for the dealer being viewed. This fails when a page or component writes a dealer's brand, town or phone in by hand again, which would
+// show the demo's facts to every dealer. Allowed: the demo business's own profile, tests and their helpers (src/test), and the demo stock
+// data and fixtures (the demo dealer's made-up records).
+const ALLOWED = [/^src\/lib\/tenancy\/profile\.ts$/, /\.test\.tsx?$/, /^src\/test\//, /demo-cars\.json$/, /worst-cars\.ts$/, /^src\/lib\/reviews\//];
+const WORDS = /checkwork motors|long mile road|demotown|co. demo|D00 ?0000|D12 ?AF77|906 ?0045|demo\.checkwork\.ie/i;
 
 function files(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
@@ -17,7 +18,7 @@ function files(dir: string): string[] {
 // Comments may name the client; only code and strings count.
 const code = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
 
-it("keeps the brand, town and phone out of the code, so a clone changes one file", () => {
+it("keeps every dealer's brand, town and phone out of the code: they come from the dealer's profile", () => {
   const found = files("src")
     .map((f) => f.replaceAll("\\", "/"))
     .filter((f) => !ALLOWED.some((a) => a.test(f)))

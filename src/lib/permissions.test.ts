@@ -15,23 +15,20 @@ vi.mock("@/lib/tenancy/membership", () => vi.importActual("@/lib/tenancy/members
 const { can, currentMember } = await import("./permissions");
 const { settingsStore } = await import("@/lib/admin/collections");
 const { runAsDealer } = await import("@/lib/tenancy/current");
+const { putMember, resetMemoryDirectory } = await import("@/lib/tenancy/directory");
 
 afterEach(async () => {
   vi.unstubAllEnvs();
   cookie = undefined;
   email = undefined;
+  resetMemoryDirectory();
   await runAsDealer("checkwork-motors", () => settingsStore.reset()); // nobody is signed in here, so as the dealer itself
 });
 
-const production = () => {
-  vi.stubEnv("APP_ENV", "production");
-  vi.stubEnv("NEXT_PUBLIC_ADMIN_OPEN", "");
-  vi.stubEnv("DEMO_RECORDS", "on"); // the demo team's names (Aoife Owner, Conor Sales, Niamh Finance); their roles are the directory's
-};
-
-describe("on the demo", () => {
+describe("on a demo dealer (the directory's flag, whatever the deploy)", () => {
   it("acts as the owner by default, and as the first team member with the role the bar picked", async () => {
-    vi.stubEnv("APP_ENV", "demo");
+    vi.stubEnv("APP_ENV", "production"); // the deploy does not decide: the dealer does
+    vi.stubEnv("DEMO_RECORDS", "on"); // the demo team's names (Aoife Owner, Conor Sales)
     email = "aoife@example.com"; // signed in through Access, at the demo dealer
     expect(await currentMember()).toMatchObject({ name: "Aoife Brennan", role: "Owner" });
     expect(await can("margins")).toBe(true);
@@ -45,39 +42,26 @@ describe("on the demo", () => {
   });
 });
 
-describe("on a production site", () => {
-  it("ignores the cookie, even with the demo bar left on", async () => {
-    production();
+describe("on any other dealer", () => {
+  it("ignores the role cookie: the role is the directory's for the signed-in email, whatever its case", async () => {
+    await putMember("test-motors", "sales@test.example", "Sales"); // only at Test Motors, which is not a demo
+    email = "SALES@test.example";
+    cookie = "Owner";
+    expect(await currentMember()).toMatchObject({ role: "Sales", email: "sales@test.example" });
+    expect([await can("team"), await can("settings")]).toEqual([false, false]);
+  });
+
+  it("takes the role from the directory and grants nothing to anyone the directory does not have", async () => {
+    await putMember("test-motors", "boss@test.example", "Manager");
+    email = "boss@test.example";
+    expect(await currentMember()).toMatchObject({ role: "Manager" });
+    expect(await can("team")).toBe(true);
+    expect(await can("margins")).toBe(false); // a Manager may see margins, but Test Motors' plan has no margins module
+    email = "stranger@dealer.ie";
     cookie = "Owner";
     expect(await currentMember()).toMatchObject({ role: null });
-    expect(await can("margins")).toBe(false);
-    // A build that forgot APP_ENV is treated the same: a cookie never makes anyone the owner.
-    vi.stubEnv("APP_ENV", "");
-    expect(await can("margins")).toBe(false);
-  });
-
-  it("gives the signed-in email the role the directory has for it, whatever its case, and the team's name for it", async () => {
-    production();
-    email = "CONOR@example.com";
-    expect(await currentMember()).toMatchObject({ name: "Conor Doyle", role: "Sales" });
-    expect(await can("margins")).toBe(false);
-    email = "niamh@example.com";
-    expect([await can("margins"), await can("team")]).toEqual([true, false]);
-    email = "aoife@example.com";
-    expect(await can("team")).toBe(true);
-  });
-
-  it("takes the role from the directory, not the team record, and grants nothing to anyone the directory does not have", async () => {
-    production();
-    const { putMember, resetMemoryDirectory } = await import("@/lib/tenancy/directory");
-    await putMember("checkwork-motors", "conor@example.com", "Manager"); // the team record still says Sales
-    email = "conor@example.com";
-    expect(await currentMember()).toMatchObject({ name: "Conor Doyle", role: "Manager" });
-    resetMemoryDirectory();
-    email = "stranger@dealer.ie";
-    expect(await currentMember()).toMatchObject({ role: null });
-    expect(await can("margins")).toBe(false);
+    expect(await can("settings")).toBe(false);
     email = undefined;
-    expect(await can("margins")).toBe(false);
+    expect(await can("settings")).toBe(false);
   });
 });

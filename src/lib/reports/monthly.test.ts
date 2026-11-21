@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { AdminReview, Lead, Sale } from "@/lib/admin/collections";
 import type { Car } from "@/lib/stock/types";
 import { advice, bounds, compare, median, monthBefore, monthRange, openingAt, summarise, type ReportData } from "./monthly";
+import { DEMO_PROFILE } from "@/lib/tenancy/profile";
 
 const lead = (at: string, o: Partial<Lead> = {}) => ({ id: at, type: "enquiry", status: "new", source: "Website", notes: [], createdAt: Date.parse(at), ...o }) as Lead;
 const car = (id: string, o: Partial<Car>) => ({ id, slug: id, priceEur: 10000, photos: [], ...o }) as Car;
@@ -17,8 +18,8 @@ describe("month bounds", () => {
 
 describe("openingAt", () => {
   it("reads the weekday and the hours in Irish time, summer and winter", () => {
-    expect(openingAt(Date.parse("2026-03-02T10:00:00Z"))).toEqual({ weekday: 0, open: true }); // Monday 10:00 GMT
-    expect(openingAt(Date.parse("2026-07-06T08:15:00Z"))).toEqual({ weekday: 0, open: false }); // Monday 09:15 IST, before opening
+    expect(openingAt(Date.parse("2026-03-02T10:00:00Z"), DEMO_PROFILE.hours)).toEqual({ weekday: 0, open: true }); // Monday 10:00 GMT
+    expect(openingAt(Date.parse("2026-07-06T08:15:00Z"), DEMO_PROFILE.hours)).toEqual({ weekday: 0, open: false }); // Monday 09:15 IST, before opening
   });
 });
 
@@ -36,7 +37,7 @@ describe("summarise", () => {
     sales: [{ id: "a", priceEur: 9000, soldOn: "2026-03-20" }, { id: "x", priceEur: 5000, soldOn: "2026-03-21", returnedOn: "2026-03-25" }] as Sale[],
     reviews: [{ rating: 5, createdAt: Date.parse("2026-03-10T10:00:00Z") }, { rating: 4, createdAt: Date.parse("2026-03-11T10:00:00Z") }, { rating: 1, createdAt: Date.parse("2026-04-02T10:00:00Z") }] as AdminReview[],
   };
-  const s = summarise(data, "2026-03-01", "2026-03-31", now);
+  const s = summarise(data, "2026-03-01", "2026-03-31", now, DEMO_PROFILE);
 
   it("counts the month's leads by Irish day, so a clock change moves none into the wrong month", () => {
     expect(s.leads.total).toBe(4);
@@ -47,10 +48,10 @@ describe("summarise", () => {
   });
   it("does not count the site's own note at the moment a lead came in as a reply", () => {
     const at = "2026-03-03T10:00:00Z";
-    const told = summarise({ ...empty, leads: [lead(at, { notes: [{ at: Date.parse(at), text: "The email about this lead didn't reach you" }] })] }, "2026-03-01", "2026-03-31", now);
+    const told = summarise({ ...empty, leads: [lead(at, { notes: [{ at: Date.parse(at), text: "The email about this lead didn't reach you" }] })] }, "2026-03-01", "2026-03-31", now, DEMO_PROFILE);
     expect(told.replies).toEqual({ medianInHoursMin: null, medianOutOfHoursMin: null, none: 1 });
     const later = Date.parse(at) + 600_000; // a call-back reminder or a buyer's answer, written by the site
-    const auto = summarise({ ...empty, leads: [lead(at, { notes: [{ at: later, text: "Call back asked for from WhatsApp.", auto: true }] })] }, "2026-03-01", "2026-03-31", now);
+    const auto = summarise({ ...empty, leads: [lead(at, { notes: [{ at: later, text: "Call back asked for from WhatsApp.", auto: true }] })] }, "2026-03-01", "2026-03-31", now, DEMO_PROFILE);
     expect(auto.replies.none).toBe(1);
   });
   it("works out the replies", () => {
@@ -59,14 +60,14 @@ describe("summarise", () => {
   it("counts the stock, the sales (an undone one is not) and the reviews", () => {
     expect(s.stock).toMatchObject({ inStock: 2, added: 1, sold: 1, oldStock: 1, priceDrops: 1 });
     expect(s.sales).toEqual({ count: 1 });
-    expect(summarise(data, "2026-03-01", "2026-03-31", now, { money: true }).sales.valueEur).toBe(9000);
+    expect(summarise(data, "2026-03-01", "2026-03-31", now, DEMO_PROFILE, { money: true }).sales.valueEur).toBe(9000);
     expect(s.reviews).toEqual({ count: 2, average: 4.5 });
   });
   it("says nothing about people", () => {
     expect(JSON.stringify(s)).not.toMatch(/"name"|"email"|"phone"|"message"|@/);
   });
   it("is all zeros and nulls for a month with nothing", () => {
-    const e = summarise(empty, "2026-03-01", "2026-03-31", now);
+    const e = summarise(empty, "2026-03-01", "2026-03-31", now, DEMO_PROFILE);
     expect(e.leads).toEqual({ total: 0, byType: {}, bySource: {}, byWeekday: [0, 0, 0, 0, 0, 0, 0], outOfHours: 0 });
     expect(e.replies).toEqual({ medianInHoursMin: null, medianOutOfHoursMin: null, none: 0 });
     expect(e.stock.avgDaysInStock).toBeNull();
@@ -86,10 +87,10 @@ describe("compare, median and advice", () => {
     expect([median([]), median([5]), median([1, 9, 3]), median([1, 2, 3, 10])]).toEqual([null, 5, 3, 3]);
   });
   it("gives one line from the first rule that applies", () => {
-    const base = summarise(empty, "2026-03-01", "2026-03-31", 0);
-    expect(advice({ ...base, stock: { ...base.stock, oldStock: 6 } })).toBe("6 cars for sale 120 days or more: a price drop on these could move them.");
-    expect(advice({ ...base, stock: { ...base.stock, oldStock: 1 } })).toBe("1 car for sale 120 days or more: a price drop on this one could move it.");
-    expect(advice({ ...base, replies: { ...base.replies, none: 2 } })).toMatch(/^2 leads had no reply/);
-    expect(advice(base)).toMatch(/^Nothing needs attention/);
+    const base = summarise(empty, "2026-03-01", "2026-03-31", 0, DEMO_PROFILE);
+    expect(advice({ ...base, stock: { ...base.stock, oldStock: 6 } }, 120)).toBe("6 cars for sale 120 days or more: a price drop on these could move them.");
+    expect(advice({ ...base, stock: { ...base.stock, oldStock: 1 } }, 120)).toBe("1 car for sale 120 days or more: a price drop on this one could move it.");
+    expect(advice({ ...base, replies: { ...base.replies, none: 2 } }, 120)).toMatch(/^2 leads had no reply/);
+    expect(advice(base, 120)).toMatch(/^Nothing needs attention/);
   });
 });

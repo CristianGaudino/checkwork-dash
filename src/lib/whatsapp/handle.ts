@@ -7,16 +7,15 @@ import { droppedPrice } from "@/lib/admin/stock-admin-pure";
 import { carEditSummary } from "@/lib/admin/activity-text";
 import { postReviewReply } from "@/lib/admin/publishers";
 import { carTitleOf } from "@/lib/admin/seed-data";
-import { SITE_NAME } from "@/lib/site";
 import { HOUR } from "@/lib/time";
-import { stockSource } from "@/lib/stock-source";
-import { LISTING_SITE } from "@/lib/stock-source-rules";
+import { listing, stockSource } from "@/lib/stock-source";
+import { currentDealer } from "@/lib/tenancy/current";
 import { isSold } from "@/lib/stock/types";
 import { notify } from "@/lib/admin/notifications";
 import { enabledModules } from "@/lib/modules";
 import { sendWhatsApp } from "./send";
 import { addMessage, messagesStore, staffStore, type Msg } from "./store";
-import { BUTTON_LABELS, SLOW_DROP_EUR, firstName, moduleOf, parsePrice, type ButtonId } from "./rules";
+import { BUTTON_LABELS, firstName, moduleOf, parsePrice, type ButtonId } from "./rules";
 
 // What happens when someone taps a button under an alert or types a reply (#178). Everything goes through here, so the lead, the activity
 // log and the buyer are always updated the same way, and the dashboard stays the full record. Only a team member with a linked phone can act,
@@ -122,11 +121,11 @@ export async function tap(me: string, msgId: string, button: ButtonId): Promise<
   if (button === "price") return void (await say(me, { leadId: msg.leadId, ref: msg.id, text: `What price do you want to offer${first ? ` ${first}` : ""}? Type it, like 8,500.`, expects: "price" }));
   if (button === "other") return void (await say(me, { leadId: msg.leadId, ref: msg.id, text: "What time suits? Type it, like Saturday at 11.", expects: "time" }));
   if (button === "drop") {
-    if ((await stockSource()) === "donedeal") return void (await say(me, { text: `The price comes from ${LISTING_SITE}. Change it there.` }));
+    if ((await stockSource()) === "donedeal") return void (await say(me, { text: `The price comes from ${(await listing()).site}. Change it there.` }));
     await markDone(all); // first, so a second tap while this runs finds it done
     const car = msg.ref ? await adminCar(msg.ref) : undefined;
     if (car && isSold(car)) return void (await say(me, { text: "That car is sold, so I left the price." }));
-    const drop = car && droppedPrice(car, SLOW_DROP_EUR, "eur");
+    const drop = car && droppedPrice(car, (await currentDealer()).profile.rules.slowDropEur, "eur");
     if (!car || !drop) return void (await say(me, { text: "I could not change that price. Open the car to do it." }));
     const next = { ...car, ...drop };
     await saveCar(next);
@@ -197,7 +196,7 @@ export async function typed(me: string, raw: string): Promise<void> {
     if (!lead) return void (await say(me, { text: "I can't find that request any more." }));
     if (lead.status === "won" || lead.status === "lost") return void (await say(me, { text: "That lead is closed." }));
     if (!reach(lead)) return void (await say(me, { leadId: lead.id, href: `/leads/${lead.id}`, text: callThem(lead) }));
-    const by = await toBuyer(lead, me, `Hi ${firstName(lead.name)}, thank you for sending us your car. We can offer you ${fmtEur(eur)} for it, subject to seeing it. Reply here and we will book a time for you to bring it in. ${SITE_NAME}`, "That sounds good. Could I bring it in on Saturday morning?");
+    const by = await toBuyer(lead, me, `Hi ${firstName(lead.name)}, thank you for sending us your car. We can offer you ${fmtEur(eur)} for it, subject to seeing it. Reply here and we will book a time for you to bring it in. ${(await currentDealer()).name}`, "That sounds good. Could I bring it in on Saturday morning?");
     if (!by) return void (await say(me, { leadId: lead.id, href: `/leads/${lead.id}`, text: callThem(lead) }));
     await leadsStore.update(lead.id, (cur) => ({ ...cur, status: moved(cur.status, "contacted"), notes: [...cur.notes, { at: Date.now(), text: `Offer sent by ${by}: ${fmtEur(eur)}` }] }));
     await logActivity("leads", `Sent an offer of ${fmtEur(eur)}, from WhatsApp`, { kind: "lead", id: lead.id });

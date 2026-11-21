@@ -1,6 +1,6 @@
 import { fold } from "./format";
 import { searchOptions } from "./search-options";
-import { FUEL_LABELS, GEARBOX_LABELS, SOLD_VISIBLE_DAYS, isSold, onRequest } from "./types";
+import { FUEL_LABELS, GEARBOX_LABELS, isSold, onRequest } from "./types";
 import type { Car, FacetGroup, FacetOption, SortKey, StockProvider, StockQuery, StockResult } from "./types";
 import { PARTNERS } from "@/lib/partners";
 import { DAY } from "@/lib/time";
@@ -30,7 +30,8 @@ const SORTS: Record<SortKey, (a: Car, b: Car) => number> = {
 
 type Pick = (c: Car) => { value: string; label: string; parent?: string } | undefined;
 
-export function createStockEngine(input: Car[], { now = () => new Date() }: { now?: () => Date } = {}): StockProvider {
+// `soldDays`: how long a sold car stays on the website, the dealer's rule (their profile).
+export function createStockEngine(input: Car[], { now = () => new Date(), soldDays }: { now?: () => Date; soldDays: number }): StockProvider {
   // Drafts and hidden cars are not on the website at all: no list, page, count or sitemap has them, and their address is not found.
   const cars = input.filter((c) => !c.listing).sort((a, b) => Number(b.id) - Number(a.id));
   const bySlug = new Map(cars.map((c) => [c.slug, c]));
@@ -45,7 +46,7 @@ export function createStockEngine(input: Car[], { now = () => new Date() }: { no
   // In stock, or sold inside the period. The clock is read per call, never once here: a Worker lives for days.
   const visibleNow = () => {
     const t = now().getTime();
-    return (c: Car) => !c.soldAt || Date.parse(c.soldAt) + SOLD_VISIBLE_DAYS * DAY > t;
+    return (c: Car) => !c.soldAt || Date.parse(c.soldAt) + soldDays * DAY > t;
   };
 
   // Every filter applies unless its group is `skip`, which is how facet counts stay disjunctive.

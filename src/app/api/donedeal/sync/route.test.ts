@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 const run = vi.fn(async () => ({ id: "status", result: { added: 0, changed: 0, sold: 0 } }));
-vi.mock("@/lib/donedeal/sync", () => ({ runSync: () => run(), syncRunsHere: () => true }));
+vi.mock("@/lib/donedeal/sync", () => ({ runSync: () => run(), syncRunsHere: async () => true }));
 const { POST } = await import("./route");
 const call = (auth?: string) => POST(new Request("https://example.com/api/donedeal/sync?dealer=checkwork-motors", { method: "POST", headers: auth ? { authorization: auth } : {} }));
 

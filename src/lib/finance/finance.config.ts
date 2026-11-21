@@ -1,4 +1,5 @@
-import { SITE_NAME } from "@/lib/site";
+// shortcut: the demo business's made-up terms and name; a dealer's own finance terms come with the site API (#7), from their profile.
+import { DEMO_NAME as SITE_NAME } from "@/lib/tenancy/profile";
 import { pcpQuote, quote } from "./payment";
 
 // The demo's own terms (#15): a made-up dealer, so the owner chose a representative 8.9% APR and the wording follows the usual Irish

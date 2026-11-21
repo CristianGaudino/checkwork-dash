@@ -1,14 +1,15 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import { getBindings } from "@/lib/leads/bindings";
 import { dealers, members } from "@/lib/db/directory-schema";
 import type { Role } from "@/lib/permission-rules";
-import { SITE_NAME } from "@/lib/site";
+import { DEMO_NAME, DEMO_PROFILE, parseProfile, type DealerProfile } from "./profile";
 
 // The directory: the dealers, and who works at each with which role. On the Worker the DIRECTORY D1 database; with no D1 (next dev, the
 // E2E run, unit tests) a copy in memory with two dealers: Checkwork Motors (the demo, with its made-up team) and Test Motors (empty, not a
 // demo). The only place that answers who may open which dealer (src/lib/tenancy/current.ts).
-export type Dealer = { id: string; name: string; binding: string; demo: boolean; status: "active" | "paused"; createdAt: number };
+// `profile`: the dealer's facts, plan, stock source and rules (profile.ts), read with the dealer, so it costs no second read.
+export type Dealer = { id: string; name: string; binding: string; demo: boolean; status: "active" | "paused"; createdAt: number; profile: DealerProfile };
 export type Member = { dealerId: string; email: string; role: Role; addedAt: number };
 
 // D1 or memory, for the whole app at once: with the directory bound (the Worker) every store is D1 and a dealer whose database is missing
@@ -19,9 +20,11 @@ export const hasD1 = () => Boolean(getBindings().DIRECTORY);
 export const DEV_EMAIL = "dev@checkwork.invalid";
 export const DEMO_DEALER = "checkwork-motors";
 
-const SEED_DEALERS: Dealer[] = [
-  { id: DEMO_DEALER, name: SITE_NAME, binding: "DB_CHECKWORK_MOTORS", demo: true, status: "active", createdAt: 0 },
-  { id: "test-motors", name: "Test Motors", binding: "DB_TEST_MOTORS", demo: false, status: "active", createdAt: 1 },
+// Stored as the directory stores it (a JSON text), so memory and D1 read it the same way.
+type Row = Omit<Dealer, "profile"> & { profile: string };
+const SEED_DEALERS: Row[] = [
+  { id: DEMO_DEALER, name: DEMO_NAME, binding: "DB_CHECKWORK_MOTORS", demo: true, status: "active", createdAt: 0, profile: "{}" },
+  { id: "test-motors", name: "Test Motors", binding: "DB_TEST_MOTORS", demo: false, status: "active", createdAt: 1, profile: "{}" },
 ];
 // The demo's made-up team (TEAM_SEED in src/lib/admin/collections.ts) and the open app's person, who is at both dealers.
 const SEED_MEMBERS: Member[] = [
@@ -35,7 +38,7 @@ const SEED_MEMBERS: Member[] = [
   { dealerId: "test-motors", email: DEV_EMAIL, role: "Owner", addedAt: 11 },
 ];
 // shortcut: memory is per server instance, like the record store (src/lib/admin/docs.ts). Fine for dev and tests; the Worker uses D1.
-let memory: { dealers: Dealer[]; members: Member[] } | null = null;
+let memory: { dealers: Row[]; members: Member[] } | null = null;
 const mem = () => {
   // A production build with no DIRECTORY bound is a broken deploy, not the E2E run: fail loudly instead of answering from memory and losing
   // every write (the same rule as stock, src/lib/stock/index.ts).
@@ -50,16 +53,21 @@ const db = () => {
   if (!d1) throw new Error("Missing binding DIRECTORY");
   return drizzle(d1);
 };
-const toDealer = (r: typeof dealers.$inferSelect): Dealer => ({ ...r, createdAt: r.createdAt.getTime() });
+// What is stored, over the made-up demo business (every module, its facts) for a demo dealer and over the plain defaults for any other.
+const withProfile = (r: Row): Dealer => ({ ...r, profile: parseProfile(r.profile, r.demo ? DEMO_PROFILE : undefined) });
+const toDealer = (r: typeof dealers.$inferSelect): Dealer => withProfile({ ...r, createdAt: r.createdAt.getTime() });
 const toMember = (r: typeof members.$inferSelect): Member => ({ ...r, addedAt: r.addedAt.getTime() });
 
 export async function listDealers(): Promise<Dealer[]> {
-  if (!hasD1()) return mem().dealers.map((d) => ({ ...d }));
+  if (!hasD1()) return mem().dealers.map(withProfile);
   return (await db().select().from(dealers).orderBy(asc(dealers.id))).map(toDealer);
 }
 
 export async function dealerById(id: string): Promise<Dealer | undefined> {
-  if (!hasD1()) return mem().dealers.find((d) => d.id === id);
+  if (!hasD1()) {
+    const d = mem().dealers.find((x) => x.id === id);
+    return d && withProfile(d);
+  }
   const [r] = await db().select().from(dealers).where(eq(dealers.id, id)).limit(1);
   return r && toDealer(r);
 }
@@ -72,7 +80,7 @@ export async function membershipsOf(email: string): Promise<(Member & { dealer: 
     const m = mem();
     return m.members.filter((x) => x.email === e).flatMap((x) => {
       const dealer = m.dealers.find((d) => d.id === x.dealerId && d.status === "active");
-      return dealer ? [{ ...x, dealer: { ...dealer } }] : [];
+      return dealer ? [{ ...x, dealer: withProfile(dealer) }] : [];
     });
   }
   const rows = await db().select().from(members).innerJoin(dealers, eq(members.dealerId, dealers.id)).where(and(eq(members.email, e), eq(dealers.status, "active"))).orderBy(asc(members.addedAt));
@@ -106,4 +114,29 @@ export async function removeMember(dealerId: string, email: string): Promise<voi
     return;
   }
   await db().delete(members).where(and(eq(members.dealerId, dealerId), eq(members.email, e)));
+}
+
+// The dealer's name and the given parts of their profile, merged over what is stored (JSON merge patch, in the one UPDATE, so a part we set
+// at the same moment is never written back stale): Settings, Your business, for the facts the dealer may change. `null` puts the profile
+// back to its base (the demo reset). The rest of the profile is ours (docs/new-dealer.md).
+// SQLite's json_patch (RFC 7396) for the copy in memory: objects merge, anything else replaces, null removes.
+const isObject = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
+function mergePatch(target: unknown, patch: unknown): unknown {
+  if (!isObject(patch)) return patch;
+  const out = isObject(target) ? { ...target } : {};
+  for (const [k, v] of Object.entries(patch)) if (v === null) delete out[k];
+  else out[k] = mergePatch(out[k], v);
+  return out;
+}
+export async function patchDealer(id: string, name: string, patch: Partial<DealerProfile> | null): Promise<void> {
+  const json = JSON.stringify(patch ?? {});
+  if (!hasD1()) {
+    const d = mem().dealers.find((x) => x.id === id);
+    if (d) Object.assign(d, { name, profile: patch ? JSON.stringify(mergePatch(JSON.parse(d.profile), patch)) : json });
+    return;
+  }
+  await db()
+    .update(dealers)
+    .set({ name, profile: patch ? sql`json_patch(${dealers.profile}, ${json})` : json })
+    .where(eq(dealers.id, id));
 }

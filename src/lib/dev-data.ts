@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { DEFAULT_PROFILE } from "./tenancy/profile";
 import { DEV_COOKIE, DEV_MODES, type DevMode } from "./dev-modes";
 import { createStockEngine } from "./stock/engine";
 import type { Car, StockProvider } from "./stock/types";
@@ -24,7 +25,7 @@ export function withDevData(prod: StockProvider): StockProvider {
     if (mode === "demo") return prod;
     if (!byMode.has(mode)) {
       const { fixtureCars } = await import("./stock/worst-cars");
-      byMode.set(mode, createStockEngine(fixtureCars(mode)));
+      byMode.set(mode, createStockEngine(fixtureCars(mode), { soldDays: DEFAULT_PROFILE.rules.soldVisibleDays })); // made-up cars: the usual rule
     }
     return byMode.get(mode)!;
   };

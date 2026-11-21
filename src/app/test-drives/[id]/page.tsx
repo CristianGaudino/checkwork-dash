@@ -1,3 +1,4 @@
+import { dealerProfile } from "@/lib/tenancy/current";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ActButton } from "@/components/admin/ActButton";
@@ -23,7 +24,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const { id } = await params;
   const d = await drivesStore.get(id);
   if (!d) notFound();
-  const [cars, drives, settings] = await Promise.all([adminCars(), drivesStore.list(), getSettings()]);
+  const [cars, drives, settings, { hours }] = await Promise.all([adminCars(), drivesStore.list(), getSettings(), dealerProfile()]);
   const car = cars.find((c) => c.slug === d.carSlug);
   const open = isOpenDrive(d);
   const team = settings.team.map((t) => t.name);
@@ -46,7 +47,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           </Panel>
           {open && (
             <Panel title="Change the time">
-              <MoveDriveForm id={d.id} carSlug={d.carSlug} slots={{ ...slotData(drives, d.id), windowMin: settings.driveSlotMinutes }} />
+              <MoveDriveForm id={d.id} carSlug={d.carSlug} slots={{ ...slotData(drives, hours, d.id), windowMin: settings.driveSlotMinutes }} />
             </Panel>
           )}
         </div>

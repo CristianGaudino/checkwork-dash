@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { DEMO_PROFILE } from "@/lib/tenancy/profile";
 
 vi.mock("server-only", () => ({}));
 vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
@@ -17,7 +18,7 @@ const form = (o: Record<string, string>) => Object.entries(o).reduce((f, [k, v])
 const today = dublinDay();
 // Days from today on that match: an open day, a closed one, a bank holiday.
 const firstDay = (from: number, test: (d: string) => boolean) => Array.from({ length: 60 }, (_, i) => addDays(today, from + i)).find(test);
-const open = (from: number) => firstDay(from, (d) => driveTimes(d).length > 0)!;
+const open = (from: number) => firstDay(from, (d) => driveTimes(d, DEMO_PROFILE.hours).length > 0)!;
 const base = async (o: Record<string, string> = {}) => ({ name: "Desk booker", phone: "+353 83 000 1234", carSlug: (await adminCars()).filter(forSale)[5].slug, date: open(20), time: "11:00", ...o });
 
 describe("a booking taken at the desk", () => {
@@ -31,18 +32,18 @@ describe("a booking taken at the desk", () => {
     expect((await addDriveAction(undefined, form(await base({ carSlug: sold.slug }))))?.errors).toEqual({ carSlug: "That car is no longer for sale" });
     expect((await addDriveAction(undefined, form(await base({ date: "2020-01-01" }))))?.errors?.date).toBe("Choose a day that has not passed");
     expect((await addDriveAction(undefined, form(await base({ date: addDays(today, 75) }))))?.errors?.date).toBe("Choose a day in the next two months");
-    const closed = firstDay(1, (d) => driveTimes(d).length === 0 && !isBankHoliday(d));
+    const closed = firstDay(1, (d) => driveTimes(d, DEMO_PROFILE.hours).length === 0 && !isBankHoliday(d));
     if (closed) expect((await addDriveAction(undefined, form(await base({ date: closed }))))?.errors?.date).toBe("We're closed that day");
     const holiday = firstDay(1, isBankHoliday);
     if (holiday) expect((await addDriveAction(undefined, form(await base({ date: holiday }))))?.errors?.date).toBe("That's a bank holiday. We're closed");
     expect((await addDriveAction(undefined, form(await base({ time: "06:00" }))))?.errors?.time).toMatch(/^Choose a time from /);
     // Saturday closes at 16:00, so the last drive starts at 15:00: 17:30 is refused on the server, whatever the form sent.
-    const sat = firstDay(1, (d) => new Date(`${d}T12:00:00Z`).getUTCDay() === 6 && driveTimes(d).length > 0)!;
+    const sat = firstDay(1, (d) => new Date(`${d}T12:00:00Z`).getUTCDay() === 6 && driveTimes(d, DEMO_PROFILE.hours).length > 0)!;
     expect((await addDriveAction(undefined, form(await base({ date: sat, time: "17:30" }))))?.errors?.time).toBe("Choose a time from 10:00 to 15:00");
   });
   it("refuses moving a booking to a closed day or out of hours", async () => {
     const drive = (await drivesStore.list()).find((d) => d.status === "requested" || d.status === "confirmed")!;
-    const closed = firstDay(1, (d) => driveTimes(d).length === 0 && !isBankHoliday(d))!;
+    const closed = firstDay(1, (d) => driveTimes(d, DEMO_PROFILE.hours).length === 0 && !isBankHoliday(d))!;
     expect((await moveDriveAction(drive.id, undefined, form({ date: closed, time: "11:00" })))?.errors?.date).toBe("We're closed that day");
     expect((await moveDriveAction(drive.id, undefined, form({ date: open(20), time: "18:30" })))?.errors?.time).toMatch(/^Choose a time from /);
     expect((await drivesStore.get(drive.id))!.startsAt).toBe(drive.startsAt);

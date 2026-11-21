@@ -32,8 +32,8 @@ export const MODULE_IDS = MODULES.map((m) => m.id) as ModuleId[];
 const isModule = (v: string): v is ModuleId => (MODULE_IDS as string[]).includes(v);
 const needsOf = (id: ModuleId): readonly ModuleId[] => (MODULES.find((m) => m.id === id) as { needs?: readonly ModuleId[] }).needs ?? [];
 
-// The demo bar's choice, a cookie; a real site's is the build setting NEXT_PUBLIC_SITE_MODULES. Both are a comma list of ids, "all" or
-// nothing. Unset means all, so a site built before modules existed keeps everything it had. A module without what it needs is off.
+// A dealer's plan (their profile's `modules`) and a demo dealer's demo bar choice (a cookie) are both a comma list of ids, "all" or
+// nothing. Unset means all (a cookie never set); a profile always has a value, "dashboard" by default. A module without what it needs is off.
 export const MODULES_COOKIE = "checkwork-demo-modules";
 export function parseModules(v: string | undefined): Set<ModuleId> {
   const raw = v === undefined || v.trim() === "all" ? MODULE_IDS : v.split(",").map((s) => s.trim()).filter(isModule);

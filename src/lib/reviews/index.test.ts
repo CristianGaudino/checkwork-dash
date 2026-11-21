@@ -1,7 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { DEALER_ADDRESS } from "../site";
+import { DEMO_PROFILE } from "../tenancy/profile";
 
 vi.mock("server-only", () => ({}));
+// The dealer's Google place is in their profile.
+let placeId = "";
+vi.mock("../tenancy/current", () => ({ dealerProfile: async () => ({ placeId }) }));
 
 const PLACES = { googleMapsUri: "https://maps.google.com/?cid=1", rating: 4.5, userRatingCount: 9, reviews: [{ rating: 5, relativePublishTimeDescription: "a day ago", authorAttribution: { displayName: "B." } }] };
 
@@ -19,9 +22,9 @@ describe("getReviews", () => {
     ["neither", "", ""],
     ["only the place ID", "ChIJ1", ""],
     ["only the key", "", "key"],
-  ])("returns the demo fixtures without fetching when %s is set", async (_, placeId, key) => {
+  ])("returns the demo fixtures without fetching when %s is set", async (_, place, key) => {
     vi.stubEnv("APP_ENV", "demo"); // not production, whatever the run's own APP_ENV is
-    vi.stubEnv("GOOGLE_PLACE_ID", placeId);
+    placeId = place;
     vi.stubEnv("GOOGLE_PLACES_API_KEY", key);
     const fetch = vi.fn();
     vi.stubGlobal("fetch", fetch);
@@ -32,7 +35,7 @@ describe("getReviews", () => {
 
   it("returns nothing, never the fixtures, in production without the place ID or key", async () => {
     vi.stubEnv("APP_ENV", "production");
-    vi.stubEnv("GOOGLE_PLACE_ID", "");
+    placeId = "";
     vi.stubEnv("GOOGLE_PLACES_API_KEY", "");
     const { getReviews } = await load();
     expect(await getReviews()).toBeNull();
@@ -41,14 +44,14 @@ describe("getReviews", () => {
   it("keeps the fixtures for the E2E server, which is built as production", async () => {
     vi.stubEnv("APP_ENV", "production");
     vi.stubEnv("E2E_FAKE_BACKENDS", "1");
-    vi.stubEnv("GOOGLE_PLACE_ID", "");
+    placeId = "";
     vi.stubEnv("GOOGLE_PLACES_API_KEY", "");
     const { getReviews, DEMO_REVIEWS } = await load();
     expect(await getReviews()).toBe(DEMO_REVIEWS);
   });
 
   it("returns Places data when both are set", async () => {
-    vi.stubEnv("GOOGLE_PLACE_ID", "ChIJ1");
+    placeId = "ChIJ1";
     vi.stubEnv("GOOGLE_PLACES_API_KEY", "key");
     const fetch = vi.fn(async () => new Response(JSON.stringify(PLACES)));
     vi.stubGlobal("fetch", fetch);
@@ -58,7 +61,7 @@ describe("getReviews", () => {
   });
 
   it("never falls back to the fixtures when Places is configured and fails", async () => {
-    vi.stubEnv("GOOGLE_PLACE_ID", "ChIJ1");
+    placeId = "ChIJ1";
     vi.stubEnv("GOOGLE_PLACES_API_KEY", "key");
     vi.stubGlobal("fetch", vi.fn(async () => new Response("", { status: 500 })));
     const { getReviews } = await load();
@@ -79,7 +82,7 @@ describe("DEMO_REVIEWS", () => {
       expect(r).not.toHaveProperty("photoUri");
       expect(r.reviewUri).toMatch(/^https:\/\//);
     }
-    expect(d.placeUri).toContain(encodeURIComponent(DEALER_ADDRESS.street)); // the dealer's own address, never a made-up eircode
+    expect(d.placeUri).toContain(encodeURIComponent(DEMO_PROFILE.address.street)); // the dealer's own address, never a made-up eircode
     expect(JSON.stringify(d)).not.toContain(String.fromCharCode(0x2014));
   });
 });

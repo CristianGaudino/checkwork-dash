@@ -15,7 +15,7 @@ vi.mock("@/lib/admin/stock-admin", async (orig) => {
 });
 vi.mock("@/lib/leads/mail", () => ({ sendTo: async (to: string[], m: { subject: string }) => void sent.push({ to, subject: m.subject }) }));
 
-const { runSync, syncStatus, resetSyncStatus, SYNC_ACTOR } = await import("./sync");
+const { runSync, syncStatus, resetSyncStatus, syncActor } = await import("./sync");
 const { adminCars } = await import("@/lib/admin/stock-admin");
 const { listActivity } = await import("@/lib/admin/activity");
 const { HOUR } = await import("@/lib/time");
@@ -48,7 +48,7 @@ describe("the DoneDeal sync", () => {
     expect(now.find((c) => c.id === a.id)?.priceEur).toBe(a.priceEur - 500);
     expect(now.find((c) => c.id === b.id)).toMatchObject({ listing: "hidden", takenDownAt: expect.any(String) });
     expect(now.find((c) => c.id === "dd-1")?.listedAt).toBeTruthy();
-    const log = (await listActivity({ actor: SYNC_ACTOR }, 1, 3)).rows.map((r) => r.summary);
+    const log = (await listActivity({ actor: syncActor("DoneDeal") }, 1, 3)).rows.map((r) => r.summary);
     expect(log).toEqual(expect.arrayContaining(["Added from DoneDeal", "Hidden: the ad came down on DoneDeal", expect.stringMatching(/^Changed the price from/)]));
   });
 

@@ -5,7 +5,7 @@ import { SHOW_PRICING } from "@/lib/billing/rules";
 import { SearchIcon } from "@/components/stock/icons";
 import { secondaryButton } from "@/components/ui";
 import { regSummary } from "@/lib/reg";
-import { useModules } from "@/lib/demo-role";
+import { useModules } from "@/components/DealerFacts";
 import type { CarFound, RegLookup as Found } from "@/lib/reg-lookup";
 
 // The "Look up" beside a registration box, on the visitor's forms and the dealer's. It asks the server (src/lib/reg-lookup.ts) and hands

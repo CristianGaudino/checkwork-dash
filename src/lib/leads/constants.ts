@@ -1,12 +1,12 @@
 import { isBankHoliday } from "../bank-holidays";
-import { OPENING_HOURS, SITE_NAME } from "../site";
+import type { Hours } from "../tenancy/profile";
 import { addDays, addMonths, dublinDay } from "../admin/format";
 
 // What the lead forms and the server share. No zod here: client components import this file, and pulling in
 // schema.ts would ship zod to every car page.
 
-// Change the version whenever the text changes: every lead stores the version it was sent under (D-06).
-export const CONSENT = { version: "2026-11-10", text: `I agree to ${SITE_NAME} using these details to reply to my request.` } as const;
+// Change the version whenever the text changes: every lead stores the version it was sent under (D-06). The dealer's name goes in.
+export const CONSENT = { version: "2026-11-10", text: (dealer: string) => `I agree to ${dealer} using these details to reply to my request.` } as const;
 // D-04: leads are kept this long, then deleted by the daily purge (worker.mjs, docs/lead-retention.md). The dealer must confirm
 // the period; /privacy and docs/lead-retention.md state it, so change all three together.
 export const LEAD_RETENTION_MONTHS = 12;
@@ -85,35 +85,35 @@ export const PHOTO_SLOTS = ["Front", "Back", "Driver's side", "Passenger's side"
 export const PHOTO_NOTES = [`The ${PHOTO_MIN_COUNT} we need: ${PHOTO_SLOTS.slice(0, PHOTO_MIN_COUNT).join(", ")}.`, `More is better: ${PHOTO_SLOTS.slice(PHOTO_MIN_COUNT).filter((s) => s !== "Any damage").join(", ")}.`, "Include photos of any damage, even small marks."];
 
 // Test drives (a booking is a lead with a day and a time), the same rules for the website and the dashboard. The days and hours come from
-// OPENING_HOURS, so they never disagree with the opening times on the site. Slots start when we open and stop an hour before we close.
+// the dealer's opening hours (`hours`, their profile), so they never disagree with the opening times on the site. Slots start when we open and stop an hour before we close.
 // Times are Irish time wherever the buyer is. How long one car is out is the dealer's setting (settings.driveSlotMinutes).
 export const TEST_DRIVE = { monthsAhead: 2, stepMinutes: 30 } as const;
 export const BAD_DRIVE_DAY = "Choose a day from the list.";
 export const BAD_DRIVE_TIME = "Choose a time from the list.";
 const mins = (hhmm: string) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5));
 const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
-const hoursFor = (iso: string) => OPENING_HOURS[(new Date(`${iso}T12:00:00Z`).getUTCDay() + 6) % 7]; // OPENING_HOURS starts on Monday
+const hoursFor = (iso: string, hours: Hours) => hours[(new Date(`${iso}T12:00:00Z`).getUTCDay() + 6) % 7]; // hours start on Monday
 
 /** The times a car can be driven on a day: every slot from opening until an hour before closing. Empty on a closed day, bank holidays included. */
-export function driveTimes(iso: string): string[] {
+export function driveTimes(iso: string, hours: Hours): string[] {
   if (isBankHoliday(iso)) return [];
-  const h = hoursFor(iso);
+  const h = hoursFor(iso, hours);
   if (!h?.opens || !h.closes) return [];
   const out: string[] = [];
   for (let m = mins(h.opens); m <= mins(h.closes) - 60; m += TEST_DRIVE.stepMinutes) out.push(hhmm(m));
   return out;
 }
 /** Whether a time typed at the desk (any minute) is inside a day's driving hours. */
-export function inDriveHours(iso: string, time: string): boolean {
-  const t = driveTimes(iso);
+export function inDriveHours(iso: string, time: string, hours: Hours): boolean {
+  const t = driveTimes(iso, hours);
   return t.length > 0 && time >= t[0] && time <= t[t.length - 1];
 }
 /** The open days the website offers: from tomorrow (the team needs notice) to monthsAhead on, the dashboard's limit too. */
-export function driveDays(now = new Date()): string[] {
+export function driveDays(hours: Hours, now = new Date()): string[] {
   const today = dublinDay(now.getTime());
   const last = addMonths(today, TEST_DRIVE.monthsAhead);
   const out: string[] = [];
-  for (let d = addDays(today, 1); d <= last; d = addDays(d, 1)) if (driveTimes(d).length > 0) out.push(d);
+  for (let d = addDays(today, 1); d <= last; d = addDays(d, 1)) if (driveTimes(d, hours).length > 0) out.push(d);
   return out;
 }
 

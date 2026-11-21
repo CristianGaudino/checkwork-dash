@@ -15,12 +15,12 @@ const TTL_MS = 30_000;
 const snapshots = new Map<string, { at: number; engine: Promise<StockProvider> }>();
 
 async function engine(): Promise<StockProvider> {
-  const { id } = await currentDealer();
+  const { id, profile } = await currentDealer();
   const snapshot = snapshots.get(id);
   if (snapshot && Date.now() - snapshot.at < TTL_MS) return snapshot.engine;
   const load = getDb()
     .then((db) => db.select({ data: cars.data }).from(cars))
-    .then((rows) => createStockEngine(rows.map((r) => r.data as Car)));
+    .then((rows) => createStockEngine(rows.map((r) => r.data as Car), { soldDays: profile.rules.soldVisibleDays }));
   const mine = { at: Date.now(), engine: load };
   snapshots.set(id, mine);
   load.catch(() => void (snapshots.get(id) === mine && snapshots.delete(id))); // a failed read is not kept: the next request tries again

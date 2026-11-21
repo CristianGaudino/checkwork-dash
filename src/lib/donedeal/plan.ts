@@ -1,5 +1,4 @@
 import { forSale, type Car } from "@/lib/stock/types";
-import { LISTING_SITE } from "@/lib/stock-source-rules";
 
 // What one sync changes, worked out before anything is written. Pure, so every rule is tested.
 // `current`: every car on the site (sold ones too). `listings`: every car the dealer has on DoneDeal now, already in our shape.
@@ -18,7 +17,8 @@ const HOLD_MIN_GONE = 3;
 const OURS = ["soldAt", "listedAt", "listing", "takenDownAt"] as const;
 const comparable = (c: Car) => JSON.stringify({ ...c, soldAt: undefined, listedAt: undefined, listing: undefined, takenDownAt: undefined });
 
-export function planSync(current: Car[], listings: Car[], today: string, { force = false } = {}): Plan {
+// `site`: the dealer's listing site, as its messages name it.
+export function planSync(current: Car[], listings: Car[], today: string, { force = false, site }: { force?: boolean; site: string }): Plan {
   const byId = new Map(current.map((c) => [c.id, c]));
   const listed = new Set(listings.map((l) => l.id));
   const added: Car[] = [];
@@ -33,9 +33,9 @@ export function planSync(current: Car[], listings: Car[], today: string, { force
   }
   const onSite = current.filter(forSale);
   const gone = onSite.filter((c) => !listed.has(c.id));
-  if (!force && onSite.length && !listings.length) return { added: [], changed: [], gone: [], held: `${LISTING_SITE} sent no cars, and the site has ${onSite.length}.` };
+  if (!force && onSite.length && !listings.length) return { added: [], changed: [], gone: [], held: `${site} sent no cars, and the site has ${onSite.length}.` };
   if (!force && gone.length >= HOLD_MIN_GONE && gone.length > onSite.length * HOLD_SHARE)
-    return { added: [], changed: [], gone: [], held: `${LISTING_SITE} no longer lists ${gone.length} of the ${onSite.length} cars for sale.` };
+    return { added: [], changed: [], gone: [], held: `${site} no longer lists ${gone.length} of the ${onSite.length} cars for sale.` };
   return { added, changed, gone: gone.map((c) => ({ ...c, listing: "hidden" as const, takenDownAt: today })) };
 }
 

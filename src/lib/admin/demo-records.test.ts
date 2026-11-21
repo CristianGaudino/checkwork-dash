@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { HOUR } from "@/lib/time";
+import { DEMO_PROFILE } from "@/lib/tenancy/profile";
 
 vi.mock("server-only", () => ({}));
 
@@ -45,7 +46,7 @@ describe("demo records", () => {
     const { isSalesLead } = await import("./leads");
     const leads = (await (await fresh()).leadsStore.list()).filter(isSalesLead);
     for (const now of [Date.now(), Date.now() + 10 * HOUR]) {
-      const o = overview({ leads, drives: [], reviews: [], now, slaHours: 24 });
+      const o = overview({ rules: DEMO_PROFILE.rules, listingSite: "DoneDeal", leads, drives: [], reviews: [], now, slaHours: 24 });
       expect(o.late.length).toBeGreaterThan(0);
       expect(o.late.length).toBeLessThan(o.newLeads / 2);
     }

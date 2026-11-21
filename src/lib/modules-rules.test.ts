@@ -1,5 +1,6 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { MODULE_IDS, moduleForPath, parseModules, pathAllowed, withModule, withoutModule } from "./modules-rules";
+import { MODULES, MODULE_IDS, moduleForPath, parseModules, pathAllowed, withModule, withoutModule } from "./modules-rules";
 
 describe("modules", () => {
   it("reads unset or 'all' as every module, so an older site keeps what it had", () => {
@@ -45,5 +46,15 @@ describe("modules", () => {
     expect(pathAllowed("/reviews", parseModules("dashboard,reviews"))).toBe(true);
     expect([...withModule(new Set(), "reviews")]).toEqual(["reviews"]);
     expect([...withoutModule(parseModules("dashboard,reviews"), "dashboard")]).toEqual(["reviews"]);
+  });
+});
+
+describe("each module's dashboard pages", () => {
+  it("sit under a layout that checks that module on the server (PlanGate), so a module that is off is never shown", () => {
+    for (const m of MODULES)
+      for (const path of m.dashboard) {
+        const layout = readFileSync(`src/app${path}/layout.tsx`, "utf8");
+        expect(layout, path).toContain(`<PlanGate id="${m.id}">`);
+      }
   });
 });

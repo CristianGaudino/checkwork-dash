@@ -23,7 +23,7 @@ import { sniffImage } from "@/lib/leads/photos";
 import { stockSource } from "@/lib/stock-source";
 import { runSync } from "@/lib/donedeal/sync";
 import { forSale, isSold, type Car } from "@/lib/stock/types";
-import { LISTING_SITE } from "@/lib/stock-source-rules";
+import { listing } from "@/lib/stock-source";
 import { requireStaff } from "@/lib/staff";
 import { requireModule } from "@/lib/modules";
 import { alertNewIn, alertStaff } from "@/lib/whatsapp/alerts";
@@ -39,7 +39,7 @@ const readOnly = async () => (await stockSource()) === "donedeal";
 // `id` is null for a new car. A bad form comes back with a message per box; a good one saves and goes to the list.
 export async function saveCarAction(id: string | null, _prev: FormState, data: FormData): Promise<FormState> {
   await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
-  if (await readOnly()) return { errors: { make: `This stock comes from ${LISTING_SITE}. Change it there.` } };
+  if (await readOnly()) return { errors: { make: `This stock comes from ${(await listing()).site}. Change it there.` } };
   const existing = id ? await adminCar(id) : undefined;
   if (id && !existing) return { errors: { make: "This car no longer exists" } };
   const result = carFromForm(data, id ?? (await freeCarId()), existing);
@@ -127,7 +127,7 @@ export async function withdrawnAction(id: string) {
   const car = await adminCar(id);
   if (!car?.takenDownAt) return;
   await saveCar({ ...car, takenDownAt: undefined });
-  await logActivity("stock", `Withdrawn: the ${LISTING_SITE} ad came down and it did not sell`, carRef(car));
+  await logActivity("stock", `Withdrawn: the ${(await listing()).site} ad came down and it did not sell`, carRef(car));
   revalidatePath("/stock");
 }
 

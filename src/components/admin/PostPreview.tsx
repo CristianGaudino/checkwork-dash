@@ -1,5 +1,5 @@
 import { FORMAT_LABELS, LAYOUT_LABELS, type Network, type PostFormat, type StoryLayout } from "@/lib/admin/networks";
-import { SITE_NAME } from "@/lib/site";
+import { useDealerFacts } from "@/components/DealerFacts";
 import { BrandIcon } from "@/components/admin/BrandIcon";
 
 // A phone-sized look at a post as it will appear on its network (#177). A feed post and a carousel are a card with the caption under the
@@ -14,13 +14,14 @@ function Media({ src, className = "" }: { src?: string; className?: string }) {
 }
 
 export function PostPreview({ network, format, layout = "just-in", text, photos, video, title, price, was }: PreviewProps) {
+  const { name } = useDealerFacts();
   const tall = format === "story" || format === "reel";
   return (
     <div className="mx-auto w-full max-w-72 overflow-hidden rounded-card border border-hairline bg-card" data-preview={format}>
       {!tall && (
         <div className="flex items-center gap-2 px-3 py-2">
-          <span className="inline-flex size-8 items-center justify-center rounded-full bg-band text-meta font-semibold text-on-accent">{SITE_NAME.slice(0, 1)}</span>
-          <span className="min-w-0 flex-1 truncate text-meta font-medium">{SITE_NAME}</span>
+          <span className="inline-flex size-8 items-center justify-center rounded-full bg-band text-meta font-semibold text-on-accent">{name.slice(0, 1)}</span>
+          <span className="min-w-0 flex-1 truncate text-meta font-medium">{name}</span>
           <span className="inline-flex items-center gap-1 text-meta text-text-2"><BrandIcon name={network} />{network}</span>
         </div>
       )}
@@ -34,8 +35,8 @@ export function PostPreview({ network, format, layout = "just-in", text, photos,
         {format === "story" && (
           <>
             <div className="absolute inset-x-0 top-0 flex items-center gap-2 bg-gradient-to-b from-band/60 to-transparent p-3 text-on-accent">
-              <span className="inline-flex size-6 items-center justify-center rounded-full bg-on-accent text-meta font-semibold text-band">{SITE_NAME.slice(0, 1)}</span>
-              <span className="text-meta font-medium">{SITE_NAME}</span>
+              <span className="inline-flex size-6 items-center justify-center rounded-full bg-on-accent text-meta font-semibold text-band">{name.slice(0, 1)}</span>
+              <span className="text-meta font-medium">{name}</span>
             </div>
             <div className="absolute inset-x-0 bottom-0 flex flex-col items-start gap-2 bg-gradient-to-t from-band/80 via-band/40 to-transparent p-4 pt-16 text-on-accent">
               <span className="rounded-full bg-on-accent px-3 py-1 text-meta font-semibold text-band">{LAYOUT_LABELS[layout]}</span>

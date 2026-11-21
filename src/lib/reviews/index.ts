@@ -1,6 +1,8 @@
 import "server-only";
 import { isProduction } from "../site";
 import { directionsUrl } from "../dealer";
+import { dealerProfile } from "../tenancy/current";
+import { DEMO_PROFILE } from "../tenancy/profile";
 import { devMode } from "../dev-data";
 import { createPlacesProvider } from "./places-provider";
 
@@ -29,7 +31,7 @@ export type Reviews = {
 export type ReviewsProvider = { get(): Promise<Reviews | null> };
 
 // The dealer's address on Google Maps, the same search as Get directions: a made-up dealer has no Google listing of its own.
-const DEMO_PLACE = directionsUrl();
+const DEMO_PLACE = directionsUrl(DEMO_PROFILE.address);
 // Made-up names, first name and initial as a review site shows them. Real ones come from the Places provider.
 const DEMO_AUTHORS = ["Aoife M.", "Conor D.", "Niamh K.", "Sean B.", "Orla R.", "Ciara L.", "Darragh F.", "Emma W.", "Fionn H.", "Grainne T."];
 const demo = (n: number, rating: number, text: string, relativeTime: string): Review => ({
@@ -62,10 +64,11 @@ export const DEMO_REVIEWS: Reviews = {
   ],
 };
 
-let places: ReviewsProvider | undefined;
+const places = new Map<string, ReviewsProvider>(); // by place ID
 
-// Env is read per call: Worker secrets reach process.env on the first request (see env.ts). Missing config means demo,
-// never an error. Once Places is configured its null stands: never fall back to fixtures on a live site.
+// The current dealer's Google place (their profile) and our Places key (a Worker secret, read per call: secrets reach process.env on the
+// first request, see env.ts). Missing config means demo, never an error. Once Places is configured its null stands: never fall back to
+// fixtures on a live site.
 export async function getReviews(): Promise<Reviews | null> {
   if (process.env.NODE_ENV === "development") {
     // break-ui: the dev-only Demo / Worst case switch.
@@ -75,11 +78,11 @@ export async function getReviews(): Promise<Reviews | null> {
       if (dev !== undefined) return dev;
     }
   }
-  const placeId = process.env.GOOGLE_PLACE_ID;
+  const placeId = (await dealerProfile()).placeId;
   const apiKey = process.env.GOOGLE_PLACES_API_KEY;
   // The fixtures are for demos only: a live site with a missing key shows no reviews, never invented ones. The E2E server is built as
   // production and needs them, so E2E_FAKE_BACKENDS (set only by playwright.config.ts; ci.yml fails a Worker that sets it) lets them through.
   if (!placeId || !apiKey) return isProduction() && process.env.E2E_FAKE_BACKENDS !== "1" ? null : DEMO_REVIEWS;
-  places ??= createPlacesProvider({ placeId, apiKey }); // one provider so its day memo survives between requests
-  return places.get();
+  if (!places.has(placeId)) places.set(placeId, createPlacesProvider({ placeId, apiKey })); // one per place, so its day memo survives between requests
+  return places.get(placeId)!.get();
 }

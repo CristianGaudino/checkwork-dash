@@ -8,7 +8,7 @@ const { leadsStore } = await import("@/lib/admin/collections");
 describe("buildFacts for a lead reply", () => {
   it("gives the car's own details and whether it is still for sale, so the reply can answer", async () => {
     const lead = (await leadsStore.list()).find((l) => l.carSlug)!;
-    const built = await buildFacts({ task: "leadReply", leadId: lead.id }, "D");
+    const built = await buildFacts({ task: "leadReply", leadId: lead.id }, "D", "https://www.demo.checkwork.ie");
     expect(built?.task).toBe("leadReply");
     const f = built!.facts as { carDetails?: { name: string; forSale: boolean; link?: string } };
     expect(f.carDetails).toMatchObject({ name: expect.any(String), forSale: expect.any(Boolean), link: expect.stringContaining(lead.carSlug!) });

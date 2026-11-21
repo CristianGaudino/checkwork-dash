@@ -2,6 +2,9 @@ import { describe, expect, it, vi } from "vitest";
 import type { Lead, TeamMember } from "./collections";
 
 vi.mock("server-only", () => ({}));
+// The demo bar's plan switch (a cookie): it counts here because the tests' dealer is the demo dealer (src/lib/tenancy/current.ts demoCookie).
+let plan: string | undefined;
+vi.mock("next/headers", () => ({ cookies: async () => ({ get: (n: string) => (n === "checkwork-demo-modules" && plan ? { value: plan } : undefined) }), headers: async () => ({ get: () => null }) }));
 const sendTo = vi.fn<(to: string[], mail: { subject: string; text: string }) => Promise<void>>(async () => {});
 vi.mock("@/lib/leads/mail", () => ({ sendTo }));
 const { digestGroups, sendFollowUpDigest } = await import("./follow-up-digest");
@@ -53,10 +56,10 @@ describe("sendFollowUpDigest", () => {
     expect((await sendFollowUpDigest()).sent).toBe(sent - 1);
   });
   it("sends nothing to a dealer without the dashboard", async () => {
-    vi.stubEnv("NEXT_PUBLIC_SITE_MODULES", "tradeIn");
+    plan = "tradeIn";
     sendTo.mockClear();
     expect(await sendFollowUpDigest()).toEqual({ sent: 0 });
     expect(sendTo).not.toHaveBeenCalled();
-    vi.unstubAllEnvs();
+    plan = undefined;
   });
 });

@@ -1,5 +1,6 @@
 "use server";
 
+import { currentDealer, dealerProfile } from "@/lib/tenancy/current";
 import { revalidatePath } from "next/cache";
 import { AD_PLATFORMS, FORMATS_FOR, FORMAT_LIMITS, POST_FORMATS, POST_LIMITS, PUBLISH_MODE, STORY_LAYOUTS } from "@/lib/admin/networks";
 import { requireModule } from "@/lib/modules";
@@ -159,9 +160,9 @@ export async function composerCarAction(slug: string): Promise<ComposerCar | nul
   await requireModule("social");
   const car = (await adminCars()).find((c) => c.slug === slug && forSale(c));
   if (!car) return null;
-  const { marketing } = await getSettings();
+  const [{ marketing }, { siteUrl }] = await Promise.all([getSettings(), dealerProfile()]);
   const p = priceInfo(car);
-  const text = (format: (typeof POST_FORMATS)[number]) => Object.fromEntries(NETWORKS.map((n) => [n, writePost(car, n, marketing, format)])) as ComposerCar["text"];
+  const text = (format: (typeof POST_FORMATS)[number]) => Object.fromEntries(NETWORKS.map((n) => [n, writePost(car, siteUrl, n, marketing, format)])) as ComposerCar["text"];
   return { slug: car.slug, title: carName(car), photos: car.photos.slice(0, 10), text: text("post"), byFormat: Object.fromEntries(POST_FORMATS.map((f) => [f, text(f)])) as ComposerCar["byFormat"], price: p.headline, was: isReduced(car) ? fmtEur(car.wasPriceEur!) : undefined };
 }
 
@@ -174,7 +175,8 @@ export async function createNewsletterAction(data: FormData) {
   let { subject, body } = { subject: "", body: "" };
   if (data.get("intent") === "write") {
     const cars = newestForSale(await adminCars(), 5);
-    ({ subject, body } = writeNewsletter(cars, marketing));
+    const { name, profile } = await currentDealer();
+    ({ subject, body } = writeNewsletter(cars, marketing, { name, siteUrl: profile.siteUrl }));
   } else {
     const r = letter.safeParse(Object.fromEntries(data));
     if (!r.success || !r.data.subject || !r.data.body) return go("newsletters", "invalid");

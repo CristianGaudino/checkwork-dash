@@ -26,7 +26,7 @@ import { dublinDay, fmtDate, fmtDateTime, fmtDay, fmtTime } from "@/lib/admin/fo
 import { followUpDue, isOpenLead } from "@/lib/admin/leads";
 import { signPhotoPath } from "@/lib/leads/photos";
 import { siteCarUrl } from "@/lib/stock/format";
-import { SITE_URL } from "@/lib/site";
+import { dealerProfile } from "@/lib/tenancy/current";
 import { stockSource } from "@/lib/stock-source";
 import { NotesPanel } from "@/components/admin/NotesPanel";
 import { ContactButtons } from "@/components/admin/ContactButtons";
@@ -40,7 +40,7 @@ const STATUS_ICONS: Record<LeadStatus, typeof PhoneIcon> = { new: PhoneIcon, con
 // has it, the reply draft and the notes. Shown at its own address under Leads, or, for a warranty request, under Aftersales (where it is
 // listed), so the menu marks the right place. The pages around it choose which.
 export async function LeadView({ id }: { id: string }) {
-  const [lead, settings, drives] = await Promise.all([leadsStore.get(id), getSettings(), drivesStore.list()]);
+  const [lead, settings, drives, { siteUrl, rules }] = await Promise.all([leadsStore.get(id), getSettings(), drivesStore.list(), dealerProfile()]);
   if (!lead) notFound();
   // The car the lead asked about has sold since (here, or on DoneDeal): the salesperson offers something like it.
   const car = lead.carSlug ? (await adminCars()).find((c) => c.slug === lead.carSlug) : undefined;
@@ -73,8 +73,8 @@ export async function LeadView({ id }: { id: string }) {
             {lead.carTitle && (
               <p className="text-heading font-semibold">
                 {/* A link only while the car has a page on the site: not hidden, a draft or sold long ago, and its kind on the plan. */}
-                {lead.carSlug && car && onPublicSite(car) && conditionShown(await enabledModules(), car.condition) ? (
-                  <a href={siteCarUrl(lead.carSlug)} {...NEW_TAB} className="underline-offset-4 hover:underline">
+                {lead.carSlug && car && siteUrl && onPublicSite(car, rules.soldVisibleDays) && conditionShown(await enabledModules(), car.condition) ? (
+                  <a href={siteCarUrl(siteUrl, lead.carSlug)} {...NEW_TAB} className="underline-offset-4 hover:underline">
                     {lead.carTitle}
                   </a>
                 ) : (
@@ -87,10 +87,15 @@ export async function LeadView({ id }: { id: string }) {
             {lead.message && <p className="max-w-measure whitespace-pre-line text-body">{lead.message}</p>}
             {carSold && (
               <p className="rounded-control bg-warn-soft px-4 py-3 text-body text-warn">
-                This car has sold. Offer them something similar:{" "}
-                <a href={`${SITE_URL}/makes/${car.makeSlug}`} {...NEW_TAB} className="font-medium underline">
-                  other {car.make} cars
-                </a>
+                This car has sold. Offer them something similar
+                {siteUrl ? (
+                  <>
+                    :{" "}
+                    <a href={`${siteUrl}/makes/${car.makeSlug}`} {...NEW_TAB} className="font-medium underline">
+                      other {car.make} cars
+                    </a>
+                  </>
+                ) : null}
                 .
               </p>
             )}

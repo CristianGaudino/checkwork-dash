@@ -1,5 +1,6 @@
 "use server";
 
+import { dealerProfile } from "@/lib/tenancy/current";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { logActivity } from "@/lib/admin/activity";
@@ -75,8 +76,9 @@ async function checkSlot(carSlug: string, carTitle: string, date: string, time: 
   // never a bank holiday, and inside the driving hours. Today is allowed here, for someone at the desk.
   if (date > addMonths(dublinDay(), TEST_DRIVE.monthsAhead)) return { errors: { date: "Choose a day in the next two months" } };
   if (isBankHoliday(date)) return { errors: { date: "That's a bank holiday. We're closed" } };
-  if (!driveTimes(date).length) return { errors: { date: "We're closed that day" } };
-  if (!inDriveHours(date, time)) return { errors: { time: `Choose a time from ${driveTimes(date)[0]} to ${driveTimes(date).at(-1)}` } };
+  const times = driveTimes(date, (await dealerProfile()).hours); // the dealer's opening hours
+  if (!times.length) return { errors: { date: "We're closed that day" } };
+  if (!inDriveHours(date, time, (await dealerProfile()).hours)) return { errors: { time: `Choose a time from ${times[0]} to ${times.at(-1)}` } };
   const clash = clashes(await drivesStore.list(), carSlug, startsAt, ignoreId, (await getSettings()).driveSlotMinutes * MINUTE);
   if (clash.length) return { errors: { time: `${carTitle} is already booked around then` } };
   return { startsAt };

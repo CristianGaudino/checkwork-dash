@@ -9,12 +9,15 @@ import { AdminShell } from "@/components/admin/AdminShell";
 import { DealerGate } from "@/components/admin/DealerChooser";
 import { DashboardBeacon } from "@/components/admin/DashboardBeacon";
 import { DEALER_NAV, DENSITY_COOKIE, NAV_COOKIE, RAIL_COOKIE, parseOpenGroups } from "@/lib/admin/nav";
-import { DEMO_BAR_ENABLED, THEME_SCRIPT, adminReachable } from "@/lib/demo";
+import { THEME_SCRIPT } from "@/lib/demo";
+import { DealerFactsProvider } from "@/components/DealerFacts";
+import { factsOf } from "@/lib/tenancy/profile";
+import DashboardNotFound from "./not-found";
 import { currentMember } from "@/lib/permissions";
 import { roleCan } from "@/lib/permission-rules";
 import { stockSource } from "@/lib/stock-source";
 import { enabledModules } from "@/lib/modules";
-import { pathAllowed } from "@/lib/modules-rules";
+import { modulesValue, pathAllowed } from "@/lib/modules-rules";
 import { dealerAccess } from "@/lib/tenancy/membership";
 import "./globals.css";
 
@@ -53,6 +56,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const nav = DEALER_NAV.filter((i) => (!i.permission || roleCan(role, i.permission)) && !(i.ours && source === "donedeal") && pathAllowed(i.href, modules) && (!i.module || [i.module].flat().some((m) => modules.has(m))));
   // Someone at several dealers switches between them from the menu.
   if (access.choices.length > 1) nav.push({ href: "/dealers", label: "Switch dealer", icon: "home", group: "Settings and help" });
+  const { dealer } = access;
+  // A plan without the dashboard (#173) has no page here: every one is the not found screen, with the demo bar still there to choose
+  // again. A module's own pages are its folder's layout's (PlanGate).
   return (
     <html lang="en-IE" className={`${sora.variable} ${inter.variable}`} suppressHydrationWarning>
       <head>
@@ -64,11 +70,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <Suspense fallback={null}>
           <NavProgress />
         </Suspense>
-        {DEMO_BAR_ENABLED && <DemoBar showAreas={adminReachable() || process.env.NEXT_PUBLIC_ACCESS_ENABLED === "1"} />}
-        <AdminShell title={access.dealer.name} subtitle="Dealer dashboard" nav={nav} navLabel="Dealer dashboard" openGroups={parseOpenGroups(jar.get(NAV_COOKIE)?.value)} rail={jar.get(RAIL_COOKIE)?.value === "1"} compact={jar.get(DENSITY_COOKIE)?.value === "compact"}>
-          <DashboardBeacon />
-          {children}
-        </AdminShell>
+        <DealerFactsProvider value={factsOf(dealer.name, dealer.profile, modulesValue(modules))}>
+          <DemoBar demo={dealer.demo} donedeal={source === "donedeal"} />
+          <AdminShell title={dealer.name} profile={dealer.profile} subtitle="Dealer dashboard" nav={nav} navLabel="Dealer dashboard" openGroups={parseOpenGroups(jar.get(NAV_COOKIE)?.value)} rail={jar.get(RAIL_COOKIE)?.value === "1"} compact={jar.get(DENSITY_COOKIE)?.value === "compact"}>
+            <DashboardBeacon />
+            {modules.has("dashboard") ? children : <DashboardNotFound />}
+          </AdminShell>
+        </DealerFactsProvider>
         {dev && <dev.Toggle mode={dev.mode} />}
         <div data-bottom-stack className="pointer-events-none fixed inset-x-0 bottom-[calc(var(--demo-bar-h,0px)+1rem)] z-30 flex flex-col items-center gap-2 px-4">
           <Toaster />

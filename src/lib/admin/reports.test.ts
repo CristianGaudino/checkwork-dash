@@ -25,6 +25,7 @@ describe("fullReport", () => {
     prep: [{ id: "a", lines: [{ kind: "Tyres" as const, eur: 300, at: Date.parse("2026-10-05") }, { kind: "Valet" as const, eur: 100, at: Date.parse("2026-05-01") }] }],
     period: 3 as const,
     now,
+    oldDays: 120,
   };
   const r = fullReport(input);
 
@@ -38,11 +39,11 @@ describe("fullReport", () => {
   });
   it("ranks the people who sold or had leads, and keeps someone no longer on the team", () => {
     expect(r.people.map((p) => [p.name, p.sold, p.leads, p.won, p.winRate])).toEqual([["Conor", 1, 2, 1, 50], ["Aoife", 1, 0, 0, 0]]);
-    const gone = fullReport({ ...input, team: [] });
+    const gone = fullReport({ ...input, team: [], oldDays: 120 });
     expect(gone.people.map((p) => p.name)).toEqual(["Conor", "Aoife"]);
   });
   it("shows which lead sources win, the stock by age, and the period's prep by kind", () => {
-    expect(fullReport({ ...input, leads: [lead("l1", "2026-11-01", { status: "lost", lostReason: "Price" }), lead("l2", "2026-11-02", { status: "lost", lostReason: "Price" }), lead("l3", "2026-11-03", { status: "lost" })] }).lost).toEqual([{ reason: "Price", leads: 2 }, { reason: "Not said", leads: 1 }]);
+    expect(fullReport({ ...input, leads: [lead("l1", "2026-11-01", { status: "lost", lostReason: "Price" }), lead("l2", "2026-11-02", { status: "lost", lostReason: "Price" }), lead("l3", "2026-11-03", { status: "lost" })], oldDays: 120 }).lost).toEqual([{ reason: "Price", leads: 2 }, { reason: "Not said", leads: 1 }]);
     expect(r.sources).toEqual([{ source: "Phone", leads: 2, won: 1, winRate: 50 }, { source: "Website", leads: 1, won: 0, winRate: 0 }]);
     expect(r.stockAge.map((b) => [b.band, b.cars, b.value])).toEqual([["Under 30 days", 1, 10000], ["30 to 59 days", 0, 0], ["60 to 119 days", 1, 8000], ["120 days or more", 0, 0]]);
     expect(r.prep).toEqual([{ kind: "Tyres", eur: 300, lines: 1 }]);

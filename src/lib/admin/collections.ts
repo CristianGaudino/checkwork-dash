@@ -326,7 +326,7 @@ export type DealerSettings = {
   notifications: { followUps: boolean }; // the morning email of follow-ups; new leads are emailed under Lead emails
   marketing: { voice: string; hashtags: string; signOff: string }; // used by the post and newsletter writers
   team: TeamMember[];
-  leadEmails: string[]; // who gets the email when a visitor sends a form; empty means the LEAD_TO_EMAIL variable
+  leadEmails: string[]; // who gets the email when a visitor sends a form; empty means the dealer's profile's leadEmail
   billing?: BillingSettings; // usage limits and alerts, and our ceilings (#181, src/lib/billing/usage.ts); missing on a record from before
   billingDetails?: BillingDetails; // who the bills are made out to (Billing, the Owner edits it); missing means the dealer's own details
   updatedAt: number;

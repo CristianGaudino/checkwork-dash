@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 vi.mock("react", async (orig) => ({ ...(await orig<typeof import("react")>()), cache: <T,>(fn: T) => fn }));
-// These act as the demo's roles (the demo bar's cookie), which count only on the demo deploy (src/lib/demo.ts, demoCookiesCount).
+// These act as the demo's roles (the demo bar's cookie), which count only for a demo dealer, as the tests' dealer is (src/lib/tenancy/current.ts).
 beforeEach(() => vi.stubEnv("APP_ENV", "demo"));
 
 let role: string | undefined;

@@ -16,6 +16,7 @@ import { simulating } from "@/lib/integrations";
 import { currentMember } from "@/lib/permissions";
 import { roleCan } from "@/lib/permission-rules";
 import { carName, siteCarUrl } from "@/lib/stock/format";
+import { dealerProfile } from "@/lib/tenancy/current";
 import { NEW_TAB } from "@/components/ui";
 import { forSale } from "@/lib/stock/types";
 import { BrandName } from "@/components/admin/BrandIcon";
@@ -28,7 +29,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ r
   const range = parseRange((await searchParams).range);
   // The demo shows generated figures; a dealer's own site shows what its visitors really did.
   if (!simulating()) return <RealAnalytics range={range} />;
-  const [all, leads, allSales, me] = await Promise.all([adminCars(), leadsStore.list(), salesStore.list(), currentMember()]);
+  const [all, leads, allSales, me, { siteUrl }] = await Promise.all([adminCars(), leadsStore.list(), salesStore.list(), currentMember(), dealerProfile()]);
   // As on Reports (owner's decision): the roles allowed margins see the dealership's sales; a salesperson sees their own.
   const whole = roleCan(me.role, "margins");
   const sales = whole ? allSales : allSales.filter((s) => s.salesperson === me.name);
@@ -93,7 +94,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ r
           rows={a.topCars}
           rowKey={(t) => t.slug}
           columns={[
-            { key: "car", header: "Car", cell: (t) => <a href={siteCarUrl(t.slug)} {...NEW_TAB} className="font-semibold underline-offset-2 hover:underline">{t.title}</a> },
+            { key: "car", header: "Car", cell: (t) => (siteUrl ? <a href={siteCarUrl(siteUrl, t.slug)} {...NEW_TAB} className="font-semibold underline-offset-2 hover:underline">{t.title}</a> : <span className="font-semibold">{t.title}</span>) },
             { key: "views", header: "Views", align: "right", cell: (t) => fmtNum(t.views) },
             { key: "saves", header: "Saved", align: "right", cell: (t) => fmtNum(t.saves), hide: "sm" },
             { key: "leads", header: "Leads", align: "right", cell: (t) => fmtNum(t.leads) },

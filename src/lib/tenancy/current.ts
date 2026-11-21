@@ -1,4 +1,5 @@
 import { AsyncLocalStorage } from "node:async_hooks";
+import { cookies } from "next/headers";
 import type { AnyD1Database } from "drizzle-orm/d1";
 import { getBindings, type PhotoBucket } from "@/lib/leads/bindings";
 import { prefixedBucket } from "./bucket";
@@ -26,6 +27,20 @@ export async function currentDealer(): Promise<Dealer> {
 
 // Whether this code runs inside runAsDealer (a job) rather than for a signed-in person.
 export const inDealerScope = () => scope.getStore() !== undefined;
+
+// The current dealer's facts, plan, stock source and rules (profile.ts), from the same read as the dealer.
+export const dealerProfile = async () => (await currentDealer()).profile;
+
+// One of the demo bar's switches (role, plan, stock sync): its cookie counts only for a demo dealer, and only in a request (a job has no
+// cookies and acts for the dealer as it is). For any other dealer it is ignored, so a cookie never changes a real dealer's plan or role.
+export async function demoCookie(name: string): Promise<string | undefined> {
+  if (inDealerScope() || !(await currentDealer()).demo) return undefined;
+  try {
+    return (await cookies()).get(name)?.value;
+  } catch {
+    return undefined; // outside a request (a test, a script): no browser, so no switch
+  }
+}
 
 // The shared bucket, seen through the current dealer's prefix (dealers/<id>/). Undefined with no bucket (next dev, the E2E run); the dealer
 // is checked first either way.

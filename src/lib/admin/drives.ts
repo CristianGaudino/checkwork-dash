@@ -1,6 +1,7 @@
 import type { TestDrive } from "./collections";
 import { HOUR } from "@/lib/time";
 import { TEST_DRIVE, driveTimes } from "@/lib/leads/constants";
+import { DEMO_PROFILE, type Hours } from "@/lib/tenancy/profile";
 import { addDays, addMonths, dublinDateTime, dublinDay, dublinMs } from "./format";
 
 // A seeded booking whose time has passed: a confirmed one went ahead, a request moves to the same time the next day. So the demo, opened
@@ -15,8 +16,9 @@ export function settleSeededDrive(startsAt: number, status: DriveStatus, now: nu
 // a past booking stays past), and a time outside the day's slots moves to the nearest one (17:30 on a Saturday becomes 15:00).
 export function seededSlot(day: string, time: string, step: 1 | -1 = 1): number {
   // A fortnight at most: a site with no opening hours set keeps the time asked for rather than looping for ever.
-  for (let i = 0; i < 14 && !driveTimes(day).length; i++) day = addDays(day, step);
-  const t = driveTimes(day);
+  // The demo's seed only: the demo business's hours.
+  for (let i = 0; i < 14 && !driveTimes(day, DEMO_PROFILE.hours).length; i++) day = addDays(day, step);
+  const t = driveTimes(day, DEMO_PROFILE.hours);
   return dublinMs(day, t.length ? (t.find((x) => x >= time) ?? t.at(-1)!) : time);
 }
 
@@ -38,12 +40,12 @@ export function clashes(drives: TestDrive[], carSlug: string, startsAt: number, 
 export const isOpenDrive = (d: Pick<TestDrive, "status">) => d.status === "requested" || d.status === "confirmed";
 
 // What the dashboard's slot picker needs: the open days from today (the desk can book today, the website from tomorrow) to TEST_DRIVE's
-// limit, each car's open bookings in Irish time (but `ignoreId`, the booking being moved), and now. Pure, so it is tested.
-export function slotData(drives: TestDrive[], ignoreId?: string, now = Date.now()) {
+// limit, each car's open bookings in Irish time (but `ignoreId`, the booking being moved), and now. `hours`: the dealer's. Pure, so it is tested.
+export function slotData(drives: TestDrive[], hours: Hours, ignoreId?: string, now = Date.now()) {
   const today = dublinDay(now);
   const last = addMonths(today, TEST_DRIVE.monthsAhead);
   const days: string[] = [];
-  for (let d = today; d <= last; d = addDays(d, 1)) if (driveTimes(d).length > 0) days.push(d);
+  for (let d = today; d <= last; d = addDays(d, 1)) if (driveTimes(d, hours).length > 0) days.push(d);
   const taken: Record<string, string[]> = {};
   for (const d of drives) if (d.id !== ignoreId && isOpenDrive(d) && d.startsAt > now - HOUR) (taken[d.carSlug] ??= []).push(dublinDateTime(d.startsAt));
   return { days, taken, now: dublinDateTime(now) };

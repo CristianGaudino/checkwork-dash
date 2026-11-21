@@ -6,7 +6,7 @@ import { WhatsAppIcon } from "@/components/stock/icons";
 import { addDays, dublinDay, fmtDate, fmtTime } from "@/lib/admin/format";
 import { BUTTON_LABELS } from "@/lib/whatsapp/rules";
 import type { Msg, View } from "@/lib/whatsapp/store";
-import { SITE_NAME } from "@/lib/site";
+import { useDealerFacts } from "@/components/DealerFacts";
 
 // The dealer's WhatsApp, drawn as a phone: what the site sent them, the buttons under it, and a box to type in. Beside it, narrower, the
 // buyer's phone for the lead last written to, at the same height so the two read as one conversation. Both are the real conversation (src/lib/whatsapp), so a tap here changes the lead.
@@ -116,6 +116,7 @@ function Phone({ label, title, status, msgs, mine, small = false, onTap, onSend,
 
 export function Phones({ initial }: { initial: View }) {
   const [view, setView] = useState(initial);
+  const { name } = useDealerFacts();
   const [busy, start] = useTransition();
   // The buyer's answer arrives a few seconds after the offer, so look often while one is on its way and now and then otherwise.
   useEffect(() => {
@@ -129,7 +130,7 @@ export function Phones({ initial }: { initial: View }) {
     <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-[minmax(0,22rem)_minmax(0,16rem)] md:justify-center">
       <figure className="mx-auto flex w-full max-w-88 flex-col gap-2 md:max-w-none">
         <figcaption className="text-center text-meta font-medium text-text-2">You</figcaption>
-        <Phone label="Your WhatsApp" title={SITE_NAME} status="Business account" msgs={view.staff} mine="staff" busy={busy} onTap={(id, b) => run(() => tapAction(id, b))} onSend={(t) => run(() => sendAction(t))} />
+        <Phone label="Your WhatsApp" title={name} status="Business account" msgs={view.staff} mine="staff" busy={busy} onTap={(id, b) => run(() => tapAction(id, b))} onSend={(t) => run(() => sendAction(t))} />
       </figure>
       <figure className="mx-auto flex w-full max-w-64 flex-col gap-2 md:max-w-none">
         <figcaption className="text-center text-meta font-medium text-text-2">The buyer</figcaption>

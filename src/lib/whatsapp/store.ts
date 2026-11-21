@@ -11,7 +11,8 @@ import { carTitleOf } from "@/lib/admin/seed-data";
 import type { ModuleId } from "@/lib/modules-rules";
 import type { Role } from "@/lib/permission-rules";
 import { HOUR, MINUTE } from "@/lib/time";
-import { EVENTS, SLOW_DAYS, SLOW_DROP_EUR, alertText, defaultAlerts, firstName, moduleOf, type ButtonId, type EventId, type Facts } from "./rules";
+import { DEMO_PROFILE, type DealerProfile } from "@/lib/tenancy/profile";
+import { EVENTS, alertText, defaultAlerts, firstName, moduleOf, type ButtonId, type EventId, type Facts } from "./rules";
 
 // The conversation between the site and the dealer's phones, and between the site and buyers (#178). One record per message, so a message
 // is one small write. Two threads: "staff" (the site and one team member's phone, `to` is their name) and "buyer" (the site and the buyer
@@ -43,12 +44,12 @@ export const staffStore = defineCollection<StaffPhone>("whatsapp-staff", () =>
 );
 
 // The Monday summary's figures: the seven Irish days before `now`, from the same sums as the reports (src/lib/reports/monthly.ts), so the
-// message and the dashboard agree. Test drives are the ones taken.
-export function lastWeek(data: ReportData, drives: TestDrive[], now: number): Facts {
+// message and the dashboard agree. Test drives are the ones taken. `dealer`: their hours and rules (profile).
+export function lastWeek(data: ReportData, drives: TestDrive[], now: number, dealer: Pick<DealerProfile, "hours" | "rules">): Facts {
   const to = addDays(dublinDay(now), -1);
   const from = addDays(to, -6);
   const [a, b] = bounds(from, to);
-  const s = summarise(data, from, to, now);
+  const s = summarise(data, from, to, now, dealer);
   return { leads: s.leads.total, drives: drives.filter((d) => d.status === "completed" && d.startsAt >= a && d.startsAt < b).length, sales: s.stock.sold };
 }
 
@@ -68,7 +69,7 @@ function seedMessages(): Msg[] {
   const slow = (demoCars as Car[]).filter((c) => forSale(c) && !onRequest(c) && c.listedAt).sort((a, b) => a.listedAt!.localeCompare(b.listedAt!))[0];
   const slowDays = slow ? daysSince(slow.listedAt!, now) : 0;
   const held = demoReservations().find((r) => r.status === "held");
-  const week = lastWeek({ leads, cars: demoCars as Car[], sales: demoSales(), reviews: demoReviews() }, demoDrives(), now - 50 * HOUR);
+  const week = lastWeek({ leads, cars: demoCars as Car[], sales: demoSales(), reviews: demoReviews() }, demoDrives(), now - 50 * HOUR, DEMO_PROFILE); // the demo's seed: the demo business's rules
   const buyerCar = car(2);
   const photos = car(3).photos.slice(0, 3).map((p) => p.src);
 
@@ -82,7 +83,7 @@ function seedMessages(): Msg[] {
     };
     alert("monday", 50 * HOUR, {}, alertText("monday", week));
     alert("review", 26 * HOUR, { ref: review.id }, alertText("review", { stars: review.rating, author: review.author, text: review.text }));
-    if (slow && slowDays >= SLOW_DAYS) alert("slow-stock", 22 * HOUR, { ref: slow.id }, alertText("slow-stock", { car: carTitleOf(slow), days: slowDays, dropEur: SLOW_DROP_EUR }));
+    if (slow && slowDays >= DEMO_PROFILE.rules.oldStockDays) alert("slow-stock", 22 * HOUR, { ref: slow.id }, alertText("slow-stock", { car: carTitleOf(slow), days: slowDays, dropEur: DEMO_PROFILE.rules.slowDropEur }));
     if (held) alert("deposit", Math.max(now - held.createdAt, 5 * HOUR), { ref: held.id }, alertText("deposit", { car: held.carTitle, eur: held.depositEur }));
     alert("enquiry", 3 * HOUR, { leadId: enq.id }, alertText("enquiry", { first: firstName(enq.name), car: enq.carTitle ?? carTitleOf(buyerCar), text: enq.message }));
     // From a website booking (a test-drive lead), as a real alert is, so every button reaches the buyer.

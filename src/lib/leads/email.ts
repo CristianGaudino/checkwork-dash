@@ -1,4 +1,4 @@
-import { APP_URL, SITE_URL } from "@/lib/site";
+import { APP_URL } from "@/lib/site";
 import { fmtEur, carHref, priceLabel } from "@/lib/stock/format";
 import type { LeadRow } from "./process";
 import { EMPLOYMENT } from "./constants";
@@ -17,7 +17,8 @@ function show(key: string, value: unknown): string {
 
 // Text only, no HTML: nothing the buyer typed can inject markup. The subject is built from server values only (D-02).
 // photoPaths are the signed /lead-photos paths for row.photoKeys, made by processLead so this file never sees the secret.
-export function buildLeadEmail(row: LeadRow, opts: { demo: boolean; photoPaths?: string[] }): { subject: string; text: string } {
+// `siteUrl`: the dealer's website (their profile), for the car page and the page the form was sent from.
+export function buildLeadEmail(row: LeadRow, opts: { demo: boolean; siteUrl: string; photoPaths?: string[] }): { subject: string; text: string } {
   // A car to sell outright says so, so the dealer does not look for a car it is against.
   const guided = row.type === "general" ? topicSubject(row.details.topic as string | undefined, row.details as Answers) : undefined; // "Service: warning light, this week"
   const label = guided ?? (row.type === "trade_in" && row.details.intent === "sell" ? "Car to buy from a seller" : TYPE_LABELS[row.type]);
@@ -30,9 +31,9 @@ export function buildLeadEmail(row: LeadRow, opts: { demo: boolean; photoPaths?:
     row.message && `Message:\n${row.message}`,
     row.carTitle && `Car: ${row.carTitle}`,
     row.carPriceEur !== null && `Price: ${priceLabel({ priceEur: row.carPriceEur })}`,
-    row.carSlug && `Car page: ${SITE_URL}${carHref(row.carSlug)}`,
+    row.carSlug && opts.siteUrl && `Car page: ${opts.siteUrl}${carHref(row.carSlug)}`,
     ...(opts.photoPaths ?? []).map((p, i) => `Photo ${i + 1}: ${APP_URL}${p}`),
-    `Sent from: ${SITE_URL}${row.sourcePath}`,
+    `Sent from: ${opts.siteUrl}${row.sourcePath}`,
     `Consent: ${row.consentAt.toISOString()}, version ${row.consentVersion}`,
   ];
   return { subject, text: lines.filter(Boolean).join("\n\n") };

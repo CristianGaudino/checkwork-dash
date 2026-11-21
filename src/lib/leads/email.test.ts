@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { APP_URL, SITE_URL } from "@/lib/site";
+import { APP_URL } from "@/lib/site";
+
+const SITE_URL = "https://www.demo.checkwork.ie";
 import { buildLeadEmail } from "./email";
 import type { LeadRow } from "./process";
 
@@ -24,34 +26,34 @@ const row: LeadRow = {
 
 describe("buildLeadEmail", () => {
   it("names the enquiry and the car in the subject", () => {
-    expect(buildLeadEmail(row, { demo: false }).subject).toBe("Enquiry: 2011 Mercedes-Benz G Class");
+    expect(buildLeadEmail(row, { demo: false, siteUrl: SITE_URL }).subject).toBe("Enquiry: 2011 Mercedes-Benz G Class");
   });
 
   it("says Price on request for a car priced 0, never €0", () => {
-    const { text } = buildLeadEmail({ ...row, carPriceEur: 0 }, { demo: false });
+    const { text } = buildLeadEmail({ ...row, carPriceEur: 0 }, { demo: false, siteUrl: SITE_URL });
     expect(text).toContain("Price: Price on request");
     expect(text).not.toContain("€0");
   });
 
   it("writes words and formatted figures, not stored keys", () => {
     const f = { ...row, type: "finance" as const, details: { employment: "self_employed", deposit: 3000, mileage: 120500, budgetMax: 15000 } };
-    const { text } = buildLeadEmail(f, { demo: false });
+    const { text } = buildLeadEmail(f, { demo: false, siteUrl: SITE_URL });
     for (const line of ["Mileage: 120,500 km", "Budget up to: €15,000", "Deposit: €3,000", "Employment status: Self-employed"]) expect(text).toContain(line);
     expect(text).not.toContain("self_employed");
   });
 
   it("prefixes [DEMO] on the demo and not in production", () => {
-    expect(buildLeadEmail(row, { demo: true }).subject).toBe("[DEMO] Enquiry: 2011 Mercedes-Benz G Class");
-    expect(buildLeadEmail(row, { demo: false }).subject).toBe("Enquiry: 2011 Mercedes-Benz G Class");
+    expect(buildLeadEmail(row, { demo: true, siteUrl: SITE_URL }).subject).toBe("[DEMO] Enquiry: 2011 Mercedes-Benz G Class");
+    expect(buildLeadEmail(row, { demo: false, siteUrl: SITE_URL }).subject).toBe("Enquiry: 2011 Mercedes-Benz G Class");
   });
 
   it("keeps everything the buyer typed out of the subject", () => {
-    const { subject } = buildLeadEmail(row, { demo: false });
+    const { subject } = buildLeadEmail(row, { demo: false, siteUrl: SITE_URL });
     for (const s of ["SENTINEL", "sentinel@example.com"]) expect(subject).not.toContain(s);
   });
 
   it("puts the contact details, car page and consent version in the body", () => {
-    const { text } = buildLeadEmail(row, { demo: false });
+    const { text } = buildLeadEmail(row, { demo: false, siteUrl: SITE_URL });
     expect(text).toContain("SENTINEL_NAME");
     expect(text).toContain("SENTINEL_MESSAGE\nsecond line");
     expect(text).toContain(`Car page: ${SITE_URL}/used-cars/${row.carSlug}`);
@@ -61,15 +63,15 @@ describe("buildLeadEmail", () => {
 
   it("lists each trade-in photo as an absolute signed link, and no photo lines without photos", () => {
     const paths = ["/lead-photos/trade-in/x/1.jpg?exp=1&sig=a", "/lead-photos/trade-in/x/2.png?exp=1&sig=b"];
-    const { text } = buildLeadEmail({ ...row, type: "trade_in" }, { demo: false, photoPaths: paths });
+    const { text } = buildLeadEmail({ ...row, type: "trade_in" }, { demo: false, siteUrl: SITE_URL, photoPaths: paths });
     expect(text).toContain(`Photo 1: ${APP_URL}${paths[0]}\n\nPhoto 2: ${APP_URL}${paths[1]}`);
-    expect(buildLeadEmail(row, { demo: false }).text).not.toContain("Photo");
-    expect(buildLeadEmail(row, { demo: false, photoPaths: [] }).text).not.toContain("Photo");
+    expect(buildLeadEmail(row, { demo: false, siteUrl: SITE_URL }).text).not.toContain("Photo");
+    expect(buildLeadEmail(row, { demo: false, siteUrl: SITE_URL, photoPaths: [] }).text).not.toContain("Photo");
   });
 
   it("leaves the car out of the subject and body when the lead has no car", () => {
     const noCar = { ...row, carId: null, carSlug: null, carTitle: null, carPriceEur: null };
-    const { subject, text } = buildLeadEmail(noCar, { demo: false });
+    const { subject, text } = buildLeadEmail(noCar, { demo: false, siteUrl: SITE_URL });
     expect(subject).toBe("Enquiry");
     expect(text).not.toContain("Car page:");
     expect(text).not.toContain("Car:");
@@ -77,7 +79,7 @@ describe("buildLeadEmail", () => {
   });
 
   it("says the topic and urgency in the subject of a guided message", () => {
-    const g = (details: LeadRow["details"]) => buildLeadEmail({ ...row, type: "general", carId: null, carSlug: null, carTitle: null, carPriceEur: null, details }, { demo: false });
+    const g = (details: LeadRow["details"]) => buildLeadEmail({ ...row, type: "general", carId: null, carSlug: null, carTitle: null, carPriceEur: null, details }, { demo: false, siteUrl: SITE_URL });
     expect(g({ topic: "service", serviceNeed: "warning-light", urgency: "this-week" }).subject).toBe("Service: warning light, this week");
     expect(g({ topic: "buying", timing: "this-week", hasTradeIn: "yes" }).subject).toBe("Buying: this week, trade-in");
     expect(g({ topic: "other" }).subject).toBe("Message");

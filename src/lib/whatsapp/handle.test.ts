@@ -46,7 +46,7 @@ vi.mock("@/lib/admin/collections", () => ({
   reservationsStore: { get: async (id: string) => db.deposits.get(id) },
 }));
 vi.mock("@/lib/admin/stock-admin", () => ({ adminCar: async () => db.car, adminCars: async () => [db.car], saveCar: async (c: Record<string, unknown>) => void db.saved.push(c) }));
-vi.mock("@/lib/stock-source", () => ({ stockSource: async () => db.source }));
+vi.mock("@/lib/stock-source", () => ({ stockSource: async () => db.source, listing: async () => ({ site: "DoneDeal", url: "https://www.donedeal.ie/" }) }));
 const sent = vi.hoisted(() => [] as Record<string, unknown>[]);
 vi.mock("./send", () => ({ sendWhatsApp: async (m: Record<string, unknown>, _kind: string, o?: { email?: boolean }) => (sent.push(m), { ...m, ...(o?.email && { via: "email" }) }) }));
 vi.mock("@/lib/admin/notifications", () => ({ notify: async () => {} }));

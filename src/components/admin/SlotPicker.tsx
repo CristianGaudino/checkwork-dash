@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/stock/icons";
 import { press } from "@/components/ui";
 import { driveTimes } from "@/lib/leads/constants";
+import { useDealerFacts } from "@/components/DealerFacts";
 import { fmtDay } from "@/lib/admin/format";
 import { firstOpen, slotState } from "@/lib/admin/slots";
 
@@ -14,10 +15,11 @@ import { firstOpen, slotState } from "@/lib/admin/slots";
 export function SlotPicker({ days, taken, windowMin, now, date, time, onChange, errors }: { days: string[]; taken: string[]; windowMin: number; now: string; date: string; time: string; onChange: (date: string, time: string) => void; errors?: { date?: string; time?: string } }) {
   const [week, setWeek] = useState(Math.max(0, Math.floor(days.indexOf(date) / 7)));
   const shown = days.slice(week * 7, week * 7 + 7);
-  const times = date ? driveTimes(date) : [];
+  const { hours } = useDealerFacts();
+  const times = date ? driveTimes(date, hours) : [];
   const states = times.map((t) => [t, slotState(date, t, taken, windowMin, now)] as const);
   // A day with nothing left offers the next one that has a time (#238), and moves the week to it.
-  const next = date ? firstOpen(days, taken, windowMin, now, date) : undefined;
+  const next = date ? firstOpen(days, taken, windowMin, now, (d) => driveTimes(d, hours), date) : undefined;
   const go = (d: string, t: string) => (setWeek(Math.max(0, Math.floor(days.indexOf(d) / 7))), onChange(d, t));
   return (
     <div className="flex flex-col gap-5">

@@ -3,7 +3,7 @@ import { SyncIcon } from "@/components/stock/icons";
 import { syncNowAction } from "@/app/stock/actions";
 import { fmtAgo } from "@/lib/admin/format";
 import type { SyncStatus } from "@/lib/donedeal/sync";
-import { LISTING_SITE } from "@/lib/stock-source-rules";
+import { listing } from "@/lib/stock-source";
 import { SubmitButton } from "@/components/admin/SubmitButton";
 
 // How the DoneDeal sync is doing, and Sync now. On Stock, Overview and Settings for a dealer whose stock comes from DoneDeal.
@@ -17,9 +17,9 @@ export function syncLine(s: SyncStatus) {
   return `${s.problem} ${s.lastOkAt ? `The site shows the cars from the last good check, ${fmtAgo(s.lastOkAt)}.` : "No cars have come through yet."}`;
 }
 
-export function SyncPanel({ status, canForce }: { status: SyncStatus; canForce: boolean }) {
+export async function SyncPanel({ status, canForce }: { status: SyncStatus; canForce: boolean }) {
   return (
-    <Panel title={`Cars from ${LISTING_SITE}`}>
+    <Panel title={`Cars from ${(await listing()).site}`}>
       <p role="status" className={`max-w-measure text-body ${status.problem ? "rounded-control bg-warn-soft px-4 py-3 text-warn" : "text-text-2"}`}>
         {syncLine(status)}
       </p>

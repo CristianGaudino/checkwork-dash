@@ -24,17 +24,18 @@ export function formCarFacts(f: Record<string, string>): CarFacts | null {
 
 // Builds what a task may see from the records. The browser sends ids (and, for a car being edited, the form's own boxes); never the facts.
 type Built = { [K in WriteRequest["task"]]: { task: K; facts: FactsOf[K] } }[WriteRequest["task"]];
-export async function buildFacts(req: WriteRequest, dealer: string): Promise<Built | null> {
+// `dealer`: the dealer's name; `siteUrl`: their website, for the cars' links.
+export async function buildFacts(req: WriteRequest, dealer: string, siteUrl: string): Promise<Built | null> {
   const { marketing: voice } = await getSettings();
   const v = { signOff: voice.signOff, hashtags: voice.hashtags };
   switch (req.task) {
     case "post": {
       const car = (await adminCars()).find((c) => c.slug === req.carSlug && forSale(c));
-      return car ? { task: "post", facts: { dealer, car: carFacts(car), network: req.network, format: req.format, layout: req.layout, voice: v } } : null;
+      return car ? { task: "post", facts: { dealer, car: carFacts(car, siteUrl), network: req.network, format: req.format, layout: req.layout, voice: v } } : null;
     }
     case "newsletter": {
       const cars = newestForSale(await adminCars(), 5);
-      return { task: "newsletter", facts: { dealer, cars: cars.map(carFacts), voice: v } };
+      return { task: "newsletter", facts: { dealer, cars: cars.map((c) => carFacts(c, siteUrl)), voice: v } };
     }
     case "carDescription": {
       const car = formCarFacts(req.fields);
@@ -45,7 +46,7 @@ export async function buildFacts(req: WriteRequest, dealer: string): Promise<Bui
       if (!lead) return null;
       // The car's own details, so the reply can answer "is it still there, what mileage" instead of "I'll check".
       const car = lead.carSlug ? (await adminCars()).find((c) => c.slug === lead.carSlug) : undefined;
-      const carDetails = car && { ...carFacts(car), forSale: forSale(car) };
+      const carDetails = car && { ...carFacts(car, siteUrl), forSale: forSale(car) };
       return { task: "leadReply", facts: { dealer, firstName: firstName(lead.name, ""), kind: LEAD_TYPE_LABELS[lead.type], message: noContacts(lead.message).slice(0, 600), car: lead.carTitle, carDetails } };
     }
     case "reviewReply": {

@@ -9,7 +9,7 @@ import { can, currentMember } from "@/lib/permissions";
 import { DEALER_NAV } from "@/lib/admin/nav";
 import { enabledModules } from "@/lib/modules";
 import { stockSource } from "@/lib/stock-source";
-import { LISTING_SITE } from "@/lib/stock-source-rules";
+import { listing } from "@/lib/stock-source";
 import { NEW_TAB } from "@/components/ui";
 
 export const metadata = { title: "Help" };
@@ -26,7 +26,7 @@ type Guide = { title: string; icon: React.ReactNode; steps: string[]; href: stri
 // Every team member can reach us from here. First a person, one press away; then how to do the everyday jobs (most questions end there)
 // beside the form; then what they sent, with our replies. `from` is the page they came from, when a link sets it (the Billing page does).
 export default async function Page({ searchParams }: { searchParams: Promise<{ from?: string; type?: string }> }) {
-  const [me, sp, mods, source] = await Promise.all([currentMember(), searchParams, enabledModules(), stockSource()]);
+  const [me, sp, mods, source, { site: listingSite }] = await Promise.all([currentMember(), searchParams, enabledModules(), stockSource(), listing()]);
   const types = typesFor(me.role);
   const first = types.find((t) => t === sp.type) ?? types[0];
   const [mine, last] = await Promise.all([requestsOf(me.name), feedbackStore.get(me.name.toLowerCase())]);
@@ -37,10 +37,10 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ f
     { title: "Answer a new lead", icon: <InboxIcon />, steps: ["Open Leads and press the person's name.", "Call, email or WhatsApp them from the top of the lead.", "Set the status to Contacted so the team knows."], href: "/leads?status=new", go: "Go to leads" },
     ...(mods.has("testDrives") ? [{ title: "Book a test drive", icon: <CalendarIcon />, steps: ["Press Book a test drive on the Overview.", "Pick the car, the day and a free time.", "Requests from your website show under To do: press Confirm."], href: "/test-drives/new", go: "Book a test drive" }] : []),
     synced
-      ? { title: "Add or change a car", icon: <CarIcon />, steps: [`Your cars come from ${LISTING_SITE}: add or change them there.`, "The website and this dashboard update by themselves.", ...(margins ? ["Its cost and prep are added here, on its page in Stock."] : [])], href: "/stock", go: "Go to stock" }
+      ? { title: "Add or change a car", icon: <CarIcon />, steps: [`Your cars come from ${listingSite}: add or change them there.`, "The website and this dashboard update by themselves.", ...(margins ? ["Its cost and prep are added here, on its page in Stock."] : [])], href: "/stock", go: "Go to stock" }
       : { title: "Add a car", icon: <CarIcon />, steps: ["Press Add a car on the Overview or in Stock.", "Add the photos, the price and the details.", "Press Add car, or Save draft to finish it later."], href: "/stock/new", go: "Add a car" },
     synced
-      ? { title: "Record a sale", icon: <ReceiptIcon />, steps: [`When a car's ad comes down on ${LISTING_SITE}, it shows under To do.`, "Press Check, then It sold.", "Add the buyer and the price."], href: "/stock?view=sold", go: "Go to sold cars" }
+      ? { title: "Record a sale", icon: <ReceiptIcon />, steps: [`When a car's ad comes down on ${listingSite}, it shows under To do.`, "Press Check, then It sold.", "Add the buyer and the price."], href: "/stock?view=sold", go: "Go to sold cars" }
       : { title: "Mark a car as sold", icon: <ReceiptIcon />, steps: ["Open Stock and find the car.", "Press Mark sold.", "Add the buyer and the price. It shows as Sold on your website."], href: "/stock", go: "Go to stock" },
     ...(mods.has("social") ? [{ title: "Post a car to Facebook and Instagram", icon: <ShareIcon />, steps: ["Press New post on the Overview.", "Pick the car and the photos, and write a line or two.", "Post now, or choose a day and time."], href: "/marketing/new", go: "New post" }] : []),
     { title: "Add someone to your team", icon: <UsersIcon />, steps: ["Open Settings, then Team.", "Enter their name and email, and choose their role.", "Only an owner or manager can do this."], href: "/settings?section=team", go: "Open team settings" },

@@ -14,7 +14,7 @@ import { can, currentMember } from "@/lib/permissions";
 import { roleCan } from "@/lib/permission-rules";
 import { loadReportData } from "@/lib/reports/load";
 import { advice, bounds, compare, fmtWait, monthBefore, monthRange, summarise } from "@/lib/reports/monthly";
-import { OLD_STOCK_DAYS } from "@/lib/admin/overview";
+import { dealerProfile } from "@/lib/tenancy/current";
 import { carName } from "@/lib/stock/format";
 import { forSale } from "@/lib/stock/types";
 import { notFound } from "next/navigation";
@@ -36,7 +36,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
   const month = isIsoMonth(asked) && months.includes(asked) ? asked : last;
   const earlier = months[months.indexOf(month) + 1];
   const later = months[months.indexOf(month) - 1];
-  const [all, seeMargins, me, hasSales, hasReviews, hasAnalytics, hasMargins] = await Promise.all([loadReportData(), can("margins"), currentMember(), hasModule("sales"), hasModule("reviews"), hasModule("analytics"), hasModule("margins")]);
+  const [all, seeMargins, me, hasSales, hasReviews, hasAnalytics, hasMargins, profile] = await Promise.all([loadReportData(), can("margins"), currentMember(), hasModule("sales"), hasModule("reviews"), hasModule("analytics"), hasModule("margins"), dealerProfile()]);
+  const oldDays = profile.rules.oldStockDays;
   // As on Reports (owner's decision): the roles allowed margins see the dealership; a salesperson sees their own leads and sales, and
   // nothing of the stock, visitors or reviews. By role, not by `can`: with the Margins module off an owner still sees the dealership (only
   // the money goes, `seeMargins`).
@@ -45,8 +46,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
   const { from, to } = monthRange(month);
   const prevMonth = monthBefore(month);
   const prevRange = monthRange(prevMonth);
-  const s = summarise(data, from, to, now, { money: seeMargins });
-  const p = summarise(data, prevRange.from, prevRange.to, now);
+  const s = summarise(data, from, to, now, profile, { money: seeMargins });
+  const p = summarise(data, prevRange.from, prevRange.to, now, profile);
 
   let profit: number | undefined;
   if (hasSales && hasMargins && seeMargins) {
@@ -83,7 +84,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
         } />
 
       <Panel title="What to do" action={whole && s.stock.oldStock > 0 ? <Link href="/stock?view=old" className={rowButton}>See the old stock</Link> : undefined}>
-        <p className="text-body">{advice(s)}</p>
+        <p className="text-body">{advice(s, oldDays)}</p>
       </Panel>
 
       {/* The month in short: the few numbers an owner asks about first, each against the month before. The sections below say more. */}
@@ -150,7 +151,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
           <StatGrid>
             <StatCard label="Cars added" value={fmtNum(s.stock.added)} hint={compare(s.stock.added, p.stock.added)} />
             <StatCard label="Days in stock" value={s.stock.avgDaysInStock === null ? "None" : fmtNum(s.stock.avgDaysInStock)} hint="Average, cars for sale now" />
-            <StatCard href="/stock?view=old" label={`${OLD_STOCK_DAYS} days or more`} value={fmtNum(s.stock.oldStock)} tone={s.stock.oldStock ? "warn" : undefined} hint="Cars for sale now" />
+            <StatCard href="/stock?view=old" label={`${oldDays} days or more`} value={fmtNum(s.stock.oldStock)} tone={s.stock.oldStock ? "warn" : undefined} hint="Cars for sale now" />
           </StatGrid>
         </>
       )}

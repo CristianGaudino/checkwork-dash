@@ -1,5 +1,7 @@
 "use client";
 
+import { useDealerFacts } from "@/components/DealerFacts";
+import { driveTimes } from "@/lib/leads/constants";
 import { useKeptForm } from "@/components/admin/useKeptForm";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -41,7 +43,8 @@ export function BookDriveForm({ cars, team, me, slots, initialCar, person }: { c
   const e = state?.errors ?? {};
   const [car, setCar] = useState(start);
   // The picker opens on the car's first free time, never on a day with nothing left (#238).
-  const firstFor = (slug: string) => firstOpen(slots.days, slots.taken[slug] ?? [], slots.windowMin, slots.now) ?? { date: slots.days[0] ?? "", time: "" };
+  const { hours } = useDealerFacts();
+  const firstFor = (slug: string) => firstOpen(slots.days, slots.taken[slug] ?? [], slots.windowMin, slots.now, (d) => driveTimes(d, hours)) ?? { date: slots.days[0] ?? "", time: "" };
   const [when, setWhen] = useState(() => firstFor(start));
 
   const heading = useStepHeading(step);

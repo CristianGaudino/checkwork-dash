@@ -42,9 +42,9 @@ const db = async () => createDrizzleStore(await getDb());
 const store: LeadStore = {
   exists: async (ref) => (await db()).exists(ref),
   // A lead nobody is told about is worse than a refused one: with no address to email, refuse before storing, so the buyer is
-  // told to call instead of waiting for a reply that never comes. Set LEAD_TO_EMAIL before the bot-check secret.
+  // told to call instead of waiting for a reply that never comes. Set the dealer's lead email before the bot-check secret.
   insert: async (row) => {
-    if ((await leadRecipients()).length === 0) throw new Error("Missing LEAD_TO_EMAIL");
+    if ((await leadRecipients()).length === 0) throw new Error("No lead email set for this dealer");
     return (await db()).insert(row);
   },
   markNotified: async (id) => (await db()).markNotified(id),

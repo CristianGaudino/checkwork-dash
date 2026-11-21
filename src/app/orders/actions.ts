@@ -16,7 +16,7 @@ import { regPeriods } from "@/lib/leads/reg-periods";
 import { can } from "@/lib/permissions";
 import { stockSource } from "@/lib/stock-source";
 import type { Car } from "@/lib/stock/types";
-import { LISTING_SITE } from "@/lib/stock-source-rules";
+import { listing } from "@/lib/stock-source";
 import { requireModule } from "@/lib/modules";
 import { requireStaff } from "@/lib/staff";
 import { STALE_STATUS, movedSince } from "@/lib/admin/stale";
@@ -47,7 +47,7 @@ const placing = z.object({
 export async function placeOrderAction(_prev: FormState, data: FormData): Promise<FormState> {
   await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
   await requireModule("newCars"); // and only while the dealer has it
-  if (!(await theirs())) return { errors: { make: `Orders are for stock kept here, not on ${LISTING_SITE}` } };
+  if (!(await theirs())) return { errors: { make: `Orders are for stock kept here, not on ${(await listing()).site}` } };
   const r = placing.safeParse(Object.fromEntries(data));
   if (!r.success) return { errors: fieldErrors(r.error) };
   const d = r.data;

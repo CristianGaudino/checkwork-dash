@@ -1,22 +1,23 @@
 import Link from "next/link";
-import { AddTeamForm, RoleForm, LeadEmailsForm, MarketingForm, NotificationsForm, TargetsForm } from "@/components/admin/SettingsForms";
+import { AddTeamForm, BusinessForm, RoleForm, LeadEmailsForm, MarketingForm, NotificationsForm, TargetsForm } from "@/components/admin/SettingsForms";
 import { Badge, DataTable, Facts, Notice, PageHeader, Panel, adminButtonQuiet, rowButton } from "@/components/admin/kit";
 import { ActButton } from "@/components/admin/ActButton";
 import { getSettings } from "@/lib/admin/collections";
-import { INTEGRATIONS, type IntegrationId, isUsable, modeOf } from "@/lib/integrations";
+import { INTEGRATIONS, type IntegrationId, integrationText, isUsable, modeOf } from "@/lib/integrations";
 import { formatHours } from "@/lib/dealer";
-import { DEALER_ADDRESS_TEXT, DEALER_EMAIL, DEALER_PHONE, OPENING_HOURS, SITE_NAME } from "@/lib/site";
 import { removeTeamAction, resetDemoAction } from "./actions";
 import { mayResetDemo } from "@/lib/admin/docs";
 import { syncLine } from "@/components/admin/SyncPanel";
 import { syncStatus } from "@/lib/donedeal/sync";
 import { stockSource } from "@/lib/stock-source";
-import { LISTING_SITE, DONEDEAL_DEALER_URL } from "@/lib/stock-source-rules";
+import { listing } from "@/lib/stock-source";
+import { currentDealer } from "@/lib/tenancy/current";
+import { addressText } from "@/lib/tenancy/profile";
 import { NEW_TAB } from "@/components/ui";
 import { currentMember } from "@/lib/permissions";
 import { ROLES, roleCan, type Role } from "@/lib/permission-rules";
 import { enabledModules } from "@/lib/modules";
-import type { ModuleId } from "@/lib/modules-rules";
+import { MODULES, type ModuleId } from "@/lib/modules-rules";
 import { BrandIcon } from "@/components/admin/BrandIcon";
 
 // What each role may see, in words, so the owner knows what a role change does.
@@ -42,12 +43,15 @@ const SERVICE_MODULE: Partial<Record<IntegrationId, ModuleId | ModuleId[]>> = {
 };
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ section?: string }> }) {
-  const [s, me, source, sp, resettable] = await Promise.all([getSettings(), currentMember(), stockSource(), searchParams, mayResetDemo()]);
+  const [s, me, source, sp, resettable, { name, profile }, { site: listingSite, url: listingUrl }] = await Promise.all([getSettings(), currentMember(), stockSource(), searchParams, mayResetDemo(), currentDealer(), listing()]);
   const synced = source === "donedeal";
   const sync = synced ? await syncStatus() : null;
   // The listing site is a service only for a dealer whose stock comes from there; the others only with their module (#173).
   const mods = await enabledModules();
-  const services = INTEGRATIONS.filter((i) => (i.id !== "donedeal" || synced) && (!SERVICE_MODULE[i.id] || [SERVICE_MODULE[i.id]!].flat().some((m) => mods.has(m))));
+  const services = INTEGRATIONS.filter((i) => (i.id !== "donedeal" || synced) && (!SERVICE_MODULE[i.id] || [SERVICE_MODULE[i.id]!].flat().some((m) => mods.has(m)))).map((i) => integrationText(i, { name, site: listingSite }));
+  // Lead email is ours to connect: the dealer's fallback address in their profile (leadEmail), as LEAD_TO_EMAIL was for one site.
+  const usable = (id: IntegrationId) => (id === "email" ? Boolean(profile.leadEmail) : isUsable(id));
+  const mode = (id: IntegrationId) => (id === "email" ? (profile.leadEmail ? "live" : "off") : modeOf(id));
   const team = roleCan(me.role, "team");
   const edit = roleCan(me.role, "settings");
   const owner = me.role === "Owner";
@@ -83,25 +87,44 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
           {section === "business" && (
             <>
               <Panel title="Business details">
-                <Facts items={[["Name", SITE_NAME], ["Phone", DEALER_PHONE], ["Email", DEALER_EMAIL], ["Address", DEALER_ADDRESS_TEXT]]} />
-                <div className="flex flex-col gap-1">
-                  <h3 className="text-meta text-text-2">Opening hours</h3>
-                  <ul className="grid grid-cols-1 gap-x-8 gap-y-1 text-body sm:grid-cols-2">
-                    {OPENING_HOURS.map((h) => (
-                      <li key={h.day} className="flex justify-between gap-4 border-b border-hairline py-1.5">
-                        <span>{h.day}</span>
-                        <span className="tabular-nums text-text-2">{formatHours(h)}</span>
+                {edit ? (
+                  <BusinessForm name={name} profile={profile} />
+                ) : (
+                  <>
+                  <Facts items={[["Name", name], ["Website", profile.siteUrl || "Not set"], ["Phone", profile.phone || "Not set"], ["Email", profile.email || "Not set"], ["Address", addressText(profile.address) || "Not set"]]} />
+                  <div className="flex flex-col gap-1">
+                    <h3 className="text-meta text-text-2">Opening hours</h3>
+                    <ul className="grid grid-cols-1 gap-x-8 gap-y-1 text-body sm:grid-cols-2">
+                      {profile.hours.map((h) => (
+                        <li key={h.day} className="flex justify-between gap-4 border-b border-hairline py-1.5">
+                          <span>{h.day}</span>
+                          <span className="tabular-nums text-text-2">{formatHours(h)}</span>
+                        </li>
+                      ))}
+                      {/* As on the public site: no test drive is offered on one (src/lib/bank-holidays.ts). */}
+                      <li className="flex justify-between gap-4 border-b border-hairline py-1.5">
+                        <span>Bank holidays</span>
+                        <span className="text-text-2">Closed</span>
                       </li>
-                    ))}
-                    {/* As on the public site: no test drive is offered on one (src/lib/bank-holidays.ts). */}
-                    <li className="flex justify-between gap-4 border-b border-hairline py-1.5">
-                      <span>Bank holidays</span>
-                      <span className="text-text-2">Closed</span>
-                    </li>
-                  </ul>
-                </div>
+                    </ul>
+                  </div>
+                  </>
+                )}
+              </Panel>
+              {/* Ours to set (the owner's program, docs/new-dealer.md): shown, never changed here. */}
+              <Panel title="Your plan" quiet>
+                <Facts
+                  items={[
+                    ["Modules", MODULES.filter((m) => mods.has(m.id)).map((m) => m.label).join(", ") || "None"],
+                    ["Stock", synced ? `From ${listingSite}` : "Kept here"],
+                    ["Old stock after", `${profile.rules.oldStockDays} days`],
+                    ["Price drop suggested", `€${profile.rules.slowDropEur}`],
+                    ["Sold cars stay on your website", `${profile.rules.soldVisibleDays} days`],
+                    ["Sales asked about for", `${profile.rules.saleNudgeDays} days`],
+                  ]}
+                />
                 <p className="text-meta text-text-2">
-                  These show across your website. We change them for you:{" "}
+                  We set these for you:{" "}
                   <Link href={ASK_CHANGE} className="font-medium text-accent-text underline underline-offset-2">ask us to change them</Link>
                 </p>
               </Panel>
@@ -175,22 +198,22 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
           {section === "emails" && (
             <>
               <Panel title="Lead emails">
-                {edit ? <LeadEmailsForm settings={s} fallback={Boolean(process.env.LEAD_TO_EMAIL)} /> : <Facts items={[["Send new leads to", s.leadEmails.join(", ") || (process.env.LEAD_TO_EMAIL ? "The site's own address" : "No address set")]]} />}
+                {edit ? <LeadEmailsForm settings={s} fallback={Boolean(profile.leadEmail)} /> : <Facts items={[["Send new leads to", s.leadEmails.join(", ") || (profile.leadEmail ? "The site's own address" : "No address set")]]} />}
               </Panel>
               <Panel title="Morning reminder">
-                {edit ? <NotificationsForm settings={s} emailConnected={isUsable("email")} /> : <Facts items={[["Morning follow-ups email to each salesperson", s.notifications.followUps ? "On" : "Off"]]} />}
+                {edit ? <NotificationsForm settings={s} emailConnected={usable("email")} /> : <Facts items={[["Morning follow-ups email to each salesperson", s.notifications.followUps ? "On" : "Off"]]} />}
               </Panel>
             </>
           )}
 
           {section === "services" && sync && (
-            <Panel title={LISTING_SITE}>
+            <Panel title={listingSite}>
               <dl className="grid grid-cols-1 gap-x-8 gap-y-3 sm:grid-cols-2">
                 <div>
                   <dt className="text-meta text-text-2">Account</dt>
                   <dd className="text-body">
-                    <a href={DONEDEAL_DEALER_URL} {...NEW_TAB} className="underline-offset-2 hover:underline">
-                      {modeOf("donedeal") === "simulated" ? INTEGRATIONS.find((i) => i.id === "donedeal")!.demoAccount : `Your ${LISTING_SITE} dealer page`}
+                    <a href={listingUrl} {...NEW_TAB} className="underline-offset-2 hover:underline">
+                      {modeOf("donedeal") === "simulated" ? integrationText(INTEGRATIONS.find((i) => i.id === "donedeal")!, { name, site: listingSite }).demoAccount : `Your ${listingSite} dealer page`}
                       <span className="sr-only"> (opens in a new tab)</span>
                     </a>
                   </dd>
@@ -202,7 +225,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
               </dl>
               <p className="text-body">{syncLine(sync)}</p>
               <p className="max-w-measure text-meta text-text-2">
-                Cars are added, changed and sold on {LISTING_SITE}, and the site follows every 15 minutes. {LISTING_SITE} gives the key for your own site only, with your written consent.
+                Cars are added, changed and sold on {listingSite}, and the site follows every 15 minutes. {listingSite} gives the key for your own site only, with your written consent.
               </p>
             </Panel>
           )}
@@ -217,9 +240,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
                 columns={[
                   { key: "name", header: "Service", cell: (i) => <span className="flex flex-col"><span className="inline-flex items-center gap-1.5 font-medium"><BrandIcon name={i.name} />{i.name}</span><span className="text-meta text-text-2 md:hidden">{i.purpose}</span></span> },
                   { key: "purpose", header: "What it does", hide: "md", cell: (i) => i.purpose, className: "max-w-[20rem]" },
-                  { key: "status", header: "Status", cell: (i) => (isUsable(i.id) ? <Badge tone="good">Connected</Badge> : <Badge tone="warn">Not connected</Badge>) },
+                  { key: "status", header: "Status", cell: (i) => (usable(i.id) ? <Badge tone="good">Connected</Badge> : <Badge tone="warn">Not connected</Badge>) },
                   // A dealer never sees setting names: we connect a service for them (the names are in .env.example and docs/new-site-checklist.md).
-                  { key: "account", header: "Account", hide: "sm", cell: (i) => (modeOf(i.id) === "off" ? <Link href={ASK_CHANGE} className="text-meta font-medium text-accent-text underline underline-offset-2">Ask us to connect it</Link> : <span className="break-words text-meta text-text-2">{modeOf(i.id) === "simulated" ? i.demoAccount : "Nothing to do"}</span>) },
+                  { key: "account", header: "Account", hide: "sm", cell: (i) => (mode(i.id) === "off" ? <Link href={ASK_CHANGE} className="text-meta font-medium text-accent-text underline underline-offset-2">Ask us to connect it</Link> : <span className="break-words text-meta text-text-2">{mode(i.id) === "simulated" ? i.demoAccount : "Nothing to do"}</span>) },
                 ]}
               />
             </Panel>
