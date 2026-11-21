@@ -16,9 +16,9 @@ export default defineConfig({
     { name: "main", testIgnore: /admin-stock\.spec/ },
     { name: "stock-writes", testMatch: /admin-stock\.spec/, dependencies: ["main"] },
   ],
-  // E2E_FAIL_QUERY is the failure-state switch; a server already running on that port without it makes the failure specs fail.
-  // E2E_FAKE_BACKENDS swaps the lead store and mailer for in-memory fakes (src/lib/leads/deps.ts). Only ever set here.
+  // E2E_FAKE_BACKENDS lets a production build answer from memory with no D1 (the directory, src/lib/tenancy/directory.ts, and stock,
+  // src/lib/stock/index.ts). Only ever set here.
   webServer: process.env.E2E_BASE_URL
     ? undefined
-    : { command: "npm start", url: baseURL, reuseExistingServer: false, env: { E2E_FAIL_QUERY: "e2e-forced-failure", E2E_FAKE_BACKENDS: "1", UNSUBSCRIBE_SECRET: "e2e-unsubscribe-secret", OWNER_API_TOKEN: "e2e-owner-token" } },
+    : { command: "npm start", url: baseURL, reuseExistingServer: false, env: { E2E_FAKE_BACKENDS: "1", UNSUBSCRIBE_SECRET: "e2e-unsubscribe-secret", OWNER_API_TOKEN: "e2e-owner-token" } },
 });

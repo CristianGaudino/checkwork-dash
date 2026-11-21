@@ -25,9 +25,9 @@
 	},
 	// Lead emails to the dealer. No "remote": a local wrangler dev has no Cloudflare credentials, so it uses the local simulator.
 	"send_email": [{ "name": "EMAIL" }],
-	// Per-IP limit on lead submits, a second layer behind Turnstile: 5 per minute. COUNT_LIMITER: the feature counters. AI_LIMITER: AI writing.
+	// LEAD_LIMITER: the registration lookup, 5 a minute per visitor (src/lib/reg-lookup.ts). AI_LIMITER: AI writing, per dealer.
 	// SITE_LIMITER: the site API, 60 requests a minute per website key (src/lib/site-api/request.ts).
-	"ratelimits": [{ "name": "LEAD_LIMITER", "namespace_id": "1001", "simple": { "limit": 5, "period": 60 } }, { "name": "COUNT_LIMITER", "namespace_id": "1002", "simple": { "limit": 20, "period": 60 } }, { "name": "AI_LIMITER", "namespace_id": "1003", "simple": { "limit": 10, "period": 60 } }, { "name": "SITE_LIMITER", "namespace_id": "1004", "simple": { "limit": 60, "period": 60 } }],
+	"ratelimits": [{ "name": "LEAD_LIMITER", "namespace_id": "1001", "simple": { "limit": 5, "period": 60 } }, { "name": "AI_LIMITER", "namespace_id": "1003", "simple": { "limit": 10, "period": 60 } }, { "name": "SITE_LIMITER", "namespace_id": "1004", "simple": { "limit": 60, "period": 60 } }],
 	// Lead photos, car photos, media and help screenshots: private, EU jurisdiction, read only through their routes. wrangler dev uses a local bucket.
 	"r2_buckets": [{ "binding": "LEAD_PHOTOS", "bucket_name": "REPLACE_WITH_BUCKET_NAME", "jurisdiction": "eu" }],
 	// D1, EU jurisdiction. DIRECTORY lists the dealers and who works at each (src/lib/db/directory-schema.ts, drizzle-directory/). Each dealer
