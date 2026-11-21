@@ -1,7 +1,3 @@
-import { signText, verifyText } from "@/lib/signing";
-
-// Trade-in photo checks and dealer links (D-13). Pure: the secret is a parameter, so nothing here reads env.
-
 // The type comes from the bytes, never from the file name or the browser's type (T-03-30).
 export function sniffImage(b: Uint8Array): { ext: "jpg" | "png" | "webp"; contentType: string } | null {
   const at = (sig: number[], from = 0) => sig.every((x, i) => b[from + i] === x);
@@ -11,14 +7,3 @@ export function sniffImage(b: Uint8Array): { ext: "jpg" | "png" | "webp"; conten
   return null;
 }
 
-// A capability link for the dealer email: HMAC-SHA256 over "{key}.{exp}", 7 days by default (research A10).
-export async function signPhotoPath(key: string, secret: string, ttlSec = 7 * 86400): Promise<string> {
-  const exp = Math.floor(Date.now() / 1000) + ttlSec;
-  return `/lead-photos/${key}?exp=${exp}&sig=${await signText(`${key}.${exp}`, secret)}`;
-}
-
-// An expired, malformed or tampered link is false.
-export async function verifyPhotoSig(key: string, exp: string, sig: string, secret: string): Promise<boolean> {
-  if (!/^\d{1,12}$/.test(exp) || Number(exp) < Date.now() / 1000) return false;
-  return verifyText(`${key}.${exp}`, sig, secret);
-}

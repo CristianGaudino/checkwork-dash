@@ -4,7 +4,6 @@ import { TEAM_SEED, demoDrives, demoLeads, demoReservations, demoReviews, demoSa
 import { addDays, daysSince, dublinDay } from "@/lib/admin/format";
 import { bounds, summarise, type ReportData } from "@/lib/reports/monthly";
 import { newId } from "@/lib/admin/ids";
-import { signPhotoPath } from "@/lib/leads/photos";
 import demoCars from "@/lib/stock/demo-cars.json";
 import { forSale, onRequest, type Car } from "@/lib/stock/types";
 import { carTitleOf } from "@/lib/admin/seed-data";
@@ -30,8 +29,7 @@ export type Msg = {
   buttons?: ButtonId[];
   expects?: "price" | "review-reply" | "time"; // a question to the dealer: the next thing typed answers it
   done?: boolean;
-  photos?: string[]; // thumbnails: links, or in a real lead the private keys (photoKeys) which the page signs
-  photoKeys?: string[];
+  photos?: string[]; // thumbnails, as links
   href?: string;
   via?: "email"; // sent by email instead: the buyer chose email, WhatsApp is over its cap, or it is not connected
 };
@@ -100,27 +98,21 @@ export const isStaffAlert = (m: Msg) => m.thread === "staff" && m.from === "site
 
 // What the page shows: the person's own phone, the buyer's phone for the lead last written to, and whether an answer is on its way.
 export type View = { staff: Msg[]; buyer: Msg[]; buyerName: string; typing: boolean };
-const strip = (m: Msg, photos?: string[]): Msg => {
-  const { photoKeys, ...rest } = m;
-  void photoKeys;
-  return photos ? { ...rest, photos } : rest;
-};
 
 export async function viewFor(name: string, modules: ReadonlySet<ModuleId>, now = Date.now()): Promise<View> {
   const live = (await messagesStore.list()).sort((a, b) => a.at - b.at);
-  const secret = process.env.PHOTO_LINK_SECRET;
   const byId = new Map(live.map((m) => [m.id, m]));
   // An alert, and a question asked from one, only while its module is on.
   const shown = live.filter((m) => {
     const needs = moduleOf(m, m.ref ? byId.get(m.ref) : undefined);
     return m.at <= now && (!needs || modules.has(needs));
   });
-  const staff = await Promise.all(shown.filter((m) => m.thread === "staff" && m.to === name).map(async (m) => strip(m, m.photoKeys && secret ? await Promise.all(m.photoKeys.map((k) => signPhotoPath(k, secret, 3600))) : undefined)));
+  const staff = shown.filter((m) => m.thread === "staff" && m.to === name);
   const buyerAll = shown.filter((m) => m.thread === "buyer");
   const focus = buyerAll.at(-1)?.leadId;
   return {
     staff,
-    buyer: buyerAll.filter((m) => m.leadId === focus).map((m) => strip(m)),
+    buyer: buyerAll.filter((m) => m.leadId === focus),
     buyerName: focus ? ((await leadsStore.get(focus))?.name ?? "") : "",
     typing: live.some((m) => m.at > now && (m.thread === "buyer" || m.to === name)),
   };

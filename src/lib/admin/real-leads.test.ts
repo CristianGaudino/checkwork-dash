@@ -3,7 +3,7 @@ vi.mock("server-only", () => ({}));
 const { mirrorLead, mirrorOf } = await import("./real-leads");
 const { dublinMs } = await import("./format");
 const { drivesStore } = await import("./collections");
-import type { LeadRow } from "@/lib/leads/process";
+import type { LeadRow } from "@/lib/leads/store";
 
 const row = (over: Partial<LeadRow>): LeadRow => ({ id: "abc", clientRef: "r", type: "enquiry", carId: "1", carSlug: "x-1", carTitle: "2020 Audi A3", carPriceEur: 10000, sourcePath: "/", name: "Pat", phone: null, email: "pat@example.com", message: "Hello", details: {}, photoKeys: [], consentAt: new Date("2026-11-10T10:00:00Z"), consentVersion: "v", ...over });
 
@@ -41,9 +41,9 @@ describe("mirrorOf", () => {
     expect(m.lead).toBeUndefined();
     expect(m.alert).toMatchObject({ id: "real-abc", kind: "price-drop", email: "pat@example.com", criteria: "2020 Audi A3", active: true });
   });
-  it("keeps the photos and says so when the email to the dealer failed", () => {
-    const m = mirrorOf(row({ type: "trade_in", photoKeys: ["trade-in/abc/1.jpg"] }), false);
-    expect(m.lead).toMatchObject({ photoKeys: ["trade-in/abc/1.jpg"], notes: [{ text: expect.stringMatching(/didn't reach you/) }] });
+  it("says so when the email to the dealer failed", () => {
+    const m = mirrorOf(row({ type: "trade_in" }), false);
+    expect(m.lead).toMatchObject({ notes: [{ text: expect.stringMatching(/didn't reach you/) }] });
     expect(mirrorOf(row({})).lead!.notes).toEqual([]);
   });
   it("files a message from the Warranty or Service page under that type", () => {

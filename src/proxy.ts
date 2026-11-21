@@ -28,5 +28,5 @@ export async function proxy(req: NextRequest) {
 // routes) nor the static files (Next's own, the seeded car photos in public/stock/<id>/*.webp, and the brand files in public/). Only the photo
 // files: the stock pages under /stock are gated like any other.
 export const config = {
-  matcher: ["/((?!api/|car-photos/|media-files/|lead-photos/|_next/|stock/[^/]+/[^/]+\\.webp|brand/|brands/|icon\\.|favicon\\.ico).*)"],
+  matcher: ["/((?!api/|car-photos/|media-files/|_next/|stock/[^/]+/[^/]+\\.webp|brand/|brands/|icon\\.|favicon\\.ico).*)"],
 };

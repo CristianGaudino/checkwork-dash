@@ -35,15 +35,15 @@ describe("integrations", () => {
 // Unit tests act for the demo dealer (vitest.setup.ts); runAsDealer("test-motors") is a dealer that is not a demo.
 describe("simulation follows the dealer, never the deploy", () => {
   const META = ["META_PAGE_ID", "META_PAGE_ACCESS_TOKEN", "META_INSTAGRAM_ID"];
-  it("a demo dealer simulates every outward service, keys or not, so it never sends anything real; the bot check shows its true state", async () => {
+  it("a demo dealer simulates every outward service, keys or not, so it never sends anything real; reviews show their true state", async () => {
     const { modeOf, simulating } = await import("./integrations");
     vi.stubEnv("APP_ENV", "production");
     expect(await simulating()).toBe(true);
     expect(await modeOf("social")).toBe("simulated");
     for (const k of META) vi.stubEnv(k, "x");
     expect(await modeOf("social")).toBe("simulated");
-    vi.stubEnv("TURNSTILE_SECRET_KEY", "");
-    expect(await modeOf("botcheck")).toBe("off");
+    vi.stubEnv("GOOGLE_PLACES_API_KEY", "");
+    expect(await modeOf("reviews")).toBe("off");
   });
   it("a real dealer never simulates: off without keys, live with them", async () => {
     const { modeOf, simulating } = await import("./integrations");

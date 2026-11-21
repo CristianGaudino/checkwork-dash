@@ -24,7 +24,6 @@ import type { LeadStatus } from "@/lib/admin/collections";
 import { addNoteAction, assignLeadAction, setFollowUpAction, setLostReasonAction, setStatusAction } from "../actions";
 import { dublinDay, fmtDate, fmtDateTime, fmtDay, fmtTime } from "@/lib/admin/format";
 import { followUpDue, isOpenLead } from "@/lib/admin/leads";
-import { signPhotoPath } from "@/lib/leads/photos";
 import { siteCarUrl } from "@/lib/stock/format";
 import { dealerProfile } from "@/lib/tenancy/current";
 import { stockSource } from "@/lib/stock-source";
@@ -53,9 +52,6 @@ export async function LeadView({ id }: { id: string }) {
   // And the status as it was, with the follow-up day and the lost reason a move clears.
   const statusBack = { status: lead.status, ...(lead.followUpOn && { on: lead.followUpOn }), ...(lead.lostReason && { reason: lead.lostReason }) };
   const followUpBack: Record<string, string> | undefined = !lead.followUpOn ? { clear: "1" } : lead.followUpOn >= today ? { on: lead.followUpOn } : undefined;
-  // Their car's photos, on links that last an hour: the email's links expire after 7 days, the photos are kept 12 months.
-  const secret = process.env.PHOTO_LINK_SECRET;
-  const photos = secret ? await Promise.all((lead.photoKeys ?? []).map((k) => signPhotoPath(k, secret, 3600))) : [];
 
   return (
     <>
@@ -189,19 +185,6 @@ export async function LeadView({ id }: { id: string }) {
               <AITextarea label="Reply draft" task="leadReply" rows={6} copy request={{ task: "leadReply", leadId: lead.id }} />
             </Panel>
           </IfModule>
-          {photos.length > 0 && (
-            <Panel title="Photos">
-              <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-                {photos.map((src, i) => (
-                  <li key={src}>
-                    <a href={src} {...NEW_TAB} className="block overflow-hidden rounded-control">
-                      <img src={src} alt={`Photo ${i + 1} of their car (opens in a new tab)`} className="aspect-square w-full object-cover" />
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </Panel>
-          )}
           {/* Selling or trading in: the car's plate, and a lookup so the dealer sees what it is before calling back. */}
           {lead.reg && (
             <Panel title="Their car">

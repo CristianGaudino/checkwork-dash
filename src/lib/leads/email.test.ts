@@ -1,9 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { APP_URL } from "@/lib/site";
 
 const SITE_URL = "https://www.demo.checkwork.ie";
 import { buildLeadEmail } from "./email";
-import type { LeadRow } from "./process";
+import type { LeadRow } from "./store";
 
 const row: LeadRow = {
   id: "00000000-0000-4000-8000-000000000001",
@@ -59,14 +58,6 @@ describe("buildLeadEmail", () => {
     expect(text).toContain(`Car page: ${SITE_URL}/used-cars/${row.carSlug}`);
     expect(text).toContain("version 2026-11-06");
     expect(text).toContain("2026-11-06T10:00:00.000Z");
-  });
-
-  it("lists each trade-in photo as an absolute signed link, and no photo lines without photos", () => {
-    const paths = ["/lead-photos/trade-in/x/1.jpg?exp=1&sig=a", "/lead-photos/trade-in/x/2.png?exp=1&sig=b"];
-    const { text } = buildLeadEmail({ ...row, type: "trade_in" }, { demo: false, siteUrl: SITE_URL, photoPaths: paths });
-    expect(text).toContain(`Photo 1: ${APP_URL}${paths[0]}\n\nPhoto 2: ${APP_URL}${paths[1]}`);
-    expect(buildLeadEmail(row, { demo: false, siteUrl: SITE_URL }).text).not.toContain("Photo");
-    expect(buildLeadEmail(row, { demo: false, siteUrl: SITE_URL, photoPaths: [] }).text).not.toContain("Photo");
   });
 
   it("leaves the car out of the subject and body when the lead has no car", () => {

@@ -69,13 +69,7 @@ until the owner says so.
    have people); without `--profile` it is then the demo business. An existing dealer or member is left as it is, so it is safe to run
    again (change an existing dealer's profile as below).
 
-5. The photo bucket's lifecycle rule is per dealer (a backstop for trade-in photos with no lead, `docs/lead-retention.md`):
-
-   ```sh
-   npx wrangler r2 bucket lifecycle add <bucket> delete-trade-in-photos-murphy-motors dealers/murphy-motors/trade-in/ --expire-days 365 --jurisdiction eu
-   ```
-
-6. Nothing to change in Cloudflare Access: it only proves the email (#4), and the app lets in whoever the directory has. The owner signs in,
+5. Nothing to change in Cloudflare Access: it only proves the email (#4), and the app lets in whoever the directory has. The owner signs in,
    checks their details in Settings, Your business, adds the team in Settings, Team (which writes the directory), then Lead emails.
 
 ## Every deploy

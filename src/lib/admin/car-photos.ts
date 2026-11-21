@@ -3,7 +3,7 @@ import { dealerBucket } from "@/lib/tenancy/current";
 import type { Photo } from "@/lib/stock/types";
 
 // A car's own photos, added in the dashboard (#21). On the Worker they go to R2 under cars/{car id}/ in the current dealer's part of the
-// private bucket (dealerBucket: dealers/<id>/; its lifecycle rules only touch trade-in/), and /car-photos serves that prefix and nothing
+// private bucket (dealerBucket: dealers/<id>/), and /car-photos serves that prefix and nothing
 // else, to the dealer's own members. The demo's own photos are static files (/stock/...) and are only dropped from the list when removed.
 // shortcut: with no bucket (next dev, E2E) a photo is kept in the car as a data: URL, in memory. Fine for trying it, never for a real site.
 export const CAR_PHOTO_KEY = /^cars\/\d{1,12}\/[0-9a-f-]{36}\.jpg$/;

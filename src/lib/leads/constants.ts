@@ -53,16 +53,8 @@ export const SOURCING_BODIES = ["Hatchback", "Saloon", "Estate", "SUV", "Coupe",
 export const SOURCING_CAR_ERROR = "Add a make, a model or a type of car.";
 export const CONTACT_ERROR = "Add a phone number or an email.";
 
-// Trade-in photos (D-13, caps proven in the 03-01 spike). PHOTO_MAX_MB is checked on the picked original before the phone
-// shrinks it; the server enforces the stored and total caps, and next.config.ts's 18mb body cap sits just above the total.
-export const PHOTO_MAX_COUNT = 12;
-export const PHOTO_MAX_MB = 15;
-export const PHOTO_STORED_MAX_BYTES = 4 * 1024 * 1024;
-export const PHOTO_TOTAL_MAX_BYTES = 16 * 1024 * 1024;
+// The photo types a car photo may be (src/components/admin/CarPhotos.tsx); the server checks the bytes (src/lib/leads/photos.ts).
 export const PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
-export const photoError = (filename: string) => `${filename} isn't a photo we can use. Use a JPEG, PNG or WebP under ${PHOTO_MAX_MB} MB.`;
-export const photoCountError = (max: number) => `You can add up to ${max} photos.`;
-export const PHOTO_TOTAL_ERROR = "The photos are too big to send together. Remove one and try again.";
 
 // D-17: the only thing a finance application asks about the buyer's circumstances. No income, date of birth or bank details.
 export const EMPLOYMENT = { employed: "Employed", self_employed: "Self-employed", retired: "Retired", student: "Student", other: "Other" } as const;
@@ -72,17 +64,6 @@ export const BAD_REG = "Enter the registration as shown on the car.";
 export const BAD_KM = "Enter the mileage in km, numbers only.";
 export const REG_PATTERN = /^[A-Z0-9 -]{1,12}$/;
 export const KM_PATTERN = /^\d{1,6}$/;
-
-// Trade-in photos: at least this many are needed to value a car, and more is better. The slots are what to photograph, in the order a
-// buyer is asked for them (the photo step shows one empty slot for each, and the page lists them). Shared so the two never differ.
-export const PHOTO_MIN_COUNT = 6;
-export const PHOTO_MIN_ERROR = `Add at least ${PHOTO_MIN_COUNT} photos so we can value the car.`;
-// Which lead types take photos, and how many: a trade-in needs the car shown (at least 6, up to 12); a find-a-car request may show up to 6
-// cars the buyer likes, and none is fine. Read by the form and by the server, so they never differ.
-export const PHOTO_LIMITS = { trade_in: { min: PHOTO_MIN_COUNT, max: PHOTO_MAX_COUNT }, sourcing: { min: 0, max: 6 } } as const;
-export const PHOTO_SLOTS = ["Front", "Back", "Driver's side", "Passenger's side", "Interior front", "Interior back", "Dashboard and mileage", "Any damage"];
-// What the pages say about photos, in step with the picker: its first PHOTO_MIN_COUNT slots are required, the rest recommended.
-export const PHOTO_NOTES = [`The ${PHOTO_MIN_COUNT} we need: ${PHOTO_SLOTS.slice(0, PHOTO_MIN_COUNT).join(", ")}.`, `More is better: ${PHOTO_SLOTS.slice(PHOTO_MIN_COUNT).filter((s) => s !== "Any damage").join(", ")}.`, "Include photos of any damage, even small marks."];
 
 // Test drives (a booking is a lead with a day and a time), the same rules for the website and the dashboard. The days and hours come from
 // the dealer's opening hours (`hours`, their profile), so they never disagree with the opening times on the site. Slots start when we open and stop an hour before we close.

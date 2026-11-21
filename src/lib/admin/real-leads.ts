@@ -1,7 +1,7 @@
 import "server-only";
 import { DETAIL_LABELS } from "@/lib/leads/schema";
 import { ANSWER_KEYS, readable } from "@/lib/leads/contact-topics";
-import type { LeadRow } from "@/lib/leads/process";
+import type { LeadRow } from "@/lib/leads/store";
 import { clashes } from "./drives";
 import { ALERT_KINDS, alertsStore, getSettings, customersStore, drivesStore, leadsStore, type AlertKind, type Customer, type Lead, type LeadType, type StockAlert, type TestDrive } from "./collections";
 import { dublinMs } from "./format";
@@ -64,7 +64,6 @@ export function mirrorOf(row: LeadRow, emailed = true, service = true, photos = 
     ...(typeof row.details.channel === "string" && { channel: row.details.channel }),
     ...(typeof row.details.reg === "string" && { reg: row.details.reg }),
     ...(typeof row.details.topic === "string" && { topic: row.details.topic, answers: Object.fromEntries(ANSWER_KEYS.filter((k) => typeof row.details[k] === "string").map((k) => [k, String(row.details[k])])) }),
-    ...(row.photoKeys.length > 0 && { photoKeys: row.photoKeys }),
     ...(row.details.whatsappOptIn === "yes" && row.phone && { whatsappOptIn: true }), // the schema takes only "yes"; WhatsApp needs a number
     notes: [
       ...(emailed ? [] : [{ at, text: "The email about this lead didn't reach you. Reply from here." }]),

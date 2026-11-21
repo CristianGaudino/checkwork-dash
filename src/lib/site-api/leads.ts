@@ -4,12 +4,10 @@ import { z } from "zod";
 import { mirrorLead } from "@/lib/admin/real-leads";
 import { getDb } from "@/lib/db";
 import { leads } from "@/lib/db/schema";
-import { getDeps } from "@/lib/leads/deps";
 import { buildLeadEmail } from "@/lib/leads/email";
-import { leadRecipients } from "@/lib/leads/mail";
-import type { LeadRow } from "@/lib/leads/process";
+import { leadRecipients, sendToDealer } from "@/lib/leads/mail";
 import { DETAIL_LABELS, TYPE_LABELS, leadSchemaFor, oneLine, type LeadType } from "@/lib/leads/schema";
-import { createDrizzleStore } from "@/lib/leads/store";
+import { createDrizzleStore, type LeadRow } from "@/lib/leads/store";
 import { logLead } from "@/lib/log";
 import { currentDealer, hasD1 } from "@/lib/tenancy/current";
 import { CHANNELS, CHANNEL_LABELS } from "@/lib/visit-rules";
@@ -138,7 +136,7 @@ export async function receiveLead(text: string): Promise<Answer> {
   let told = emailed;
   if (!emailed && (await leadRecipients()).length > 0) {
     try {
-      await getDeps().mailer.send({ ...buildLeadEmail(row, { demo: dealer.demo, siteUrl: dealer.profile.siteUrl }), replyTo: row.email ?? undefined });
+      await sendToDealer({ ...buildLeadEmail(row, { demo: dealer.demo, siteUrl: dealer.profile.siteUrl }), replyTo: row.email ?? undefined });
       told = true;
     } catch {
       logLead({ leadId: row.id, type: row.type, outcome: "notify_failed" });

@@ -99,8 +99,8 @@ code path reaches another dealer's (#3, #4, #6; `src/lib/tenancy/`).
 - **Jobs** (`worker.mjs`): each cron runs each job once per active dealer in the directory (the nightly retention purges for every dealer, paused ones too), in that dealer's database and photo prefix. One
   dealer's failure never stops the next; the run fails if any failed. Logs carry the job, the dealer's id and counts only. The demo reset
   runs for demo dealers only.
-- **Photos and media** are kept in the one bucket under `dealers/<id>/` (`prefixedBucket`, `src/lib/tenancy/bucket.ts`). `/car-photos`,
-  `/media-files` and `/lead-photos` read under the current dealer's prefix only, so they serve a dealer's files to its own members and
+- **Photos and media** are kept in the one bucket under `dealers/<id>/` (`prefixedBucket`, `src/lib/tenancy/bucket.ts`). `/car-photos`
+  and `/media-files` read under the current dealer's prefix only, so they serve a dealer's files to its own members and
   nothing to anyone else. Serving car photos to the dealer's own website is not built yet (`docs/site-api.md`).
 - **The site API** (`/api/site/v1`, `docs/site-api.md`): a dealer's website sends leads and reads its cars with a key made in Settings.
   The key decides the dealer, and the work runs inside `runAsDealer`; nothing in a request can name another dealer.
@@ -157,7 +157,7 @@ with no D1). The actor is the signed-in person (`currentMember`), or a named one
   its Record sale button.
 - **Photos** (#21): on the car's page, add several at once, choose the main one, remove one. The browser shrinks each to a 1,600px
   JPEG (dropping its location data) and the server checks the bytes. On the Worker they are stored in R2 under `dealers/<dealer>/cars/{id}/`
-  in the `LEAD_PHOTOS` bucket (its lifecycle rules only touch each dealer's `trade-in/`) and served by `/car-photos`, which serves that
+  in the `LEAD_PHOTOS` bucket and served by `/car-photos`, which serves that
   prefix only, the current dealer's, to its members. With no
   bucket (dev, E2E) a photo stays in the car as a `data:` URL, in memory. Deleting a car deletes its stored photos. The demo's deploy
   still reseeds the stock, so photos added on the demo go at the next deploy.

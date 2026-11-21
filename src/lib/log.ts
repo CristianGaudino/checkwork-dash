@@ -1,12 +1,9 @@
-import type { Outcome } from "@/lib/leads/process";
 import type { LeadType } from "@/lib/leads/schema";
 
-// The only logger in the lead path. It takes the three allowed keys and builds the line from them by name, so nothing
-// else can reach Workers Logs (D-08). Unsent and failed leads go out at error level so they stand out.
-export function logLead({ leadId, type, outcome }: { leadId?: string; type: LeadType | "n/a"; outcome: Outcome }): void {
-  const line = JSON.stringify({ leadId, type, outcome });
-  if (outcome === "error" || outcome === "notify_failed" || outcome === "mirror_failed") console.error(line);
-  else console.log(line);
+// The only logger in the lead path (src/lib/site-api/leads.ts). It takes the three allowed keys and builds the line from them by name, so
+// nothing else can reach Workers Logs (D-08). Only failures are logged, at error level so they stand out.
+export function logLead({ leadId, type, outcome }: { leadId?: string; type: LeadType; outcome: "notify_failed" | "mirror_failed" }): void {
+  console.error(JSON.stringify({ leadId, type, outcome }));
 }
 
 // The site API's one line per request (src/lib/site-api): the route, the dealer's id (once the key named one), what happened and the answer's

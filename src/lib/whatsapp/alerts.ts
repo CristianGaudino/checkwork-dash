@@ -47,7 +47,7 @@ export async function alertStaffOnWhatsApp(lead: Lead): Promise<void> {
     if (!modules.has("whatsapp")) return;
     const event = eventOfLead(lead.type, modules);
     const text = alertText(event, { first: firstName(lead.name), car: lead.carTitle, reg: lead.reg, text: lead.message, sell: lead.type === "sell", warranty: lead.type === "warranty" });
-    const drafts = await staffCopies(event, text, { leadId: lead.id, ref: lead.id, ...(event === "enquiry" && !lead.carTitle && { buttons: ["call", "handled"] }), ...(lead.photoKeys?.length && { photoKeys: lead.photoKeys }) });
+    const drafts = await staffCopies(event, text, { leadId: lead.id, ref: lead.id, ...(event === "enquiry" && !lead.carTitle && { buttons: ["call", "handled"] }) });
     if (lead.whatsappOptIn && lead.phone) drafts.push({ thread: "buyer", from: "site", leadId: lead.id, text: `Hi ${firstName(lead.name)}, thanks for your message to ${(await currentDealer()).name}. We have it and will be in touch soon.` });
     // By email instead only where there is an address: a buyer with only a phone gets nothing rather than an email nobody receives.
     await deliver(drafts, "alert", (d) => d.thread !== "buyer" || Boolean(lead.email));

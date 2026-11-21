@@ -60,11 +60,10 @@ deploy fails its tests while it is false.
   variable is listed, with what it does, in `.env.example`.
 
 ### Outside services
-Each is optional and listed in the dashboard (Settings, Connected services) with the variables still missing: lead email, bot check,
-Google reviews, registration lookup (Cartell), Facebook and Instagram, ads, newsletters. Lead email and the bot check are
-the two a real site needs before it takes a lead.
-Newsletters and stock alerts also need `UNSUBSCRIBE_SECRET` (a random secret, made like `PHOTO_LINK_SECRET` in
-`docs/lead-retention.md`): each email carries a signed link to `/unsubscribe` and the `List-Unsubscribe` headers (`src/lib/unsubscribe.ts`).
+Each is optional and listed in the dashboard (Settings, Connected services) with the variables still missing: lead email,
+Google reviews, registration lookup (Cartell), Facebook and Instagram, ads, newsletters. Lead email is
+the one a real site needs before it takes a lead.
+Newsletters and stock alerts also need `UNSUBSCRIBE_SECRET` (a random secret: `node -e "process.stdout.write(require('crypto').randomBytes(32).toString('base64url'))" | npx wrangler secret put UNSUBSCRIBE_SECRET`): each email carries a signed link to `/unsubscribe` and the `List-Unsubscribe` headers (`src/lib/unsubscribe.ts`).
 Each subscription has one link that never changes. Changing the secret stops every link already sent, so set it once.
 AI writing uses Claude once `ANTHROPIC_API_KEY` is set as a Worker secret (`npx wrangler secret put ANTHROPIC_API_KEY`). Without it the
 demo uses the built-in writer (`src/lib/ai/mock.ts`), and a real site shows AI writing as not connected.

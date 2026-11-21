@@ -4,7 +4,6 @@ vi.mock("server-only", () => ({}));
 const msgs = vi.hoisted(() => [] as Record<string, unknown>[]);
 vi.mock("@/lib/admin/docs", () => ({ defineCollection: () => ({ list: async () => msgs }) }));
 vi.mock("@/lib/admin/collections", () => ({ TEAM_SEED: [], leadsStore: { get: async () => undefined } }));
-vi.mock("@/lib/leads/photos", () => ({ signPhotoPath: async () => "" }));
 vi.mock("@/lib/admin/seed-data", () => ({ carTitleOf: () => "" }));
 const { viewFor } = await import("./store");
 

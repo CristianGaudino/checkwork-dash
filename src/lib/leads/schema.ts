@@ -180,7 +180,7 @@ export const leadSchemaFor = (hours: Hours) => z
     message: CONTACT_ERROR,
     when: (p) => typeof p.value === "object" && p.value !== null,
   });
-// The website's own form path (processLead), against the demo business's hours.
+// Against the demo business's hours (tests); the site API checks with the dealer's own (leadSchemaFor).
 export const leadSchema = leadSchemaFor(DEMO_PROFILE.hours);
 
 export type LeadInput = z.infer<typeof leadSchema>;

@@ -1,6 +1,5 @@
-import { APP_URL } from "@/lib/site";
 import { fmtEur, carHref, priceLabel } from "@/lib/stock/format";
-import type { LeadRow } from "./process";
+import type { LeadRow } from "./store";
 import { EMPLOYMENT } from "./constants";
 import { DETAIL_LABELS, TYPE_LABELS } from "./schema";
 import { readable, topicSubject, type Answers } from "./contact-topics";
@@ -16,9 +15,8 @@ function show(key: string, value: unknown): string {
 }
 
 // Text only, no HTML: nothing the buyer typed can inject markup. The subject is built from server values only (D-02).
-// photoPaths are the signed /lead-photos paths for row.photoKeys, made by processLead so this file never sees the secret.
 // `siteUrl`: the dealer's website (their profile), for the car page and the page the form was sent from.
-export function buildLeadEmail(row: LeadRow, opts: { demo: boolean; siteUrl: string; photoPaths?: string[] }): { subject: string; text: string } {
+export function buildLeadEmail(row: LeadRow, opts: { demo: boolean; siteUrl: string }): { subject: string; text: string } {
   // A car to sell outright says so, so the dealer does not look for a car it is against.
   const guided = row.type === "general" ? topicSubject(row.details.topic as string | undefined, row.details as Answers) : undefined; // "Service: warning light, this week"
   const label = guided ?? (row.type === "trade_in" && row.details.intent === "sell" ? "Car to buy from a seller" : TYPE_LABELS[row.type]);
@@ -32,7 +30,6 @@ export function buildLeadEmail(row: LeadRow, opts: { demo: boolean; siteUrl: str
     row.carTitle && `Car: ${row.carTitle}`,
     row.carPriceEur !== null && `Price: ${priceLabel({ priceEur: row.carPriceEur })}`,
     row.carSlug && opts.siteUrl && `Car page: ${opts.siteUrl}${carHref(row.carSlug)}`,
-    ...(opts.photoPaths ?? []).map((p, i) => `Photo ${i + 1}: ${APP_URL}${p}`),
     `Sent from: ${opts.siteUrl}${row.sourcePath}`,
     `Consent: ${row.consentAt.toISOString()}, version ${row.consentVersion}`,
   ];

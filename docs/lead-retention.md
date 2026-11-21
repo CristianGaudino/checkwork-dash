@@ -1,14 +1,13 @@
 # Lead retention and erasure
 
 Since one app serves every dealer (`docs/new-dealer.md`), each dealer's leads are in that dealer's own database (`DB_<DEALER>` below where
-this page says `DB`) and its photos under `dealers/<dealer id>/` in the bucket (so `trade-in/` below is `dealers/<dealer id>/trade-in/`, and
-the lifecycle rule is one per dealer).
+this page says `DB`).
 
 Leads are personal data. Deleting old leads is automatic (see "Automatic purge"). Until the admin area (#20) ships, the owner does the rest by hand (erasure on request, leads that were not emailed) with `npx wrangler d1 execute DB --remote --command "<SQL>"` (or the Cloudflare dashboard, Storage & Databases, D1, the database, Console). Times are stored as epoch milliseconds and `photo_keys` as JSON text.
 
 ## How long leads are kept
 
-Leads are kept for **12 months** from when they were sent, then deleted. The period is the constant `LEAD_RETENTION_MONTHS` in `src/lib/leads/constants.ts`, and the `/privacy` page (added in 03-10) states it. The dealer must confirm the period. If it changes, change the constant, `/privacy`, the lifecycle rule's days and this page together.
+Leads are kept for **12 months** from when they were sent, then deleted. The period is the constant `LEAD_RETENTION_MONTHS` in `src/lib/leads/constants.ts`, and the `/privacy` page (added in 03-10) states it. The dealer must confirm the period. If it changes, change the constant, `/privacy` and this page together.
 
 The dashboard's copies go on the same day, and so does every test drive, including one staff booked on the dashboard (a phone booking holds the same name and contact).
 
@@ -44,55 +43,15 @@ DELETE FROM leads WHERE id IN ('<id>', '<id>');
 
 Phone numbers are stored as typed, so try the common spellings (with and without spaces, with `+353`). Delete the dealer's copies of the lead emails too, and reply to say it is done.
 
-## Trade-in photos
+## Photos
 
-Photos sent with a trade-in request are stored in the private R2 bucket `checkwork-demo-lead-photos` (EU jurisdiction, no public access, no custom domain) under `trade-in/{lead id}/`. The lead row keeps their keys in `photo_keys`. Run the commands below from the repo with a logged-in wrangler (`npx wrangler login`). The flags are for wrangler 4.157; check `--help` if a newer wrangler refuses them.
-
-### Setting up the bucket (once)
-
-```sh
-npx wrangler r2 bucket create checkwork-demo-lead-photos --jurisdiction eu
-npx wrangler r2 bucket lifecycle add checkwork-demo-lead-photos delete-trade-in-photos trade-in/ --expire-days 365 --jurisdiction eu
-npx wrangler r2 bucket lifecycle list checkwork-demo-lead-photos --jurisdiction eu
-node -e "process.stdout.write(require('crypto').randomBytes(32).toString('base64url'))" | npx wrangler secret put PHOTO_LINK_SECRET
-```
-
-The lifecycle rule deletes every object under `trade-in/` 365 days after upload. It is a backstop: the automatic purge already deletes the photos with their lead. The list command must show it. If the rule cannot be set on the EU bucket, the purge still covers every photo that has a lead row.
-
-### Erasing one person's photos
-
-Find their rows as in "Erasure on request", then read the keys before deleting the rows:
-
-```sql
-SELECT id, photo_keys FROM leads WHERE id IN ('<id>', '<id>');
-```
-
-Delete each key, then the rows:
-
-```sh
-npx wrangler r2 object delete "checkwork-demo-lead-photos/<key>" --jurisdiction eu --remote
-```
-
-### Opening a photo after its email link has expired
-
-The links in the dealer email work for 7 days, while the photos are kept for 365 days. To open a photo after that, read the keys with the SQL command above:
-
-```sql
-SELECT photo_keys FROM leads WHERE id = '<lead id>';
-```
-
-Then download each one:
-
-```sh
-npx wrangler r2 object get "checkwork-demo-lead-photos/<key>" --jurisdiction eu --remote --file photo.jpg
-```
-
-The admin inbox (#20) replaces this with fresh links.
+The site API carries no photos (`docs/site-api.md`): a dealer's website keeps the photos sent with a request, under its own retention, and
+sends only how many there were. The `photo_keys` column is from when this app took the forms itself and is empty on every lead the site API
+stores; the daily purge and an erasure on request still delete any keys a row holds, so nothing to do by hand here.
 
 ## What deletes what
 
-- Lead rows and their photos: the daily purge (`worker.mjs`), once a lead is older than `LEAD_RETENTION_MONTHS` (12 months).
-- Trade-in photos with no lead row (an upload whose insert failed and whose cleanup also failed): the R2 lifecycle rule on `trade-in/`, 365 days after upload. If the dealer changes `LEAD_RETENTION_MONTHS`, change the lifecycle rule's days in the same PR.
+- Lead rows: the daily purge (`worker.mjs`), once a lead is older than `LEAD_RETENTION_MONTHS` (12 months).
 
 ## Leads that were not emailed
 
