@@ -1,8 +1,8 @@
 // The Worker entry (wrangler.jsonc "main"): OpenNext's worker, plus the daily purge of old leads and activity. OpenNext's own worker has no scheduled
 // handler, so this wraps it. Plain JS on purpose: it imports .open-next/worker.js, which exists only after `opennextjs-cloudflare build`,
 // so a typecheck of it would fail on a clean checkout.
-// Every job runs once for each active dealer in the directory (DIRECTORY), inside that dealer's own database and photo prefix.
-import { eq } from "drizzle-orm";
+// The app jobs run once for each active dealer in the directory (DIRECTORY), the nightly retention purges for every dealer (a paused
+// dealer's personal data still has to go on time), each inside that dealer's own database and photo prefix.
 import { drizzle } from "drizzle-orm/d1";
 import handler from "./.open-next/worker.js";
 import { dealers as dealersTable } from "./src/lib/db/directory-schema.ts";
@@ -41,8 +41,8 @@ async function runAppJob({ path }, dealer, env, ctx) {
   return { status: res.status, ...(await res.json().catch(() => ({}))) };
 }
 
-// The dealers jobs run for: active ones only. If the directory cannot be read nothing runs, and the run fails.
-const activeDealers = (env) => drizzle(env.DIRECTORY).select().from(dealersTable).where(eq(dealersTable.status, "active"));
+// Every dealer in the directory. If it cannot be read nothing runs, and the run fails.
+const allDealers = (env) => drizzle(env.DIRECTORY).select().from(dealersTable);
 
 const worker = {
   // The bare domain is a second custom domain on this Worker (wrangler.jsonc routes); it only redirects.
@@ -54,17 +54,18 @@ const worker = {
   // The nightly jobs each run whatever the others do (photo storage being down must not stop the sales being anonymised), then the run
   // fails if any did, so it shows as failed and the next night tries again.
   async scheduled(controller, env, ctx) {
-    const dealers = await activeDealers(env);
+    const dealers = await allDealers(env);
     if (APP_JOBS[controller.cron]) {
       if (!env.CRON_KEY) return;
       // Each runs for each dealer whatever the others do (mail down must not stop the WhatsApp alerts, one dealer must not stop the next);
       // then the run fails if any did.
       let failed = 0;
-      for (const job of [APP_JOBS[controller.cron]].flat()) failed += await runForDealers(dealers.filter((d) => !job.demoOnly || d.demo), job.job, (d) => runAppJob(job, d, env, ctx));
+      for (const job of [APP_JOBS[controller.cron]].flat()) failed += await runForDealers(dealers.filter((d) => d.status === "active" && (!job.demoOnly || d.demo)), job.job, (d) => runAppJob(job, d, env, ctx));
       if (failed) throw new Error(`${failed} app job run(s) failed`);
       return;
     }
-    // Each dealer's own database and photo prefix. A dealer whose binding is missing fails its jobs; it never falls back to another's.
+    // Every dealer, paused ones too: retention is the law, not a feature of the plan. Each dealer's own database and photo prefix. A dealer
+    // whose binding is missing fails its jobs; it never falls back to another's.
     const dbOf = (d) => {
       if (!env[d.binding]) throw new Error("missing binding");
       return drizzle(env[d.binding]);

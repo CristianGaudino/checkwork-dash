@@ -96,7 +96,7 @@ code path reaches another dealer's (#3, #4, #6; `src/lib/tenancy/`).
   the directory first, so a failure there changes nothing; if the dealer's own record then fails, the directory is put back.
 - **Outside a request** (the Worker's jobs, the site API) code runs inside `runAsDealer(id, fn)`, and everything in it uses that
   dealer. A job's route takes the dealer's id from the request only behind `CRON_KEY` (`dealerJob` in `src/lib/tenancy/jobs.ts`).
-- **Jobs** (`worker.mjs`): each cron runs each job once per active dealer in the directory, in that dealer's database and photo prefix. One
+- **Jobs** (`worker.mjs`): each cron runs each job once per active dealer in the directory (the nightly retention purges for every dealer, paused ones too), in that dealer's database and photo prefix. One
   dealer's failure never stops the next; the run fails if any failed. Logs carry the job, the dealer's id and counts only. The demo reset
   runs for demo dealers only.
 - **Photos and media** are kept in the one bucket under `dealers/<id>/` (`prefixedBucket`, `src/lib/tenancy/bucket.ts`). `/car-photos`,
