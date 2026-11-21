@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { accessConfig, verifyAccessJwt } from "@/lib/access";
 import { adminReachable } from "@/lib/demo";
+import { getBindings } from "@/lib/leads/bindings";
 
 // The app's own not found page, not a bare line. A path no route matches renders app/not-found.tsx.
 const notThere = (req: NextRequest) => NextResponse.rewrite(new URL("/not-found-closed-area", req.url), { status: 404, headers: { "X-Robots-Tag": "noindex" } });
@@ -10,10 +11,11 @@ const notThere = (req: NextRequest) => NextResponse.rewrite(new URL("/not-found-
 // action checks it again (requireModule). Proxy is not for data fetching (Next 16 docs), so it reads no directory.
 export async function proxy(req: NextRequest) {
   // A closed area looks like a page that is not there. Server actions post to the page itself, so this covers them too.
-  // Open in development and when the build says so; otherwise only with a valid Cloudflare Access token (src/lib/access.ts).
+  // Open in development and when the build says so, but never with a real directory bound (the Worker, where OpenNext gives the proxy the
+  // bindings too); otherwise only with a valid Cloudflare Access token (src/lib/access.ts). staffIdentity checks the same again.
   const cfg = accessConfig();
   const token = req.headers.get("cf-access-jwt-assertion");
-  const open = adminReachable();
+  const open = adminReachable() && !getBindings().DIRECTORY;
   const who = open || cfg === null || !token ? null : await verifyAccessJwt(token, cfg);
   const verdict = open ? "open" : cfg === null ? "not-configured" : !token ? "no-token" : who ? "open" : "rejected";
   // The pages and actions verify the token again themselves (src/lib/staff.ts): a server action can be posted to any page.

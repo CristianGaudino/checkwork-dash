@@ -7,6 +7,9 @@ vi.mock("react", async (orig) => ({ ...(await orig<typeof import("react")>()), c
 let sent: Record<string, string> = {};
 let jar: Record<string, string> = {};
 vi.mock("next/headers", () => ({ headers: async () => ({ get: (n: string) => sent[n] ?? null }), cookies: async () => ({ get: (n: string) => (jar[n] ? { value: jar[n] } : undefined) }) }));
+// Whether a real directory is bound (the Worker): set per test.
+let bound = false;
+vi.mock("@/lib/leads/bindings", () => ({ getBindings: () => (bound ? { DIRECTORY: {} } : {}) }));
 const verify = vi.fn();
 vi.mock("@/lib/access", async (orig) => ({ ...(await orig<typeof import("@/lib/access")>()), verifyAccessJwt: (...a: unknown[]) => verify(...a) }));
 const { requireStaff, staffIdentity } = await import("./staff");
@@ -16,6 +19,7 @@ afterEach(() => {
   sent = {};
   jar = {};
   verify.mockReset();
+  bound = false;
 });
 const access = () => {
   vi.stubEnv("CF_ACCESS_TEAM_DOMAIN", "team.cloudflareaccess.com");
@@ -45,6 +49,16 @@ describe("who the dashboard is talking to", () => {
     vi.stubEnv("NEXT_PUBLIC_ADMIN_OPEN", "1");
     expect(await staffIdentity()).toEqual({ ok: true, email: "dev@checkwork.invalid" });
     await expect(requireStaff()).resolves.toBeUndefined(); // a member of the demo dealer, opened by default
+  });
+
+  it("is never open with a real directory bound, whatever the build says: Access decides", async () => {
+    vi.stubEnv("NEXT_PUBLIC_ADMIN_OPEN", "1");
+    bound = true;
+    expect(await staffIdentity()).toEqual({ ok: false });
+    access();
+    verify.mockResolvedValueOnce({ email: "owner@dealer.ie" });
+    sent = { "cf-access-jwt-assertion": "a.b.c" };
+    expect(await staffIdentity()).toEqual({ ok: true, email: "owner@dealer.ie" });
   });
 
   it("refuses every action of a dealer whose plan has no dashboard, but still lets the person switch dealer", async () => {

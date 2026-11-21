@@ -2,10 +2,15 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
 const verify = vi.fn();
+let bound = false; // a real directory bound (the Worker)
+vi.mock("@/lib/leads/bindings", () => ({ getBindings: () => (bound ? { DIRECTORY: {} } : {}) }));
 vi.mock("@/lib/access", async (orig) => ({ ...(await orig<typeof import("@/lib/access")>()), verifyAccessJwt: (...a: unknown[]) => verify(...a) }));
 const { proxy, config } = await import("./proxy");
 
-afterEach(() => vi.unstubAllEnvs());
+afterEach(() => {
+  vi.unstubAllEnvs();
+  bound = false;
+});
 const get = (path: string, headers: Record<string, string> = {}) => proxy(new NextRequest(`https://demo.example${path}`, { headers }));
 
 describe("the dashboard gate in the proxy", () => {
@@ -30,6 +35,14 @@ describe("the dashboard gate in the proxy", () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("APP_ENV", "");
     expect((await get("/")).status).toBe(404); // a client build that forgot APP_ENV stays closed
+  });
+
+  it("is open with NEXT_PUBLIC_ADMIN_OPEN only while no directory is bound", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("NEXT_PUBLIC_ADMIN_OPEN", "1");
+    expect((await get("/")).status).toBe(200); // the E2E run: next start, no bindings
+    bound = true;
+    expect((await get("/")).status).toBe(404); // a deploy that set it by mistake still needs Access
   });
 
   it("lets a verified request through and turns a forged one away; the pages verify the token again (src/lib/staff.ts)", async () => {
