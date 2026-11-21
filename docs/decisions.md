@@ -11,6 +11,8 @@ What the owner has decided about the dashboard as its own product, and what is s
 | Hosted on Cloudflare | Workers (through OpenNext) for the app and its API, D1 for data, R2 for photos and media, cron triggers for scheduled jobs. Data in the EU jurisdiction. |
 | Each dealer's records in a store of their own | One D1 database per dealer, plus a directory database that lists the dealers and who works at each (#3). |
 | Sign-in: our own, Cloudflare Access for now | Access stands in front of the whole app until our own sign-in is built (#4, #10). Never Clerk or a similar service. |
+| The dashboard is private (2026-11-22) | Sign-in only, no sign-up. Access lets in named emails only. No public demo of the dashboard for now: the demo dealer is for our own people. |
+| The showroom demo is public and view-only (2026-11-22) | `demo.checkwork.ie` has no demo bar, dealer controls or links to a dashboard (checkwork-demo#246). |
 | Dealer websites stay one repo and site per dealer | Showroom sites are made from `checkwork-demo` for each paying dealer and talk to this app through its site API (#7). |
 | Name | Checkwork, for now. |
 | Repo visibility | Public for now; the owner makes it private when ready (#13). |
