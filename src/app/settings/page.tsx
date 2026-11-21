@@ -214,7 +214,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
               <Panel title="Morning reminder">
                 {edit ? <NotificationsForm settings={s} emailConnected={usable("email")} /> : <Facts items={[["Morning follow-ups email to each salesperson", s.notifications.followUps ? "On" : "Off"]]} />}
               </Panel>
-              <Panel title="Notifications on this phone">
+              <Panel title="Notifications on this device">
                 <PushPanel publicKey={vapid()?.publicKey ?? null} devices={devices} />
               </Panel>
             </>

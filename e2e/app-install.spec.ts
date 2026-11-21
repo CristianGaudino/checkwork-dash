@@ -28,7 +28,7 @@ test("the manifest, its icons, the service worker and the offline screen are ser
 
 test("Settings says notifications are not set up yet when there are no keys", async ({ page }) => {
   await page.goto("/settings?section=emails");
-  const panel = page.getByRole("region", { name: "Notifications on this phone" });
+  const panel = page.getByRole("region", { name: "Notifications on this device" });
   await expect(panel.getByText("Notifications are not set up yet.")).toBeVisible();
   await expect(panel.getByRole("button", { name: "Turn on" })).toHaveCount(0);
 });
@@ -47,7 +47,7 @@ test("with keys, a person turns notifications on and off on this phone", async (
     Notification.requestPermission = async () => "granted";
   }, p256dh);
   await page.goto(`${PUSH_URL}/settings?section=emails`);
-  const panel = page.getByRole("region", { name: "Notifications on this phone" });
+  const panel = page.getByRole("region", { name: "Notifications on this device" });
   await panel.getByRole("button", { name: "Turn on" }).click();
   await expect(panel.getByText("Android phone (this one)")).toBeVisible();
   await expect(panel.getByText(/^On\./)).toBeVisible();
@@ -56,4 +56,21 @@ test("with keys, a person turns notifications on and off on this phone", async (
   await expect(panel.getByText("(this one)")).toHaveCount(0);
   await page.goto(`${PUSH_URL}/activity`);
   await expect(page.getByText("Turned off notifications on a device (Android phone)").first()).toBeVisible();
+});
+
+test("a browser whose push service fails gets a plain line, not the error screen", async ({ page }) => {
+  test.skip(Boolean(process.env.E2E_BASE_URL), "needs the run's own server with keys");
+  // Brave's push service is off by default, and subscribe throws.
+  await page.addInitScript(() => {
+    PushManager.prototype.getSubscription = async () => null;
+    PushManager.prototype.subscribe = async () => {
+      throw new DOMException("Registration failed - push service error", "AbortError");
+    };
+    Notification.requestPermission = async () => "granted";
+  });
+  await page.goto(`${PUSH_URL}/settings?section=emails`);
+  const panel = page.getByRole("region", { name: "Notifications on this device" });
+  await panel.getByRole("button", { name: "Turn on" }).click();
+  await expect(panel.getByRole("alert")).toHaveText("This browser could not turn on notifications.");
+  await expect(panel.getByRole("button", { name: "Turn on" })).toBeEnabled();
 });

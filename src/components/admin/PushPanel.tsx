@@ -9,7 +9,7 @@ import { registerSw } from "./ServiceWorker";
 export type Device = { id: string; label: string; added: string };
 type Here = "checking" | "not-set-up" | "add-to-home" | "unsupported" | "ready";
 
-// Notifications on this phone (#11), for the person signed in. An iPhone has push only once the app is on the home screen (iOS 16.4+).
+// Notifications on this device (#11), for the person signed in. An iPhone has push only once the app is on the home screen (iOS 16.4+).
 export function PushPanel({ publicKey, devices }: { publicKey: string | null; devices: Device[] }) {
   const [here, setHere] = useState<Here>("checking");
   const [thisId, setThisId] = useState<string | null>(null);
@@ -30,26 +30,35 @@ export function PushPanel({ publicKey, devices }: { publicKey: string | null; de
   }, [publicKey]);
 
   const on = thisId !== null && devices.some((d) => d.id === thisId);
+  // The browser's push service can throw (Brave's is off by default): a plain line, never the error screen.
   const turnOn = () =>
     start(async () => {
       setError("");
-      if ((await Notification.requestPermission()) !== "granted") return setError("Notifications are blocked for this site. Allow them in your browser settings.");
-      const reg = await registerSw();
-      const sub = (await reg.pushManager.getSubscription()) ?? (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: unb64u(publicKey!) }));
-      const { endpoint, keys } = sub.toJSON();
-      const r = await turnOnPushAction({ endpoint, keys: { p256dh: keys?.p256dh, auth: keys?.auth } });
-      if (r.error) {
-        await sub.unsubscribe();
-        return setError(r.error);
+      try {
+        if ((await Notification.requestPermission()) !== "granted") return setError("Notifications are blocked for this site. Allow them in your browser settings.");
+        const reg = await registerSw();
+        const sub = (await reg.pushManager.getSubscription()) ?? (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: unb64u(publicKey!) }));
+        const { endpoint, keys } = sub.toJSON();
+        const r = await turnOnPushAction({ endpoint, keys: { p256dh: keys?.p256dh, auth: keys?.auth } });
+        if (r.error) {
+          await sub.unsubscribe();
+          return setError(r.error);
+        }
+        setThisId(r.id ?? null);
+      } catch {
+        setError("This browser could not turn on notifications.");
       }
-      setThisId(r.id ?? null);
     });
   const turnOff = (id: string) =>
     start(async () => {
       setError("");
-      if (id === thisId) await (await (await registerSw()).pushManager.getSubscription())?.unsubscribe();
-      await turnOffPushAction(id);
-      if (id === thisId) setThisId(null);
+      try {
+        if (id === thisId) await (await (await registerSw()).pushManager.getSubscription())?.unsubscribe();
+        await turnOffPushAction(id);
+        if (id === thisId) setThisId(null);
+      } catch {
+        setError("This browser could not turn off notifications.");
+      }
     });
 
   return (

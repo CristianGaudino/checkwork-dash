@@ -22,7 +22,7 @@ beforeEach(async () => {
   for (const s of await pushStore.list()) await pushStore.remove(s.id);
 });
 
-describe("notifications on this phone", () => {
+describe("notifications on this device", () => {
   it("turns on for the signed-in person, once per device, and the history never has the endpoint", async () => {
     const s = await sub();
     const { id } = await turnOnPushAction(s);
