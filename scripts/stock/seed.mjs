@@ -1,4 +1,5 @@
-// Turns the stock into SQL for the D1 `cars` table: npm run stock:seed writes seed/stock.sql, npm run db:seed applies it to the remote database.
+// Turns the stock into SQL for the D1 `cars` table: npm run stock:seed writes seed/stock.sql, npm run db:seed (dev) or db:seed:prod applies it to
+// the demo dealer's database (scripts/seed-dealer.mjs, which refuses a dealer that is not a demo). This script touches no database.
 // By default it only adds cars that are missing, refreshes their photo lists and moves the sold dates of cars that are still sold, so what the dealer changed in the admin
 // (new cars, edits, sold marks) survives a deploy. `--reset` (npm run stock:reset) first deletes every row, so the stock is exactly the files again.
 // The file is generated and not committed.

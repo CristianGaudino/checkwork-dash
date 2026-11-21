@@ -11,13 +11,18 @@
     "test": "vitest run",
     "e2e": "playwright test",
     "db:migrate": "node scripts/migrate-dealers.mjs --remote",
-    "directory:migrate": "wrangler d1 migrations apply DIRECTORY --remote",
+    "db:migrate:prod": "node scripts/migrate-dealers.mjs --remote --env production",
+    "directory:migrate": "node scripts/migrate-dealers.mjs --directory --remote",
+    "directory:migrate:prod": "node scripts/migrate-dealers.mjs --directory --remote --env production",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "deploy": "node scripts/deploy.mjs",
+    "deploy:prod": "node scripts/deploy.mjs --env production",
     "stock:build": "node scripts/stock/build.mjs",
     "stock:redate": "node scripts/stock/build.mjs redate",
     "stock:seed": "node scripts/stock/seed.mjs",
     "stock:reset": "node scripts/stock/seed.mjs --reset",
-    "db:seed": "wrangler d1 execute DB_CHECKWORK_MOTORS --remote --file=seed/stock.sql"
+    "db:seed": "node scripts/seed-dealer.mjs checkwork-motors --remote",
+    "db:seed:prod": "node scripts/seed-dealer.mjs checkwork-motors --remote --env production"
   },
   "engines": {
     "node": ">=24 <25"
