@@ -148,7 +148,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
                           action={
                             <>
                               <PostNow p={item.p} />
-                              <ActButton act={deletePostAction.bind(null, item.p.id)} confirm={{ title: "Delete this post?", text: "This cannot be undone.", yes: "Delete" }} label={`Delete the ${postName(item.p)}${item.p.carTitle ? `, ${item.p.carTitle}` : ""}`} className={`${rowDanger} w-11 px-0`}><TrashIcon className="shrink-0 size-4" /></ActButton>
+                              <ActButton act={deletePostAction.bind(null, item.p.id)} confirm={{ title: "Delete this post?", text: "This cannot be undone.", yes: "Delete" }} label={`Delete the ${postName(item.p)}${item.p.carTitle ? `, ${item.p.carTitle}` : ""}`} className={rowDanger}><TrashIcon className="shrink-0 size-4" />Delete</ActButton>
                             </>
                           }
                         />
@@ -162,7 +162,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
                           action={
                             <>
                               <ActButton act={startAdAction.bind(null, item.a.id)} confirm={{ title: "Start this ad?", text: `It runs on ${AD_PLATFORM_LABELS[item.a.platform]} with a budget of ${fmtEur(item.a.budgetEur)}.`, yes: "Start ad", safe: true }} label={`Start ad: ${AD_PLATFORM_LABELS[item.a.platform]} ad, ${item.a.carTitle}`} className={rowButtonStrong}>Start ad</ActButton>
-                              <ActButton act={deleteAdAction.bind(null, item.a.id)} confirm={{ title: "Delete this ad?", text: "This cannot be undone.", yes: "Delete" }} label={`Delete the ${AD_PLATFORM_LABELS[item.a.platform]} ad, ${item.a.carTitle}`} className={`${rowDanger} w-11 px-0`}><TrashIcon className="shrink-0 size-4" /></ActButton>
+                              <ActButton act={deleteAdAction.bind(null, item.a.id)} confirm={{ title: "Delete this ad?", text: "This cannot be undone.", yes: "Delete" }} label={`Delete the ${AD_PLATFORM_LABELS[item.a.platform]} ad, ${item.a.carTitle}`} className={rowDanger}><TrashIcon className="shrink-0 size-4" />Delete</ActButton>
                             </>
                           }
                         />

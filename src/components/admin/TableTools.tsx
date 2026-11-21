@@ -212,7 +212,7 @@ export function AppliedFilters({ groups }: { groups: FilterGroup[] }) {
   return (
     <div role="group" aria-label="Filters on" className="flex flex-wrap items-center gap-2">
       {on.map(({ g, label }) => (
-        <Link key={g.name} href={hrefWith({ [g.name]: undefined })} replace scroll={false} className={`inline-flex min-h-9 items-center gap-1.5 rounded-full bg-hairline pl-3 pr-2 text-meta transition-colors hover:bg-accent-soft hover:text-accent-text ${press}`}>
+        <Link key={g.name} href={hrefWith({ [g.name]: undefined })} replace scroll={false} className={`inline-flex min-h-11 pointer-fine:min-h-9 items-center gap-1.5 rounded-full bg-hairline pl-3 pr-2 text-meta transition-colors hover:bg-accent-soft hover:text-accent-text ${press}`}>
           <span className="text-text-2">{g.label}:</span>
           <span className="font-medium">{label}</span>
           <CloseIcon aria-hidden className="size-3.5 text-text-2" />
@@ -220,7 +220,7 @@ export function AppliedFilters({ groups }: { groups: FilterGroup[] }) {
         </Link>
       ))}
       {on.length > 1 && (
-        <Link href={hrefWith(Object.fromEntries(groups.map((g) => [g.name, undefined])))} replace scroll={false} className="min-h-9 px-1 text-meta font-medium text-accent-text underline">
+        <Link href={hrefWith(Object.fromEntries(groups.map((g) => [g.name, undefined])))} replace scroll={false} className="min-h-11 pointer-fine:min-h-9 px-1 text-meta font-medium text-accent-text underline">
           Clear all
         </Link>
       )}

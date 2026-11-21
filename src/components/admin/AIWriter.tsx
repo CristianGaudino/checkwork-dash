@@ -60,7 +60,7 @@ export function AIWriter({ task, request, text, onText, format }: { task: Task; 
           </span>
         )}
         {back && !pending && (
-          <button type="button" onClick={() => { onText(back.text); setAi(back.ai); setBack(null); }} className={rowButton}>
+          <button type="button" onClick={() => { onText(back.text); setAi(back.ai); setBack(null); }} className={`${rowButton} group-data-[density=compact]/shell:h-11!`}>
             Undo
           </button>
         )}
