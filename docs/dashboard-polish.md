@@ -68,3 +68,25 @@ Each PR keeps lint, `tsc`, unit and E2E green, shows screenshots at 390px and 12
   or save a draft. Newsletters are a list. The ad switch adds a platform and a budget; with simulation on, publishing starts the ad too.
 - The post stores the photos chosen (`SocialPost.photos`); the publisher adapters will use them when a real service is connected.
 - Sentence case across the public site and the dashboard. Proper nouns keep their capitals.
+
+## Buttons: an order of importance (2026-11-21)
+Owner feedback: too many flat, same-coloured, outline-only buttons; nothing says which one matters. Every dashboard button is one of
+these levels, from the kit (`src/components/admin/kit.tsx`). No outline-only buttons.
+
+| Level | Kit | Look | Use |
+|---|---|---|---|
+| Primary | `adminButton` | Filled indigo, white text | The main thing to do in a panel or screen area. At most one per area. |
+| Secondary | `adminButtonQuiet` | Tonal: a soft indigo fill (`accent-soft`), indigo text, no border | Other actions beside the primary: Cancel, Save draft, Call and Email on a lead. |
+| Row, strong | `rowButtonStrong` | Tonal, row size | The most used action in a row or task: Call, Confirm, Record sale. One per row. |
+| Tertiary | `rowButton` | Text only, indigo, a soft fill on hover | The rest of a row's actions, See all, More, menu items (neutral text inside a menu). |
+| Destructive | `dangerButton`, `rowDanger` | Red tonal fill, or red text in a row | Delete, Remove, Revoke, Clear. Never filled solid red, never the primary. |
+| Choice | `choicePill` | Neutral chip; the chosen one filled ink | One of a few (a status, who has it, a follow-up day). A choice, not an action. |
+
+- **Icons** sit before the words where they help recognition (Call, WhatsApp, Email, Edit, Post, Confirm). The words stay: never an icon alone.
+- **Contrast:** indigo text on `accent-soft` is 5:1 or more in light and dark, and 4.5:1 on hover. Red on `bad-soft` is the status tone pair.
+- **Focus:** the global 2px indigo ring (`:focus-visible`) on every level. **Size:** 44px tall on a phone; a compact table may shrink row buttons.
+- **AI writing** (`AIWriter`): Write with AI is a secondary button with the sparkle in a filled indigo dot, so it reads as its own thing. Then
+  the "AI draft" tag and Undo on the same line, and the changes (Shorter, Friendlier) as a quieter group of small neutral chips under a
+  "Change it" label, tied to the box by an indigo rule.
+
+New tokens: `--color-accent-soft` and `--color-accent-soft-hover` (light and dark), the tonal fill.

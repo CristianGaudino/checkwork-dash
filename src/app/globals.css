@@ -58,6 +58,9 @@
   --color-band: #0b0f1f; /* Midnight: a band that stays dark in both themes (footer, demo bar, photo overlays) */
   --color-accent: #5a5deb; /* action: the fill of buttons and chips, white text on it is 5:1 */
   --color-accent-text: #4a4ede; /* the same hue as text or a thin icon on paper (5.7:1) */
+  /* The tonal fill of a secondary button: accent-text on it is 5.1:1, 4.7:1 on hover (docs/dashboard-polish.md, Buttons). */
+  --color-accent-soft: #e9e9fd;
+  --color-accent-soft-hover: #e0e0fc;
   --color-on-accent: #ffffff;
   --color-text: #161a33; /* ink, 15:1 on paper */
   --color-text-2: #4a5070; /* ink muted, 7:1 */
@@ -118,6 +121,8 @@
   --color-surface: #0b0f1f; /* Midnight */
   --color-accent: #5a5deb; /* white button text on it reaches 5:1 */
   --color-accent-text: #a78bfa; /* lavender: accent text on Midnight */
+  --color-accent-soft: #22265a; /* lavender on it 5.2:1, 4.6:1 on hover */
+  --color-accent-soft-hover: #292d68;
   --color-card: #121832;
   --color-row-alt: #161d3b;
   --color-chart-muted: #5a6491; /* 3.2:1 on the dark card */
