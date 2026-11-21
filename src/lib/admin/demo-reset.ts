@@ -9,7 +9,7 @@ import { feedbackStore, helpStore } from "./help";
 import { currentDealer, dealerBucket } from "@/lib/tenancy/current";
 import { DEMO_DEALER, patchDealer } from "@/lib/tenancy/directory";
 import { DEMO_NAME } from "@/lib/tenancy/profile";
-import { adminCars, saveCar } from "./stock-admin";
+import { adminCars, updateCar } from "./stock-admin";
 import { messagesStore, staffStore } from "@/lib/whatsapp/store";
 
 // The demo's made-up records back to their seed, dated from today: Settings, Reset demo data, and each morning (worker.mjs), on a Monday after
@@ -24,7 +24,8 @@ export async function resetDemoRecords() {
   // The deposits are back to the seed, so the Reserved marks follow them (the mark is on the car, which the reset keeps): on the cars with a
   // held deposit, off every other car.
   const held = new Set((await reservationsStore.list()).filter((r) => r.status === "held").map((r) => r.carId));
-  for (const car of await adminCars()) if (Boolean(car.reserved) !== held.has(car.id)) await saveCar({ ...car, reserved: held.has(car.id) || undefined });
+  for (const car of await adminCars())
+    if (Boolean(car.reserved) !== held.has(car.id)) await updateCar(car.id, (cur) => (Boolean(cur.reserved) === held.has(cur.id) ? null : { ...cur, reserved: held.has(cur.id) || undefined }));
   await resetActivity();
   await resetSyncStatus();
   // The media library's uploads and the Help screenshots in R2 go too, best effort: their records are already back to the seed.

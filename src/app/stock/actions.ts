@@ -16,7 +16,7 @@ import { COVER_CHOICES, COVER_MONTHS } from "@/lib/admin/deposits";
 import { carTitleOf } from "@/lib/admin/seed-data";
 import { BAD_COST, parseCost } from "@/lib/admin/margins";
 import { can } from "@/lib/permissions";
-import { addCar, adminCar, adminCars, freeCarId, removeCar, saveCar } from "@/lib/admin/stock-admin";
+import { addCar, adminCar, adminCarAt, adminCars, freeCarId, removeCar, updateCar } from "@/lib/admin/stock-admin";
 import { droppedPrice, listedOn } from "@/lib/admin/stock-admin-pure";
 import { CAR_PHOTOS_MAX, CAR_PHOTO_MAX_BYTES, dropCarPhotos, storeCarPhoto } from "@/lib/admin/car-photos";
 import { sniffImage } from "@/lib/leads/photos";
@@ -27,7 +27,7 @@ import { listing } from "@/lib/stock-source";
 import { requireStaff } from "@/lib/staff";
 import { requireModule } from "@/lib/modules";
 import { alertNewIn, alertStaff } from "@/lib/whatsapp/alerts";
-import { STALE_STATUS, changedSince } from "@/lib/admin/stale";
+import { STALE_CAR, STALE_STATUS, changedSince } from "@/lib/admin/stale";
 
 const carRef = (c: Car) => ({ kind: "car" as const, id: c.id, label: carTitleOf(c) });
 
@@ -40,8 +40,12 @@ const readOnly = async () => (await stockSource()) === "donedeal";
 export async function saveCarAction(id: string | null, _prev: FormState, data: FormData): Promise<FormState> {
   await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
   if (await readOnly()) return { errors: { make: `This stock comes from ${(await listing()).site}. Change it there.` } };
-  const existing = id ? await adminCar(id) : undefined;
-  if (id && !existing) return { errors: { make: "This car no longer exists" } };
+  const opened = id ? await adminCarAt(id) : undefined;
+  if (id && !opened) return { errors: { make: "This car no longer exists" } };
+  // `at`: when the car the form showed was last written. A car changed since (a price saved in another tab, a photo, Hide) is not saved
+  // over: the form says so and keeps what was typed.
+  if (opened && changedSince(data.get("at"), String(opened.at))) return { errors: { stale: STALE_CAR } };
+  const existing = opened?.car;
   const result = carFromForm(data, id ?? (await freeCarId()), existing);
   if (!result.ok) return { errors: result.errors };
   // A new car can bring its photos (the edit page adds them one at a time, on their own).
@@ -52,14 +56,17 @@ export async function saveCarAction(id: string | null, _prev: FormState, data: F
   const cost = (await can("margins")) ? parseCost(String(data.get("costEur") ?? "")) : undefined;
   if (cost === "invalid") return { errors: { costEur: BAD_COST } };
   const wasCost = cost === undefined || !id ? undefined : (await costsStore.get(id))?.costEur;
-  let car = existing ? (await saveCar(result.car), result.car) : await addCar(result.car); // a new car takes the id still free as it is written
+  // An edit lands only if the car is still as it was read above; a new car takes the id still free as it is written.
+  const written = opened ? await updateCar(opened.car.id, (_, at) => (at === opened.at ? result.car : null)) : await addCar(result.car);
+  if (!written) return { errors: { stale: STALE_CAR } };
+  let car = written;
   // Stored under the id the car was given, then saved with it. If storing fails the car is already saved: say so on its page, where the
   // photos can be added, rather than an error that invites a second Save and a second copy of the car.
   let photosFailed = false;
   if (photos.length) {
     const stored = await Promise.allSettled(photos.map((p) => storeCarPhoto(car.id, p.bytes, p.width, p.height)));
     const ok = stored.flatMap((r) => (r.status === "fulfilled" ? [r.value] : []));
-    const saved = ok.length === photos.length && (await saveCar({ ...car, photos: ok }).then(() => true, () => false));
+    const saved = ok.length === photos.length && (await updateCar(car.id, (cur) => ({ ...cur, photos: ok })).then(Boolean, () => false));
     if (saved) car = { ...car, photos: ok };
     else {
       // None kept: the dealer adds them again on its page, so any stored now are removed rather than left behind unseen.
@@ -97,9 +104,10 @@ export async function toggleSoldAction(id: string) {
   if (await readOnly()) return;
   const car = await adminCar(id);
   if (!car || (car.soldAt && (await salesStore.get(id)))) return;
-  const { soldAt: was, ...rest } = car;
-  await saveCar(was ? rest : { ...car, soldAt: dublinDay() });
-  await logActivity("stock", was ? "Put back on sale" : "Marked sold", carRef(car));
+  const was = car.soldAt;
+  // Only if nobody marked it either way meanwhile: then it is left as they made it.
+  const done = await updateCar(id, ({ soldAt, ...rest }) => (Boolean(soldAt) !== Boolean(was) ? null : was ? rest : { ...rest, soldAt: dublinDay() }));
+  if (done) await logActivity("stock", was ? "Put back on sale" : "Marked sold", carRef(car));
   redirect("/stock");
 }
 
@@ -115,7 +123,8 @@ export async function setListingAction(id: string, to: string, from?: string) {
   if (!car) return;
   if (changedSince(from, car.listing ?? "live")) return { error: STALE_STATUS };
   if (car.listing === listing) return;
-  await saveCar({ ...car, listing, listedAt: listedOn(car, !listing, dublinDay()) });
+  const done = await updateCar(id, (cur) => (cur.listing !== car.listing ? null : { ...cur, listing, listedAt: listedOn(cur, !listing, dublinDay()) }));
+  if (!done) return { error: STALE_STATUS };
   await logActivity("stock", LISTINGS[to as keyof typeof LISTINGS], carRef(car));
   if (!listing && car.listing && !car.listedAt) await alertNewIn(car); // on the website for the first time (a draft, or an arrived order)
   revalidatePath("/stock");
@@ -126,7 +135,7 @@ export async function withdrawnAction(id: string) {
   await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
   const car = await adminCar(id);
   if (!car?.takenDownAt) return;
-  await saveCar({ ...car, takenDownAt: undefined });
+  if (!(await updateCar(id, (cur) => (cur.takenDownAt ? { ...cur, takenDownAt: undefined } : null)))) return;
   await logActivity("stock", `Withdrawn: the ${(await listing()).site} ad came down and it did not sell`, carRef(car));
   revalidatePath("/stock");
 }
@@ -171,14 +180,16 @@ export async function bulkStockAction(data: FormData): Promise<BulkResult> {
     const car = byId.get(id);
     if (!car) continue;
     if (op === "price") {
-      const p = isSold(car) ? null : droppedPrice(car, amount!, unit!);
-      if (!p) continue;
-      const next = { ...car, ...p };
-      await saveCar(next);
-      await logActivity("stock", carEditSummary(car, next), carRef(car));
+      let before = car;
+      const next = await updateCar(id, (cur) => {
+        before = cur;
+        const p = isSold(cur) ? null : droppedPrice(cur, amount!, unit!);
+        return p && { ...cur, ...p };
+      });
+      if (!next) continue;
+      await logActivity("stock", carEditSummary(before, next), carRef(car));
     } else if (op === "sold") {
-      if (isSold(car) || heldFor(deposits, id)) continue;
-      await saveCar({ ...car, soldAt: dublinDay() });
+      if (heldFor(deposits, id) || !(await updateCar(id, (cur) => (isSold(cur) ? null : { ...cur, soldAt: dublinDay() })))) continue;
       await logActivity("stock", "Marked sold", carRef(car));
     } else {
       if (heldFor(deposits, id)) continue;
@@ -223,9 +234,12 @@ export async function addCarPhotoAction(carId: string, data: FormData): Promise<
   const checked = await checkedPhoto(data.get("photo"), data.get("width"), data.get("height"));
   if (!checked) return { error: "That photo could not be added. Try another." };
   const photo = await storeCarPhoto(car.id, checked.bytes, checked.width, checked.height);
-  // Read again just before writing. Not a lock: CarPhotos sends one photo at a time, which is what keeps two uploads from clashing.
-  const now = (await adminCar(carId)) ?? car;
-  await saveCar({ ...now, photos: [...now.photos, photo] });
+  // Added to the car as it is now. Deleted meanwhile, or full since: the stored photo goes again rather than sit unseen.
+  // A clash that throws is treated like a refusal, so the stored photo never stays behind unseen.
+  if (!(await updateCar(carId, (cur) => (cur.photos.length >= CAR_PHOTOS_MAX ? null : { ...cur, photos: [...cur.photos, photo] })).catch(() => undefined))) {
+    await dropCarPhotos([photo]).catch(() => undefined);
+    return { error: "This car can no longer be changed here." };
+  }
   await logActivity("stock", "Added a photo", carRef(car));
   revalidatePath(`/stock/${carId}`);
   return {};
@@ -237,8 +251,12 @@ export async function carPhotoAction(carId: string, src: string, to: "first" | "
   const car = (await readOnly()) ? undefined : await adminCar(carId);
   const photo = car?.photos.find((p) => p.src === src);
   if (!car || !photo || !["first", "remove"].includes(to)) return;
-  const rest = car.photos.filter((p) => p !== photo);
-  await saveCar({ ...car, photos: to === "first" ? [photo, ...rest] : rest });
+  const done = await updateCar(carId, (cur) => {
+    const now = cur.photos.find((p) => p.src === src);
+    const rest = cur.photos.filter((p) => p !== now);
+    return now ? { ...cur, photos: to === "first" ? [now, ...rest] : rest } : null;
+  });
+  if (!done) return;
   if (to === "remove") await dropCarPhotos([photo]);
   await logActivity("stock", to === "first" ? "Changed the main photo" : "Removed a photo", carRef(car));
   revalidatePath(`/stock/${carId}`);
@@ -305,8 +323,10 @@ export async function recordSaleAction(carId: string, _prev: FormState, data: Fo
     ...(leadId && { leadId }),
     createdAt: was?.createdAt ?? Date.now(),
   });
-  const markSold = !isSold(car) && (!(await readOnly()) || Boolean(car.takenDownAt));
-  if (markSold) await saveCar({ ...car, soldAt: d.soldOn, reserved: undefined, ...(car.takenDownAt && { takenDownAt: undefined, listing: undefined }) });
+  const markSold =
+    !isSold(car) &&
+    (!(await readOnly()) || Boolean(car.takenDownAt)) &&
+    Boolean(await updateCar(car.id, (cur) => (isSold(cur) ? null : { ...cur, soldAt: d.soldOn, reserved: undefined, ...(cur.takenDownAt && { takenDownAt: undefined, listing: undefined }) })));
   // A factory order that arrived as this car is handed over with its sale.
   const order = (await ordersStore.list()).find((o) => o.carId === car.id && o.status === "arrived");
   if (order) await ordersStore.put({ ...order, status: "handed-over" });
@@ -340,7 +360,7 @@ export async function reserveAction(carId: string, _prev: FormState, data: FormD
   if ("errors" in who) return who;
   const resId = newId("res");
   await reservationsStore.put({ id: resId, carId: car.id, carTitle: carTitleOf(car), ...who, depositEur: d.depositEur, method: d.method, paidOn: d.paidOn, until: d.until, status: "held", createdAt: Date.now() });
-  await saveCar({ ...car, reserved: true });
+  await updateCar(car.id, (cur) => ({ ...cur, reserved: true }));
   await logActivity("stock", `Took a deposit of ${fmtEur(d.depositEur)}, reserved until ${d.until}`, carRef(car));
   await alertStaff("deposit", { car: carTitleOf(car), eur: d.depositEur }, { ref: resId }); // WhatsApp, to whoever has it on
   redirect(`/stock?view=reserved&reserved=${car.id}`);
@@ -360,8 +380,7 @@ export async function endReservationAction(carId: string, _prev: FormState, data
   if (r.data.outcome === "refunded" && r.data.refundEur > held.depositEur) return { errors: { refundEur: `The deposit was ${fmtEur(held.depositEur)}` } };
   const refundEur = r.data.outcome === "refunded" ? r.data.refundEur : undefined;
   await reservationsStore.put({ ...held, status: r.data.outcome, endedOn: dublinDay(), ...(refundEur && { refundEur }) });
-  const car = await adminCar(carId);
-  if (car?.reserved) await saveCar({ ...car, reserved: undefined });
+  const car = await updateCar(carId, (cur) => (cur.reserved ? { ...cur, reserved: undefined } : null)) ?? (await adminCar(carId));
   await logActivity("stock", refundEur ? `Ended the reservation and refunded ${fmtEur(refundEur)}` : `Ended the reservation and kept the deposit of ${fmtEur(held.depositEur)}`, car ? carRef(car) : { kind: "car", id: carId, label: held.carTitle });
   redirect("/stock");
 }
@@ -388,8 +407,7 @@ export async function undoSaleAction(carId: string, _prev: FormState, data: Form
   if (d.kind === "returned" && d.refundEur === undefined) return { errors: { refundEur: "Enter what was refunded, 0 if nothing" } };
   if (d.kind === "returned" && !d.reason) return { errors: { reason: "Say why it came back" } };
   await undoSale(was, { returnedOn: d.returnedOn, kind: d.kind, ...(d.refundEur !== undefined && { refundEur: d.refundEur }), ...(d.reason && { reason: d.reason }) });
-  const car = (await readOnly()) ? undefined : await adminCar(carId);
-  if (car) await saveCar({ ...car, soldAt: undefined, ...(d.kind === "returned" && { listing: "hidden" as const }) });
+  const car = (await readOnly()) ? undefined : await updateCar(carId, (cur) => ({ ...cur, soldAt: undefined, ...(d.kind === "returned" && { listing: "hidden" as const }) }));
   const ref = car ? carRef(car) : { kind: "car" as const, id: carId, label: was.carTitle };
   await logActivity("stock", d.kind === "returned" ? `Took the car back and refunded ${fmtEur(d.refundEur ?? 0)}` : "Cancelled the sale", ref);
   redirect(`/stock?view=${car && d.kind === "returned" ? "hidden" : "for-sale"}&undone=${carId}`);

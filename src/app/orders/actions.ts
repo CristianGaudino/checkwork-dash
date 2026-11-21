@@ -9,7 +9,7 @@ import { DEPOSIT_METHODS, ORDER_STATUS_LABELS, heldFor, leadsStore, orderOpen, o
 import { addDays, addMonths, dublinDay, fmtEur } from "@/lib/admin/format";
 import { newId } from "@/lib/admin/ids";
 import { appendNote } from "@/lib/admin/notes";
-import { addCar, adminCar, freeCarId, saveCar } from "@/lib/admin/stock-admin";
+import { addCar, freeCarId, updateCar } from "@/lib/admin/stock-admin";
 import { carSlug, slugify } from "@/lib/admin/stock-admin-pure";
 import { blank, euros, fieldErrors, isoMonth, type FormState } from "@/lib/admin/validation";
 import { regPeriods } from "@/lib/leads/reg-periods";
@@ -155,8 +155,7 @@ export async function cancelOrderAction(id: string, _prev: FormState, data: Form
   await ordersStore.put({ ...o, status: "cancelled", ...(refundEur && { refundEur }) });
   const held = o.carId ? heldFor(await reservationsStore.list(), o.carId) : undefined;
   if (held) await reservationsStore.put({ ...held, status: r.data.outcome === "refunded" ? "refunded" : "kept", endedOn: dublinDay(), ...(refundEur && { refundEur }) });
-  const car = o.carId ? await adminCar(o.carId) : undefined;
-  if (car?.reserved) await saveCar({ ...car, reserved: undefined });
+  if (o.carId) await updateCar(o.carId, (cur) => (cur.reserved ? { ...cur, reserved: undefined } : null));
   await logActivity("stock", `Cancelled the factory order ${title(o)}${refundEur ? `, refunded ${fmtEur(refundEur)}` : r.data.outcome === "kept" ? ", deposit kept" : ""}`);
   redirect(`/orders/${id}`);
 }

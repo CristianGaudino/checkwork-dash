@@ -42,6 +42,8 @@ export const cars = sqliteTable("cars", {
   id: text().primaryKey(),
   slug: text().notNull().unique(),
   data: text({ mode: "json" }).$type<Car>().notNull(),
+  // When the row was last written (epoch ms), so two changes at once never overwrite each other (updateCar in stock-admin.ts).
+  updatedAt: integer("updated_at").notNull().default(0),
 });
 
 // The dealer admin keeps its records here: one row per record, the record as JSON, grouped by collection ("test-drives",

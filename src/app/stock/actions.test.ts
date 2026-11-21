@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { Car } from "@/lib/stock/types";
 
 vi.mock("server-only", () => ({}));
 vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
@@ -348,5 +349,29 @@ describe("a car's photos", () => {
     expect((await addCarPhotoAction(car.id, photo())).error).toBeTruthy();
     await carPhotoAction(car.id, car.photos[0]?.src ?? "", "remove");
     expect((await adminCar(car.id))!.photos).toEqual(car.photos);
+  });
+});
+
+describe("the car form, saved after the car changed elsewhere", () => {
+  beforeEach(() => {
+    stockCookie = "checkwork";
+    role = "Sales";
+  });
+  const form = (c: Car, at: number, priceEur: number) => {
+    const f = new FormData();
+    for (const [k, v] of Object.entries({ make: c.make, model: c.model, year: c.year, priceEur, at })) f.set(k, String(v));
+    return f;
+  };
+
+  it("is refused, saving nothing, when the car changed since the form opened; opened again, it saves", async () => {
+    const { adminCarAt } = await import("@/lib/admin/stock-admin");
+    const car = (await adminCars()).find((c) => !c.soldAt && !c.listing)!;
+    const opened = (await adminCarAt(car.id))!;
+    await setListingAction(car.id, "hidden", "live"); // Hide, in another tab
+    expect(await saveCarAction(car.id, undefined, form(car, opened.at, 1234))).toEqual({ errors: { stale: "This car changed since you opened it. Reload to see the latest." } });
+    expect(await adminCar(car.id)).toMatchObject({ listing: "hidden", priceEur: car.priceEur });
+    const reloaded = (await adminCarAt(car.id))!;
+    await expect(saveCarAction(car.id, undefined, form(car, reloaded.at, 1234))).rejects.toThrow(/redirect/);
+    expect(await adminCar(car.id)).toMatchObject({ listing: "hidden", priceEur: 1234 }); // the price saved, and the hide kept
   });
 });

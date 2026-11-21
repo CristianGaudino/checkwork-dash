@@ -5,7 +5,7 @@ import { getSettings, leaderEmails, salesStore, undoSale } from "@/lib/admin/col
 import { defineCollection } from "@/lib/admin/docs";
 import { dublinDay } from "@/lib/admin/format";
 import { carTitleOf } from "@/lib/admin/seed-data";
-import { adminCars, saveCar } from "@/lib/admin/stock-admin";
+import { adminCars, saveCar, updateCar } from "@/lib/admin/stock-admin";
 import { sendTo } from "@/lib/leads/mail";
 import { notify } from "@/lib/admin/notifications";
 import { TIME_ZONE } from "@/lib/site";
@@ -59,15 +59,18 @@ export async function runSync({ force = false, now = Date.now() } = {}): Promise
   const feed: FeedResult = await fetchListings().catch(() => ({ ok: false, reason: "failed" }) as const);
   if (!feed.ok) return failed(prev, problems(site)[feed.reason], false, now, site);
   const today = dublinDay(now); // the Irish day, as the rest of the dashboard dates a sale
-  const plan = planSync(await adminCars(), feed.listings, today, { force, site });
+  const current = await adminCars();
+  const plan = planSync(current, feed.listings, today, { force, site });
   if (plan.held) return failed(prev, `${plan.held} The site kept its stock. Check ${site}, then sync again.`, true, now, site);
   // Car by car: one that cannot be saved (an ad whose address clashes with another car's) is skipped and counted, never stops the rest.
   // shortcut: a cron run and Sync now at the same moment both apply the plan; the stock ends the same but the history shows each change
   // twice. Fine while syncs take seconds; add a lock if it shows up.
+  // A car changed here since the plan read it (marked sold, withdrawn) or deleted is left alone: the next sync plans it again.
   let skipped = 0;
-  const apply = async (car: Car, summary: string) => {
+  const apply = async (car: Car, summary: string, before?: Car) => {
     try {
-      await saveCar(car);
+      if (!before) await saveCar(car);
+      else if (!(await updateCar(car.id, (cur) => (JSON.stringify(cur) === JSON.stringify(before) ? car : null)))) return false;
       await logActivity("stock", summary, ref(car), syncActor(site));
       return true;
     } catch {
@@ -78,14 +81,14 @@ export async function runSync({ force = false, now = Date.now() } = {}): Promise
   const result = { added: 0, changed: 0, takenDown: 0 };
   for (const c of plan.added) if (await apply(c, `Added from ${site}`)) result.added++;
   for (const { before, after } of plan.changed) {
-    if (!(await apply(after, before.soldAt ? `Back on sale on ${site}` : before.listing ? `Back on ${site}` : carEditSummary(before, after)))) continue;
+    if (!(await apply(after, before.soldAt ? `Back on sale on ${site}` : before.listing ? `Back on ${site}` : carEditSummary(before, after), before))) continue;
     result.changed++;
     // Back on sale: the sale fell through. Kept as a cancelled sale, as in our version, so the history still has it.
     const sale = before.soldAt ? await salesStore.get(after.id) : undefined;
     if (sale) await undoSale(sale, { returnedOn: today, kind: "cancelled", reason: `Listed again on ${site}` });
   }
   for (const c of plan.gone) {
-    if (!(await apply(c, `Hidden: the ad came down on ${site}`))) continue;
+    if (!(await apply(c, `Hidden: the ad came down on ${site}`, current.find((was) => was.id === c.id)))) continue;
     result.takenDown++;
     await notify({ kind: "taken-down", text: `Ad taken down on ${site}: ${carTitleOf(c)}`, href: "/stock" }, now);
   }

@@ -8,10 +8,23 @@ vi.mock("next/headers", () => ({ cookies: async () => ({ get: () => undefined })
 let feed: () => Promise<unknown> = async () => ({ ok: false, reason: "failed" });
 vi.mock("./feed", () => ({ fetchListings: () => feed() }));
 const sent: { to: string[]; subject: string }[] = [];
-// A car whose save fails (as an address clash with another car would in D1).
+// A car whose save fails (as an address clash with another car would in D1). `race`: a change someone makes to that car in the dashboard
+// after the sync planned and just before its write lands (#15).
+const race: { id?: string; change?: (c: Car) => Car } = {};
 vi.mock("@/lib/admin/stock-admin", async (orig) => {
   const real = await orig<typeof import("@/lib/admin/stock-admin")>();
-  return { ...real, saveCar: async (c: Car) => (c.id === "bad" ? Promise.reject(new Error("UNIQUE constraint failed: cars.slug")) : real.saveCar(c)) };
+  return {
+    ...real,
+    saveCar: async (c: Car) => (c.id === "bad" ? Promise.reject(new Error("UNIQUE constraint failed: cars.slug")) : real.saveCar(c)),
+    updateCar: async (id: string, fn: Parameters<typeof real.updateCar>[1]) => {
+      if (race.id === id && race.change) {
+        const change = race.change;
+        race.id = undefined;
+        await real.updateCar(id, change);
+      }
+      return real.updateCar(id, fn);
+    },
+  };
 });
 vi.mock("@/lib/leads/mail", () => ({ sendTo: async (to: string[], m: { subject: string }) => void sent.push({ to, subject: m.subject }) }));
 
@@ -50,6 +63,19 @@ describe("the DoneDeal sync", () => {
     expect(now.find((c) => c.id === "dd-1")?.listedAt).toBeTruthy();
     const log = (await listActivity({ actor: syncActor("DoneDeal") }, 1, 3)).rows.map((r) => r.summary);
     expect(log).toEqual(expect.arrayContaining(["Added from DoneDeal", "Hidden: the ad came down on DoneDeal", expect.stringMatching(/^Changed the price from/)]));
+  });
+
+  it("leaves a car alone that was changed here after it planned, and says nothing changed (#15)", async () => {
+    const [a, ...rest] = await forSale();
+    feed = async () => ({ ok: true, listings: [{ ...a, priceEur: a.priceEur - 700 }, ...rest] });
+    race.id = a.id;
+    race.change = (c) => ({ ...c, priceEur: c.priceEur + 1 }); // someone saved its price here meanwhile
+    const logged = async () => (await listActivity({ actor: syncActor("DoneDeal") }, 1, 500)).rows.length;
+    const before = await logged();
+    const s = await runSync();
+    expect(s.result?.changed).toBe(0);
+    expect((await adminCars()).find((c) => c.id === a.id)?.priceEur).toBe(a.priceEur + 1); // theirs kept, not the sync's planned price
+    expect(await logged()).toBe(before); // nothing in the history for a change that did not happen
   });
 
   it("a sold car DoneDeal lists again goes back on sale, and its sale goes with it", async () => {

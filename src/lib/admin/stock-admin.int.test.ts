@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { truncate } from "@/test/sqlite-db";
+import { carRaceCases } from "@/test/car-race-cases";
 import type { Car } from "@/lib/stock/types";
 
 vi.mock("server-only", () => ({}));
@@ -33,4 +34,6 @@ describe("stock admin (D1 path, on SQLite)", () => {
     expect(a.slug).toBe(`make-model-2020-${a.id}`);
     expect((await adminCars()).map((c) => c.priceEur).sort()).toEqual([5000, 7000, 8000]);
   });
+
+  carRaceCases();
 });

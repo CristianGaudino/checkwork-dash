@@ -2,7 +2,7 @@ import "server-only";
 import { logActivity } from "@/lib/admin/activity";
 import { drivesStore, leadsStore, reservationsStore, reviewsStore, type Lead, type LeadStatus } from "@/lib/admin/collections";
 import { dublinDay, fmtDateTime, fmtEur } from "@/lib/admin/format";
-import { adminCar, adminCars, saveCar } from "@/lib/admin/stock-admin";
+import { adminCar, adminCars, updateCar } from "@/lib/admin/stock-admin";
 import { droppedPrice } from "@/lib/admin/stock-admin-pure";
 import { carEditSummary } from "@/lib/admin/activity-text";
 import { postReviewReply } from "@/lib/admin/publishers";
@@ -125,12 +125,17 @@ export async function tap(me: string, msgId: string, button: ButtonId): Promise<
     await markDone(all); // first, so a second tap while this runs finds it done
     const car = msg.ref ? await adminCar(msg.ref) : undefined;
     if (car && isSold(car)) return void (await say(me, { text: "That car is sold, so I left the price." }));
-    const drop = car && droppedPrice(car, (await currentDealer()).profile.rules.slowDropEur, "eur");
-    if (!car || !drop) return void (await say(me, { text: "I could not change that price. Open the car to do it." }));
-    const next = { ...car, ...drop };
-    await saveCar(next);
-    await logActivity("stock", carEditSummary(car, next), { kind: "car", id: car.id, label: carTitleOf(car) });
-    return void (await say(me, { text: `Done. The ${carTitleOf(car)} is now ${fmtEur(drop.priceEur)}.`, href: `/stock/${car.id}` }));
+    const eur = (await currentDealer()).profile.rules.slowDropEur;
+    let before = car;
+    // Dropped from the price as it is when written, so a price changed meanwhile is dropped from, not written over.
+    const next = car && (await updateCar(car.id, (cur) => {
+      before = cur;
+      const drop = !isSold(cur) && droppedPrice(cur, eur, "eur");
+      return drop ? { ...cur, ...drop } : null;
+    }));
+    if (!before || !next) return void (await say(me, { text: "I could not change that price. Open the car to do it." }));
+    await logActivity("stock", carEditSummary(before, next), { kind: "car", id: next.id, label: carTitleOf(next) });
+    return void (await say(me, { text: `Done. The ${carTitleOf(next)} is now ${fmtEur(next.priceEur)}.`, href: `/stock/${next.id}` }));
   }
 
   // Never tell a buyer a car is there to see when it has sold since the alert.
