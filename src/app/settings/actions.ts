@@ -86,7 +86,7 @@ export async function saveMarketingAction(_p: SettingsState, data: FormData): Pr
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 export async function saveBusinessAction(_p: SettingsState, data: FormData): Promise<SettingsState> {
   await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
-  const no = await refused("name");
+  const no = await refusedReal("name") // the directory's copy of the dealer, seen by everyone: the real role;
   if (no) return no;
   const raw = Object.fromEntries(data);
   const r = FACTS_SCHEMA.safeParse({ ...raw, hours: DAYS.map((_, i) => ({ opens: raw[`opens${i}`] ?? "", closes: raw[`closes${i}`] ?? "" })) });

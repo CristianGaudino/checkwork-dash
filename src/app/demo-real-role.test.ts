@@ -68,6 +68,12 @@ describe("a demo Sales member with the demo bar on Owner", () => {
     expect((await getSettings()).leadEmails).not.toContain("someone@example.com");
   });
 
+  it("cannot change the dealer's name or details, which everyone at the dealer sees", async () => {
+    const { dealerById } = await import("@/lib/tenancy/directory");
+    expect(await settings.saveBusinessAction(undefined, form({ name: "Renamed Motors", phone: "01 234 5678" }))).toEqual({ errors: { name: DEMO_ROLE_REFUSED } });
+    expect((await dealerById("checkwork-motors"))?.name).not.toBe("Renamed Motors");
+  });
+
   it("cannot export leads or customers, or run a data request", async () => {
     for (const r of [await get(leads, "/leads/export"), await get(customers, "/customers/export")]) {
       expect(r.status).toBe(403);
