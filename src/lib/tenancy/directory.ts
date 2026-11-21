@@ -65,6 +65,12 @@ const db = () => {
   if (!d1) throw new Error("Missing binding DIRECTORY");
   return drizzle(d1);
 };
+// A failed query's error carries its values (a staff email, a key's hash), and an uncaught error is printed to Workers Logs. Rethrown with
+// the operation's name only, as the record store does (src/lib/admin/docs.ts).
+const quiet = <R,>(q: PromiseLike<R>, op: string): Promise<R> =>
+  Promise.resolve(q).catch(() => {
+    throw new Error(`directory ${op} failed`);
+  });
 // What is stored, over the made-up demo business (every module, its facts) for a demo dealer and over the plain defaults for any other.
 const withProfile = (r: Row): Dealer => ({ ...r, profile: parseProfile(r.profile, r.demo ? DEMO_PROFILE : undefined) });
 const toDealer = (r: typeof dealers.$inferSelect): Dealer => withProfile({ ...r, createdAt: r.createdAt.getTime() });
@@ -72,7 +78,7 @@ const toMember = (r: typeof members.$inferSelect): Member => ({ ...r, addedAt: r
 
 export async function listDealers(): Promise<Dealer[]> {
   if (!hasD1()) return mem().dealers.map(withProfile);
-  return (await db().select().from(dealers).orderBy(asc(dealers.id))).map(toDealer);
+  return (await quiet(db().select().from(dealers).orderBy(asc(dealers.id)), "listDealers")).map(toDealer);
 }
 
 export async function dealerById(id: string): Promise<Dealer | undefined> {
@@ -80,7 +86,7 @@ export async function dealerById(id: string): Promise<Dealer | undefined> {
     const d = mem().dealers.find((x) => x.id === id);
     return d && withProfile(d);
   }
-  const [r] = await db().select().from(dealers).where(eq(dealers.id, id)).limit(1);
+  const [r] = await quiet(db().select().from(dealers).where(eq(dealers.id, id)).limit(1), "dealerById");
   return r && toDealer(r);
 }
 
@@ -95,14 +101,14 @@ export async function membershipsOf(email: string): Promise<(Member & { dealer: 
       return dealer ? [{ ...x, dealer: withProfile(dealer) }] : [];
     });
   }
-  const rows = await db().select().from(members).innerJoin(dealers, eq(members.dealerId, dealers.id)).where(and(eq(members.email, e), eq(dealers.status, "active"))).orderBy(asc(members.addedAt));
+  const rows = await quiet(db().select().from(members).innerJoin(dealers, eq(members.dealerId, dealers.id)).where(and(eq(members.email, e), eq(dealers.status, "active"))).orderBy(asc(members.addedAt)), "membershipsOf");
   return rows.map((r) => ({ ...toMember(r.members), dealer: toDealer(r.dealers) }));
 }
 
 // Everyone at one dealer, oldest first.
 export async function membersOf(dealerId: string): Promise<Member[]> {
   if (!hasD1()) return mem().members.filter((x) => x.dealerId === dealerId).map((x) => ({ ...x }));
-  return (await db().select().from(members).where(eq(members.dealerId, dealerId)).orderBy(asc(members.addedAt))).map(toMember);
+  return (await quiet(db().select().from(members).where(eq(members.dealerId, dealerId)).orderBy(asc(members.addedAt)), "membersOf")).map(toMember);
 }
 
 // Adds the person, or changes their role. Lower case, so a signed-in address always matches.
@@ -115,7 +121,7 @@ export async function putMember(dealerId: string, email: string, role: Role): Pr
     else m.members.push({ dealerId, email: e, role, addedAt: Date.now() });
     return;
   }
-  await db().insert(members).values({ dealerId, email: e, role }).onConflictDoUpdate({ target: [members.dealerId, members.email], set: { role } });
+  await quiet(db().insert(members).values({ dealerId, email: e, role }).onConflictDoUpdate({ target: [members.dealerId, members.email], set: { role } }), "putMember");
 }
 
 export async function removeMember(dealerId: string, email: string): Promise<void> {
@@ -125,7 +131,7 @@ export async function removeMember(dealerId: string, email: string): Promise<voi
     m.members = m.members.filter((x) => !(x.dealerId === dealerId && x.email === e));
     return;
   }
-  await db().delete(members).where(and(eq(members.dealerId, dealerId), eq(members.email, e)));
+  await quiet(db().delete(members).where(and(eq(members.dealerId, dealerId), eq(members.email, e))), "removeMember");
 }
 
 // The dealer's name and the given parts of their profile, merged over what is stored (JSON merge patch, in the one UPDATE, so a part we set
@@ -147,10 +153,13 @@ export async function patchDealer(id: string, name: string, patch: Partial<Deale
     if (d) Object.assign(d, { name, profile: patch ? JSON.stringify(mergePatch(JSON.parse(d.profile), patch)) : json });
     return;
   }
-  await db()
-    .update(dealers)
-    .set({ name, profile: patch ? sql`json_patch(${dealers.profile}, ${json})` : json })
-    .where(eq(dealers.id, id));
+  await quiet(
+    db()
+      .update(dealers)
+      .set({ name, profile: patch ? sql`json_patch(${dealers.profile}, ${json})` : json })
+      .where(eq(dealers.id, id)),
+    "patchDealer",
+  );
 }
 
 // ---- Website keys (the site API, docs/site-api.md) ----
@@ -170,14 +179,14 @@ export async function makeSiteKey(dealerId: string, label: string): Promise<{ ke
   const key = "cw_site_" + btoa(String.fromCharCode(...bytes)).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
   const row: KeyRow = { id: crypto.randomUUID(), dealerId, hash: await hashSiteKey(key), label, createdAt: Date.now(), lastUsedAt: null, revokedAt: null };
   if (!hasD1()) mem().siteKeys.push(row);
-  else await db().insert(siteKeys).values({ ...row, createdAt: new Date(row.createdAt), lastUsedAt: null, revokedAt: null });
+  else await quiet(db().insert(siteKeys).values({ ...row, createdAt: new Date(row.createdAt), lastUsedAt: null, revokedAt: null }), "makeSiteKey");
   return { key, siteKey: toSiteKey(row) };
 }
 
 // One dealer's keys, revoked ones too, newest first. Never the hash.
 export async function siteKeysOf(dealerId: string): Promise<SiteKey[]> {
   if (!hasD1()) return mem().siteKeys.filter((k) => k.dealerId === dealerId).sort((a, b) => b.createdAt - a.createdAt).map(toSiteKey);
-  return (await db().select().from(siteKeys).where(eq(siteKeys.dealerId, dealerId)).orderBy(desc(siteKeys.createdAt))).map((r) => toSiteKey(fromRow(r)));
+  return (await quiet(db().select().from(siteKeys).where(eq(siteKeys.dealerId, dealerId)).orderBy(desc(siteKeys.createdAt)), "siteKeysOf")).map((r) => toSiteKey(fromRow(r)));
 }
 
 // Revokes one of this dealer's keys (a key of another dealer is not found). The key revoked, or undefined if there was none still on.
@@ -188,7 +197,7 @@ export async function revokeSiteKey(dealerId: string, id: string): Promise<SiteK
     if (k) k.revokedAt = now;
     return k && toSiteKey(k);
   }
-  const [r] = await db().update(siteKeys).set({ revokedAt: new Date(now) }).where(and(eq(siteKeys.dealerId, dealerId), eq(siteKeys.id, id), isNull(siteKeys.revokedAt))).returning();
+  const [r] = await quiet(db().update(siteKeys).set({ revokedAt: new Date(now) }).where(and(eq(siteKeys.dealerId, dealerId), eq(siteKeys.id, id), isNull(siteKeys.revokedAt))).returning(), "revokeSiteKey");
   return r && toSiteKey(fromRow(r));
 }
 
@@ -206,10 +215,10 @@ export async function dealerOfSiteKey(key: string): Promise<{ dealer: Dealer; ke
     if (k.lastUsedAt === null || k.lastUsedAt < now - HOUR_MS) k.lastUsedAt = now;
     return { dealer: withProfile(d), keyId: k.id };
   }
-  const [r] = await db().select().from(siteKeys).innerJoin(dealers, eq(siteKeys.dealerId, dealers.id)).where(and(eq(siteKeys.hash, hash), isNull(siteKeys.revokedAt), eq(dealers.status, "active"))).limit(1);
+  const [r] = await quiet(db().select().from(siteKeys).innerJoin(dealers, eq(siteKeys.dealerId, dealers.id)).where(and(eq(siteKeys.hash, hash), isNull(siteKeys.revokedAt), eq(dealers.status, "active"))).limit(1), "dealerOfSiteKey");
   if (!r || !same(r.site_keys.hash, hash)) return null;
   const used = r.site_keys.lastUsedAt?.getTime();
   if (used === undefined || used < now - HOUR_MS)
-    await db().update(siteKeys).set({ lastUsedAt: new Date(now) }).where(and(eq(siteKeys.id, r.site_keys.id), or(isNull(siteKeys.lastUsedAt), lt(siteKeys.lastUsedAt, new Date(now - HOUR_MS)))));
+    await quiet(db().update(siteKeys).set({ lastUsedAt: new Date(now) }).where(and(eq(siteKeys.id, r.site_keys.id), or(isNull(siteKeys.lastUsedAt), lt(siteKeys.lastUsedAt, new Date(now - HOUR_MS))))), "markKeyUsed");
   return { dealer: toDealer(r.dealers), keyId: r.site_keys.id };
 }
