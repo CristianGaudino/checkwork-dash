@@ -8,9 +8,10 @@ import { SHOW_PRICING } from "@/lib/billing/rules";
 import { writeAction } from "@/lib/ai/actions";
 import { ADJUSTS, adjustsFor, type Adjust, type Task, type WriteRequest } from "@/lib/ai/tasks";
 import type { PostFormat } from "@/lib/admin/networks";
-import { adminButtonQuiet, adminInput } from "./kit";
+import { adminButtonQuiet, adminInput, rowButton } from "./kit";
 
-const chip = `inline-flex min-h-11 items-center rounded-full border border-control bg-card px-4 text-meta font-medium disabled:opacity-50 ${press}`;
+// The changes to a draft: small neutral chips, a quieter group than Write with AI, 44px on a phone and 36px from 640px.
+const chip = `inline-flex min-h-11 items-center rounded-full bg-hairline px-3.5 text-meta font-medium text-text transition-colors hover:bg-accent-soft hover:text-accent-text disabled:opacity-50 sm:min-h-9 ${press}`;
 // With our pricing hidden the limit is not on Billing, so the message says where to ask.
 const SAID = { limit: `The monthly AI limit is reached. Your text is unchanged.${SHOW_PRICING ? "" : " Ask us in Help to raise it."}`, failed: "Couldn't write that, try again. Your text is unchanged." };
 
@@ -43,34 +44,41 @@ export function AIWriter({ task, request, text, onText, format }: { task: Task; 
   };
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex flex-wrap items-center gap-2">
-        <button type="button" onClick={() => run()} disabled={pending} aria-busy={pending} className={`${adminButtonQuiet} disabled:opacity-50`}>
-          <SparkleIcon className="size-4 text-accent-text" />
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        {/* Its own look among the secondary buttons: the sparkle in a filled dot says this one writes for you. */}
+        <button type="button" onClick={() => run()} disabled={pending} aria-busy={pending} className={`${adminButtonQuiet} pl-2.5 disabled:opacity-60`}>
+          <span aria-hidden="true" className="grid size-7 place-items-center rounded-full bg-accent text-on-accent">
+            <SparkleIcon className="size-4" />
+          </span>
           {pending ? "Writing" : ai === null ? "Write with AI" : "Write again"}
         </button>
-        {back && !pending && (
-          <button type="button" onClick={() => { onText(back.text); setAi(back.ai); setBack(null); }} className={chip}>
-            Undo
-          </button>
-        )}
         {ai !== null && text.trim() !== "" && (
-          <span className="inline-flex items-center gap-1.5 text-meta font-medium text-accent-text">
-            <SparkleIcon className="size-4" />
+          <span className="inline-flex h-6 items-center gap-1 rounded-full bg-info-soft px-2.5 text-meta font-medium text-info">
+            <SparkleIcon className="size-3.5" />
             {text === ai ? "AI draft" : "AI draft, edited"}
           </span>
         )}
+        {back && !pending && (
+          <button type="button" onClick={() => { onText(back.text); setAi(back.ai); setBack(null); }} className={rowButton}>
+            Undo
+          </button>
+        )}
       </div>
       {ai !== null && (
-        <div role="group" aria-label="Change the draft" className="flex flex-wrap gap-2">
-          {adjustsFor(task, format).map((a) => (
-            <button key={a} type="button" disabled={pending} onClick={() => run(a)} className={chip}>
-              {ADJUSTS[a]}
-            </button>
-          ))}
+        // Tied to the box by an indigo rule, under a label, so the changes read as one group that belongs to the draft.
+        <div role="group" aria-label="Change the draft" className="flex flex-col gap-2 border-l-2 border-accent pl-3">
+          <span aria-hidden="true" className="text-meta text-text-2">Change it</span>
+          <div className="flex flex-wrap gap-2">
+            {adjustsFor(task, format).map((a) => (
+              <button key={a} type="button" disabled={pending} onClick={() => run(a)} className={chip}>
+                {ADJUSTS[a]}
+              </button>
+            ))}
+          </div>
         </div>
       )}
-      <p aria-live="polite" className="min-h-0 text-meta text-text-2">{said}</p>
+      <p aria-live="polite" className="-mt-3 text-meta text-text-2 [&:not(:empty)]:mt-0">{said}</p>
     </div>
   );
 }
