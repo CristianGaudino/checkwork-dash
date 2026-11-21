@@ -4,7 +4,7 @@
 // Usage: node scripts/dealer-profile.mjs <dealer-id> <file.json> --remote|--local
 // Example file, to give a dealer the Dealer plan and stock synced from CarsIreland:
 //   { "modules": "dashboard,testDrives,sales,reviews", "stock": { "source": "donedeal", "listingSite": "CarsIreland", "listingUrl": "https://www.carsireland.ie/dealer/..." } }
-import { DEALER_ID, readProfile, runDirectorySql, sqlText as q, target } from "./dealers.mjs";
+import { DEALER_ID, directoryRows, readProfile, sqlText as q, target } from "./dealers.mjs";
 
 const args = process.argv.slice(2);
 const [id, file] = args.filter((a) => !a.startsWith("--"));
@@ -12,5 +12,10 @@ const where = target(args);
 if (!id || !DEALER_ID.test(id)) throw new Error("Give the dealer id, a slug like murphy-motors");
 if (!file) throw new Error("Give the JSON file with the profile fields to change");
 const patch = readProfile(file);
-runDirectorySql(`UPDATE dealers SET profile = json_patch(profile, ${q(patch)}) WHERE id = ${q(id)};`, where);
+// RETURNING says whether the dealer was there: an id the directory does not have changes nothing, and says so.
+const changed = directoryRows(`UPDATE dealers SET profile = json_patch(profile, ${q(patch)}) WHERE id = ${q(id)} RETURNING id;`, where);
+if (!changed.length) {
+  console.error(`\nNo dealer ${id} in the directory. Nothing changed.`);
+  process.exit(1);
+}
 console.log(`\nThe profile of ${id} is changed. Each page and job reads it on its next request.`);

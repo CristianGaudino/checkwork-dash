@@ -2,7 +2,8 @@
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 // wrangler.jsonc is JSON with comments and trailing commas. Strings are kept whole, so a // inside one (a URL) is not taken for a comment.
 export function readWrangler(path = "wrangler.jsonc") {
@@ -54,6 +55,13 @@ export function readProfile(path) {
 }
 // SQL text in single quotes.
 export const sqlText = (v) => `'${String(v).replaceAll("'", "''")}'`;
+// The rows a statement on the directory returns. A remote --file runs through D1's import, which returns no rows, so this is a --command,
+// run by node from wrangler's own bin with no shell, so the SQL stays one argument on every platform.
+export function directoryRows(sql, where) {
+  const bin = join(dirname(fileURLToPath(import.meta.resolve("wrangler/package.json"))), "bin", "wrangler.js");
+  const out = execFileSync(process.execPath, [bin, "d1", "execute", "DIRECTORY", where, "--command", sql, "--json"], { encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] });
+  return JSON.parse(out).flatMap((r) => r.results ?? []);
+}
 // Runs SQL on the directory from a file: on Windows npx runs through a shell, which would split a --command at its spaces.
 export function runDirectorySql(sql, where) {
   const dir = mkdtempSync(join(tmpdir(), "dealer-"));
