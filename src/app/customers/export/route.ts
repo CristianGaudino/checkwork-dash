@@ -11,6 +11,7 @@ import { dublinDay as day } from "@/lib/admin/format";
 export async function GET(req: Request) {
   // Real personal data: the directory's role, not the demo bar's (realCan). A demo viewer the bar showed the button to is told why.
   if (!(await realCan("data"))) return (await can("data")) ? new Response(DEMO_ROLE_REFUSED, { status: 403 }) : new Response(null, { status: 404 });
+  if (!(await hasModule("dashboard"))) return new Response(null, { status: 404 }); // as every page answers without the dashboard (src/app/layout.tsx)
   const sp = Object.fromEntries(new URL(req.url).searchParams);
   const tab = sp.tab;
   // Each list only with its module, as on the page: alerts and the newsletter are the newsletter's, customers are sales'.
