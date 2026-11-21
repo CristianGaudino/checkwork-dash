@@ -22,7 +22,7 @@ export function CarPicker({ cars, value, onPick }: { cars: CarCard[]; value: str
     <div className="flex flex-col gap-4">
       <label className="relative block">
         <span className="sr-only">Search cars</span>
-        <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-text-2" />
+        <SearchIcon className="shrink-0 pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-text-2" />
         <input type="search" value={find} onChange={(e) => setFind(e.target.value)} placeholder="Search make or model" className={`${adminInput} w-full pl-9`} />
       </label>
       {shown.length === 0 ? (

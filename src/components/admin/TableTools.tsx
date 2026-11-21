@@ -60,7 +60,7 @@ export function LiveSearch({ placeholder, label }: { placeholder: string; label:
   };
   return (
     <form role="search" aria-busy={pending} onSubmit={(e) => (e.preventDefault(), run(value))} className="relative w-full sm:max-w-sm">
-      <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2 text-text-2" />
+      <SearchIcon className="shrink-0 pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2 text-text-2" />
       <input
         ref={input}
         type="text"
@@ -90,7 +90,7 @@ export function LiveSearch({ placeholder, label }: { placeholder: string; label:
           }}
           className={`absolute right-1 top-1/2 inline-flex size-9 -translate-y-1/2 items-center justify-center rounded-control text-text-2 hover:text-text ${press}`}
         >
-          <CloseIcon className="size-4" />
+          <CloseIcon className="shrink-0 size-4" />
         </button>
       )}
     </form>
@@ -148,7 +148,7 @@ export function Filters({ groups }: { groups: FilterGroup[] }) {
   return (
     <>
       <button ref={button} type="button" popoverTarget={id} onClick={place} className={`inline-flex h-11 shrink-0 items-center gap-2 rounded-control bg-accent-soft px-4 text-meta font-semibold text-accent-text transition-colors hover:bg-accent-soft-hover ${press}`}>
-        <SlidersIcon className="size-4" />
+        <SlidersIcon className="shrink-0 size-4" />
         Filters
         {on > 0 && (
           <span className="inline-flex size-5 items-center justify-center rounded-full bg-accent text-[0.75rem] text-on-accent tabular-nums">
@@ -167,7 +167,7 @@ export function Filters({ groups }: { groups: FilterGroup[] }) {
         <div className="flex items-center justify-between border-b border-hairline px-4 py-3">
           <h2 className="text-body font-semibold">Filters</h2>
           <button type="button" aria-label="Close the filters" onClick={() => panel.current?.hidePopover()} className={`inline-flex size-9 items-center justify-center rounded-control text-text-2 hover:text-text ${press}`}>
-            <CloseIcon className="size-4" />
+            <CloseIcon className="shrink-0 size-4" />
           </button>
         </div>
         <div className="flex flex-col gap-4 overflow-y-auto overscroll-contain px-4 py-3">

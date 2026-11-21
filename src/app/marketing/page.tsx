@@ -111,7 +111,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
         actions={
           social && (tab === "posts" || tab === "calendar") && (
             <Link href="/marketing/new" className={adminButton}>
-              <PlusIcon className="size-4" />
+              <PlusIcon className="shrink-0 size-4" />
               New post
             </Link>
           )
@@ -148,7 +148,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
                           action={
                             <>
                               <PostNow p={item.p} />
-                              <ActButton act={deletePostAction.bind(null, item.p.id)} confirm={{ title: "Delete this post?", text: "This cannot be undone.", yes: "Delete" }} label={`Delete the ${postName(item.p)}${item.p.carTitle ? `, ${item.p.carTitle}` : ""}`} className={`${rowDanger} w-11 px-0`}><TrashIcon className="size-4" /></ActButton>
+                              <ActButton act={deletePostAction.bind(null, item.p.id)} confirm={{ title: "Delete this post?", text: "This cannot be undone.", yes: "Delete" }} label={`Delete the ${postName(item.p)}${item.p.carTitle ? `, ${item.p.carTitle}` : ""}`} className={`${rowDanger} w-11 px-0`}><TrashIcon className="shrink-0 size-4" /></ActButton>
                             </>
                           }
                         />
@@ -162,7 +162,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
                           action={
                             <>
                               <ActButton act={startAdAction.bind(null, item.a.id)} confirm={{ title: "Start this ad?", text: `It runs on ${AD_PLATFORM_LABELS[item.a.platform]} with a budget of ${fmtEur(item.a.budgetEur)}.`, yes: "Start ad", safe: true }} label={`Start ad: ${AD_PLATFORM_LABELS[item.a.platform]} ad, ${item.a.carTitle}`} className={rowButtonStrong}>Start ad</ActButton>
-                              <ActButton act={deleteAdAction.bind(null, item.a.id)} confirm={{ title: "Delete this ad?", text: "This cannot be undone.", yes: "Delete" }} label={`Delete the ${AD_PLATFORM_LABELS[item.a.platform]} ad, ${item.a.carTitle}`} className={`${rowDanger} w-11 px-0`}><TrashIcon className="size-4" /></ActButton>
+                              <ActButton act={deleteAdAction.bind(null, item.a.id)} confirm={{ title: "Delete this ad?", text: "This cannot be undone.", yes: "Delete" }} label={`Delete the ${AD_PLATFORM_LABELS[item.a.platform]} ad, ${item.a.carTitle}`} className={`${rowDanger} w-11 px-0`}><TrashIcon className="shrink-0 size-4" /></ActButton>
                             </>
                           }
                         />
@@ -212,7 +212,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
               <EmptyState
                 title={sp.show || sp.status ? "Nothing matches" : "Nothing posted yet"}
                 text={sp.show || sp.status ? undefined : "Pick a car and the words are written for you."}
-                action={sp.show || sp.status ? undefined : <Link href="/marketing/new" className={adminButton}><PlusIcon className="size-4" />New post</Link>}
+                action={sp.show || sp.status ? undefined : <Link href="/marketing/new" className={adminButton}><PlusIcon className="shrink-0 size-4" />New post</Link>}
               />
             ) : (
               <ul className="-mx-5 flex flex-col divide-y divide-hairline">

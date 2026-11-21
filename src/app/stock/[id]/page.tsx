@@ -64,14 +64,14 @@ export default async function Page({ params, searchParams }: { params: Promise<{
   const sold = Boolean(car.soldAt);
   const sale = sales.find((s) => s.id === id);
   const main = sold && !sale ? (
-    <Link href={`/stock/${id}/sale`} className={adminButton}><ReceiptIcon className="size-4" />Record sale</Link>
+    <Link href={`/stock/${id}/sale`} className={adminButton}><ReceiptIcon className="shrink-0 size-4" />Record sale</Link>
   ) : synced && car.takenDownAt && !sold ? (
     // The ad came down on DoneDeal: the question is whether it sold (It did not sell is on the stock list, with the other taken-down ads).
-    <Link href={`/stock/${id}/sale`} className={adminButton}><ReceiptIcon className="size-4" />It sold</Link>
+    <Link href={`/stock/${id}/sale`} className={adminButton}><ReceiptIcon className="shrink-0 size-4" />It sold</Link>
   ) : synced ? (
-    !car.takenDownAt && <a href={listingHref(car, listingUrl)} {...NEW_TAB} className={adminButton}><PencilIcon className="size-4" />Edit on {listingSite}<span className="sr-only"> (opens in a new tab)</span></a>
+    !car.takenDownAt && <a href={listingHref(car, listingUrl)} {...NEW_TAB} className={adminButton}><PencilIcon className="shrink-0 size-4" />Edit on {listingSite}<span className="sr-only"> (opens in a new tab)</span></a>
   ) : !sold ? (
-    <Link href={`/stock/${id}/sale`} className={adminButton}><CheckIcon className="size-4" />Mark sold</Link>
+    <Link href={`/stock/${id}/sale`} className={adminButton}><CheckIcon className="shrink-0 size-4" />Mark sold</Link>
   ) : undefined;
   const quiet = `${adminButtonQuiet} px-4`;
   const actions = [
@@ -167,7 +167,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
             <p className="max-w-measure text-body">A deposit is held on this car. <Link href={`/stock/${car.id}/reserve`} className="underline">End the reservation</Link> before deleting it.</p>
           ) : (
           <ActButton act={deleteCarAction.bind(null, car.id)} confirm={{ title: `Delete ${carName(car)}?`, text: "This cannot be undone. Its cost and prep go with it.", yes: "Delete" }} className={`${dangerButton} w-fit`}>
-            <TrashIcon className="size-4" />
+            <TrashIcon className="shrink-0 size-4" />
             Delete {carName(car)}
           </ActButton>
           )}

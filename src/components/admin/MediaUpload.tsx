@@ -70,7 +70,7 @@ export function MediaUpload({ accept = MEDIA_ACCEPT, carSlug = "", label = "Add 
   return (
     <div className="flex flex-col gap-2">
       <label className={`inline-flex h-11 w-fit cursor-pointer items-center justify-center gap-2 rounded-control bg-accent-soft px-5 text-meta font-semibold text-accent-text transition-colors hover:bg-accent-soft-hover has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent ${pending ? "opacity-50" : ""} ${press}`}>
-        <PlusIcon className="size-4" />
+        <PlusIcon className="shrink-0 size-4" />
         {label}
         <input ref={input} type="file" accept={accept} multiple disabled={pending} aria-label={label} onChange={(e) => add([...(e.target.files ?? [])])} className="sr-only" />
       </label>

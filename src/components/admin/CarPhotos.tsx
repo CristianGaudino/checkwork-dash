@@ -91,7 +91,7 @@ export function CarPhotos({ carId, photos, max }: { carId: string; photos: Photo
       )} />
       <div className="flex flex-wrap items-center gap-3">
         <label className={`${adminButtonQuiet} cursor-pointer ${pending || photos.length >= max ? "pointer-events-none opacity-60" : ""}`}>
-          <CameraIcon className="size-4" />
+          <CameraIcon className="shrink-0 size-4" />
           {pending ? "Adding photos" : "Add photos"}
           <input ref={input} type="file" accept={PHOTO_TYPES.join(",")} multiple disabled={pending || photos.length >= max} onChange={(e) => add([...(e.target.files ?? [])])} className="sr-only" />
         </label>
@@ -159,7 +159,7 @@ export function NewCarPhotos({ photos, onChange, max, error, title = "Photos" }:
       )} />
       <div className="flex flex-wrap items-center gap-3">
         <label className={`${adminButtonQuiet} cursor-pointer ${pending || photos.length >= max ? "pointer-events-none opacity-60" : ""}`}>
-          <CameraIcon className="size-4" />
+          <CameraIcon className="shrink-0 size-4" />
           {pending ? "Adding photos" : "Add photos"}
           <input ref={input} type="file" accept={PHOTO_TYPES.join(",")} multiple disabled={pending || photos.length >= max} onChange={(e) => add([...(e.target.files ?? [])])} className="sr-only" />
         </label>

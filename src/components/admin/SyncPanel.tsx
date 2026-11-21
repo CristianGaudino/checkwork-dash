@@ -26,7 +26,7 @@ export async function SyncPanel({ status, canForce }: { status: SyncStatus; canF
       <div className="flex flex-wrap gap-2">
         <form action={syncNowAction.bind(null, false)}>
           <SubmitButton className={adminButtonQuiet}>
-            <SyncIcon className="size-4" />
+            <SyncIcon className="shrink-0 size-4" />
             Check now
           </SubmitButton>
         </form>

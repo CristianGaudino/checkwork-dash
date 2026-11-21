@@ -71,7 +71,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
         text="Warranty claims on cars you sold. New requests from your website come first."
         actions={
           <Link href="/aftersales/new" className={adminButton}>
-            <PlusIcon className="size-4" />
+            <PlusIcon className="shrink-0 size-4" />
             Open a claim
           </Link>
         }

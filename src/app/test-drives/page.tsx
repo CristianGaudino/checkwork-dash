@@ -56,7 +56,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
         text="Bookings from the site and the ones you add. Confirm a request to lock in the time."
         actions={
           <Link href="/test-drives/new" className={adminButton}>
-            <PlusIcon className="size-4" />
+            <PlusIcon className="shrink-0 size-4" />
             Book a test drive
           </Link>
         }
@@ -71,7 +71,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
           ]}
         />
         <Link href={link({ mine: mine ? undefined : "1", page: undefined })} aria-current={mine ? "true" : undefined} className={choicePill(mine)}>
-          {mine && <CheckIcon className="size-4" />}
+          {mine && <CheckIcon className="shrink-0 size-4" />}
           Only mine
         </Link>
       </div>
@@ -155,10 +155,10 @@ function Week({ day, today, onDay, gone, link, hours }: { day: string; today: st
     <>
       <div className="flex items-center gap-2">
         <Link href={link({ day: addDays(monday, -7) })} aria-label="Week before" className={arrow}>
-          <ChevronLeftIcon className="size-4" />
+          <ChevronLeftIcon className="shrink-0 size-4" />
         </Link>
         <Link href={link({ day: addDays(monday, 7) })} aria-label="Week after" className={arrow}>
-          <ChevronRightIcon className="size-4" />
+          <ChevronRightIcon className="shrink-0 size-4" />
         </Link>
         <h2 className="ml-2 text-heading font-semibold">{range}</h2>
         {mondayOf(today) !== monday && (

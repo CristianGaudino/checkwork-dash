@@ -9,22 +9,22 @@ export function ContactButtons({ phone, email }: { phone?: string; email?: strin
   const tel = phone ? telHref(phone) : undefined;
   const wa = phone ? waHref(phone) : undefined;
   return (
-    <div className="grid grid-cols-3 gap-2">
+    <div className="flex gap-2 *:grow">
       {tel && (
         <a href={tel} className={`${adminButtonQuiet} px-3`}>
-          <PhoneIcon className="size-4" />
+          <PhoneIcon className="size-4 shrink-0" />
           Call
         </a>
       )}
       {email && (
         <a href={`mailto:${email}`} className={`${adminButtonQuiet} px-3`}>
-          <MailIcon className="size-4" />
+          <MailIcon className="size-4 shrink-0" />
           Email
         </a>
       )}
       {wa && (
         <a href={wa} {...NEW_TAB} className={`${adminButtonQuiet} px-3`}>
-          <WhatsAppIcon className="size-4 text-whatsapp" />
+          <WhatsAppIcon className="size-4 shrink-0 text-whatsapp" />
           WhatsApp<span className="sr-only"> (opens in a new tab)</span>
         </a>
       )}

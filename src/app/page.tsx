@@ -50,7 +50,7 @@ const ReplyButton = ({ id, name }: { id: string; name: string }) => (
 );
 const ConfirmDrive = ({ id, name, status }: { id: string; name: string; status: string }) => (
   <ActButton act={setDriveStatusAction.bind(null, id, "confirmed", status)} undo={setDriveStatusAction.bind(null, id, status, "confirmed")} done={`${name}: ${DRIVE_STATUS_LABELS.confirmed}`} label={`Confirm ${name}'s test drive`} className={rowButtonStrong}>
-    <CheckIcon className="size-4" />
+    <CheckIcon className="shrink-0 size-4" />
     Confirm
   </ActButton>
 );

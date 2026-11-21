@@ -11,7 +11,7 @@ export function CallButton({ phone, name }: { phone: string; name: string }) {
   const tel = phone ? telHref(phone) : undefined;
   return tel ? (
     <a href={tel} aria-label={`Call ${name}`} className={rowButtonStrong}>
-      <PhoneIcon className="size-4" />
+      <PhoneIcon className="shrink-0 size-4" />
       Call
     </a>
   ) : null;
@@ -25,14 +25,14 @@ export function ReachButton({ lead }: { lead: Pick<Lead, "name" | "phone" | "ema
   if (via === "whatsapp" && wa)
     return (
       <a href={wa} {...NEW_TAB} aria-label={`WhatsApp ${lead.name} (opens in a new tab)`} className={rowButtonStrong}>
-        <WhatsAppIcon className="size-4 text-whatsapp" />
+        <WhatsAppIcon className="shrink-0 size-4 text-whatsapp" />
         WhatsApp
       </a>
     );
   if ((via === "email" || !tel) && lead.email)
     return (
       <a href={`mailto:${lead.email}`} aria-label={`Email ${lead.name}`} className={rowButtonStrong}>
-        <MailIcon className="size-4" />
+        <MailIcon className="shrink-0 size-4" />
         Email
       </a>
     );

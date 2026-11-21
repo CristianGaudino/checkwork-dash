@@ -127,7 +127,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
         text="New cars ordered from the factory for your customers, from the order to the handover."
         actions={
           <Link href="/orders/new" className={adminButton}>
-            <PlusIcon className="size-4" />
+            <PlusIcon className="shrink-0 size-4" />
             Place an order
           </Link>
         }
