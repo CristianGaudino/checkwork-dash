@@ -235,7 +235,8 @@ export async function addCarPhotoAction(carId: string, data: FormData): Promise<
   if (!checked) return { error: "That photo could not be added. Try another." };
   const photo = await storeCarPhoto(car.id, checked.bytes, checked.width, checked.height);
   // Added to the car as it is now. Deleted meanwhile, or full since: the stored photo goes again rather than sit unseen.
-  if (!(await updateCar(carId, (cur) => (cur.photos.length >= CAR_PHOTOS_MAX ? null : { ...cur, photos: [...cur.photos, photo] })))) {
+  // A clash that throws is treated like a refusal, so the stored photo never stays behind unseen.
+  if (!(await updateCar(carId, (cur) => (cur.photos.length >= CAR_PHOTOS_MAX ? null : { ...cur, photos: [...cur.photos, photo] })).catch(() => undefined))) {
     await dropCarPhotos([photo]).catch(() => undefined);
     return { error: "This car can no longer be changed here." };
   }

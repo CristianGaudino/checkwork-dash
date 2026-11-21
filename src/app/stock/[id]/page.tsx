@@ -18,7 +18,7 @@ import { fmtDate, fmtEur, fmtNum } from "@/lib/admin/format";
 import { PrepPanel } from "@/components/admin/PrepPanel";
 import { CarPhotos } from "@/components/admin/CarPhotos";
 import { CAR_PHOTOS_MAX } from "@/lib/admin/car-photos";
-import { adminCar, adminCarAt } from "@/lib/admin/stock-admin";
+import { adminCarAt } from "@/lib/admin/stock-admin";
 import { can } from "@/lib/permissions";
 import { carName, priceLabel } from "@/lib/stock/format";
 import { stockSource } from "@/lib/stock-source";
@@ -33,7 +33,10 @@ export default async function Page({ params, searchParams }: { params: Promise<{
   const { id } = await params;
   const sp = await searchParams;
   const costSaved = sp.cost === "saved";
-  const [car, deposits, at] = await Promise.all([adminCar(id), hasModule("sales"), adminCarAt(id).then((c) => c?.at)]);
+  // One read for the car and when it was written, so the form never pairs an older car with a newer time (#15).
+  const [opened, deposits] = await Promise.all([adminCarAt(id), hasModule("sales")]);
+  const car = opened?.car;
+  const at = opened?.at;
   if (!car) notFound();
   const [margins, canDelete] = await Promise.all([can("margins"), can("settings")]);
   const cost = margins ? { eur: (await costsStore.get(id))?.costEur } : undefined;
