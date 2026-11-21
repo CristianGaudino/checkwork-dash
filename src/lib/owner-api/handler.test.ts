@@ -4,7 +4,7 @@ vi.mock("server-only", () => ({}));
 import { ownerGet } from "./handler";
 
 afterEach(() => vi.unstubAllEnvs());
-const call = (q: string, token?: string) => new Request(`https://site.example/api/owner/v1/summary${q}`, token ? { headers: { authorization: `Bearer ${token}` } } : {});
+const call = (q: string, token?: string) => new Request(`https://site.example/api/owner/v1/summary${q}${q ? "&" : "?"}dealer=checkwork-motors`, token ? { headers: { authorization: `Bearer ${token}` } } : {});
 
 describe("the owner API's door", () => {
   it("answers 404 with no body when there is no token, a wrong one, or none set on the site", async () => {

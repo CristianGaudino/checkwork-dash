@@ -6,7 +6,7 @@ const reset = vi.fn(async () => {});
 vi.mock("@/lib/admin/demo-reset", () => ({ resetDemoRecords: reset }));
 const { POST } = await import("./route");
 
-const call = (key?: string) => POST(new Request("https://x/api/demo/reset", { method: "POST", headers: key ? { authorization: `Bearer ${key}` } : {} }));
+const call = (key?: string, dealer = "checkwork-motors") => POST(new Request(`https://x/api/demo/reset?dealer=${dealer}`, { method: "POST", headers: key ? { authorization: `Bearer ${key}` } : {} }));
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -21,6 +21,14 @@ describe("the weekly demo reset", () => {
     expect((await call("wrong")).status).toBe(404);
     expect((await call("k")).status).toBe(200);
     expect(reset).toHaveBeenCalledOnce();
+  });
+  it("is not there for a dealer that is not a demo, nor for one the directory does not have", async () => {
+    vi.stubEnv("CRON_KEY", "k");
+    vi.stubEnv("APP_ENV", "demo");
+    expect((await call("k", "test-motors")).status).toBe(404);
+    expect((await call("k", "nobody-motors")).status).toBe(404);
+    expect((await call("k", "")).status).toBe(404);
+    expect(reset).not.toHaveBeenCalled();
   });
   it("is not there on a dealer's own site, even with the key", async () => {
     vi.stubEnv("CRON_KEY", "k");

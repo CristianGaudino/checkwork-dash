@@ -1,16 +1,16 @@
 import { revalidatePath } from "next/cache";
-import { seedsDemoRecords } from "@/lib/admin/docs";
+import { demoRecordsFor } from "@/lib/admin/docs";
 import { resetDemoRecords } from "@/lib/admin/demo-reset";
-import { cronAuthorized } from "@/lib/cron";
 import { isDemoSite } from "@/lib/site";
+import { dealerJob } from "@/lib/tenancy/jobs";
 
-const headers = { "Cache-Control": "no-store", "X-Robots-Tag": "noindex" };
-
-// The Worker's morning cron (worker.mjs) puts the demo's made-up records back to their seed, dated from today, with CRON_KEY; on a Monday after the deploy moved the demo
-// cars' sold dates, so a sale's day matches its car's again. The demo deploy only: anywhere else it is not there.
-export async function POST(req: Request) {
-  if (!cronAuthorized(req) || !isDemoSite() || !seedsDemoRecords()) return new Response(null, { status: 404, headers });
-  await resetDemoRecords();
-  revalidatePath("/", "layout");
-  return Response.json({ ok: true }, { headers });
-}
+// The Worker's morning cron (worker.mjs) puts a demo dealer's made-up records back to their seed, dated from today, with CRON_KEY and the
+// dealer's id; on a Monday after the deploy moved the demo cars' sold dates, so a sale's day matches its car's again. The demo deploy and a
+// demo dealer only: anywhere else it is not there.
+export const POST = (req: Request) =>
+  dealerJob(req, async (dealer) => {
+    if (!isDemoSite() || !demoRecordsFor(dealer)) return null;
+    await resetDemoRecords();
+    revalidatePath("/", "layout");
+    return { ok: true };
+  });
