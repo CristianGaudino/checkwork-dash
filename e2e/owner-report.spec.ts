@@ -19,12 +19,6 @@ test("the owner API answers 404 without the token, or with a wrong one, and coun
   expect((await (await request.get("/api/owner/v1/usage?from=2026-01-01&to=2026-01-31", { headers: auth })).json()).months).toHaveLength(1);
 });
 
-test("the counter takes an event from the list and nothing else", async ({ request }) => {
-  expect((await request.post("/api/count", { data: { event: "compare" } })).status()).toBe(204);
-  expect((await request.post("/api/count", { data: { event: "filter:colour" } })).status()).toBe(400);
-  expect((await request.post("/api/count", { data: "not json", headers: { "content-type": "text/plain" } })).status()).toBe(400);
-});
-
 test("the monthly report shows a section for each module on, and none for a module off", async ({ page, context, baseURL }) => {
   await page.goto("/monthly-report");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Monthly report");

@@ -62,7 +62,7 @@ test("sales has no Billing page", async ({ page, context }) => {
 test("a help request is sent and shows in the list with its page", async ({ page, context }) => {
   await as(context, "Sales");
   // A link from a page (as Billing's) says which page it came from; the menu's Help says none.
-  await page.goto("/help?from=%2Fdashboard%2Fstock");
+  await page.goto("/help?from=%2Fstock");
   await expect(page.getByRole("link", { name: /Call/ })).toHaveAttribute("href", "tel:+35319060099");
   const text = `Where do I change a price ${Date.now()}`;
   await page.getByLabel("Your message").fill(text);
