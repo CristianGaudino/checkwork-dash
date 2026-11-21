@@ -6,15 +6,16 @@ import { NavProgress } from "@/components/NavProgress";
 import { Toaster } from "@/components/Toaster";
 import { DemoBar } from "@/components/demo/DemoBar";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { DealerGate } from "@/components/admin/DealerChooser";
 import { DashboardBeacon } from "@/components/admin/DashboardBeacon";
 import { DEALER_NAV, DENSITY_COOKIE, NAV_COOKIE, RAIL_COOKIE, parseOpenGroups } from "@/lib/admin/nav";
 import { DEMO_BAR_ENABLED, THEME_SCRIPT, adminReachable } from "@/lib/demo";
 import { currentMember } from "@/lib/permissions";
 import { roleCan } from "@/lib/permission-rules";
-import { SITE_NAME } from "@/lib/site";
 import { stockSource } from "@/lib/stock-source";
 import { enabledModules } from "@/lib/modules";
 import { pathAllowed } from "@/lib/modules-rules";
+import { dealerAccess } from "@/lib/tenancy/membership";
 import "./globals.css";
 
 // Sora, from a file kept in the repo (src/app/fonts): no request to Google when a page loads, and none when the app is built. One
@@ -30,12 +31,28 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: { default: "Dealer dashboard", template: "%s | Dealer dashboard" }, robots: { index: false } };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // Which dealer this is, from the directory (src/lib/tenancy). With none open, the page is the chooser or "No access" and nothing else: no
+  // menu, no page. Every store refuses without a dealer too, and every action (requireStaff), so this is not the only lock.
+  const access = await dealerAccess();
+  if (access.state !== "ok")
+    return (
+      <html lang="en-IE" className={`${sora.variable} ${inter.variable}`} suppressHydrationWarning>
+        <head>
+          <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+        </head>
+        <body className="flex min-h-dvh flex-col">
+          <DealerGate choices={access.state === "choose" ? access.choices : undefined} />
+        </body>
+      </html>
+    );
   // break-ui: both imports sit inside the dev branch, so a production build leaves them out entirely.
   const dev = process.env.NODE_ENV === "development" ? { Toggle: (await import("@/components/DevDataToggle")).DevDataToggle, mode: await (await import("@/lib/dev-data")).devMode() } : null;
   const [{ role }, source, jar, modules] = await Promise.all([currentMember(), stockSource(), cookies(), enabledModules()]);
   // A screen that needs a permission is left out of the menu, and the page itself refuses (notFound) without it. So is one for stock kept
   // here, for a dealer whose stock is on DoneDeal, and one of a module the dealer does not have (#173; the proxy refuses its pages).
   const nav = DEALER_NAV.filter((i) => (!i.permission || roleCan(role, i.permission)) && !(i.ours && source === "donedeal") && pathAllowed(i.href, modules) && (!i.module || [i.module].flat().some((m) => modules.has(m))));
+  // Someone at several dealers switches between them from the menu.
+  if (access.choices.length > 1) nav.push({ href: "/dealers", label: "Switch dealer", icon: "home", group: "Settings and help" });
   return (
     <html lang="en-IE" className={`${sora.variable} ${inter.variable}`} suppressHydrationWarning>
       <head>
@@ -48,7 +65,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <NavProgress />
         </Suspense>
         {DEMO_BAR_ENABLED && <DemoBar showAreas={adminReachable() || process.env.NEXT_PUBLIC_ACCESS_ENABLED === "1"} />}
-        <AdminShell title={SITE_NAME} subtitle="Dealer dashboard" nav={nav} navLabel="Dealer dashboard" openGroups={parseOpenGroups(jar.get(NAV_COOKIE)?.value)} rail={jar.get(RAIL_COOKIE)?.value === "1"} compact={jar.get(DENSITY_COOKIE)?.value === "compact"}>
+        <AdminShell title={access.dealer.name} subtitle="Dealer dashboard" nav={nav} navLabel="Dealer dashboard" openGroups={parseOpenGroups(jar.get(NAV_COOKIE)?.value)} rail={jar.get(RAIL_COOKIE)?.value === "1"} compact={jar.get(DENSITY_COOKIE)?.value === "compact"}>
           <DashboardBeacon />
           {children}
         </AdminShell>

@@ -16,7 +16,7 @@ describe("the dashboard's server actions", () => {
       expect(src, "an action exported another way (export const, export default, export {...}) could skip the check").not.toMatch(/^export (const|let|var|default|\{)/m);
       const bodies = [...src.matchAll(/^export async function (\w+)[\s\S]*?\{\r?\n(.*)/gm)];
       expect(bodies.length).toBeGreaterThan(0);
-      for (const [, name, first] of bodies) expect(first, name).toMatch(/await requireStaff\(\)/);
+      for (const [, name, first] of bodies) expect(first, name).toMatch(/await requireStaff\((?:"choosing")?\)/); // "choosing": the dealer chooser only
     });
   }
 });
