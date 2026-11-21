@@ -24,8 +24,8 @@ export async function proxy(req: NextRequest) {
   return notThere(req);
 }
 
-// Every page. Not the routes that check their own key (api: CRON_KEY or the owner token; the photo and media routes) nor the static files
-// (Next's own, the car photos and the brand files in public/).
+// Every page. Not the routes that check their own key (api: CRON_KEY, the owner token or a website key, /api/site; the photo and media
+// routes) nor the static files (Next's own, the car photos and the brand files in public/).
 export const config = {
   matcher: ["/((?!api/|car-photos/|media-files/|lead-photos/|_next/|stock/|brand/|brands/|icon\\.|favicon\\.ico).*)"],
 };

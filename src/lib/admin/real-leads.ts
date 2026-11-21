@@ -40,7 +40,8 @@ async function customerId(row: LeadRow): Promise<string> {
 
 export type Mirror = { lead?: Lead; drive?: TestDrive; alert?: StockAlert };
 // emailed is false when the email to the dealer failed: the lead says so, as its first note, so the team replies from here.
-export function mirrorOf(row: LeadRow, emailed = true, service = true): Mirror {
+// `photos`: how many photos came with it on the dealer's website (the site API sends the count only; the photos stay with the website).
+export function mirrorOf(row: LeadRow, emailed = true, service = true, photos = 0): Mirror {
   const id = `real-${row.id}`;
   const at = row.consentAt.getTime();
   if (row.type === "alert") {
@@ -65,15 +66,18 @@ export function mirrorOf(row: LeadRow, emailed = true, service = true): Mirror {
     ...(typeof row.details.topic === "string" && { topic: row.details.topic, answers: Object.fromEntries(ANSWER_KEYS.filter((k) => typeof row.details[k] === "string").map((k) => [k, String(row.details[k])])) }),
     ...(row.photoKeys.length > 0 && { photoKeys: row.photoKeys }),
     ...(row.details.whatsappOptIn === "yes" && row.phone && { whatsappOptIn: true }), // the schema takes only "yes"; WhatsApp needs a number
-    notes: emailed ? [] : [{ at, text: "The email about this lead didn't reach you. Reply from here." }],
+    notes: [
+      ...(emailed ? [] : [{ at, text: "The email about this lead didn't reach you. Reply from here." }]),
+      ...(photos > 0 ? [{ at, text: `Sent with ${photos === 1 ? "1 photo" : `${photos} photos`}, kept by your website.` }] : []),
+    ],
     createdAt: at,
   };
   return { lead, drive };
 }
 
 // Best effort: the lead is already stored, so a failure here must never turn into a failed form.
-export async function mirrorLead(row: LeadRow, emailed = true): Promise<void> {
-  const m = mirrorOf(row, emailed, await hasModule("service"));
+export async function mirrorLead(row: LeadRow, emailed = true, photos = 0): Promise<void> {
+  const m = mirrorOf(row, emailed, await hasModule("service"), photos);
   if (m.alert) await alertsStore.put(m.alert);
   if (m.lead) await leadsStore.put(m.lead);
   if (m.drive) {

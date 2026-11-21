@@ -7,6 +7,7 @@ vi.mock("server-only", () => ({}));
 // A clone for a real dealer must not open its dashboard on made-up leads, reviews and people.
 async function fresh() {
   vi.resetModules();
+  delete (globalThis as { __checkworkDocs?: unknown }).__checkworkDocs; // the record store's memory is shared across module copies (docs.ts)
   return import("./collections");
 }
 

@@ -69,8 +69,8 @@ What differs between dealers beyond their records is in their profile (#5): one 
   shows the name). A demo dealer's base is the made-up demo business (`DEMO_PROFILE`: every module, its facts and logo); the demo reset
   puts its profile back to that.
 - **Billing settings** (term, branches, brands, ceilings, caps) were already per dealer: the settings record in the dealer's own store.
-- **Not per dealer yet:** the time zone (Europe/Dublin for all), the finance terms and the website's intake rules (`src/lib/finance/`,
-  `src/lib/leads/schema.ts`, the demo's, until the site API, #7), and the services' keys (Worker secrets, ours).
+- **Not per dealer yet:** the time zone (Europe/Dublin for all), the finance terms (`src/lib/finance/`) and the services' keys (Worker
+  secrets, ours). A lead from the site API is checked against the dealer's own opening hours (`leadSchemaFor`, docs/site-api.md).
 
 ## Dealers kept apart
 
@@ -91,14 +91,16 @@ code path reaches another dealer's (#3, #4, #6; `src/lib/tenancy/`).
 - **Who is on the team and as what** is the directory's. The rest of what the dealer knows about a person (name, WhatsApp phone, alerts)
   stays in the dealer's own store, by email. Settings, Team changes both together (`changeTeamMember` in `src/lib/admin/collections.ts`):
   the directory first, so a failure there changes nothing; if the dealer's own record then fails, the directory is put back.
-- **Outside a request** (the Worker's jobs, later the site API) code runs inside `runAsDealer(id, fn)`, and everything in it uses that
+- **Outside a request** (the Worker's jobs, the site API) code runs inside `runAsDealer(id, fn)`, and everything in it uses that
   dealer. A job's route takes the dealer's id from the request only behind `CRON_KEY` (`dealerJob` in `src/lib/tenancy/jobs.ts`).
 - **Jobs** (`worker.mjs`): each cron runs each job once per active dealer in the directory, in that dealer's database and photo prefix. One
   dealer's failure never stops the next; the run fails if any failed. Logs carry the job, the dealer's id and counts only. The demo reset
   runs for demo dealers only.
 - **Photos and media** are kept in the one bucket under `dealers/<id>/` (`prefixedBucket`, `src/lib/tenancy/bucket.ts`). `/car-photos`,
   `/media-files` and `/lead-photos` read under the current dealer's prefix only, so they serve a dealer's files to its own members and
-  nothing to anyone else. Serving car photos to the dealer's own website is the site API's job (#7), not built yet.
+  nothing to anyone else. Serving car photos to the dealer's own website is not built yet (`docs/site-api.md`).
+- **The site API** (`/api/site/v1`, `docs/site-api.md`): a dealer's website sends leads and reads its cars with a key made in Settings.
+  The key decides the dealer, and the work runs inside `runAsDealer`; nothing in a request can name another dealer.
 - **A demo dealer** (the directory's `demo` flag) behaves as the demo on any deploy, the one shared production deploy included: its
   made-up records are seeded (`demoRecordsFor` in `src/lib/admin/docs.ts`), its outward services are simulated (`src/lib/integrations.ts`),
   its reviews are the made-up ones, its lead emails say DEMO, and the morning cron and Settings put it back to its seed. A dealer that is

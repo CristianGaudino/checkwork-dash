@@ -1,5 +1,7 @@
 # Adding a dealer
 
+Their website, if it is ours, connects with a key the dealer's owner or manager makes in Settings (`docs/site-api.md`).
+
 One app serves every dealer. Each dealer has a D1 database of its own (EU jurisdiction), and the directory (`DIRECTORY`) says which dealers
 there are and who works at each. How they are kept apart: `docs/dealer-admin.md`, "Dealers kept apart".
 

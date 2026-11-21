@@ -3,7 +3,7 @@ import { NextRequest } from "next/server";
 
 const verify = vi.fn();
 vi.mock("@/lib/access", async (orig) => ({ ...(await orig<typeof import("@/lib/access")>()), verifyAccessJwt: (...a: unknown[]) => verify(...a) }));
-const { proxy } = await import("./proxy");
+const { proxy, config } = await import("./proxy");
 
 afterEach(() => vi.unstubAllEnvs());
 const get = (path: string, headers: Record<string, string> = {}) => proxy(new NextRequest(`https://demo.example${path}`, { headers }));
@@ -40,5 +40,17 @@ describe("the dashboard gate in the proxy", () => {
     expect((await get("/margins", { "cf-access-jwt-assertion": "a.b.c" })).status).toBe(200);
     verify.mockResolvedValueOnce(null);
     expect((await get("/", { "cf-access-jwt-assertion": "a.b.c", "x-admin-email": "forged@evil.example" })).status).toBe(404);
+  });
+});
+
+describe("what the gate covers", () => {
+  // The matcher as Next reads it: a path the pattern does not match never reaches the proxy.
+  const gated = (path: string) => new RegExp(`^${config.matcher[0]}$`).test(path);
+  it("leaves the site API to its own key (dealer websites call it), as it does the other API routes, and gates every page", () => {
+    expect(gated("/api/site/v1/leads")).toBe(false);
+    expect(gated("/api/site/v1/stock")).toBe(false);
+    expect(gated("/api/owner/v1/summary")).toBe(false);
+    expect(gated("/leads")).toBe(true);
+    expect(gated("/settings")).toBe(true);
   });
 });

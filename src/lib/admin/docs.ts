@@ -9,11 +9,11 @@ import type { Dealer } from "@/lib/tenancy/directory";
 // store (src/lib/tenancy). On the Worker it is the `admin_docs` table of that dealer's D1 database; with no D1 (next dev, the E2E run) it is
 // a map in memory, one per dealer, so the areas work with nothing set up and dealers stay apart there too.
 // A collection starts from its seed function the first time it is read, so a fresh database shows a lived-in demo.
-// shortcut: memory is per server instance (and `next start` gives route handlers their own copy, apart from pages and actions), so with no
-// D1 binding edits last only as long as the process, and a route handler sees the seed. Fine for dev and tests; the Worker uses D1.
+// shortcut: memory is per server instance, so with no D1 binding edits last only as long as the process. Fine for dev and tests; the Worker
+// uses D1. Kept on globalThis because `next start` bundles route handlers (the site API) apart from pages and actions: one copy for both.
 export type Doc = { id: string } & Record<string, unknown>;
 
-const memory = new Map<string, Map<string, Map<string, Doc>>>(); // dealer id, collection, record id
+const memory = ((globalThis as { __checkworkDocs?: Map<string, Map<string, Map<string, Doc>>> }).__checkworkDocs ??= new Map()); // dealer id, collection, record id
 export const SEEDED = "_seeded"; // collection holding one marker row per seeded collection (the activity log uses it too)
 const seededHere = new Set<string>(); // "dealer/collection" this instance already knows are seeded, so a call costs no extra query
 const memoryOf = (dealer: Dealer) => memory.get(dealer.id) ?? memory.set(dealer.id, new Map()).get(dealer.id)!;
