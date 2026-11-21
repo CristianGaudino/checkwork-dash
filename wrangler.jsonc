@@ -29,7 +29,11 @@
 	"ratelimits": [{ "name": "LEAD_LIMITER", "namespace_id": "1001", "simple": { "limit": 5, "period": 60 } }, { "name": "COUNT_LIMITER", "namespace_id": "1002", "simple": { "limit": 20, "period": 60 } }, { "name": "AI_LIMITER", "namespace_id": "1003", "simple": { "limit": 10, "period": 60 } }],
 	// Lead photos, car photos, media and help screenshots: private, EU jurisdiction, read only through their routes. wrangler dev uses a local bucket.
 	"r2_buckets": [{ "binding": "LEAD_PHOTOS", "bucket_name": "REPLACE_WITH_BUCKET_NAME", "jurisdiction": "eu" }],
-	// Leads, stock and the dashboard's records: Cloudflare D1. Create it once with `npx wrangler d1 create checkwork-dash --jurisdiction eu`
-	// and paste the id below (an id is not a secret). migrations_dir is where drizzle-kit writes the SQL; npm run db:migrate applies it.
-	"d1_databases": [{ "binding": "DB", "database_name": "checkwork-dash", "database_id": "REPLACE_WITH_ID", "migrations_dir": "drizzle" }]
+	// D1, EU jurisdiction. DIRECTORY lists the dealers and who works at each (src/lib/db/directory-schema.ts, drizzle-directory/). Each dealer
+	// has a database of its own for its leads, stock and records (drizzle/), bound as DB_<DEALER>: docs/new-dealer.md adds one. The ids are
+	// the owner's to fill in (wrangler d1 create ... --jurisdiction eu prints them); never a real id in this public repo until the owner says so.
+	"d1_databases": [
+		{ "binding": "DIRECTORY", "database_name": "checkwork-directory", "database_id": "REPLACE_WITH_ID", "migrations_dir": "drizzle-directory" },
+		{ "binding": "DB_CHECKWORK_MOTORS", "database_name": "checkwork-dealer-checkwork-motors", "database_id": "REPLACE_WITH_ID", "migrations_dir": "drizzle" }
+	]
 }

@@ -2,8 +2,8 @@
 
 The Checkwork dealer dashboard: leads, test drives, stock, customers, sales, marketing, reports and billing for a car dealer. One shared
 app at https://www.dash.checkwork.ie, behind Cloudflare Access. Each dealer's website is a separate app made from
-[checkwork-demo](https://github.com/CristianGaudino/checkwork-demo). Today it serves one dealer: the demo dealer, Checkwork Motors, with
-made-up records.
+[checkwork-demo](https://github.com/CristianGaudino/checkwork-demo). Each dealer's records live in a D1 database of its own, and a
+directory lists the dealers and who works at each (`docs/new-dealer.md`). The demo dealer, Checkwork Motors, has made-up records.
 
 Next.js 16 (App Router), Tailwind CSS v4, Cloudflare Workers through OpenNext, D1 with Drizzle, Vitest and Playwright.
 

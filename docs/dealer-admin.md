@@ -1,6 +1,6 @@
 # Dealer dashboard
 
-This app is the dealer dashboard, at the root of https://www.dash.checkwork.ie (`/` is the overview, `/leads` the leads and so on). It came out of checkwork-demo, where it lived under `/dashboard` (history). The dealer's website (Showroom) is a separate app made from checkwork-demo: where the dashboard links to a car or a page there it uses the full address (`SITE_URL` in `src/lib/site.ts`) in a new tab. Parts below that describe the website's pages (`/contact`, `/reviews`, `/warranty` and so on) are kept because the dashboard works on what they send. The demo bar at the foot of every page holds the role, plan, DoneDeal and theme switches. There is no login of our own: on a deployed app Cloudflare Access is the login (see below). There is no superuser role and no platform here yet: running many dealers is the next step (GitHub issues).
+This app is the dealer dashboard, at the root of https://www.dash.checkwork.ie (`/` is the overview, `/leads` the leads and so on). It came out of checkwork-demo, where it lived under `/dashboard` (history). The dealer's website (Showroom) is a separate app made from checkwork-demo: where the dashboard links to a car or a page there it uses the full address (`SITE_URL` in `src/lib/site.ts`) in a new tab. Parts below that describe the website's pages (`/contact`, `/reviews`, `/warranty` and so on) are kept because the dashboard works on what they send. The demo bar at the foot of every page holds the role, plan, DoneDeal and theme switches. There is no login of our own: on a deployed app Cloudflare Access is the login (see below). One app serves every dealer, each in a store of its own (see "Dealers kept apart"). There is no superuser role and no platform area.
 
 ## Modules
 
@@ -45,15 +45,51 @@ permissions, each checked on the server in every page and action that needs it (
 Who the person is:
 - **On the demo** (the demo bar is on) the bar's role buttons (Owner, Manager, Sales, Finance), shown while viewing as the dealer, set a
   cookie the server reads, and the demo acts as the first team member with that role. It opens as the owner, so every feature shows.
-- **On a real site** (the demo bar is off, `NEXT_PUBLIC_DEMO_BAR=off`) the signed-in Access email, which the proxy verifies and passes on.
-  An address in `ADMIN_OWNER_EMAILS` is an owner (that is how a new dealer, with no team yet, gets in to set one up); anyone else has the
-  role their email has on the team in Settings, or none. A cookie never grants anything there.
+- **On a real site** (the demo bar is off, `NEXT_PUBLIC_DEMO_BAR=off`) the signed-in Access email, which the Worker verifies itself, and
+  the role the directory gives that email at the dealer that is open. A new dealer's first owner is added to the directory by
+  `scripts/add-dealer.mjs` (`docs/new-dealer.md`); everyone else is added in Settings, Team. A cookie never grants anything there.
+
+## Dealers kept apart
+
+One app at www.dash.checkwork.ie serves every dealer. Each dealer's leads, stock, records, activity history and photos are its own, and no
+code path reaches another dealer's (#3, #4, #6; `src/lib/tenancy/`).
+
+- **Stores.** Each dealer has a D1 database of its own (EU jurisdiction), bound in `wrangler.jsonc` as `DB_<DEALER>`. The directory
+  (`DIRECTORY`, its own D1 database, `src/lib/db/directory-schema.ts`, migrations in `drizzle-directory/`) lists the dealers (id, name,
+  binding, demo, active or paused) and their members (email, role). Adding one: `docs/new-dealer.md`.
+- **The current dealer** (`currentDealer()` in `src/lib/tenancy/current.ts`) is the only way to a store: `getDb()` gives the current
+  dealer's database, `dealerBucket()` its part of the bucket, and the record store, stock and the activity log go through them. No current
+  dealer, or a dealer whose binding is missing, throws: never another dealer's store, never a shared one.
+- **In a request** it comes from the signed-in person (`staffIdentity()` in `src/lib/staff.ts`, the one function our own sign-in, #10,
+  replaces) and their memberships in the directory (`dealerAccess()` in `src/lib/tenancy/membership.ts`, once a request). Someone at one
+  dealer gets it. Someone at several chooses (the chooser, and Switch dealer in the menu, `/dealers`); the choice is a cookie that is only a
+  preference, checked against their memberships on every request and action, so a cookie, form, query or header naming another dealer opens
+  nothing. An email at no dealer sees "No access" and nothing else, and every action refuses (`requireStaff()`).
+- **Who is on the team and as what** is the directory's. The rest of what the dealer knows about a person (name, WhatsApp phone, alerts)
+  stays in the dealer's own store, by email. Settings, Team changes both together (`changeTeamMember` in `src/lib/admin/collections.ts`):
+  the directory first, so a failure there changes nothing; if the dealer's own record then fails, the directory is put back.
+- **Outside a request** (the Worker's jobs, later the site API) code runs inside `runAsDealer(id, fn)`, and everything in it uses that
+  dealer. A job's route takes the dealer's id from the request only behind `CRON_KEY` (`dealerJob` in `src/lib/tenancy/jobs.ts`).
+- **Jobs** (`worker.mjs`): each cron runs each job once per active dealer in the directory, in that dealer's database and photo prefix. One
+  dealer's failure never stops the next; the run fails if any failed. Logs carry the job, the dealer's id and counts only. The demo reset
+  runs for demo dealers only.
+- **Photos and media** are kept in the one bucket under `dealers/<id>/` (`prefixedBucket`, `src/lib/tenancy/bucket.ts`). `/car-photos`,
+  `/media-files` and `/lead-photos` read under the current dealer's prefix only, so they serve a dealer's files to its own members and
+  nothing to anyone else. Serving car photos to the dealer's own website is the site API's job (#7), not built yet.
+- **Demo records** are seeded only for a dealer the directory marks as a demo, and only where demo records are on (`demoRecordsFor` in
+  `src/lib/admin/docs.ts`). A dealer that is not a demo starts empty and never gets the reset.
+- **Without D1** (`next dev`, the E2E run, unit tests) the directory and every store are in memory, kept per dealer. The directory then has
+  two dealers: Checkwork Motors (the demo, with its made-up team) and Test Motors (empty, not a demo). The open app's person
+  (`dev@checkwork.invalid`, `DEV_EMAIL`) is at both and opens the demo by default, with the role the demo bar picks.
+- **Tests** that prove it: `src/lib/tenancy/*.test.ts` (in memory and on a SQLite database per dealer with the real migrations, through
+  the real `getDb()`), `src/lib/admin/team.test.ts` and `e2e/dealers.spec.ts`.
+- **Caches** that remember anything (which collections are seeded, the stock snapshot, the owner API's answers) are kept per dealer.
 
 ## Rules
 
 - **Every dashboard action checks the login itself.** Next runs a server action on a POST to any page, so the proxy's gate on `/`
-  paths is not enough: each action starts with `requireStaff()` (`src/lib/staff.ts`), which verifies the Access token, and who the person
-  is comes from that token, never from a header. Open where the dashboard is open (development, `NEXT_PUBLIC_ADMIN_OPEN=1`).
+  paths is not enough: each action starts with `requireStaff()` (`src/lib/staff.ts`), which verifies the Access token and that the person
+  has a dealer open (the directory), and who the person is comes from that token, never from a header. Open where the dashboard is open (development, `NEXT_PUBLIC_ADMIN_OPEN=1`).
 - **Real visitor records only appear behind Cloudflare Access.** The admin shows seeded records plus what visitors send (leads, test drives, stock alerts). That is personal data, so on a deployed site the admin only answers with a valid Access token (checked in `src/proxy.ts`). `NEXT_PUBLIC_ADMIN_OPEN=1` skips the check and is for CI only: never set it on a deploy. Only `next dev` is open without it. Any build, even one that forgot `APP_ENV`, is closed, and the demo bar's role cookie only counts on the demo deploy (`APP_ENV=demo`).
 - **Posting, ads and newsletters are simulated on the demo, and send nothing outside.** They go through `src/lib/admin/publishers.ts`. With no keys, and simulation on (the default everywhere except a production site, `APP_ENV=production`; set `SIMULATE_INTEGRATIONS` to `on` or `off` to override), each reports success marked `simulated`, and the admin records made-up figures so the flow can be shown. With `SIMULATE_INTEGRATIONS=off` and no keys they say "not connected". With keys they say "not switched on" until the real adapter replaces the marked line. Lead email, the bot check and reviews are never simulated: Settings shows their true state. A unit test pins all three modes.
 - **What visitors send reaches the admin.** A test drive booking and a stock alert are lead types in the one lead pipeline (consent, bot check, rate limit, retention). After a lead is stored, `src/lib/admin/real-leads.ts` copies it into the admin's collections (ids start `real-`) so the dealer can work it. The daily purge deletes the copies with the lead.
@@ -90,8 +126,9 @@ with no D1). The actor is the signed-in person (`currentMember`), or a named one
   price, and a car with a deposit held is neither sold nor deleted until its reservation is ended. Marked sold this way, each car keeps
   its Record sale button.
 - **Photos** (#21): on the car's page, add several at once, choose the main one, remove one. The browser shrinks each to a 1,600px
-  JPEG (dropping its location data) and the server checks the bytes. On the Worker they are stored in R2 under `cars/{id}/` in the
-  `LEAD_PHOTOS` bucket (its lifecycle rule only touches `trade-in/`) and served by `/car-photos`, which serves that prefix only. With no
+  JPEG (dropping its location data) and the server checks the bytes. On the Worker they are stored in R2 under `dealers/<dealer>/cars/{id}/`
+  in the `LEAD_PHOTOS` bucket (its lifecycle rules only touch each dealer's `trade-in/`) and served by `/car-photos`, which serves that
+  prefix only, the current dealer's, to its members. With no
   bucket (dev, E2E) a photo stays in the car as a `data:` URL, in memory. Deleting a car deletes its stored photos. The demo's deploy
   still reseeds the stock, so photos added on the demo go at the next deploy.
 
@@ -221,7 +258,8 @@ cars are added, changed and sold on DoneDeal only. The dashboard never edits the
 
 ## Cloudflare Access (owner set-up, once)
 
-1. Zero Trust, Access, Applications, Add, Self-hosted. Add the whole of `www.dash.checkwork.ie`. Allow only the dealers' email addresses. Give `/api/owner*` its own application with a Bypass policy (the owner's program brings its own token, `docs/owner-api.md`).
+1. Zero Trust, Access, Applications, Add, Self-hosted. Add the whole of `www.dash.checkwork.ie`. Access only proves the email (a one-time
+   PIN is enough, #4): who may open which dealer is the app's decision, from the directory, so there is nothing to change here per person. Give `/api/owner*` its own application with a Bypass policy (the owner's program brings its own token, `docs/owner-api.md`).
 2. Copy the application's Audience tag. Your team domain is `<team>.cloudflareaccess.com`.
 3. On the Worker, add two variables (not secrets): `CF_ACCESS_TEAM_DOMAIN` and `CF_ACCESS_AUD`.
 
@@ -321,7 +359,8 @@ The `whatsapp` module. On the demo it is simulated (integration `whatsapp`): `/w
 | What | Where |
 |---|---|
 | AI writing (Claude with a key, the mock without), media library | `src/lib/ai/`, `src/lib/admin/media.ts` |
-| Record store (one D1 table, `admin_docs`; memory with no D1) | `src/lib/admin/docs.ts` |
+| Dealers kept apart: the directory, the current dealer, `runAsDealer`, the bucket prefix, jobs | `src/lib/tenancy/`, `src/lib/db/directory-schema.ts`, `docs/new-dealer.md` |
+| Record store (one D1 table, `admin_docs`, in the dealer's database; memory with no D1) | `src/lib/admin/docs.ts` |
 | The dealer's collections, types and seeds | `src/lib/admin/collections.ts`, `seed-data.ts` |
 | WhatsApp: templates, price parser, sender, handlers, conversation | `src/lib/whatsapp/`, `src/app/whatsapp/` |
 | Roles and permissions | `src/lib/permissions.ts`, `permission-rules.ts` |

@@ -1,5 +1,9 @@
 # Lead retention and erasure
 
+Since one app serves every dealer (`docs/new-dealer.md`), each dealer's leads are in that dealer's own database (`DB_<DEALER>` below where
+this page says `DB`) and its photos under `dealers/<dealer id>/` in the bucket (so `trade-in/` below is `dealers/<dealer id>/trade-in/`, and
+the lifecycle rule is one per dealer).
+
 Leads are personal data. Deleting old leads is automatic (see "Automatic purge"). Until the admin area (#20) ships, the owner does the rest by hand (erasure on request, leads that were not emailed) with `npx wrangler d1 execute DB --remote --command "<SQL>"` (or the Cloudflare dashboard, Storage & Databases, D1, the database, Console). Times are stored as epoch milliseconds and `photo_keys` as JSON text.
 
 ## How long leads are kept

@@ -1,22 +1,23 @@
 # Owner API
 
-Read only, for the owner's own program (#62): how each live dealer site is used. Counts only, never personal data (no names, phones, emails, registrations or IPs). Built for #174.
+Read only, for the owner's own program (#62): how each dealer uses the app. One app serves every dealer, so every figure is for the dealer named in the call. Counts only, never personal data (no names, phones, emails, registrations or IPs). Built for #174.
 
-## Set up (once per site)
+## Set up (once)
 
 - Worker secret `OWNER_API_TOKEN`: a long random string. Without it the routes answer 404 to everyone.
-- Optional Worker secret `OWNER_API_MONEY=1`: adds sale values. Set it only when the dealer's contract allows.
+- Optional Worker secret `OWNER_API_MONEY=1`: adds sale values. It is one switch for the whole app until each dealer's own settings exist (#5): set it only when every dealer's contract allows.
 - The routes are under `/api/owner/`. The staff Cloudflare Access application covers the whole domain, so give `/api/owner*` its own application with a Bypass policy, or the owner's program is turned away by Access.
 
 ## Calls
 
 Send `Authorization: Bearer <OWNER_API_TOKEN>`. No token or a wrong one: `404`, as the closed dashboard answers. The token is compared in constant time.
 
-- `GET /api/owner/v1/summary?from=YYYY-MM-DD&to=YYYY-MM-DD`
-- `GET /api/owner/v1/usage?from=&to=`: billing counts by month, with costs for the month in progress only (a past month may have been on another plan; its bill is the record)
-- `GET /api/owner/v1/modules`: the modules on and the monthly plan price (`planEur`: the tier and its add-ons, before VAT)
+- `GET /api/owner/v1/dealers`: every dealer the app serves, `{"version": 1, "dealers": [{"id", "name", "status", "demo"}]}`. Ids and names only.
+- `GET /api/owner/v1/summary?dealer=<id>&from=YYYY-MM-DD&to=YYYY-MM-DD`
+- `GET /api/owner/v1/usage?dealer=<id>&from=&to=`: billing counts by month, with costs for the month in progress only (a past month may have been on another plan; its bill is the record)
+- `GET /api/owner/v1/modules?dealer=<id>`: the modules on and the monthly plan price (`planEur`: the tier and its add-ons, before VAT)
 
-`from` and `to` are Irish days, inclusive; the default is the last 30 days. More than a year, or a bad day: `400`. Answers are cached for an hour per range (`Cache-Control: private, max-age=3600`, and in the Worker).
+`dealer` is required: an id from `/dealers`. Missing or malformed: `400`; no such dealer: `404`. The figures are worked out inside that dealer's own store. `from` and `to` are Irish days, inclusive; the default is the last 30 days. More than a year, or a bad day: `400`. Answers are cached for an hour per dealer and range (`Cache-Control: private, max-age=3600`, and in the Worker).
 
 ## Shape of `summary` (version 1)
 
