@@ -16,7 +16,7 @@ const POLL_MS = 60_000;
 // The bell: what has come in, in the app only. Loaded when the page changes and once a minute, so a new request shows without a reload.
 // A native popover, placed under the bell like the row menus (RowMenu.tsx) on a desktop and a sheet from the foot of the screen over a
 // dimmed page on a phone, like the table filters: the browser closes it on Escape or a press outside. New ones come first, tinted, and
-// Earlier below them.
+// Earlier below them. Each shows what happened as its heading, with when beside it, and what it is about under it.
 export function NotificationBell() {
   const [data, setData] = useState<Data | null>(null);
   const path = usePathname();
@@ -101,8 +101,11 @@ export function NotificationBell() {
                               <Icon className="size-4" />
                             </span>
                             <span className="flex min-w-0 flex-1 flex-col">
-                              <span className={`text-body ${n.unread ? "font-semibold text-text" : ""}`}>{n.text}</span>
-                              <span className="text-meta text-text-2">{fmtAgo(n.at)}</span>
+                              <span className="flex items-baseline justify-between gap-2">
+                                <span className={`text-body ${n.unread ? "font-semibold text-text" : ""}`}>{n.text}</span>
+                                <span className="shrink-0 text-meta text-text-2">{fmtAgo(n.at)}</span>
+                              </span>
+                              {n.detail && <span className={`line-clamp-2 text-meta ${n.unread ? "text-text" : "text-text-2"}`}>{n.detail}</span>}
                             </span>
                             {n.unread && <span className="sr-only">Unread</span>}
                           </Link>

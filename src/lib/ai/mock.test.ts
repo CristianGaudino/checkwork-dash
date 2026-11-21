@@ -70,6 +70,11 @@ describe("the demo writer", () => {
     expect(reply).toContain("Hi Aoife");
     expect(reply).not.toMatch(/@|\+?\d{7}/); // no contact details
     for (const a of adjustsFor("leadReply")) expect(mockText("leadReply", lead, a), a).not.toBe(reply);
+    // The ask follows the lead's type id, whatever its label says, so a relabel never changes the reply.
+    expect(mockText("leadReply", { ...lead, kind: "Test drive request", type: "test-drive" })).toContain("set up a test drive");
+    expect(mockText("leadReply", { ...lead, kind: "Trade-in valuation", type: "trade-in" })).toContain("valuation");
+    expect(mockText("leadReply", { ...lead, kind: "Selling a car", type: "sell" })).toContain("valuation");
+    expect(reply).toContain("a call");
 
     const bad: FactsOf["reviewReply"] = { dealer: "D", firstName: "Sam", rating: 2, text: "Slow." };
     expect(mockText("reviewReply", bad)).toContain("sorry");

@@ -73,6 +73,10 @@ never the only way: `npm run deploy:prod` from a laptop with a logged-in wrangle
 - [ ] Cloudflare Access for each host, named emails only, with the Bypass applications for `/api/site/*` and `/api/owner/*` on each
   (`docs/dealer-admin.md`, "Cloudflare Access"); each application's audience tag and the team domain into `wrangler.jsonc` `vars`.
 - [ ] Secrets in each environment: `CRON_KEY` and the others in `.env.example` (`wrangler secret put <NAME>`, add `--env production`).
+- [ ] Push notifications in each environment (#11, a key pair of its own each): `node scripts/vapid-keys.mjs` for dev, or
+  `node scripts/vapid-keys.mjs --env production`. It prints the two steps: `VAPID_PUBLIC_KEY` into that environment's `vars` in
+  `wrangler.jsonc` (not a secret), and `npx wrangler secret put VAPID_PRIVATE_KEY` (add `--env production`). Until both are set,
+  Settings says notifications are not set up yet and nothing is sent.
 - [ ] The GitHub secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` for the deploy workflow.
 - [ ] The first deploy and migrations of each: `npm run deploy`, then `npm run deploy:prod`.
 - [ ] The demo dealer in each directory: `node scripts/add-dealer.mjs checkwork-motors "Checkwork Motors" <owner email> --remote --demo`

@@ -5,9 +5,9 @@ import { z } from "zod";
 import { logActivity } from "@/lib/admin/activity";
 import { addDays, dublinDay, fmtDate, isIsoDay } from "@/lib/admin/format";
 import { isOpenLead } from "@/lib/admin/leads";
-import { LEAD_STATUSES, LEAD_TYPE_LABELS, LOST_REASONS, getSettings, leadStatusLabel, leadStatusSteps, leadsStore } from "@/lib/admin/collections";
+import { LEAD_STATUSES, LOST_REASONS, getSettings, leadStatusLabel, leadStatusSteps, leadsStore } from "@/lib/admin/collections";
 import { appendNote } from "@/lib/admin/notes";
-import { notify } from "@/lib/admin/notifications";
+import { leadLine, notify } from "@/lib/admin/notifications";
 import { currentMember } from "@/lib/permissions";
 import { requireStaff } from "@/lib/staff";
 import { STALE_STATUS, movedSince } from "@/lib/admin/stale";
@@ -68,7 +68,7 @@ export async function assignLeadAction(id: string, data: FormData) {
   await logActivity("leads", to ? `Gave the lead to ${to}` : `Took the lead off ${lead.assignedTo}`, ref(id));
   // The person it was given to hears of it in their bell, unless they took it themselves.
   const me = await currentMember();
-  if (to && to !== me.name) await notify({ kind: "assigned", for: to, text: `${me.name} gave you a lead: ${LEAD_TYPE_LABELS[lead.type]}`, href: `/leads/${id}` });
+  if (to && to !== me.name) await notify({ kind: "assigned", for: to, text: `${me.name} gave you a lead`, detail: leadLine(lead), href: `/leads/${id}` });
   revalidatePath("/leads");
   revalidatePath(`/leads/${id}`);
   revalidatePath(`/aftersales/requests/${id}`);
