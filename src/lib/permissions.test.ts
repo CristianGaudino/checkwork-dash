@@ -12,7 +12,7 @@ vi.mock("next/headers", () => ({
 // The verified Access email (src/lib/staff.ts verifies the token; here the test says who it is).
 vi.mock("@/lib/staff", () => ({ staffIdentity: async () => (email === undefined ? { ok: false } : { ok: true, email: email.toLowerCase() }) }));
 vi.mock("@/lib/tenancy/membership", () => vi.importActual("@/lib/tenancy/membership")); // the real directory check, not the setup's stand-in
-const { can, currentMember } = await import("./permissions");
+const { can, currentMember, realCan } = await import("./permissions");
 const { settingsStore } = await import("@/lib/admin/collections");
 const { runAsDealer } = await import("@/lib/tenancy/current");
 const { putMember, resetMemoryDirectory } = await import("@/lib/tenancy/directory");
@@ -30,9 +30,10 @@ describe("on a demo dealer (the directory's flag, whatever the deploy)", () => {
     vi.stubEnv("APP_ENV", "production"); // the deploy does not decide: the dealer does
     email = "aoife@example.com"; // signed in through Access, at the demo dealer
     expect(await currentMember()).toMatchObject({ name: "Aoife Brennan", role: "Owner" });
-    expect(await can("margins")).toBe(true);
+    expect([await can("margins"), await realCan("team")]).toEqual([true, true]);
     cookie = "Sales";
     expect(await currentMember()).toMatchObject({ name: "Conor Doyle", role: "Sales" });
+    expect(await realCan("team")).toBe(false); // the bar's role still refuses, though the directory has her as an owner
     expect(await can("margins")).toBe(false);
     cookie = "Finance";
     expect([await can("margins"), await can("team")]).toEqual([true, false]);
@@ -48,13 +49,14 @@ describe("on any other dealer", () => {
     cookie = "Owner";
     expect(await currentMember()).toMatchObject({ role: "Sales", email: "sales@test.example" });
     expect([await can("team"), await can("settings")]).toEqual([false, false]);
+    expect([await realCan("team"), await realCan("data")]).toEqual([false, false]); // the same as can() off the demo
   });
 
   it("takes the role from the directory and grants nothing to anyone the directory does not have", async () => {
     await putMember("test-motors", "boss@test.example", "Manager");
     email = "boss@test.example";
     expect(await currentMember()).toMatchObject({ role: "Manager" });
-    expect(await can("team")).toBe(true);
+    expect([await can("team"), await realCan("team")]).toEqual([true, true]);
     expect(await can("margins")).toBe(false); // a Manager may see margins, but Test Motors' plan has no margins module
     email = "stranger@dealer.ie";
     cookie = "Owner";

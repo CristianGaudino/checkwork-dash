@@ -4,11 +4,12 @@ import { LEAD_STATUS_LABELS, LEAD_TYPE_LABELS, getSettings, leadsStore } from "@
 import { csvResponse, toCsv } from "@/lib/admin/csv";
 import { dublinDateTime, dublinDay } from "@/lib/admin/format";
 import { filterLeads, isSalesLead, parseLeadFilter } from "@/lib/admin/leads";
-import { can } from "@/lib/permissions";
+import { can, DEMO_ROLE_REFUSED, realCan } from "@/lib/permissions";
 
 // The leads list as a CSV, with the list's filters. Personal data: owners and managers only, and each export is in the activity history.
 export async function GET(req: Request) {
-  if (!(await can("data"))) return new Response(null, { status: 404 });
+  // Real personal data: the directory's role, not the demo bar's (realCan). A demo viewer the bar showed the button to is told why.
+  if (!(await realCan("data"))) return (await can("data")) ? new Response(DEMO_ROLE_REFUSED, { status: 403 }) : new Response(null, { status: 404 });
   const sp = Object.fromEntries(new URL(req.url).searchParams);
   const today = dublinDay();
   const rows = filterLeads((await leadsStore.list()).filter(isSalesLead), parseLeadFilter(sp), today, (await getSettings()).leadSlaHours);

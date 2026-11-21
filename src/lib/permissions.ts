@@ -35,3 +35,18 @@ export async function can(permission: Permission): Promise<boolean> {
   if (permission === "margins" && !(await hasModule("margins"))) return false;
   return roleCan((await currentMember()).role, permission);
 }
+
+// For effects that reach past the dashboard's own records: the directory's team, website keys, email sent from our domain, and real
+// personal data (exports, data requests). These also need the role the directory gives the signed-in person, which the demo bar's cookie
+// cannot raise, so a demo viewer trying the Owner role sees every screen but changes or takes nothing real. The screen's role still has to
+// allow it too, so the demo shows each role's refusals as before. On any other dealer the two roles are one and this is can().
+export async function realCan(permission: Permission): Promise<boolean> {
+  return (await can(permission)) && roleCan(await realRole(), permission);
+}
+export async function realRole(): Promise<Role | null> {
+  const a = inDealerScope() ? null : await dealerAccess();
+  return a?.state === "ok" ? a.role : null;
+}
+// What a refused real effect says: plainly that the demo bar's role does not count, when it was the cookie that showed the screen.
+export const refusal = async (permission: Permission, otherwise: string) => ((await can(permission)) ? DEMO_ROLE_REFUSED : otherwise);
+export const DEMO_ROLE_REFUSED = "Your own role cannot do this. The role in the demo bar only shows the screens.";

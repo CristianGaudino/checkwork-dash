@@ -9,7 +9,7 @@ import { EMAIL_INVALID, NAME_REQUIRED } from "@/lib/copy";
 import { newId } from "@/lib/admin/ids";
 import { mayResetDemo } from "@/lib/admin/docs";
 import { fieldErrors } from "@/lib/admin/validation";
-import { can, currentMember } from "@/lib/permissions";
+import { can, currentMember, realCan, realRole, refusal } from "@/lib/permissions";
 import { ROLES, type Role } from "@/lib/permission-rules";
 import { logActivity } from "@/lib/admin/activity";
 import { currentDealer } from "@/lib/tenancy/current";
@@ -24,6 +24,8 @@ export type SettingsState = { errors?: Record<string, string>; saved?: boolean }
 // Only owners and managers change the business settings, checked here whatever the page showed.
 const NOT_ALLOWED = "Only an owner or manager can change this";
 const refused = async (field: string): Promise<SettingsState | null> => ((await can("settings")) ? null : { errors: { [field]: NOT_ALLOWED } });
+// The same for what reaches outside the dashboard (emails sent, website keys): the directory's role, not the demo bar's (realCan).
+const refusedReal = async (field: string): Promise<SettingsState | null> => ((await realCan("settings")) ? null : { errors: { [field]: await refusal("settings", NOT_ALLOWED) } });
 
 // Reads the current record, applies one change and writes it back, so each panel saves on its own.
 async function change(fn: (s: DealerSettings) => DealerSettings) {
@@ -105,7 +107,7 @@ export async function saveBusinessAction(_p: SettingsState, data: FormData): Pro
 const MAX_LEAD_EMAILS = 5;
 export async function saveLeadEmailsAction(_p: SettingsState, data: FormData): Promise<SettingsState> {
   await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
-  const no = await refused("leadEmails");
+  const no = await refusedReal("leadEmails");
   if (no) return no;
   const list = [...new Set(String(data.get("leadEmails") ?? "").split(/[\s,;]+/).map((e) => e.trim().toLowerCase()).filter(Boolean))];
   if (list.length > MAX_LEAD_EMAILS) return { errors: { leadEmails: `Use ${MAX_LEAD_EMAILS} addresses or fewer` } };
@@ -120,7 +122,7 @@ export async function saveLeadEmailsAction(_p: SettingsState, data: FormData): P
 // Sends one test message to the saved addresses so the dealer can see it arrive.
 export async function sendTestEmailAction(): Promise<SettingsState> {
   await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
-  const no = await refused("test");
+  const no = await refusedReal("test");
   if (no) return no;
   try {
     await sendToDealer({ subject: "Test email from your dealer dashboard", text: "If you can read this, new leads will reach this address." });
@@ -137,11 +139,11 @@ const NO_TEAM = "Only an owner or manager can change the team";
 const OWNERS_ONLY = "Only an owner can change an owner";
 const NO_OWNER = "Keep at least one owner on the team";
 const hasOwner = (team: DealerSettings["team"]) => team.some((t) => t.role === "Owner");
-// Whether the signed-in person may make a change that touches these roles (the person's old and new role).
+// Whether the signed-in person may make a change that touches these roles (the person's old and new role). The team is also the directory's
+// list of who may sign in, so this also needs the directory's role, which the demo bar's cannot raise (realCan).
 async function mayTouch(...roles: (Role | undefined)[]): Promise<string | null> {
-  const me = await currentMember();
-  if (!(await can("team"))) return NO_TEAM;
-  return roles.includes("Owner") && me.role !== "Owner" ? OWNERS_ONLY : null;
+  if (!(await realCan("team"))) return refusal("team", NO_TEAM);
+  return roles.includes("Owner") && ((await currentMember()).role !== "Owner" || (await realRole()) !== "Owner") ? OWNERS_ONLY : null;
 }
 
 const member = z.object({ name: z.string().trim().min(1, NAME_REQUIRED).max(60), email: z.string().trim().toLowerCase().email(EMAIL_INVALID).max(120), role: z.enum(ROLES) });
@@ -209,7 +211,7 @@ export type SiteKeyState = { key?: string; errors?: Record<string, string> } | u
 const keyLabel = oneLine(z.string().trim().min(1, "Give it a name, like Main website").max(60, "Use 60 characters or fewer"));
 export async function makeSiteKeyAction(_p: SiteKeyState, data: FormData): Promise<SiteKeyState> {
   await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
-  if (!(await can("settings"))) return { errors: { label: NOT_ALLOWED } };
+  if (!(await realCan("settings"))) return { errors: { label: await refusal("settings", NOT_ALLOWED) } };
   const label = keyLabel.safeParse(data.get("label") ?? "");
   if (!label.success) return { errors: { label: label.error.issues[0].message } };
   const { key } = await makeSiteKey((await currentDealer()).id, label.data);
@@ -220,7 +222,7 @@ export async function makeSiteKeyAction(_p: SiteKeyState, data: FormData): Promi
 
 export async function revokeSiteKeyAction(id: string) {
   await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
-  if (!(await can("settings"))) return { error: NOT_ALLOWED };
+  if (!(await realCan("settings"))) return { error: await refusal("settings", NOT_ALLOWED) };
   const gone = await revokeSiteKey((await currentDealer()).id, id); // another dealer's key is not found
   if (gone) await logActivity("settings", `Revoked the website key: ${gone.label}`);
   revalidatePath("/settings");

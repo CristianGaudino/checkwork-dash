@@ -7,7 +7,7 @@ import { LEAD_TYPE_LABELS } from "@/lib/admin/collections";
 import { fmtDate } from "@/lib/admin/format";
 import { TYPE_LABELS } from "@/lib/leads/schema";
 import { parsePersonQuery } from "@/lib/admin/person-match";
-import { can } from "@/lib/permissions";
+import { realCan, refusal } from "@/lib/permissions";
 import { requireStaff } from "@/lib/staff";
 
 // Erasure on request: owners and managers, once they have ticked that they checked it is the person asking. Recorded in the activity
@@ -15,7 +15,7 @@ import { requireStaff } from "@/lib/staff";
 // phone sits in the browser history or the logs.
 export async function eraseAction(data: FormData) {
   await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
-  if (!(await can("data"))) return;
+  if (!(await realCan("data"))) return; // real personal data: the directory's role, not the demo bar's (realCan)
   const q = parsePersonQuery(String(data.get("q") ?? ""));
   if (!q || data.get("checked") !== "on") redirect("/data-requests?notice=confirm");
   const n = await erasePerson(q);
@@ -27,7 +27,7 @@ export async function eraseAction(data: FormData) {
 export type FindState = { q?: string; error?: string; groups?: { label: string; items: string[] }[]; total?: number } | undefined;
 export async function findAction(_prev: FindState, data: FormData): Promise<FindState> {
   await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
-  if (!(await can("data"))) return { error: "Only an owner or manager can do this" };
+  if (!(await realCan("data"))) return { error: await refusal("data", "Only an owner or manager can do this") };
   const raw = String(data.get("q") ?? "").trim().slice(0, 200);
   const q = parsePersonQuery(raw);
   if (!q) return { q: raw, error: "Enter the email or phone number they gave us" };
@@ -54,7 +54,7 @@ export async function findAction(_prev: FindState, data: FormData): Promise<Find
 // history without the person.
 export async function exportAction(raw: string): Promise<{ name: string; json: string } | null> {
   await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
-  if (!(await can("data"))) return null;
+  if (!(await realCan("data"))) return null;
   const q = parsePersonQuery(raw);
   if (!q) return null;
   const held = exportOf(await findPerson(q));

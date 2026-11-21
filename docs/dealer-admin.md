@@ -46,7 +46,10 @@ permissions, each checked on the server in every page and action that needs it (
 
 Who the person is:
 - **At a demo dealer** (the directory's `demo` flag) the bar's role buttons (Owner, Manager, Sales, Finance) set a cookie the server
-  reads, and the demo acts as the first team member with that role. It opens as the owner, so every feature shows.
+  reads, and the demo acts as the first team member with that role. It opens as the owner, so every feature shows. What reaches past
+  the dashboard still goes by the role the directory gives the signed-in email (`realCan` in `src/lib/permissions.ts`): changing the
+  team, website keys, the lead emails and the test email, the lead and customer exports and data requests. The bar's role shows those
+  screens but cannot use them.
 - **At any other dealer** the signed-in Access email, which the Worker verifies itself, and the role the directory gives that email at
   the dealer that is open. The bar shows the theme switch only. A new dealer's first owner is added to the directory by
   `scripts/add-dealer.mjs` (`docs/new-dealer.md`); everyone else is added in Settings, Team. A cookie never grants anything there.

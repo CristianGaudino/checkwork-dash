@@ -2,14 +2,15 @@ import { logActivity } from "@/lib/admin/activity";
 import { ALERT_KIND_LABELS, alertsStore, customersStore, subscribersStore } from "@/lib/admin/collections";
 import { csvResponse, toCsv } from "@/lib/admin/csv";
 import { filterAlerts, filterCustomers, filterSubscribers } from "@/lib/admin/customer-lists";
-import { can } from "@/lib/permissions";
+import { can, DEMO_ROLE_REFUSED, realCan } from "@/lib/permissions";
 import { hasModule } from "@/lib/modules";
 import { dublinDay as day } from "@/lib/admin/format";
 
 // The Customers page's list (customers, stock alerts or the newsletter), searched and filtered as it is shown, as a CSV. Personal data: owners and managers only, each export in
 // the activity history.
 export async function GET(req: Request) {
-  if (!(await can("data"))) return new Response(null, { status: 404 });
+  // Real personal data: the directory's role, not the demo bar's (realCan). A demo viewer the bar showed the button to is told why.
+  if (!(await realCan("data"))) return (await can("data")) ? new Response(DEMO_ROLE_REFUSED, { status: 403 }) : new Response(null, { status: 404 });
   const sp = Object.fromEntries(new URL(req.url).searchParams);
   const tab = sp.tab;
   // Each list only with its module, as on the page: alerts and the newsletter are the newsletter's, customers are sales'.
