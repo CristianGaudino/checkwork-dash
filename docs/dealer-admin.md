@@ -125,8 +125,11 @@ code path reaches another dealer's (#3, #4, #6; `src/lib/tenancy/`).
 - **What visitors send reaches the admin.** A test drive booking and a stock alert are lead types in the one lead pipeline (consent, bot check, rate limit, retention). After a lead is stored, `src/lib/admin/real-leads.ts` copies it into the admin's collections (ids start `real-`) so the dealer can work it. The daily purge deletes the copies with the lead.
 - **Lead emails are a setting.** Settings, Lead emails: up to five addresses, a test button, and the dealer's profile `leadEmail` as the fallback.
 - **The bell is in the app only** (`src/lib/admin/notifications.ts`). A new website request, test drive booking, warranty or order request,
-  a DoneDeal ad taken down, a sync outage (once, as it starts), a lead given to you by someone else. Never a customer's name, so they are not
-  personal data. Read per person; kept 60 days. No email: the lead emails above are the email. Three of them also go to the phone, for those who turned that on
+  a DoneDeal ad taken down, a sync outage (once, as it starts), a lead given to you by someone else, a buyer's WhatsApp reply, a usage
+  limit or spend alert (owners and managers), and Checkwork getting your help request. Each has a heading, what happened ("Test drive
+  request", "Monthly limit reached"), and a line under it, what it is about: for a lead the contact form's topic and answers as the leads
+  list tags them ("Buying, this week, trade-in"), the car, and for a test drive the day and time asked for. The heading of a lead is its
+  kind (`LEAD_TYPE_LABELS`), the same words as the leads list. Never a customer's name, email or phone, so they are not personal data. Read per person; kept 60 days. No email: the lead emails above are the email. Three of them also go to the phone, for those who turned that on
   (below, "The app on the phone").
 - **No demo, draft or placeholder labels on the public site.** The demo bar and the dev-only data toggle are the only chrome that says "demo".
 - All names, emails, numbers and figures in the admin are made up. Emails use `example.com`.
@@ -412,11 +415,12 @@ app store and no outside service.
   against the RFC's own example). Three of the bell's notices also go to the phone, to the same people the bell shows them to:
   | What happened | Title | Text | Opens |
   |---|---|---|---|
-  | A new website enquiry (any lead in Leads, an order request too) | New enquiry | The car, or the kind of request without one | The lead |
-  | A test drive request | Test drive request | The car | The booking |
-  | A lead given to you by someone else | A lead for you | The car, or the kind of request | The lead |
+  | A new website request (any lead in Leads, an order request too) | Its kind ("Car enquiry", "Message") | Its topic and answers, and the car | The lead |
+  | A test drive request | Test drive request | The car, and the day and time asked for | The booking |
+  | A lead given to you by someone else | "Ciara Walsh gave you a lead" | Its kind, topic and car | The lead |
 
-  The text starts with the dealer's name ("Checkwork Motors: 2020 Audi A3"). A tap opens `/dealers/open?dealer=<id>&to=<path>`, which
+  The title and text are the bell's own heading and line (`PUSH_KINDS` in `src/lib/admin/notifications.ts`), and the text starts with the
+  dealer's name ("Checkwork Motors: Buying, this week, trade-in · 2020 Audi A3"). A tap opens `/dealers/open?dealer=<id>&to=<path>`, which
   switches to that dealer if the person is still a member (the same check as Switch dealer) and then opens the page; otherwise it opens the
   overview and leaves the dealer as it was. `to` is only ever a path on this site. Pushes are sent after the answer (`after()`), each with a
   5 second limit, so a slow push service never holds up a website's form or the page that gave a lead.
