@@ -57,8 +57,35 @@ website (live, plus sold cars inside their sold window, `onPublicSite`), with th
 private, max-age=60` and `Vary: Authorization`: the address is the same for every dealer, so no shared cache may keep it. A synced
 dealer (DoneDeal or CarsIreland) gets 404: their website reads the listing site. 401 and 429 as above.
 
-Photos a dealer uploads in the dashboard are `/car-photos/...` paths that only the dealer's own staff can open. Serving them to the
-website is not built yet.
+Each car's `photos` are links the website can put straight in an `<img>` (next section). A photo it could not open is left out.
+
+## Car photos (`GET /api/site/v1/photos/<dealer>/<key>?sig=<signature>`)
+
+An `<img>` cannot send the site key, so the stock answer gives every photo as an absolute link that needs no key
+(`src/lib/site-api/photos.ts`):
+
+- **A photo added in the dashboard** (stored in R2 under `dealers/<id>/cars/...`):
+  `https://www.dash.checkwork.ie/api/site/v1/photos/<dealer id>/cars/<car id>/<uuid>.jpg?sig=<signature>`. The signature is an
+  HMAC-SHA256 of the dealer's id and the key, with `SITE_PHOTO_SECRET` (a Worker secret, one per environment), in base64url.
+- **The demo's own photos** (static files): `https://www.dash.checkwork.ie/stock/<car id>/<n>.webp`.
+- **With no bucket** (next dev, the E2E run) a photo added in the dashboard is a `data:` URL, given as it is.
+
+The host is the deploy's own (`APP_URL`). The photo route answers the photo only when all of these hold, and otherwise the same bare 404:
+
+- the signature is right for that dealer and that key: one dealer's link never opens another dealer's photo, and a changed dealer, key or
+  signature opens nothing;
+- the key is a car photo's (`CAR_PHOTO_KEY`), read under that dealer's prefix only, and the dealer is active;
+- the car is on the dealer's website now (`onPublicSite`, stock kept here) and the photo is still on the car. This is checked on every
+  request (one row of the dealer's D1), so hiding a car, making it a draft or removing a photo stops its links at once, without changing
+  the secret. A browser or proxy that already has the photo keeps its copy.
+
+A photo is `image/jpeg`, `Cache-Control: public, max-age=31536000, immutable` and `nosniff`: a key is new for every upload, so a photo
+never changes. There is no Workers cache in front, since a cached copy would skip the check above. A failure is logged as one line with the
+dealer's id (`logSite`, route `photos`), never the key or the signature.
+
+With no `SITE_PHOTO_SECRET` nothing is signed: the stock answer leaves the stored photos out (the demo's static ones stay) and every photo
+link answers 404. There is no fallback key, on any deploy. Changing the secret ends every link given before; the website gets new ones with
+its next stock read.
 
 ## Limits and logs
 
@@ -72,6 +99,15 @@ website is not built yet.
   a **Bypass** policy (as for `/api/owner/*`), or a website calling over the internet is turned away by Access. A website Worker in the
   same Cloudflare account that calls through a service binding (`DASH` in `checkwork-demo`) does not pass through Access at all.
 - **Rate limit:** `SITE_LIMITER` uses namespace `1004` in production and `2004` in dev (`wrangler.jsonc`); change one if that id is taken in the account.
+- **Photo secret:** set `SITE_PHOTO_SECRET` in each environment, a long random value of its own (`openssl rand -base64 32 | npx wrangler
+  secret put SITE_PHOTO_SECRET`, and again with `--env production`). Until it is set, a website shows no photo added in the dashboard.
+- **Access and photos:** the photos load in the visitor's browser, over the internet, so they pass through Access even when the website's
+  Worker reads the API through the service binding. The `/api/site/*` Bypass above covers the photo route. The demo's static photos
+  (`/stock/<car id>/<n>.webp`) are covered by the staff application, so a website cannot load them until they are bypassed too: add a
+  Bypass application for `www.dash.checkwork.ie/stock/*/*.webp` (and dev's host), then open one such link in a private window to check it
+  loads, as Cloudflare's docs do not say whether `*.webp` is allowed inside a path. Never bypass `/stock/*` as a whole: the stock pages
+  are under it (the Worker would still refuse them with no Access token, so staff would get a 404). Only the demo dealer has these files,
+  and the demo website already has its own copies under `public/stock/`.
 - **Directory:** apply the new migration (`npm run directory:migrate`, and `directory:migrate:prod`), which adds `site_keys`.
 - **Each website:** make its key in that dealer's Settings and set it as `DASH_SITE_KEY` on the website's Worker (`wrangler secret put
   DASH_SITE_KEY`). The demo website takes the demo dealer's key, made the same way.
