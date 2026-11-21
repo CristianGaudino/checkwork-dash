@@ -11,12 +11,16 @@ const run = (cmd, ...args) => execFileSync(cmd, args, { stdio: "inherit", shell:
 // Production runs merged code only: committed, and on main. A branch's migration applied to live dealer data cannot be undone.
 if (t.env === "production") {
   run("git", "fetch", "-q", "origin", "main");
+  let ok = false;
   try {
-    execFileSync("git", ["diff", "--quiet", "HEAD"]);
+    // --porcelain lists untracked files too: a new migration never committed would otherwise be applied (git diff misses it).
+    const dirty = execFileSync("git", ["status", "--porcelain"], { encoding: "utf8" }).trim();
     execFileSync("git", ["merge-base", "--is-ancestor", "HEAD", "FETCH_HEAD"]);
+    ok = !dirty;
   } catch {
-    throw new Error("Production deploys only committed code that is on main: merge it first, then deploy from main.");
+    ok = false;
   }
+  if (!ok) throw new Error("Production deploys only committed code that is on main: commit and merge it first, then deploy from main.");
 }
 console.log(`\nDeploying ${t.env}: Worker ${t.config.name}`);
 run("npx", "opennextjs-cloudflare", "build", ...env);
