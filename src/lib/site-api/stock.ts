@@ -1,8 +1,8 @@
 import "server-only";
 import { adminCars } from "@/lib/admin/stock-admin";
-import { stockSource } from "@/lib/stock-source";
-import { onPublicSite, type Car } from "@/lib/stock/types";
-import { dealerProfile } from "@/lib/tenancy/current";
+import type { Car } from "@/lib/stock/types";
+import { currentDealer } from "@/lib/tenancy/current";
+import { onWebsite, websitePhotos } from "./photos";
 import type { Answer } from "./request";
 
 // GET /api/site/v1/stock: the cars on the dealer's website, for a dealer whose stock is kept here: live ones and sold ones still inside the
@@ -17,9 +17,13 @@ const PUBLIC_FIELDS = [
 const publicCar = (c: Car) => Object.fromEntries(PUBLIC_FIELDS.filter((k) => c[k] !== undefined).map((k) => [k, c[k]]));
 
 export async function publicStock(): Promise<Answer> {
-  if ((await stockSource()) !== "checkwork") return { status: 404, outcome: "not-here" };
-  const { soldVisibleDays } = (await dealerProfile()).rules;
-  const cars = (await adminCars()).filter((c) => onPublicSite(c, soldVisibleDays)).map(publicCar);
+  const rule = await onWebsite();
+  if (!rule) return { status: 404, outcome: "not-here" };
+  // Photos as links the website can open (photos.ts); one it cannot is left out.
+  const photo = await websitePhotos((await currentDealer()).id);
+  const cars = await Promise.all(
+    (await adminCars()).filter(rule).map(async (c) => publicCar({ ...c, photos: (await Promise.all(c.photos.map(photo))).filter((p) => p !== null) })),
+  );
   // A minute's cache in the website's own fetch, never a shared cache: the address is the same for every dealer, only the key differs.
   return { status: 200, outcome: "listed", body: { cars }, headers: { "Cache-Control": "private, max-age=60", Vary: "Authorization" } };
 }

@@ -9,19 +9,19 @@ import type { Photo } from "@/lib/stock/types";
 export const CAR_PHOTO_KEY = /^cars\/\d{1,12}\/[0-9a-f-]{36}\.jpg$/;
 export const CAR_PHOTOS_MAX = 20;
 export const CAR_PHOTO_MAX_BYTES = 3 * 1024 * 1024;
-const PREFIX = "/car-photos/";
+export const CAR_PHOTO_PREFIX = "/car-photos/";
 
 export async function storeCarPhoto(carId: string, jpeg: Uint8Array, width: number, height: number): Promise<Photo> {
   const bucket = await dealerBucket();
   if (!bucket) return { src: `data:image/jpeg;base64,${Buffer.from(jpeg).toString("base64")}`, width, height };
   const key = `cars/${carId}/${crypto.randomUUID()}.jpg`;
   await bucket.put(key, jpeg.slice().buffer, { httpMetadata: { contentType: "image/jpeg" } });
-  return { src: `${PREFIX}${key}`, width, height };
+  return { src: `${CAR_PHOTO_PREFIX}${key}`, width, height };
 }
 
 // Deletes the stored copies of these photos; the static and data: ones have nothing stored.
 export async function dropCarPhotos(photos: Photo[]): Promise<void> {
-  const keys = photos.map((p) => p.src.slice(PREFIX.length)).filter((k, i) => photos[i].src.startsWith(PREFIX) && CAR_PHOTO_KEY.test(k));
+  const keys = photos.map((p) => p.src.slice(CAR_PHOTO_PREFIX.length)).filter((k, i) => photos[i].src.startsWith(CAR_PHOTO_PREFIX) && CAR_PHOTO_KEY.test(k));
   const bucket = await dealerBucket();
   if (keys.length && bucket) await bucket.delete(keys);
 }

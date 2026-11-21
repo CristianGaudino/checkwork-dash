@@ -55,6 +55,16 @@ test("the website reads its cars: on the site only, public fields only", async (
   expect((await request.get("/api/site/v1/stock")).status()).toBe(401);
 });
 
+test("a photo link the stock answer gives opens from anywhere, with no key", async ({ request, baseURL }) => {
+  const { cars } = (await (await request.get("/api/site/v1/stock", { headers: auth() })).json()) as { cars: { photos: { src: string }[] }[] };
+  const srcs = cars.flatMap((c) => c.photos.map((p) => p.src));
+  expect(srcs.length).toBeGreaterThan(0);
+  expect(srcs.filter((s) => !s.startsWith("data:")).every((s) => s.startsWith(`${baseURL}/`))).toBe(true);
+  const photo = await request.get(srcs.find((s) => !s.startsWith("data:"))!);
+  expect(photo.status()).toBe(200);
+  expect(photo.headers()["content-type"]).toMatch(/^image\//);
+});
+
 test("a test drive booking, a price alert and a claim on a car bought here each land where the dealer works them", async ({ page, request }) => {
   const { cars } = (await (await request.get("/api/site/v1/stock", { headers: auth() })).json()) as { cars: { id: string; slug: string; year: number; make: string; model: string; priceEur: number; soldAt?: string; reserved?: boolean }[] };
   const car = cars.find((c) => !c.soldAt && !c.reserved)!;
