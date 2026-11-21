@@ -264,6 +264,13 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
 
           {section === "services" && edit && (
             <Panel title="Website connection" text="Your website sends its leads here, and reads your cars, with a key made here.">
+              {/* No SITE_PHOTO_SECRET (docs/site-api.md, "Car photos"): the stock answer leaves out photos added here. Ours to set, as in Connected services. */}
+              {!process.env.SITE_PHOTO_SECRET && (
+                <p className="max-w-measure text-body">
+                  {"Photos added here can't show on your website yet. "}
+                  <Link href={ASK_CHANGE} className="font-medium text-accent-text underline underline-offset-2">Ask us to connect it</Link>
+                </p>
+              )}
               <SiteKeyForm />
               {keys.length > 0 && (
                 <DataTable

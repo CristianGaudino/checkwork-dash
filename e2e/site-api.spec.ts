@@ -90,6 +90,9 @@ test("Settings makes a website key, shows it once, and revokes it", async ({ pag
   const name = who("Site");
   await page.goto("/settings?section=services");
   const panel = page.getByRole("region", { name: "Website connection" });
+  // No SITE_PHOTO_SECRET in this run (playwright.config.ts): the panel says so, in the dealer's words.
+  await expect(panel).toContainText("Photos added here can't show on your website yet.");
+  await expect(panel.getByRole("link", { name: "Ask us to connect it" })).toBeVisible();
   await panel.getByRole("textbox", { name: "Name" }).fill(name);
   await panel.getByRole("button", { name: "Make a key" }).click();
   const shown = panel.getByRole("textbox", { name: "New website key" });
