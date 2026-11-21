@@ -33,7 +33,8 @@
 		"APP_URL": "https://dev.dash.checkwork.ie"
 	},
 	// Lead emails to the dealer. No "remote": a local wrangler dev has no Cloudflare credentials, so it uses the local simulator.
-	"send_email": [{ "name": "EMAIL" }],
+	// Dev never emails real people: only our own inbox (a verified Email Routing destination, or dev sends nothing at all).
+	"send_email": [{ "name": "EMAIL", "allowed_destination_addresses": ["contact@checkwork.ie"] }],
 	// LEAD_LIMITER: the registration lookup, 5 a minute per visitor (src/lib/reg-lookup.ts). AI_LIMITER: AI writing, per dealer.
 	// SITE_LIMITER: the site API, 60 requests a minute per website key (src/lib/site-api/request.ts). Dev's namespaces are 2xxx and
 	// production's 1xxx, so the two never share a counter.

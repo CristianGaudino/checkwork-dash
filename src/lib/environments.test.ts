@@ -1,4 +1,6 @@
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { assertDemo, dealerBindings, readWrangler, target } from "../../scripts/dealers.mjs";
 
@@ -9,6 +11,16 @@ const at = (argv: string[], environ: Record<string, string | undefined> = {}) =>
 const dbName = (c: typeof cfg, binding: string) => c.d1_databases.find((d: { binding: string }) => d.binding === binding).database_name;
 
 describe("the scripts' environment", () => {
+  it("refuses a CLOUDFLARE_ENV line in .env or .env.local, which wrangler would read", () => {
+    const dir = mkdtempSync(join(tmpdir(), "cw-env-"));
+    const file = join(dir, ".env.local");
+    writeFileSync(file, "FOO=1\nexport CLOUDFLARE_ENV=production\n");
+    expect(() => target(["--remote"], {}, cfg, {} as NodeJS.ProcessEnv, [file])).toThrow(/CLOUDFLARE_ENV/);
+    writeFileSync(file, "FOO=1\n# CLOUDFLARE_ENV is never set here\n");
+    expect(target(["--remote"], {}, cfg, {} as NodeJS.ProcessEnv, [file]).env).toBe("dev");
+    rmSync(dir, { recursive: true });
+  });
+
   it("is dev with no flag, and says so to wrangler", () => {
     const t = at(["--remote"]);
     expect(t.env).toBe("dev");
@@ -63,7 +75,9 @@ describe("wrangler.jsonc keeps dev and production apart", () => {
     expect(list(prod, "r2_buckets", "binding")).toEqual(list(cfg, "r2_buckets", "binding"));
     expect(list(prod, "ratelimits", "name")).toEqual(list(cfg, "ratelimits", "name"));
     expect(Object.keys(prod.vars)).toEqual(Object.keys(cfg.vars));
-    expect(prod.send_email).toEqual(cfg.send_email);
+    expect(list(prod, "send_email", "name")).toEqual(list(cfg, "send_email", "name"));
+    expect(cfg.send_email[0].allowed_destination_addresses).toEqual(["contact@checkwork.ie"]); // dev never emails real people
+    expect(prod.send_email[0].allowed_destination_addresses).toBeUndefined();
     expect(prod.triggers).toEqual(cfg.triggers);
     for (const [key, field] of [["d1_databases", "database_id"], ["d1_databases", "database_name"], ["r2_buckets", "bucket_name"], ["ratelimits", "namespace_id"], ["routes", "pattern"]]) {
       const dev = list(cfg, key, field);

@@ -1,6 +1,6 @@
 // Shared by the dealer scripts: the D1 bindings in wrangler.jsonc, and running wrangler. No dependencies.
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -36,8 +36,12 @@ export const bindingOf = (id) => `DB_${id.toUpperCase().replaceAll("-", "_")}`;
 // would also take CLOUDFLARE_ENV from the shell, so it must be unset, and every wrangler call spells out --env= (dev) or
 // --env=production. `options` are the script's own flags (node's parseArgs): an unknown flag, such as a mistyped --env, stops the script.
 // Returns the positionals and flags, the wrangler arguments, the environment's name and its config.
-export function target(argv, options = {}, cfg = readWrangler(), environ = process.env) {
+// wrangler also reads CLOUDFLARE_ENV from .env and .env.local, which the shell check cannot see: a line there is refused too.
+export const envFileSetsCloudflareEnv = (files = [".env", ".env.local"]) =>
+  files.some((f) => existsSync(f) && /^\s*(export\s+)?CLOUDFLARE_ENV\s*=/m.test(readFileSync(f, "utf8")));
+export function target(argv, options = {}, cfg = readWrangler(), environ = process.env, envFiles = [".env", ".env.local"]) {
   if (environ.CLOUDFLARE_ENV !== undefined) throw new Error("Unset CLOUDFLARE_ENV first: these scripts act on dev, or on production with --env production");
+  if (envFileSetsCloudflareEnv(envFiles)) throw new Error("Remove CLOUDFLARE_ENV from .env / .env.local: wrangler would read it and send a dev command to production");
   const { values, positionals } = parseArgs({ args: argv, allowPositionals: true, options: { ...options, remote: { type: "boolean" }, local: { type: "boolean" }, env: { type: "string" } } });
   if (!values.remote === !values.local) throw new Error("Say --remote (the real databases) or --local (wrangler dev's)");
   if (values.env !== undefined && values.env !== "production") throw new Error("--env takes production only: with no --env it is dev");
