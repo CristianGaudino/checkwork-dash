@@ -4,8 +4,7 @@ import { defineConfig, devices } from "@playwright/test";
 // Runs against E2E_BASE_URL, or a local production build (npm run build && npm start) on PORT (default 3000).
 const baseURL = process.env.E2E_BASE_URL ?? `http://localhost:${process.env.PORT ?? 3000}`;
 
-// APP_URL: the photo links the site API gives (src/lib/site-api/photos.ts) point at this run's server, not production.
-const SERVER_ENV = { E2E_FAKE_BACKENDS: "1", UNSUBSCRIBE_SECRET: "e2e-unsubscribe-secret", OWNER_API_TOKEN: "e2e-owner-token", APP_URL: baseURL };
+const SERVER_ENV = { E2E_FAKE_BACKENDS: "1", UNSUBSCRIBE_SECRET: "e2e-unsubscribe-secret", OWNER_API_TOKEN: "e2e-owner-token" };
 const PUSH_PORT = Number(process.env.PORT ?? 3000) + 1;
 const PUSH_URL = `http://localhost:${PUSH_PORT}`;
 function vapidForRun() {

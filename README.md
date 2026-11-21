@@ -73,8 +73,7 @@ never the only way: `npm run deploy:prod` from a laptop with a logged-in wrangle
 - [ ] Cloudflare Access for each host, named emails only, with the Bypass applications for `/api/site/*` and `/api/owner/*` on each
   (`docs/dealer-admin.md`, "Cloudflare Access"); each application's audience tag and the team domain into `wrangler.jsonc` `vars`.
 - [ ] Secrets in each environment: `CRON_KEY` and the others in `.env.example` (`wrangler secret put <NAME>`, add `--env production`).
-  `SITE_PHOTO_SECRET` is needed before a dealer's website can show photos added in the dashboard (`docs/site-api.md`, "Car photos"), and
-  the demo's static photos need their own Access Bypass there.
+  `SITE_PHOTO_SECRET` is needed before a dealer's website can show photos added in the dashboard (`docs/site-api.md`, "Car photos").
 - [ ] Push notifications in each environment (#11, a key pair of its own each): `node scripts/vapid-keys.mjs` for dev, or
   `node scripts/vapid-keys.mjs --env production`. It prints the two steps: `VAPID_PUBLIC_KEY` into that environment's `vars` in
   `wrangler.jsonc` or as a secret (never both), and `npx wrangler secret put VAPID_PRIVATE_KEY` (add `--env production`). Until both are set,

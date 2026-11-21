@@ -5,5 +5,5 @@ import { sitePhoto } from "@/lib/site-api/photos";
 export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest, { params }: { params: Promise<{ dealer: string; key: string[] }> }) {
   const { dealer, key } = await params;
-  return sitePhoto(dealer, key.join("/"), req.nextUrl.searchParams.get("sig") ?? "");
+  return sitePhoto(req.url, dealer, key.join("/"), req.nextUrl.searchParams.get("sig") ?? "");
 }
