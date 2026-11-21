@@ -10,7 +10,7 @@ export { pushId } from "./webpush";
 export type PushSub = { id: string; email: string; endpoint: string; keys: PushKeys; label: string; addedAt: number };
 export const pushStore = defineCollection<PushSub>("push-subscriptions", () => []);
 
-// The key pair is per environment: VAPID_PUBLIC_KEY a var, VAPID_PRIVATE_KEY a Worker secret (scripts/vapid-keys.mjs). Read on use.
+// The key pair is per environment: VAPID_PUBLIC_KEY a var or a secret, VAPID_PRIVATE_KEY a Worker secret (scripts/vapid-keys.mjs). Read on use.
 export const PUSH_SUBJECT = "mailto:contact@checkwork.ie";
 export function vapid(): Vapid | null {
   const publicKey = process.env.VAPID_PUBLIC_KEY;
