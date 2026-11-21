@@ -41,4 +41,19 @@ A proposal, not decided. Prices a month before VAT. It keeps the bundle prices a
 Today one repo and site per dealer. Revisit at about 10 live dealers.
 
 ### Own sign-in
-Passkeys first, an emailed link as the fallback (#10). Design and security review before code.
+Passkeys first, an emailed link as the fallback (#10). Design and security review before code: `docs/sign-in.md`, pending the owner's
+approval (below).
+
+## Pending the owner's approval: our own sign-in (#10)
+
+Proposed in `docs/sign-in.md`. None of it is built until the owner approves; its open questions are in section 10 there.
+
+| Decision | What it means |
+|---|---|
+| Passkeys first, an emailed code and link as the fallback | A passkey is one tap and Face ID. The email carries a 6-digit code (works only in the browser that asked, so it works inside the installed iPhone app) and a link (works on any device). Both single use, 15 minutes, stored as an HMAC |
+| Invite only | Being added in Settings, Team is the invitation, with an email that holds no token. Sign-in is refused for anyone at no active dealer, with the same answer as for a stranger |
+| Our own WebAuthn code, no library | A small CBOR and COSE reader and the spec's checks, with WebCrypto doing the cryptography, as Web Push already is. `@simplewebauthn/server` would add ten dependencies for attestation we do not use |
+| One relying party id per environment | `dash.checkwork.ie` for production, `dev.dash.checkwork.ie` for dev, each accepting its own origin only |
+| Sessions in the directory | An opaque id in a `__Host-` cookie (Secure, HttpOnly, SameSite=Lax), its hash in the directory D1. 12 hours idle, 7 days at most (to confirm). Sign out everywhere; removal from a team ends every session |
+| Limits | Per IP by a rate limit binding, per email in D1, 5 tries a code, a 24-hour lockout of emailed codes that never blocks a passkey. No email, IP or token in any log |
+| Moving off Access | A `SIGN_IN` switch (`access`, `both`, `own`), dev first then production, Access bypassed and kept two weeks for rollback before it is deleted |
