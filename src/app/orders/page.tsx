@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { DataTable, EmptyState, PageHeader, SummaryTabs, TableFooter, TableToolbar, adminButton, pageOf, rowButton, sortRows, type Column, type FilterGroup } from "@/components/admin/kit";
+import { DataTable, EmptyState, PageHeader, SummaryTabs, TableFooter, TableToolbar, adminButton, pageOf, rowButton, rowButtonStrong, sortRows, type Column, type FilterGroup } from "@/components/admin/kit";
 import { OrderBadge } from "@/components/admin/badges";
 import { ChoiceAct } from "@/components/admin/ActButton";
 import { PlusIcon } from "@/components/stock/icons";
@@ -32,7 +32,7 @@ const NEXT: Partial<Record<Order["status"], { to: (typeof PATH)[number]; label: 
 function NextStep({ o }: { o: Order }) {
   if (o.status === "arrived" && o.carId)
     return (
-      <Link href={`/stock/${o.carId}/sale`} className={`${rowButton} relative z-10 border-accent text-accent-text`}>
+      <Link href={`/stock/${o.carId}/sale`} className={`${rowButtonStrong} relative z-10`}>
         Hand over
       </Link>
     );

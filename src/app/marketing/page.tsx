@@ -1,4 +1,4 @@
-import { Badge, EmptyState, Notice, PageHeader, Panel, StatCard, StatGrid, SummaryTabs, TableFooter, TableToolbar, Task, TaskList, pageOf, adminButton, adminButtonQuiet, rowButton, type FilterGroup, type Tone } from "@/components/admin/kit";
+import { Badge, EmptyState, Notice, PageHeader, Panel, StatCard, StatGrid, SummaryTabs, TableFooter, TableToolbar, Task, TaskList, pageOf, adminButton, adminButtonQuiet, rowButton, rowButtonStrong, rowDanger, type FilterGroup, type Tone } from "@/components/admin/kit";
 import { PlusIcon, TrashIcon } from "@/components/stock/icons";
 import { DAY } from "@/lib/time";
 import { ActButton } from "@/components/admin/ActButton";
@@ -148,7 +148,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
                           action={
                             <>
                               <PostNow p={item.p} />
-                              <ActButton act={deletePostAction.bind(null, item.p.id)} confirm={{ title: "Delete this post?", text: "This cannot be undone.", yes: "Delete" }} label={`Delete the ${postName(item.p)}${item.p.carTitle ? `, ${item.p.carTitle}` : ""}`} className={`${rowButton} w-11 px-0 text-bad`}><TrashIcon className="size-4" /></ActButton>
+                              <ActButton act={deletePostAction.bind(null, item.p.id)} confirm={{ title: "Delete this post?", text: "This cannot be undone.", yes: "Delete" }} label={`Delete the ${postName(item.p)}${item.p.carTitle ? `, ${item.p.carTitle}` : ""}`} className={`${rowDanger} w-11 px-0`}><TrashIcon className="size-4" /></ActButton>
                             </>
                           }
                         />
@@ -161,8 +161,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
                           detail={`${item.a.carTitle}, budget ${fmtEur(item.a.budgetEur)}`}
                           action={
                             <>
-                              <ActButton act={startAdAction.bind(null, item.a.id)} confirm={{ title: "Start this ad?", text: `It runs on ${AD_PLATFORM_LABELS[item.a.platform]} with a budget of ${fmtEur(item.a.budgetEur)}.`, yes: "Start ad", safe: true }} label={`Start ad: ${AD_PLATFORM_LABELS[item.a.platform]} ad, ${item.a.carTitle}`} className={rowButton}>Start ad</ActButton>
-                              <ActButton act={deleteAdAction.bind(null, item.a.id)} confirm={{ title: "Delete this ad?", text: "This cannot be undone.", yes: "Delete" }} label={`Delete the ${AD_PLATFORM_LABELS[item.a.platform]} ad, ${item.a.carTitle}`} className={`${rowButton} w-11 px-0 text-bad`}><TrashIcon className="size-4" /></ActButton>
+                              <ActButton act={startAdAction.bind(null, item.a.id)} confirm={{ title: "Start this ad?", text: `It runs on ${AD_PLATFORM_LABELS[item.a.platform]} with a budget of ${fmtEur(item.a.budgetEur)}.`, yes: "Start ad", safe: true }} label={`Start ad: ${AD_PLATFORM_LABELS[item.a.platform]} ad, ${item.a.carTitle}`} className={rowButtonStrong}>Start ad</ActButton>
+                              <ActButton act={deleteAdAction.bind(null, item.a.id)} confirm={{ title: "Delete this ad?", text: "This cannot be undone.", yes: "Delete" }} label={`Delete the ${AD_PLATFORM_LABELS[item.a.platform]} ad, ${item.a.carTitle}`} className={`${rowDanger} w-11 px-0`}><TrashIcon className="size-4" /></ActButton>
                             </>
                           }
                         />
@@ -181,7 +181,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
                         detail={reason}
                         action={
                           <>
-                            <Link href={`/marketing/new?car=${encodeURIComponent(car.slug)}`} className={rowButton}>
+                            <Link href={`/marketing/new?car=${encodeURIComponent(car.slug)}`} className={rowButtonStrong}>
                               Write a post
                             </Link>
                             <Link href={`/marketing/new?car=${encodeURIComponent(car.slug)}&format=story&layout=${reason === "Price dropped" ? "price-drop" : "just-in"}`} className={rowButton}>
@@ -249,7 +249,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
                         <span className="truncate text-meta text-text-2">{item.a.carTitle}, {fmtEur(item.a.budgetEur)}</span>
                       </div>
                       {item.a.status === "draft" ? (
-                        <ActButton act={startAdAction.bind(null, item.a.id)} confirm={{ title: "Start this ad?", text: `It runs on ${AD_PLATFORM_LABELS[item.a.platform]} with a budget of ${fmtEur(item.a.budgetEur)}.`, yes: "Start ad", safe: true }} label={`Start ad: ${AD_PLATFORM_LABELS[item.a.platform]} ad, ${item.a.carTitle}`} className={rowButton}>Start ad</ActButton>
+                        <ActButton act={startAdAction.bind(null, item.a.id)} confirm={{ title: "Start this ad?", text: `It runs on ${AD_PLATFORM_LABELS[item.a.platform]} with a budget of ${fmtEur(item.a.budgetEur)}.`, yes: "Start ad", safe: true }} label={`Start ad: ${AD_PLATFORM_LABELS[item.a.platform]} ad, ${item.a.carTitle}`} className={rowButtonStrong}>Start ad</ActButton>
                       ) : (
                         <Results items={[[item.a.impressions, "saw it"], [item.a.clicks, "clicks"], [item.a.leads, "leads"]]} />
                       )}
@@ -286,7 +286,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
                     </div>
                     <span className="truncate text-meta font-medium">{m.name}</span>
                     <span className="truncate text-meta text-text-2">{m.kind === "video" ? `Video, ${m.durationSec ?? 0} s` : "Photo"}{m.carTitle ? `, ${m.carTitle}` : ""}</span>
-                    <ActButton act={deleteMediaAction.bind(null, m.id)} confirm={{ title: "Delete this file?", text: "A post that uses it keeps the file. It leaves the library.", yes: "Delete" }} label={`Delete ${m.name}`} className={`${rowButton} w-fit text-bad`}>Delete</ActButton>
+                    <ActButton act={deleteMediaAction.bind(null, m.id)} confirm={{ title: "Delete this file?", text: "A post that uses it keeps the file. It leaves the library.", yes: "Delete" }} label={`Delete ${m.name}`} className={`${rowDanger} w-fit`}>Delete</ActButton>
                   </li>
                 ))}
               </ul>
@@ -322,11 +322,11 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
                     {n.status === "draft" && (
                       <div className="flex flex-wrap items-center gap-2">
                         {live > 0 ? (
-                          <ActButton act={sendNewsletterAction.bind(null, n.id)} confirm={{ title: `Send "${n.subject}"?`, text: `It goes to ${plural(live, "subscriber")} and cannot be taken back.`, yes: "Send" }} className={rowButton}>Send to {fmtNum(live)}</ActButton>
+                          <ActButton act={sendNewsletterAction.bind(null, n.id)} confirm={{ title: `Send "${n.subject}"?`, text: `It goes to ${plural(live, "subscriber")} and cannot be taken back.`, yes: "Send" }} className={rowButtonStrong}>Send to {fmtNum(live)}</ActButton>
                         ) : (
                           <span className="text-meta text-text-2">No subscribers to send to yet</span>
                         )}
-                        <ActButton act={deleteNewsletterAction.bind(null, n.id)} confirm={{ title: `Delete this newsletter?`, text: "This cannot be undone.", yes: "Delete" }} className={`${rowButton} text-bad`}>Delete</ActButton>
+                        <ActButton act={deleteNewsletterAction.bind(null, n.id)} confirm={{ title: `Delete this newsletter?`, text: "This cannot be undone.", yes: "Delete" }} className={rowDanger}>Delete</ActButton>
                       </div>
                     )}
                   </li>
@@ -400,7 +400,7 @@ function PostNow({ p }: { p: SocialPost }) {
       act={publishPostAction.bind(null, p.id)}
       confirm={ready ? { title: "Get it ready now?", text: `It is made ready here and posted on ${p.network} from your phone.`, yes: verb, safe: true } : { title: "Post this now?", text: `It goes out on ${p.network} at once.`, yes: verb, safe: true }}
       label={`${verb}: ${postName(p)}${p.carTitle ? `, ${p.carTitle}` : ""}`}
-      className={rowButton}
+      className={rowButtonStrong}
     >
       {verb}
     </ActButton>

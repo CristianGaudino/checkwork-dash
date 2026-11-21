@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { AddTeamForm, BusinessForm, RoleForm, LeadEmailsForm, MarketingForm, NotificationsForm, SiteKeyForm, TargetsForm } from "@/components/admin/SettingsForms";
-import { Badge, DataTable, Facts, Notice, PageHeader, Panel, adminButtonQuiet, rowButton } from "@/components/admin/kit";
+import { Badge, DataTable, Facts, Notice, PageHeader, Panel, adminButtonQuiet, rowDanger } from "@/components/admin/kit";
 import { ActButton } from "@/components/admin/ActButton";
 import { getSettings } from "@/lib/admin/collections";
 import { INTEGRATIONS, type IntegrationId, integrationText, modeOf } from "@/lib/integrations";
@@ -166,7 +166,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
                           <div className="flex flex-col items-end gap-2 sm:flex-row sm:items-start">
                             <RoleForm member={t} owner={owner} />
                             {s.team.length > 1 && (
-                              <ActButton act={removeTeamAction.bind(null, t.id)} confirm={{ title: `Remove ${t.name} from the team?`, text: "Their leads and test drives go back to nobody. They can be added again later.", yes: "Remove" }} className={`${rowButton} text-bad`}>
+                              <ActButton act={removeTeamAction.bind(null, t.id)} confirm={{ title: `Remove ${t.name} from the team?`, text: "Their leads and test drives go back to nobody. They can be added again later.", yes: "Remove" }} className={rowDanger}>
                                 Remove
                               </ActButton>
                             )}
@@ -273,7 +273,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
                         k.revokedAt ? (
                           <Badge>Revoked</Badge>
                         ) : (
-                          <ActButton act={revokeSiteKeyAction.bind(null, k.id)} confirm={{ title: `Revoke ${k.label}?`, text: "A website using this key can no longer send leads or read your cars.", yes: "Revoke" }} className={`${rowButton} text-bad`}>
+                          <ActButton act={revokeSiteKeyAction.bind(null, k.id)} confirm={{ title: `Revoke ${k.label}?`, text: "A website using this key can no longer send leads or read your cars.", yes: "Revoke" }} className={rowDanger}>
                             Revoke
                           </ActButton>
                         ),

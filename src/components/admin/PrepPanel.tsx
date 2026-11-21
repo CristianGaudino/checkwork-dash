@@ -2,7 +2,7 @@
 
 import { useKeptForm } from "@/components/admin/useKeptForm";
 import { Select } from "@/components/Select";
-import { Field, Panel, adminButton, adminInput, rowButton } from "@/components/admin/kit";
+import { Field, Panel, adminButton, adminInput, rowDanger } from "@/components/admin/kit";
 import { ActButton } from "@/components/admin/ActButton";
 import { addPrepAction, removePrepAction, type PrepFormState } from "@/app/stock/actions";
 import { PREP_KINDS, type PrepLine } from "@/lib/admin/prep";
@@ -28,7 +28,7 @@ export function PrepPanel({ carId, lines }: { carId: string; lines: PrepLine[] }
               </span>
               <span className="flex items-center gap-3">
                 <span className="tabular-nums">{fmtEur(l.eur)}</span>
-                <ActButton act={removePrepAction.bind(null, carId, l.at)} label={`Remove ${l.kind}, ${fmtEur(l.eur)}`} confirm={{ title: `Remove ${l.kind}, ${fmtEur(l.eur)}?`, yes: "Remove" }} className={`${rowButton} text-bad`}>
+                <ActButton act={removePrepAction.bind(null, carId, l.at)} label={`Remove ${l.kind}, ${fmtEur(l.eur)}`} confirm={{ title: `Remove ${l.kind}, ${fmtEur(l.eur)}?`, yes: "Remove" }} className={rowDanger}>
                   Remove
                 </ActButton>
               </span>

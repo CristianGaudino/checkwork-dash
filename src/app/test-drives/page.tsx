@@ -150,7 +150,7 @@ function Week({ day, today, onDay, gone, link, hours }: { day: string; today: st
   const days = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
   const sunday = days[6];
   const range = monday.slice(5, 7) === sunday.slice(5, 7) ? `${fmtDay(monday, "day")} to ${fmtDay(sunday, "dayMonth")}` : `${fmtDay(monday, "dayMonth")} to ${fmtDay(sunday, "dayMonth")}`;
-  const arrow = "inline-flex size-11 items-center justify-center rounded-control border border-hairline bg-card hover:border-control";
+  const arrow = "inline-flex size-11 items-center justify-center rounded-control bg-hairline text-text transition-colors hover:bg-accent-soft hover:text-accent-text";
   return (
     <>
       <div className="flex items-center gap-2">

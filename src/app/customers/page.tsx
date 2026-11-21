@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Badge, DataTable, EmptyState, PageHeader, SummaryTabs, TableFooter, TableToolbar, pageOf, rowButton, sortRows, type Column, type FilterGroup } from "@/components/admin/kit";
+import { Badge, DataTable, EmptyState, PageHeader, SummaryTabs, TableFooter, TableToolbar, pageOf, rowButton, rowDanger, sortRows, type Column, type FilterGroup } from "@/components/admin/kit";
 import { filterAlerts, filterCustomers, filterSubscribers } from "@/lib/admin/customer-lists";
 import { ActButton } from "@/components/admin/ActButton";
 import { can } from "@/lib/permissions";
@@ -95,7 +95,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
           {a.active && (
             <ActButton act={pauseAlertAction.bind(null, a.id)} confirm={{ title: "Pause this stock alert?", text: "Only the customer can start it again, by signing up on the website.", yes: "Pause" }} className={rowButton}>Pause</ActButton>
           )}
-          <ActButton act={removeAlertAction.bind(null, a.id)} confirm={{ title: "Remove this stock alert?", text: "This cannot be undone.", yes: "Remove" }} className={`${rowButton} text-bad`}>Remove</ActButton>
+          <ActButton act={removeAlertAction.bind(null, a.id)} confirm={{ title: "Remove this stock alert?", text: "This cannot be undone.", yes: "Remove" }} className={rowDanger}>Remove</ActButton>
         </div>
       ),
     },

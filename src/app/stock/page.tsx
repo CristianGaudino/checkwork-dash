@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { DataTable, EmptyState, Notice, PageHeader, Panel, SummaryTabs, TableFooter, TableToolbar, Task, TaskList, adminButton, pageOf, rowButton, sortRows, type Column, type FilterGroup } from "@/components/admin/kit";
+import { DataTable, EmptyState, Notice, PageHeader, Panel, SummaryTabs, TableFooter, TableToolbar, Task, TaskList, adminButton, pageOf, rowButton, rowButtonStrong, sortRows, type Column, type FilterGroup } from "@/components/admin/kit";
 import { CarFlags, ListingButton, PostToSocial, ViewOnSite, daysInStock } from "@/components/admin/CarActions";
 import { ActButton } from "@/components/admin/ActButton";
 import { RowMenu } from "@/components/admin/RowMenu";
@@ -47,7 +47,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
   // A sold car with no sale recorded gets the button: Mark sold in our version records it; after the DoneDeal sync it is asked for here.
   const recordSale = (c: Car) =>
     isSold(c) && !sales.has(c.id) ? (
-      <Link href={`/stock/${c.id}/sale`} aria-label={`Record sale: ${carName(c)}`} className={rowButton}>
+      <Link href={`/stock/${c.id}/sale`} aria-label={`Record sale: ${carName(c)}`} className={rowButtonStrong}>
         Record sale
       </Link>
     ) : null;
@@ -171,7 +171,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
           ) : (
             <>
               {!isSold(c) && (
-                <Link href={`/stock/${c.id}/sale`} aria-label={`Mark sold: ${carName(c)}`} className={rowButton}>
+                <Link href={`/stock/${c.id}/sale`} aria-label={`Mark sold: ${carName(c)}`} className={rowButtonStrong}>
                   <CheckIcon className="size-4" />
                   Mark sold
                 </Link>
@@ -226,11 +226,11 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
     // One at a time, oldest first: the row and its button open the next sale to record, so the count and the page behind it agree.
     toRecord.length > 0 && (
       <Task key="sale" urgency="now" icon={<ReceiptIcon />} count={toRecord.length} title={one(toRecord, "sold cars with no sale recorded", "sold car with no sale recorded")} detail={phoneless("Add the buyer and the price, so your reports are right.")} href={`/stock/${toRecord[0].id}/sale`}
-        action={<Link href={`/stock/${toRecord[0].id}/sale`} aria-label={`Record sale: ${carName(toRecord[0])}`} className={rowButton}>Record sale</Link>} />
+        action={<Link href={`/stock/${toRecord[0].id}/sale`} aria-label={`Record sale: ${carName(toRecord[0])}`} className={rowButtonStrong}>Record sale</Link>} />
     ),
     !synced && needPhotos.length > 0 && (
       <Task key="photos" urgency="soon" icon={<CameraIcon />} count={needPhotos.length} title={one(needPhotos, "cars need more photos", "car needs more photos")} detail={phoneless(`Cars with ${FEW_PHOTOS} or more photos get more enquiries.`)} href={href("photos")}
-        action={<Link href={`/stock/${needPhotos[0].id}#photos`} className={rowButton}>Add photos</Link>} />
+        action={<Link href={`/stock/${needPhotos[0].id}#photos`} className={rowButtonStrong}>Add photos</Link>} />
     ),
     old.length > 0 && (
       <Task key="old" urgency="soon" icon={<HistoryIcon />} count={old.length} title={one(old, `cars for sale ${OLD_DAYS} days or more`, `car for sale ${OLD_DAYS} days or more`)} detail={phoneless(synced ? `Think about a price drop on ${listingSite}.` : social ? "Tick them below to drop the price, or post them to social." : "Tick them below to drop the price.")} href={href("old")}
@@ -303,7 +303,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
                   <span className="text-meta text-text-2">Ad came down {fmtDate(Date.parse(`${c.takenDownAt}T12:00:00Z`))}</span>
                 </span>
                 <span className="flex flex-wrap gap-2">
-                  <Link href={`/stock/${c.id}/sale`} className={rowButton}>It sold</Link>
+                  <Link href={`/stock/${c.id}/sale`} className={rowButtonStrong}>It sold</Link>
                   <ActButton act={withdrawnAction.bind(null, c.id)} confirm={{ title: `${carName(c)} did not sell?`, text: `It stays off the website. If the ad goes back up on ${listingSite}, the car comes back too.`, yes: "It did not sell" }} className={rowButton}>
                     It did not sell
                   </ActButton>

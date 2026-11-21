@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { LeadStatusBadge } from "@/components/admin/badges";
 import { ActButton } from "@/components/admin/ActButton";
-import { ActionTile, ActionTiles, Avatar, Columns, EmptyState, PageHeader, Panel, PanelLink, StatCard, StatGrid, Task, TaskList, adminButtonQuiet, rowButton, type TaskUrgency } from "@/components/admin/kit";
+import { ActionTile, ActionTiles, Avatar, Columns, EmptyState, PageHeader, Panel, PanelLink, StatCard, StatGrid, Task, TaskList, adminButtonQuiet, rowButton, rowButtonStrong, type TaskUrgency } from "@/components/admin/kit";
 import { AlertIcon, CalendarIcon, CarIcon, CheckIcon, ExternalIcon, InboxIcon, PercentIcon, PhoneIcon, ReceiptIcon, ShareIcon, StarIcon, SyncIcon, TruckIcon } from "@/components/stock/icons";
 import { carCosts } from "@/lib/admin/costs";
 import { drivesStore, getSettings, leadsStore, ordersStore, reservationsStore, reviewsStore, salesStore, type Lead } from "@/lib/admin/collections";
@@ -49,7 +49,7 @@ const ReplyButton = ({ id, name }: { id: string; name: string }) => (
   </Link>
 );
 const ConfirmDrive = ({ id, name, status }: { id: string; name: string; status: string }) => (
-  <ActButton act={setDriveStatusAction.bind(null, id, "confirmed", status)} undo={setDriveStatusAction.bind(null, id, status, "confirmed")} done={`${name}: ${DRIVE_STATUS_LABELS.confirmed}`} label={`Confirm ${name}'s test drive`} className={rowButton}>
+  <ActButton act={setDriveStatusAction.bind(null, id, "confirmed", status)} undo={setDriveStatusAction.bind(null, id, status, "confirmed")} done={`${name}: ${DRIVE_STATUS_LABELS.confirmed}`} label={`Confirm ${name}'s test drive`} className={rowButtonStrong}>
     <CheckIcon className="size-4" />
     Confirm
   </ActButton>
@@ -110,13 +110,13 @@ export default async function Page() {
       case "sales":
         return [
           ...o.unrecorded.slice(0, EACH).map((c) => (
-            <Task key={`sale-${c.id}`} urgency="soon" icon={<ReceiptIcon />} title={`Record the sale of the ${c.year} ${c.make} ${c.model}`} detail={`Sold ${fmtDay(c.soldAt!, "dayMonth")}, no buyer or price yet`} action={<Link href={`/stock/${c.id}/sale`} aria-label={`Record sale: ${c.year} ${c.make} ${c.model}`} className={rowButton}>Record sale</Link>} />
+            <Task key={`sale-${c.id}`} urgency="soon" icon={<ReceiptIcon />} title={`Record the sale of the ${c.year} ${c.make} ${c.model}`} detail={`Sold ${fmtDay(c.soldAt!, "dayMonth")}, no buyer or price yet`} action={<Link href={`/stock/${c.id}/sale`} aria-label={`Record sale: ${c.year} ${c.make} ${c.model}`} className={rowButtonStrong}>Record sale</Link>} />
           )),
           ...rest(a.key, o.unrecorded.length, "sold car with no sale recorded", "sold cars with no sale recorded", a.href, "soon"),
         ];
       default: {
         const g = GROUPED[a.key];
-        return [<Task key={a.key} urgency={a.urgency} icon={g?.icon ?? <AlertIcon />} title={a.label} detail={a.key === "sync" ? undefined : plural(a.count, g?.noun ?? "item")} action={<Link href={a.href} aria-label={`${g?.verb ?? "Open"}: ${a.label}`} className={rowButton}>{g?.verb ?? "Open"}</Link>} />];
+        return [<Task key={a.key} urgency={a.urgency} icon={g?.icon ?? <AlertIcon />} title={a.label} detail={a.key === "sync" ? undefined : plural(a.count, g?.noun ?? "item")} action={<Link href={a.href} aria-label={`${g?.verb ?? "Open"}: ${a.label}`} className={rowButtonStrong}>{g?.verb ?? "Open"}</Link>} />];
       }
     }
   });
