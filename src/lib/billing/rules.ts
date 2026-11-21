@@ -140,7 +140,8 @@ export function withinCaps(c: ReturnType<typeof usageCosts>, b: BillingSettings,
 
 // The alerts a change in usage sets off: the 80% mark and the cap of each scope with a cap, and each amount the dealer chose, crossed
 // between `before` and `after`. Each has a key, so it is sent once a month.
-export type Alert = { key: string; scope: Scope; text: string };
+// `text`: what happened, as the bell's heading; `detail`: which service and how much, under it.
+export type Alert = { key: string; scope: Scope; text: string; detail: string };
 export function alertsCrossed(before: ReturnType<typeof usageCosts>, after: ReturnType<typeof usageCosts>, b: BillingSettings, month: string): Alert[] {
   const label = (s: Scope) => (s === "total" ? "All usage" : SERVICE_LABELS[s]);
   const out: Alert[] = [];
@@ -148,11 +149,11 @@ export function alertsCrossed(before: ReturnType<typeof usageCosts>, after: Retu
   for (const s of ["total", ...SERVICES] as Scope[]) {
     const cap = capOf(b, s);
     if (cap !== undefined && cap > 0) {
-      if (b.alertAt80 && crossed(s, cap * 0.8)) out.push({ key: `${month}:${s}:80:${cap}`, scope: s, text: `${label(s)} has reached 80% of its ${eur(cap)} monthly limit` });
-      if (crossed(s, cap)) out.push({ key: `${month}:${s}:cap:${cap}`, scope: s, text: `${label(s)} has reached its ${eur(cap)} monthly limit, and paid use has stopped until next month` });
+      if (b.alertAt80 && crossed(s, cap * 0.8)) out.push({ key: `${month}:${s}:80:${cap}`, scope: s, text: "Nearing a monthly limit", detail: `${label(s)}: 80% of ${eur(cap)} used` });
+      if (crossed(s, cap)) out.push({ key: `${month}:${s}:cap:${cap}`, scope: s, text: "Monthly limit reached", detail: `${label(s)}: ${eur(cap)} used, paid use stopped until next month` });
     }
   }
-  for (const a of b.alerts) if (crossed(a.scope, a.amountEur)) out.push({ key: `${month}:${a.scope}:${a.amountEur}`, scope: a.scope, text: `${label(a.scope)} has passed ${eur(a.amountEur)} this month` });
+  for (const a of b.alerts) if (crossed(a.scope, a.amountEur)) out.push({ key: `${month}:${a.scope}:${a.amountEur}`, scope: a.scope, text: "Spend alert", detail: `${label(a.scope)}: over ${eur(a.amountEur)} this month` });
   return out;
 }
 

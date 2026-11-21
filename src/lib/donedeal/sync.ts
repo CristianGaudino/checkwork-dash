@@ -90,7 +90,7 @@ export async function runSync({ force = false, now = Date.now() } = {}): Promise
   for (const c of plan.gone) {
     if (!(await apply(c, `Hidden: the ad came down on ${site}`, current.find((was) => was.id === c.id)))) continue;
     result.takenDown++;
-    await notify({ kind: "taken-down", text: `Ad taken down on ${site}: ${carTitleOf(c)}`, href: "/stock" }, now);
+    await notify({ kind: "taken-down", text: `Ad taken down on ${site}`, detail: `${carTitleOf(c)}, now hidden`, href: "/stock" }, now);
   }
   const status: SyncStatus = { id: "status", lastRunAt: now, lastOkAt: now, result, ...(skipped && { problem: `${skipped === 1 ? "1 car" : `${skipped} cars`} from ${site} could not be saved. The rest are up to date.` }) };
   await statusStore.put(status);
@@ -102,7 +102,7 @@ async function failed(prev: SyncStatus, problem: string, held: boolean, now: num
   const failingSince = prev.problem && prev.failingSince !== undefined ? prev.failingSince : now;
   const status: SyncStatus = { ...prev, lastRunAt: now, problem, held, failingSince };
   // In the bell once an outage starts, not every 15 minutes it lasts.
-  if (failingSince === now) await notify({ kind: "sync", text: `The ${site} stock did not update`, href: "/stock" }, now);
+  if (failingSince === now) await notify({ kind: "sync", text: `${site} stock did not update`, detail: problem, href: "/stock" }, now);
   const due = now - failingSince >= ALERT_AFTER && !(prev.alertedAt !== undefined && prev.alertedAt >= failingSince);
   if (due && (await alertOwners(problem, site, prev.lastOkAt))) status.alertedAt = now;
   await statusStore.put(status);

@@ -63,7 +63,7 @@ export async function recordUsage<S extends Service>(service: S, kind: Kind<S>, 
     for (const a of alerts) {
       if (await sentAlertsStore.get(a.key)) continue;
       await sentAlertsStore.put({ id: a.key });
-      for (const name of leaders) await notify({ kind: "usage", text: a.text, href: "/billing", for: name });
+      for (const name of leaders) await notify({ kind: "usage", text: a.text, detail: a.detail, href: "/billing", for: name });
     }
   } catch {
     // shortcut: a lost count is a few cents unbilled; the use itself went through

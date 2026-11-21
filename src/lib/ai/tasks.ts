@@ -35,7 +35,8 @@ export type FactsOf = {
   post: { dealer: string; car: CarFacts; network: Network; format: PostFormat; layout?: StoryLayout; voice: Voice };
   newsletter: { dealer: string; cars: CarFacts[]; voice: Voice };
   carDescription: { dealer: string; car: CarFacts; notes?: string };
-  leadReply: { dealer: string; firstName: string; kind: string; message: string; car?: string; carDetails?: CarFacts & { forSale: boolean } };
+  // type: the lead type id (stable), so a reply chooses its ask by it and never by the label, which can be reworded.
+  leadReply: { dealer: string; firstName: string; kind: string; type?: string; message: string; car?: string; carDetails?: CarFacts & { forSale: boolean } };
   reviewReply: { dealer: string; firstName: string; rating: number; text: string };
 };
 

@@ -18,6 +18,7 @@ import { oneLine } from "@/lib/leads/schema";
 import { FACTS_SCHEMA } from "@/lib/tenancy/profile";
 import { requireStaff } from "@/lib/staff";
 import { staffStore } from "@/lib/whatsapp/store";
+import { removePushOf } from "@/lib/push";
 
 export type SettingsState = { errors?: Record<string, string>; saved?: boolean } | undefined;
 
@@ -194,6 +195,7 @@ export async function removeTeamAction(id: string) {
   for (const l of await leadsStore.list()) if (l.assignedTo === gone.name) await leadsStore.update(l.id, (x) => ({ ...x, assignedTo: x.assignedTo === gone.name ? undefined : x.assignedTo }));
   for (const d of await drivesStore.list()) if (d.assignedTo === gone.name) await drivesStore.update(d.id, (x) => ({ ...x, assignedTo: x.assignedTo === gone.name ? undefined : x.assignedTo }));
   await staffStore.remove(id); // their WhatsApp phone goes too: no more buyers' alerts to someone who left
+  await removePushOf(gone.email); // and their notifications on their phones
   await logActivity("settings", `Removed ${gone.name} from the team`, { kind: "team", id, label: gone.name });
 }
 

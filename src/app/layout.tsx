@@ -8,6 +8,7 @@ import { DemoBar } from "@/components/demo/DemoBar";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { DealerGate } from "@/components/admin/DealerChooser";
 import { DashboardBeacon } from "@/components/admin/DashboardBeacon";
+import { ServiceWorker } from "@/components/admin/ServiceWorker";
 import { DEALER_NAV, DENSITY_COOKIE, NAV_COOKIE, RAIL_COOKIE, parseOpenGroups } from "@/lib/admin/nav";
 import { THEME_SCRIPT } from "@/lib/demo";
 import { DealerFactsProvider } from "@/components/DealerFacts";
@@ -39,6 +40,20 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = { title: { default: "Dealer dashboard", template: "%s | Dealer dashboard" }, robots: { index: false } };
 
+// The app on a phone's home screen (#11). The manifest is a static file with its own link, not app/manifest.ts: a browser fetches a manifest
+// without cookies unless the link says use-credentials, and Cloudflare Access turns a request without its cookie away. Next's own link
+// cannot say it. The icons are made by scripts/app-icons.mjs.
+const appHead = (
+  <>
+    <link rel="manifest" href="/manifest.webmanifest" crossOrigin="use-credentials" />
+    <meta name="theme-color" content="#f4f6fb" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Checkwork" />
+    <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png" />
+  </>
+);
+
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   // Which dealer this is, from the directory (src/lib/tenancy). With none open, the page is the chooser or "No access" and nothing else: no
   // menu, no page. Every store refuses without a dealer too, and every action (requireStaff), so this is not the only lock.
@@ -48,6 +63,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <html lang="en-IE" className={`${sora.variable} ${inter.variable}`} suppressHydrationWarning>
         <head>
           <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+          {appHead}
         </head>
         <body className="flex min-h-dvh flex-col">
           <DealerGate choices={access.state === "choose" ? access.choices : undefined} email={access.state === "no-access" ? await signedInEmail() : undefined} />
@@ -70,6 +86,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <head>
         {/* Sets a stored dark choice before first paint. */}
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+        {appHead}
       </head>
       <body className="flex min-h-dvh flex-col">
         {/* Suspense: it reads the search params, which a static page only has in the browser. */}
@@ -80,6 +97,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <DemoBar demo={dealer.demo} donedeal={source === "donedeal"} />
           <AdminShell title={dealer.name} profile={dealer.profile} subtitle="Dealer dashboard" nav={nav} navLabel="Dealer dashboard" openGroups={parseOpenGroups(jar.get(NAV_COOKIE)?.value)} rail={jar.get(RAIL_COOKIE)?.value === "1"} compact={jar.get(DENSITY_COOKIE)?.value === "compact"}>
             <DashboardBeacon />
+            <ServiceWorker />
             {modules.has("dashboard") ? children : <DashboardNotFound />}
           </AdminShell>
         </DealerFactsProvider>

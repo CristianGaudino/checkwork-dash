@@ -232,6 +232,20 @@ describe("removing a person", () => {
     await removeTeamAction(person.id);
     expect((await drivesStore.get(drive.id))!.assignedTo).toBeUndefined();
   });
+
+  it("removes their notifications on their devices, and nobody else's", async () => {
+    role = undefined;
+    await settingsStore.reset();
+    const { pushStore } = await import("@/lib/push");
+    const person = (await getSettings()).team.find((t) => t.role === "Sales")!;
+    const other = (await getSettings()).team.find((t) => t.role === "Owner")!;
+    const sub = (id: string, email: string) => ({ id, email, endpoint: `https://fcm.googleapis.com/fcm/send/${id}`, keys: { p256dh: "x", auth: "y" }, label: "Android phone", addedAt: 0 });
+    await pushStore.put(sub("push-a", person.email));
+    await pushStore.put(sub("push-b", person.email));
+    await pushStore.put(sub("push-c", other.email));
+    await removeTeamAction(person.id);
+    expect((await pushStore.list()).map((s) => s.id)).toEqual(["push-c"]);
+  });
 });
 
 describe("website keys", () => {

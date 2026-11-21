@@ -7,7 +7,7 @@ import { INTEGRATIONS, type IntegrationId, integrationText, modeOf } from "@/lib
 import { formatHours } from "@/lib/dealer";
 import { removeTeamAction, resetDemoAction, revokeSiteKeyAction } from "./actions";
 import { siteKeysOf } from "@/lib/tenancy/directory";
-import { fmtDateTime } from "@/lib/admin/format";
+import { fmtDate, fmtDateTime } from "@/lib/admin/format";
 import { mayResetDemo } from "@/lib/admin/docs";
 import { syncLine } from "@/components/admin/SyncPanel";
 import { syncStatus } from "@/lib/donedeal/sync";
@@ -21,6 +21,9 @@ import { ROLES, roleCan, type Role } from "@/lib/permission-rules";
 import { enabledModules } from "@/lib/modules";
 import { MODULES, type ModuleId } from "@/lib/modules-rules";
 import { BrandIcon } from "@/components/admin/BrandIcon";
+import { PushPanel } from "@/components/admin/PushPanel";
+import { pushStore, vapid } from "@/lib/push";
+import { staffIdentity } from "@/lib/staff";
 
 // What each role may see, in words, so the owner knows what a role change does.
 const GRANTS: Record<Role, string> = { Owner: "Everything", Manager: "Everything except changing an owner", Sales: "Everything except margins, the full reports, the team, settings, activity, data requests and billing", Finance: "Margins and the full reports, and everything Sales sees" };
@@ -35,7 +38,7 @@ const SECTIONS = [
   ["business", "Your business", "Your details, opening hours and how your posts sound"],
   ["targets", "Targets", "How fast to reply to a lead, and how long a test drive takes"],
   ["team", "Team", "Who can sign in, and what each person can see"],
-  ["emails", "Notifications", "Where new leads are emailed, and the morning reminder"],
+  ["emails", "Notifications", "Where new leads are emailed, the morning reminder and your phone"],
   ["services", "Connected services", "The outside services your site uses, and which are on"],
   ["demo", "Start again", "Put the dashboard back as it started"],
 ] as const;
@@ -67,6 +70,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
   const [section, , about] = sections.find(([k]) => k === sp.section) ?? sections[0];
   // Website keys only for those who make and revoke them (owners and managers).
   const keys = section === "services" && edit ? await siteKeysOf(dealerId) : [];
+  // This person's own devices with notifications on (#11), never anyone else's.
+  const who = section === "emails" ? await staffIdentity() : null;
+  const devices = who?.ok ? (await pushStore.list()).filter((d) => d.email === who.email).sort((a, b) => a.addedAt - b.addedAt).map((d) => ({ id: d.id, label: d.label, added: fmtDate(d.addedAt) })) : [];
   return (
     <>
       <PageHeader title="Settings" text="How your site and dashboard work for you and your team." />
@@ -207,6 +213,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
               </Panel>
               <Panel title="Morning reminder">
                 {edit ? <NotificationsForm settings={s} emailConnected={usable("email")} /> : <Facts items={[["Morning follow-ups email to each salesperson", s.notifications.followUps ? "On" : "Off"]]} />}
+              </Panel>
+              <Panel title="Notifications on this device">
+                <PushPanel publicKey={vapid()?.publicKey ?? null} devices={devices} />
               </Panel>
             </>
           )}

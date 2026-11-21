@@ -10,7 +10,7 @@ export async function loadNotices() {
   await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
   const me = await currentMember();
   const { items, unread } = noticesFor(await noticesStore.list(), await readsOf(me), me);
-  return { unread, items: items.map(({ id, at, kind, text, href, unread: u }) => ({ id, at, kind, text, href, unread: u })) };
+  return { unread, items: items.map(({ id, at, kind, text, detail, href, unread: u }) => ({ id, at, kind, text, detail, href, unread: u })) };
 }
 
 // One or more (by id) or, with nothing, all of this person's, read. A server action can be called with anything, so anything but a list

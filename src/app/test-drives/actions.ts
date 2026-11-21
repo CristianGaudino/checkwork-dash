@@ -51,7 +51,7 @@ export async function assignDriveAction(id: string, name: string) {
   if (!(await drivesStore.update(id, (d) => ({ ...d, assignedTo: name || undefined })))) return;
   await logActivity("test-drives", name ? `Gave the test drive to ${name}` : "Took the test drive off its person", { kind: "drive", id });
   const me = await currentMember();
-  if (name && name !== me.name) await notify({ kind: "assigned", for: name, text: `${me.name} gave you a test drive: ${drive.carTitle}`, href: `/test-drives/${id}` });
+  if (name && name !== me.name) await notify({ kind: "assigned", for: name, text: `${me.name} gave you a test drive`, detail: drive.carTitle, href: `/test-drives/${id}` });
   revalidatePath("/test-drives");
 }
 
