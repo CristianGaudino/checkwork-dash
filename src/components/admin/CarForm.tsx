@@ -35,11 +35,11 @@ const monthOptions = (current: string): (readonly [string, string])[] => {
 };
 
 // Add or edit a car. Every box comes from CAR_FIELDS; the server checks it again (car-form.ts), and a bad box comes back with its message.
-// `car` is the car being edited, or none for a new one.
+// `car` is the car being edited, or none for a new one, and `at` when it was last written: the save is refused if it changed since.
 // `cost` is only given to staff with the margins permission, and the box is not in the page without it.
 // `reg`: a registration to start a new car from (a trade-in taken on a sale).
 // `photosMax`: a new car's photos are picked here and go with the form (a saved car's are on its page, apart from the form).
-export function CarForm({ car, cost, reg: startReg = "", photosMax }: { car?: Car; cost?: { eur?: number }; reg?: string; photosMax?: number }) {
+export function CarForm({ car, at, cost, reg: startReg = "", photosMax }: { car?: Car; at?: number; cost?: { eur?: number }; reg?: string; photosMax?: number }) {
   const form = useRef<HTMLFormElement>(null);
   const [photos, setPhotos] = useState<PickedPhoto[]>([]);
   const [state, action, pending] = useKeptForm<FormState>(async (prev, data) => {
@@ -48,6 +48,7 @@ export function CarForm({ car, cost, reg: startReg = "", photosMax }: { car?: Ca
       data.append("photoWidth", String(p.width));
       data.append("photoHeight", String(p.height));
     }
+    if (at !== undefined) data.set("at", String(at)); // from the latest render: a photo added or Hide on this page moves it on too
     return saveCarAction(car?.id ?? null, prev, data);
   }, undefined, form);
   const errors = state?.errors ?? {};
@@ -140,6 +141,7 @@ export function CarForm({ car, cost, reg: startReg = "", photosMax }: { car?: Ca
 
       {/* Shown, hidden or draft is changed by the buttons at the top of the car's page (Hide from the website, Publish), never by Save
           changes (car-form.ts keeps a saved car's state). A new car is added or kept as a draft by its buttons. */}
+      {errors.stale && <p role="alert" className="text-body text-destructive">{errors.stale}</p>}
       <div className="flex flex-wrap gap-3">
         <button type="submit" name={car ? undefined : "listing"} value={car ? undefined : "live"} disabled={pending} className={adminButton}>
           {pending ? "Saving" : car ? "Save changes" : "Add car"}
