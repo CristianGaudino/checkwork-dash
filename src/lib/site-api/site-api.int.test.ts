@@ -426,6 +426,22 @@ describe("car photos on the website", () => {
         }
       }));
 
+    it("an extra query parameter finds the same copy, so it cannot skip the cache", () =>
+      withCache(async ({ kept }) => {
+        const link = await linkFor("9300010");
+        kept.set(link, new Response(new Uint8Array([8])));
+        const before = { dir: env.DIRECTORY, db: env.DB_TEST_MOTORS };
+        Object.assign(env, { DIRECTORY: "unreachable", DB_TEST_MOTORS: "unreachable" }); // a miss would read D1 and throw
+        try {
+          const res = await open(`${link}&r=${Math.random()}`);
+          expect(res.status).toBe(200);
+          expect([...new Uint8Array(await res.arrayBuffer())]).toEqual([8]);
+          expect([...kept.keys()]).toEqual([link]); // no new entry
+        } finally {
+          Object.assign(env, { DIRECTORY: before.dir, DB_TEST_MOTORS: before.db });
+        }
+      }));
+
     it("never touches the cache for a bad signature", () =>
       withCache(async ({ calls }) => {
         const link = await linkFor("9300010");

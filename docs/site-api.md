@@ -78,7 +78,7 @@ The host is the deploy's own (`APP_URL`). The photo route answers the photo only
 - the key is a car photo's (`CAR_PHOTO_KEY`), read under that dealer's prefix only, and the dealer is active;
 - the car is on the dealer's website now (`onPublicSite`, stock kept here) and the photo is still on the car (one row of the dealer's D1).
 
-After the signature check, and before any D1 read, the Workers cache (`caches.default`, keyed by the full link) answers for up to 10
+After the signature check, and before any D1 read, the Workers cache (`caches.default`, keyed by the checked dealer, key and signature, so extra query parameters cannot skip it) answers for up to 10
 minutes. So hiding a car, making it a draft, removing a photo or pausing the dealer stops its links within 10 minutes, without changing
 the secret. A browser that already has the photo keeps its copy. A bad signature never reaches the cache.
 

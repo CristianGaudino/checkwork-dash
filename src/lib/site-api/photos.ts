@@ -49,7 +49,7 @@ const edgeCache = () => (globalThis.caches as unknown as { default?: EdgeCache }
 
 // GET /api/site/v1/photos/<dealer>/<key>?sig=: the photo, only with a signature for that dealer and key, only under that dealer's prefix, and
 // only while the dealer is active and the car is on their website with this photo. After the signature, the Workers cache answers for up to
-// 10 minutes, keyed by the full link; past that the checks run again, so hiding a car or removing a photo stops its links within 10 minutes.
+// 10 minutes, keyed by the checked dealer, key and signature; past that the checks run again, so hiding a car or removing a photo stops its links within 10 minutes.
 // Everything else is the same bare 404. A failure is logged with the dealer's id only, never the key or the signature.
 export async function sitePhoto(url: string, dealerId: string, key: string, sig: string): Promise<Response> {
   const secret = process.env.SITE_PHOTO_SECRET;
@@ -57,7 +57,9 @@ export async function sitePhoto(url: string, dealerId: string, key: string, sig:
   try {
     if (!(await crypto.subtle.verify("HMAC", await hmacKey(secret), Buffer.from(sig, "base64url"), message(dealerId, key)))) return notFound();
     const cache = edgeCache();
-    const hit = await cache?.match(url);
+    // Keyed by what was checked, never the raw request: extra query parameters must not mint new cache entries that each read D1.
+    const cacheKey = `${new URL(url).origin}/api/site/v1/photos/${dealerId}/${key}?sig=${sig}`;
+    const hit = await cache?.match(cacheKey);
     if (hit) return photo(hit.body);
     const dealer = await dealerById(dealerId);
     if (!dealer || dealer.status !== "active") return notFound();
@@ -68,7 +70,7 @@ export async function sitePhoto(url: string, dealerId: string, key: string, sig:
     });
     if (!object) return notFound();
     const res = photo(object.body);
-    if (cache) getCloudflareContext().ctx.waitUntil(cache.put(url, new Response(res.clone().body, { headers: { "Content-Type": "image/jpeg", "Cache-Control": "public, max-age=600" } })));
+    if (cache) getCloudflareContext().ctx.waitUntil(cache.put(cacheKey, new Response(res.clone().body, { headers: { "Content-Type": "image/jpeg", "Cache-Control": "public, max-age=600" } })));
     return res;
   } catch {
     logSite({ route: "photos", dealerId, outcome: "error", status: 500 });
