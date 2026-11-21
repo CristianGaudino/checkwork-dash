@@ -13,7 +13,7 @@ import { forSale, type Car } from "@/lib/stock/types";
 export type FeedResult = { ok: true; listings: Car[] } | { ok: false; reason: "not-connected" | "not-installed" | "failed" };
 
 export async function fetchListings(): Promise<FeedResult> {
-  const mode = modeOf("donedeal");
+  const mode = await modeOf("donedeal");
   if (mode === "off") return { ok: false, reason: "not-connected" };
   if (mode === "simulated") return { ok: true, listings: (await adminCars()).filter(forSale) };
   return { ok: false, reason: "not-installed" };

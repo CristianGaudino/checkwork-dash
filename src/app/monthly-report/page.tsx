@@ -55,12 +55,13 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
     profit = data.sales.filter((x) => !x.returnedOn && x.soldOn >= from && x.soldOn <= to && costs.has(x.id)).reduce((n, x) => n + x.priceEur - costs.get(x.id)!.total, 0);
   }
 
+  const sim = await simulating();
   // shortcut: the demo's visitor figures are generated for the 30 days to the month's end, not the calendar month; real analytics replaces it.
-  const a = whole && hasAnalytics && simulating() ? buildAnalytics({ range: 30, cars: data.cars.filter(forSale).map((c) => ({ slug: c.slug, title: carName(c) })), now: bounds(from, to)[1] - 1, leadTimes: data.leads.map((l) => l.createdAt) }) : undefined;
+  const a = whole && hasAnalytics && sim ? buildAnalytics({ range: 30, cars: data.cars.filter(forSale).map((c) => ({ slug: c.slug, title: carName(c) })), now: bounds(from, to)[1] - 1, leadTimes: data.leads.map((l) => l.createdAt) }) : undefined;
   // A dealer's own site: the visits its visitors really made, from the site's anonymous counts, and where its website leads came from.
   const inMonth = (r: { from: string; to: string }) => data.leads.filter((l) => l.createdAt >= bounds(r.from, r.to)[0] && l.createdAt < bounds(r.from, r.to)[1]);
   const real =
-    whole && hasAnalytics && !simulating()
+    whole && hasAnalytics && !sim
       ? await Promise.all([countsBetween(from, to), countsBetween(prevRange.from, prevRange.to)]).then(([c, pc]) => ({
           now: visitorFigures({ counts: c.features, leads: inMonth({ from, to }), alerts: [] }),
           before: visitorFigures({ counts: pc.features, leads: inMonth(prevRange), alerts: [] }),

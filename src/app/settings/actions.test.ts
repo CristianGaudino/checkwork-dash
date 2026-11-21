@@ -150,7 +150,6 @@ describe("lead emails", () => {
 
 describe("reset demo data", () => {
   it("puts the records back, and the Reserved marks with them: only on the cars with a held deposit", async () => {
-    vi.stubEnv("DEMO_RECORDS", "on");
     role = undefined; // the owner
     const car = (await adminCars()).find((c) => !c.soldAt && !c.reserved)!;
     const held = (await adminCars()).find((c) => c.reserved)!;
@@ -215,7 +214,6 @@ describe("the other settings", () => {
   });
 
   it("does not reset the demo for Sales", async () => {
-    vi.stubEnv("DEMO_RECORDS", "on");
     await saveTargetsAction(undefined, form({ leadSlaHours: "12", driveSlotMinutes: "30" })); // as the owner: a change a reset would undo
     role = "Sales";
     await resetDemoAction();

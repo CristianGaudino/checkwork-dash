@@ -26,7 +26,6 @@ function fakeDeps(over: Partial<Deps["store"]> = {}) {
     getCar: async (id) => cars.find((c) => c.id === id) ?? null,
     limiter: { allow: async () => true },
     verifyTurnstile: async (token) => token === "ok-token",
-    demo: true,
     bucket: { put: async () => {}, delete: async () => {} },
     photoLinkSecret: () => "test-secret",
   };

@@ -9,7 +9,6 @@ export const SITE_SLUG = "checkwork-demo";
 export const TIME_ZONE = "Europe/Dublin";
 // Placeholder until 03-02 onboards the sending domain and records the address; must be on that domain. Swap at handover.
 export const LEAD_FROM_EMAIL = "leads@checkwork.ie";
-// The only reader of APP_ENV. A function so tests can stub the env.
+// The only reader of APP_ENV: the deploy job's test run fails while the finance figures are placeholders (finance.config.test.ts). What a
+// dealer sees (simulated services, made-up records, the demo reset) follows the dealer's demo flag in the directory, never the deploy.
 export const isProduction = () => process.env.APP_ENV === "production";
-// The Checkwork demo deploy (APP_ENV=demo): only there does the morning cron put a demo dealer's records back (src/app/api/demo/reset).
-export const isDemoSite = () => process.env.APP_ENV === "demo";

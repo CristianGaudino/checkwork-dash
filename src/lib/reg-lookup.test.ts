@@ -15,9 +15,9 @@ describe("lookupReg", () => {
     expect((await lookupReg("191 ky 1234", ""))?.car).toEqual(a?.car);
   });
 
-  it("with simulation off and no service, only what the plate itself says: never an invented car", async () => {
-    vi.stubEnv("SIMULATE_INTEGRATIONS", "off");
-    const a = await lookupReg("191-KY-1234", "");
+  it("for a real dealer with no service, only what the plate itself says: never an invented car", async () => {
+    const { runAsDealer } = await import("@/lib/tenancy/current");
+    const a = await runAsDealer("test-motors", () => lookupReg("191-KY-1234", ""));
     expect(a).toEqual({ reg: "191-KY-1234", year: 2019, half: 1, county: "Kerry" });
   });
 
@@ -26,17 +26,21 @@ describe("lookupReg", () => {
   });
 });
 
+// A real dealer (not a demo): a demo dealer never calls the paid service, keys or not.
 describe("lookupReg with the paid service", () => {
+  const asReal = (fn: () => Promise<void>) => async () => (await import("@/lib/tenancy/current")).runAsDealer("test-motors", fn);
   const FOCUS = { make: "Ford", model: "Focus" };
   beforeEach(async () => {
     vi.stubEnv("CARTELL_API_KEY", "key");
     allowed = true;
-    await regCache.reset();
-    await regCounts.reset();
+    await asReal(async () => {
+      await regCache.reset();
+      await regCounts.reset();
+    })();
   });
   afterEach(() => vi.unstubAllEnvs());
 
-  it("past the dealer's monthly limit gives a plate already in the cache, free, and only the plate's facts for a new one", async () => {
+  it("past the dealer's monthly limit gives a plate already in the cache, free, and only the plate's facts for a new one", asReal(async () => {
     const service = vi.fn(async () => FOCUS);
     const paid = vi.fn(async () => {});
     expect((await lookupReg("191-KY-1234", "1.1.1.1", service, { allowed: async () => true, paid }))?.car).toEqual(FOCUS);
@@ -47,16 +51,16 @@ describe("lookupReg with the paid service", () => {
     expect(fresh?.car).toBeUndefined();
     expect(service).toHaveBeenCalledOnce();
     expect(paid).toHaveBeenCalledOnce();
-  });
+  }));
 
-  it("asks the service once per plate, then answers from the cache", async () => {
+  it("asks the service once per plate, then answers from the cache", asReal(async () => {
     const service = vi.fn(async () => FOCUS);
     expect((await lookupReg("191-KY-1234", "1.1.1.1", service))?.car).toEqual(FOCUS);
     expect((await lookupReg("191 ky 1234", "2.2.2.2", service))?.car).toEqual(FOCUS);
     expect(service).toHaveBeenCalledOnce();
-  });
+  }));
 
-  it("stops at the day's cap and past the visitor's limit, with the plate's facts still given", async () => {
+  it("stops at the day's cap and past the visitor's limit, with the plate's facts still given", asReal(async () => {
     const service = vi.fn(async () => FOCUS);
     const today = `day-${new Date().toISOString().slice(0, 10)}`;
     await regCounts.put({ id: today, n: REG_LOOKUPS_A_DAY });
@@ -65,15 +69,15 @@ describe("lookupReg with the paid service", () => {
     allowed = false;
     expect((await lookupReg("191-KY-1234", "1.1.1.1", service))?.car).toBeUndefined();
     expect(service).not.toHaveBeenCalled();
-  });
+  }));
 
-  it("gives the plate's facts when the service fails, and does not cache the failure", async () => {
+  it("gives the plate's facts when the service fails, and does not cache the failure", asReal(async () => {
     const service = vi.fn(async () => Promise.reject(new Error("down")));
     expect((await lookupReg("191-KY-1234", "", service))?.car).toBeUndefined();
     expect(await regCache.get("191-KY-1234")).toBeUndefined();
-  });
+  }));
 
-  it("allows a visitor a few paid lookups a day, then only the plate's facts; staff have no such limit", async () => {
+  it("allows a visitor a few paid lookups a day, then only the plate's facts; staff have no such limit", asReal(async () => {
     let n = 0;
     const service = vi.fn(async () => FOCUS);
     const plates = Array.from({ length: REG_LOOKUPS_PER_VISITOR_A_DAY + 2 }, () => `191-KY-${1000 + n++}`);
@@ -85,10 +89,10 @@ describe("lookupReg with the paid service", () => {
     expect((await lookupReg("191-KY-2", null, service))?.car).toEqual(FOCUS); // nor staff
     allowed = false;
     expect((await lookupReg("191-KY-3", null, service))?.car).toEqual(FOCUS); // the per-minute limit is not theirs either
-  });
+  }));
 
-  it("keeps a visitor's count under a hash, never their address", async () => {
+  it("keeps a visitor's count under a hash, never their address", asReal(async () => {
     await lookupReg("191-KY-1234", "203.0.113.7", async () => FOCUS);
     expect(JSON.stringify(await regCounts.list())).not.toContain("203.0.113.7");
-  });
+  }));
 });

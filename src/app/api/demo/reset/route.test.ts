@@ -13,10 +13,11 @@ afterEach(() => {
   reset.mockClear();
 });
 
-describe("the weekly demo reset", () => {
-  it("resets the demo's records with the cron key, on the demo deploy only", async () => {
+// The directory's demo flag decides, on any deploy: APP_ENV=production, as on the one shared deploy.
+describe("the morning demo reset", () => {
+  it("resets a demo dealer's records with the cron key, on a production deploy too", async () => {
     vi.stubEnv("CRON_KEY", "k");
-    vi.stubEnv("APP_ENV", "demo");
+    vi.stubEnv("APP_ENV", "production");
     expect((await call()).status).toBe(404);
     expect((await call("wrong")).status).toBe(404);
     expect((await call("k")).status).toBe(200);
@@ -24,17 +25,10 @@ describe("the weekly demo reset", () => {
   });
   it("is not there for a dealer that is not a demo, nor for one the directory does not have", async () => {
     vi.stubEnv("CRON_KEY", "k");
-    vi.stubEnv("APP_ENV", "demo");
+    vi.stubEnv("APP_ENV", "production");
     expect((await call("k", "test-motors")).status).toBe(404);
     expect((await call("k", "nobody-motors")).status).toBe(404);
     expect((await call("k", "")).status).toBe(404);
-    expect(reset).not.toHaveBeenCalled();
-  });
-  it("is not there on a dealer's own site, even with the key", async () => {
-    vi.stubEnv("CRON_KEY", "k");
-    vi.stubEnv("APP_ENV", "production");
-    vi.stubEnv("DEMO_RECORDS", "on");
-    expect((await call("k")).status).toBe(404);
     expect(reset).not.toHaveBeenCalled();
   });
 });

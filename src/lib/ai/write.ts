@@ -16,7 +16,7 @@ export type Written = { ok: true; text: string; subject?: string } | { ok: false
 const subject = (f: FactsOf["newsletter"]) => (f.cars.length ? `New arrivals at ${f.dealer}` : `News from ${f.dealer}`);
 
 export async function writeWithAI<T extends Task>(model: AiModel, task: T, facts: FactsOf[T], adjust?: Adjust, current = ""): Promise<Written> {
-  const mode = modeOf("ai");
+  const mode = await modeOf("ai");
   if (mode === "off") return { ok: false };
   let text: string | null;
   if (mode === "live") {

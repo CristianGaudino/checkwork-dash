@@ -2,7 +2,6 @@ import "server-only";
 import { and, eq, notLike, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import { adminDocs } from "@/lib/db/schema";
-import { isProduction } from "@/lib/site";
 import { currentDealer, hasD1 } from "@/lib/tenancy/current";
 import type { Dealer } from "@/lib/tenancy/directory";
 
@@ -19,15 +18,12 @@ export const SEEDED = "_seeded"; // collection holding one marker row per seeded
 const seededHere = new Set<string>(); // "dealer/collection" this instance already knows are seeded, so a call costs no extra query
 const memoryOf = (dealer: Dealer) => memory.get(dealer.id) ?? memory.set(dealer.id, new Map()).get(dealer.id)!;
 
-// The made-up records (leads, reviews, posts, a team...) are for the demo. A real dealer's dashboard starts empty: on a production site
-// (APP_ENV=production) nothing is seeded, unless DEMO_RECORDS=on; DEMO_RECORDS=off turns them off anywhere. `always` is for a record a
-// site cannot run without (the settings), which seeds its defaults either way.
-export const seedsDemoRecords = () => (process.env.DEMO_RECORDS ? process.env.DEMO_RECORDS !== "off" : !isProduction());
-// The Settings reset button: only where there are made-up records, and never on production, where a showcase (DEMO_RECORDS=on) also
-// holds records staff entered. The weekly cron is stricter still (APP_ENV=demo only).
-// Both only for a dealer the directory marks as a demo: a real dealer never gets made-up records, nor the button that wipes its own.
-export const demoRecordsFor = (dealer: Pick<Dealer, "demo">) => dealer.demo && seedsDemoRecords();
-export const mayResetDemo = async () => demoRecordsFor(await currentDealer()) && !isProduction();
+// The made-up records (leads, reviews, posts, a team...) are for a dealer the directory marks as a demo, on any deploy. A real dealer's
+// dashboard starts empty. `always` is for a record a dealer cannot run without (the settings), which seeds its defaults either way.
+// The Settings reset button and the morning reset (src/app/api/demo/reset) are for a demo dealer too: a real dealer never gets made-up
+// records, nor the button that wipes its own.
+export const demoRecordsFor = (dealer: Pick<Dealer, "demo">) => dealer.demo;
+export const mayResetDemo = async () => (await currentDealer()).demo;
 
 // `demoSeed` gets whether the dealer has made-up records, for an `always` collection whose defaults differ (the settings).
 export function defineCollection<T extends Doc>(name: string, demoSeed: (demo: boolean) => T[], { always = false }: { always?: boolean } = {}) {

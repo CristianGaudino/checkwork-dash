@@ -78,7 +78,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
   const tab = tabs.some(([k]) => k === sp.tab) ? sp.tab! : tabs[0][0];
   const notice = sp.notice ? NOTICES[sp.notice] : undefined;
   await sendDuePosts(); // posts whose time has come go out before the list is read
-  const [posts, ads, letters, subs, cars, library] = await Promise.all([postsStore.list(), adsStore.list(), newslettersStore.list(), subscribersStore.list(), adminCars(), mediaStore.list()]);
+  const [posts, ads, letters, subs, cars, library, sending] = await Promise.all([postsStore.list(), adsStore.list(), newslettersStore.list(), subscribersStore.list(), adminCars(), mediaStore.list(), isUsable("newsletter")]);
   const onSale = newestForSale(cars);
   const live = subs.filter((s) => s.status === "subscribed").length;
   const ideas = worthPosting(onSale, posts);
@@ -301,7 +301,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
             <form action={createNewsletterAction}>
               <SubmitButton name="intent" value="write" className={adminButton}>Write from the newest cars</SubmitButton>
             </form>
-            <p className="text-meta text-text-2">{fmtNum(live)} subscribers{isUsable("newsletter") ? "" : ", sending not connected"}</p>
+            <p className="text-meta text-text-2">{fmtNum(live)} subscribers{sending ? "" : ", sending not connected"}</p>
           </div>
           <Panel title="Newsletters">
             {letters.length === 0 ? (

@@ -22,7 +22,7 @@ Keep the demo stock and records; change what the dealer will recognise.
 4. `src/lib/partners.ts`: the makes the dealer sells new (New cars shows them first). Empty if they sell used only.
 5. Colours, only if the dealer has its own: `--color-accent` and `--color-accent-text` in both theme blocks of `src/app/globals.css`.
    Keep white text on the accent at 4.5:1 or more. Everything else stays the Checkwork palette, so every site reads as one family.
-6. Deploy it as a demo (no `APP_ENV=production`): it stays out of search, its emails say DEMO, and the dashboard has its lived-in records.
+6. Deploy it as a demo (no `APP_ENV=production`): it stays out of search and its emails say DEMO. In the dashboard, a dealer marked as a demo in the directory has its lived-in records on any deploy.
 
 ## A real dealer
 Everything above, then:
@@ -55,8 +55,8 @@ deploy fails its tests while it is false.
 - Cloudflare Access: an application for the dashboard's whole domain. Set `CF_ACCESS_TEAM_DOMAIN` and `CF_ACCESS_AUD`. Without them
   the dashboard answers 404 (it fails closed).
 - Who sees what: the team's roles in Settings (Owner, Manager, Sales, Finance). See `docs/dealer-admin.md`.
-- `APP_ENV=production` for the deploy: simulation and demo records then turn off by themselves; a service without keys says "not
-  connected" in Settings instead of pretending. The demo bar's switches count for a demo dealer only, whatever the deploy. Every
+- A dealer the directory does not mark as a demo never simulates and never gets demo records, on any deploy: a service without keys says
+  "not connected" in Settings instead of pretending. The demo bar's switches count for a demo dealer only. Every
   variable is listed, with what it does, in `.env.example`.
 
 ### Outside services

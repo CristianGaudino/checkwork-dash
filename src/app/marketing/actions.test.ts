@@ -6,6 +6,14 @@ vi.mock("next/headers", () => ({ cookies: async () => ({ get: () => undefined })
 const dropped = vi.hoisted(() => [] as string[]);
 vi.mock("@/lib/admin/media", async (orig) => ({ ...(await orig<typeof import("@/lib/admin/media")>()), dropMedia: async (src: string) => void dropped.push(src) }));
 // A redirect throws in Next; here it throws its target so a test can read the notice.
+// A dealer that is not a demo, with no keys: the outward services are off (src/lib/integrations.ts). The demo dealer these tests act for
+// always simulates, so the "not connected" path is switched on here.
+const offline = vi.hoisted(() => ({ on: false }));
+vi.mock("@/lib/integrations", async (orig) => {
+  const real = await orig<typeof import("@/lib/integrations")>();
+  return { ...real, modeOf: async (id: Parameters<typeof real.modeOf>[0]) => (offline.on ? "off" : real.modeOf(id)) };
+});
+beforeEach(() => void (offline.on = false));
 vi.mock("next/navigation", () => ({ redirect: (to: string) => { throw new Error(`redirect:${to}`); } }));
 const { composeAction, composerCarAction, createNewsletterAction, deleteAdAction, deleteNewsletterAction, deletePostAction, publishPostAction, sendNewsletterAction, startAdAction } = await import("./actions");
 const { addNoteAction, setStatusAction, assignLeadAction, setFollowUpAction, setLostReasonAction } = await import("../leads/actions");
@@ -66,7 +74,6 @@ describe("the post composer action", () => {
 
 describe("publishing, ads and newsletters", () => {
   beforeEach(async () => {
-    vi.stubEnv("SIMULATE_INTEGRATIONS", "on");
     for (const s of [postsStore, adsStore, newslettersStore]) for (const d of await s.list()) await s.remove(d.id);
   });
 
@@ -87,7 +94,7 @@ describe("publishing, ads and newsletters", () => {
   });
 
   it("keeps a draft when posting is not connected, and says so", async () => {
-    vi.stubEnv("SIMULATE_INTEGRATIONS", "off");
+    offline.on = true;
     const car = (await adminCars()).filter(forSale)[0];
     const n = await notice(() => composeAction(form({ carSlug: car.slug, network: "Facebook", text: "Hello", intent: "publish", timing: "now" })));
     expect(n).toMatch(/^social-not-/);

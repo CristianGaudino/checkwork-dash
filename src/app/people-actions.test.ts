@@ -4,9 +4,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
 vi.mock("next/navigation", () => ({ redirect: (to: string) => { throw new Error(`redirect:${to}`); }, notFound: () => { throw new Error("not-found"); } }));
+// A dealer that is not a demo, with no keys: the outward services are off (src/lib/integrations.ts). The demo dealer these tests act for
+// always simulates, so the "not connected" path is switched on here.
+const offline = vi.hoisted(() => ({ on: false }));
+vi.mock("@/lib/integrations", async (orig) => {
+  const real = await orig<typeof import("@/lib/integrations")>();
+  return { ...real, modeOf: async (id: Parameters<typeof real.modeOf>[0]) => (offline.on ? "off" : real.modeOf(id)) };
+});
 beforeEach(() => {
   vi.stubEnv("APP_ENV", "demo");
-  vi.stubEnv("SIMULATE_INTEGRATIONS", "on");
+  offline.on = false;
 });
 let role = "Owner";
 let modules: string | undefined; // the demo bar's module switches; unset is every module
@@ -67,7 +74,7 @@ describe("review replies", () => {
     expect((await reviewsStore.get(review.id))!.reply).toBeUndefined();
   });
   it("keeps nothing when Google replies are not connected, and says so", async () => {
-    vi.stubEnv("SIMULATE_INTEGRATIONS", "off");
+    offline.on = true;
     const review = (await reviewsStore.list()).find((r) => !r.reply)!;
     expect(await target(() => replyAction(review.id, form({ reply: "Thanks" })))).toMatch(/notice=not-(connected|installed)$/);
     expect((await reviewsStore.get(review.id))!.reply).toBeUndefined();

@@ -3,7 +3,7 @@ import { AddTeamForm, BusinessForm, RoleForm, LeadEmailsForm, MarketingForm, Not
 import { Badge, DataTable, Facts, Notice, PageHeader, Panel, adminButtonQuiet, rowButton } from "@/components/admin/kit";
 import { ActButton } from "@/components/admin/ActButton";
 import { getSettings } from "@/lib/admin/collections";
-import { INTEGRATIONS, type IntegrationId, integrationText, isUsable, modeOf } from "@/lib/integrations";
+import { INTEGRATIONS, type IntegrationId, integrationText, modeOf } from "@/lib/integrations";
 import { formatHours } from "@/lib/dealer";
 import { removeTeamAction, resetDemoAction } from "./actions";
 import { mayResetDemo } from "@/lib/admin/docs";
@@ -50,8 +50,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
   const mods = await enabledModules();
   const services = INTEGRATIONS.filter((i) => (i.id !== "donedeal" || synced) && (!SERVICE_MODULE[i.id] || [SERVICE_MODULE[i.id]!].flat().some((m) => mods.has(m)))).map((i) => integrationText(i, { name, site: listingSite }));
   // Lead email is ours to connect: the dealer's fallback address in their profile (leadEmail), as LEAD_TO_EMAIL was for one site.
-  const usable = (id: IntegrationId) => (id === "email" ? Boolean(profile.leadEmail) : isUsable(id));
-  const mode = (id: IntegrationId) => (id === "email" ? (profile.leadEmail ? "live" : "off") : modeOf(id));
+  const modes = new Map(await Promise.all(INTEGRATIONS.map(async (i) => [i.id, i.id === "email" ? (profile.leadEmail ? "live" : "off") : await modeOf(i.id)] as const)));
+  const mode = (id: IntegrationId) => modes.get(id)!;
+  const usable = (id: IntegrationId) => mode(id) !== "off";
   const team = roleCan(me.role, "team");
   const edit = roleCan(me.role, "settings");
   const owner = me.role === "Owner";
@@ -213,14 +214,14 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
                   <dt className="text-meta text-text-2">Account</dt>
                   <dd className="text-body">
                     <a href={listingUrl} {...NEW_TAB} className="underline-offset-2 hover:underline">
-                      {modeOf("donedeal") === "simulated" ? integrationText(INTEGRATIONS.find((i) => i.id === "donedeal")!, { name, site: listingSite }).demoAccount : `Your ${listingSite} dealer page`}
+                      {mode("donedeal") === "simulated" ? integrationText(INTEGRATIONS.find((i) => i.id === "donedeal")!, { name, site: listingSite }).demoAccount : `Your ${listingSite} dealer page`}
                       <span className="sr-only"> (opens in a new tab)</span>
                     </a>
                   </dd>
                 </div>
                 <div>
                   <dt className="text-meta text-text-2">Connection</dt>
-                  <dd className="text-body">{isUsable("donedeal") ? "Connected" : "Not connected"}</dd>
+                  <dd className="text-body">{usable("donedeal") ? "Connected" : "Not connected"}</dd>
                 </div>
               </dl>
               <p className="text-body">{syncLine(sync)}</p>

@@ -13,10 +13,9 @@ vi.mock("./rules", async (real) => ({ ...(await real<typeof import("./rules")>()
 const { recordUsage, usageStore, sentAlertsStore } = await import("./usage");
 
 beforeEach(async () => {
-  vi.stubEnv("DEMO_RECORDS", "off"); // an empty month, not the demo's seeded one
   notices.length = 0;
-  await usageStore.reset();
-  await sentAlertsStore.reset();
+  // An empty month, not the demo's seeded one.
+  for (const s of [usageStore, sentAlertsStore]) for (const d of await s.list()) await s.remove(d.id);
 });
 afterEach(() => vi.unstubAllEnvs());
 

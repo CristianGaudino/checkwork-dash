@@ -1,4 +1,4 @@
-import { dealerProfile } from "@/lib/tenancy/current";
+import { currentDealer } from "@/lib/tenancy/current";
 import { z } from "zod";
 import { logLead } from "@/lib/log";
 import { isSold } from "@/lib/stock/types";
@@ -53,7 +53,6 @@ export interface Deps {
   getCar(id: string): Promise<Car | null>;
   limiter: { allow(key: string): Promise<boolean> };
   verifyTurnstile(token: string, ip: string): Promise<boolean>;
-  demo: boolean;
   bucket: Pick<PhotoBucket, "put" | "delete">; // LEAD_PHOTOS, private EU R2 (D-13); only the signed route reads it
   photoLinkSecret(): string; // read only when a lead has photos, so other leads never need it
   toAdmin?(row: LeadRow, emailed: boolean): Promise<void>; // best effort, once the email was tried: the admin's copy of the lead
@@ -195,7 +194,8 @@ export async function processLead(fd: FormData, ctx: { ip: string }, deps: Deps)
     // Awaited inline, not deferred: after() work can be cut off on Workers (research Anti-Patterns).
     try {
       const photoPaths = await Promise.all(keys.map(async (k) => signPhotoPath(k, deps.photoLinkSecret())));
-      await deps.mailer.send({ ...buildLeadEmail(row, { demo: deps.demo, siteUrl: (await dealerProfile()).siteUrl, photoPaths }), replyTo: row.email ?? undefined });
+      const { demo, profile } = await currentDealer(); // a demo dealer's email says DEMO, on any deploy
+      await deps.mailer.send({ ...buildLeadEmail(row, { demo, siteUrl: profile.siteUrl, photoPaths }), replyTo: row.email ?? undefined });
     } catch {
       // The dealer was not emailed, so the buyer is not told "thanks": they see "we could not send this, call us" and their details
       // stay in the form. The lead still reaches the dashboard, marked as not emailed, so it is not lost if they never retry or call.

@@ -20,14 +20,19 @@ describe("sendDuePosts", () => {
     expect((await postsStore.get("draft"))?.status).toBe("draft");
     expect(await sendDuePosts(5000)).toBe(0);
   });
-  it("keeps a post scheduled when sending fails", async () => {
-    vi.stubEnv("SIMULATE_INTEGRATIONS", "off");
-    await postsStore.put(post("due", { scheduledFor: 1000 }));
-    expect(await sendDuePosts(5000)).toBe(0);
-    expect((await postsStore.get("due"))?.status).toBe("scheduled");
+  it("keeps a post scheduled when sending fails, and tries it again after a pause", async () => {
+    const { runAsDealer } = await import("@/lib/tenancy/current");
+    // A real dealer (not a demo) with no keys: posting is not connected.
+    await runAsDealer("test-motors", async () => {
+      await postsStore.put(post("due", { scheduledFor: 1000 }));
+      expect(await sendDuePosts(5000)).toBe(0);
+      expect((await postsStore.get("due"))?.status).toBe("scheduled");
+      expect(await sendDuePosts(5000 + 60_000)).toBe(0); // claimed a minute ago: left alone
+      for (const k of ["META_PAGE_ID", "META_PAGE_ACCESS_TOKEN", "META_INSTAGRAM_ID"]) vi.stubEnv(k, "x");
+      expect(await sendDuePosts(5000 + 6 * 60_000)).toBe(0); // after the pause it is tried again: with keys and no adapter, still not sent
+      expect((await postsStore.get("due"))?.status).toBe("scheduled");
+      await postsStore.remove("due");
+    });
     vi.unstubAllEnvs();
-    expect(await sendDuePosts(5000 + 60_000)).toBe(0); // claimed a minute ago: left alone
-    expect(await sendDuePosts(5000 + 6 * 60_000)).toBe(1); // after the pause it is tried again, and marked simulated
-    expect((await postsStore.get("due"))?.simulated).toBe(true);
   });
 });

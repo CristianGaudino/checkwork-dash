@@ -32,23 +32,29 @@ describe("integrations", () => {
   });
 });
 
-describe("simulation", () => {
-  it("covers only the three outward services, and only until SIMULATE_INTEGRATIONS=off", async () => {
-    const { modeOf } = await import("./integrations");
-    expect(modeOf("social")).toBe("simulated");
-    vi.stubEnv("TURNSTILE_SECRET_KEY", "");
-    expect(modeOf("botcheck")).toBe("off"); // the bot check shows its true state
-    vi.stubEnv("SIMULATE_INTEGRATIONS", "off");
-    expect(modeOf("social")).toBe("off");
-  });
-  it("does not simulate on a production site unless asked", async () => {
-    const { simulating } = await import("./integrations");
+// Unit tests act for the demo dealer (vitest.setup.ts); runAsDealer("test-motors") is a dealer that is not a demo.
+describe("simulation follows the dealer, never the deploy", () => {
+  const META = ["META_PAGE_ID", "META_PAGE_ACCESS_TOKEN", "META_INSTAGRAM_ID"];
+  it("a demo dealer simulates every outward service, keys or not, so it never sends anything real; the bot check shows its true state", async () => {
+    const { modeOf, simulating } = await import("./integrations");
     vi.stubEnv("APP_ENV", "production");
-    expect(simulating()).toBe(false);
-    vi.stubEnv("SIMULATE_INTEGRATIONS", "on");
-    expect(simulating()).toBe(true);
-    vi.stubEnv("APP_ENV", "demo");
-    vi.stubEnv("SIMULATE_INTEGRATIONS", "");
-    expect(simulating()).toBe(true);
+    expect(await simulating()).toBe(true);
+    expect(await modeOf("social")).toBe("simulated");
+    for (const k of META) vi.stubEnv(k, "x");
+    expect(await modeOf("social")).toBe("simulated");
+    vi.stubEnv("TURNSTILE_SECRET_KEY", "");
+    expect(await modeOf("botcheck")).toBe("off");
+  });
+  it("a real dealer never simulates: off without keys, live with them", async () => {
+    const { modeOf, simulating } = await import("./integrations");
+    const { runAsDealer } = await import("@/lib/tenancy/current");
+    vi.stubEnv("APP_ENV", "production");
+    await runAsDealer("test-motors", async () => {
+      expect(await simulating()).toBe(false);
+      expect(await modeOf("social")).toBe("off");
+      expect(await modeOf("whatsapp")).toBe("off");
+      for (const k of META) vi.stubEnv(k, "x");
+      expect(await modeOf("social")).toBe("live");
+    });
   });
 });

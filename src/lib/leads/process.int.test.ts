@@ -36,7 +36,6 @@ function deps(send: Deps["mailer"]["send"] = async () => {}) {
     getCar: async (id) => cars.find((c) => c.id === id) ?? null,
     limiter: { allow: async () => true },
     verifyTurnstile: async () => true,
-    demo: true,
     bucket,
     photoLinkSecret: () => "test-secret",
   };

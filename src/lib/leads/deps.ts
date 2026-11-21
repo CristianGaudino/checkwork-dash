@@ -1,7 +1,6 @@
 import "server-only";
 import { getDb } from "@/lib/db";
 import { requireEnv } from "@/lib/env";
-import { isProduction } from "@/lib/site";
 import { stock } from "@/lib/stock";
 import { getBindings } from "./bindings";
 import { dealerBucket } from "@/lib/tenancy/current";
@@ -30,7 +29,6 @@ function fakeDeps(): Deps {
     getCar,
     limiter: { allow: async () => true },
     verifyTurnstile: async (token) => token !== "",
-    demo: true,
     bucket: { put: async () => {}, delete: async () => {} }, // photos are dropped, like the mail
     photoLinkSecret: () => "e2e-photo-link-secret",
     toAdmin: mirrorLead, // so the E2E run can see a booking arrive in the admin
@@ -63,7 +61,6 @@ export function getDeps(): Deps {
     getCar,
     limiter,
     verifyTurnstile: (token, ip) => verifyTurnstile(token, ip, requireEnv("TURNSTILE_SECRET_KEY")),
-    demo: !isProduction(),
     bucket,
     photoLinkSecret: () => requireEnv("PHOTO_LINK_SECRET"),
     toAdmin: mirrorLead,

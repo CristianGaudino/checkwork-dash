@@ -1,4 +1,5 @@
 import "server-only";
+import { currentDealer } from "@/lib/tenancy/current";
 
 
 // Every outside service the site can use, in one list. A service is "connected" when all its settings are present. Nothing here holds a
@@ -42,12 +43,10 @@ export function integrationText(i: Integration, dealer: { name: string; site: st
   return { ...i, name: fill(i.name), purpose: fill(i.purpose), where: fill(i.where), ...(i.demoAccount && { demoAccount: fill(i.demoAccount) }) };
 }
 
-// The demo shows every feature working. With no keys, a simulated service does its work in the admin's own records and sends nothing
-// outside. A production site (APP_ENV=production) does not simulate unless SIMULATE_INTEGRATIONS=on, and SIMULATE_INTEGRATIONS=off turns it off anywhere. Then a service without keys says it is not connected.
-export const simulating = () => {
-  const v = process.env.SIMULATE_INTEGRATIONS;
-  return v ? v !== "off" : process.env.APP_ENV !== "production"; // unset: simulate everywhere except a production site
-};
+// A demo dealer (the directory's flag) shows every feature working and never reaches anyone real: its outward services are simulated, keys
+// or not, so it does their work in its own records and sends nothing outside, on any deploy. Any other dealer never simulates: a service
+// without keys says it is not connected.
+export const simulating = async () => (await currentDealer()).demo;
 
 const present = (name: string) => Boolean(process.env[name]);
 
@@ -58,8 +57,8 @@ export const isConnected = (id: IntegrationId) => {
 };
 
 export type Mode = "live" | "simulated" | "off";
-// Only the outward services (and the registration lookup, DoneDeal stock and review replies) are simulated. Lead email, the bot check and reviews
-// always show their true state, and analytics shows its sample figures only while simulating (src/app/analytics/page.tsx).
+// Only the outward services (and the registration lookup, DoneDeal stock, review replies and AI writing) are simulated. Lead email, the bot
+// check and reviews always show their true state, and analytics shows its sample figures only while simulating (src/app/analytics/page.tsx).
 const SIMULATABLE: readonly IntegrationId[] = ["social", "ads", "newsletter", "reglookup", "donedeal", "gbp", "whatsapp", "ai"];
-export const modeOf = (id: IntegrationId): Mode => (isConnected(id) ? "live" : simulating() && SIMULATABLE.includes(id) ? "simulated" : "off");
-export const isUsable = (id: IntegrationId) => modeOf(id) !== "off";
+export const modeOf = async (id: IntegrationId): Promise<Mode> => ((await simulating()) && SIMULATABLE.includes(id) ? "simulated" : isConnected(id) ? "live" : "off");
+export const isUsable = async (id: IntegrationId) => (await modeOf(id)) !== "off";

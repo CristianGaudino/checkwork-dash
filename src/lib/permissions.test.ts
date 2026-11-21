@@ -28,7 +28,6 @@ afterEach(async () => {
 describe("on a demo dealer (the directory's flag, whatever the deploy)", () => {
   it("acts as the owner by default, and as the first team member with the role the bar picked", async () => {
     vi.stubEnv("APP_ENV", "production"); // the deploy does not decide: the dealer does
-    vi.stubEnv("DEMO_RECORDS", "on"); // the demo team's names (Aoife Owner, Conor Sales)
     email = "aoife@example.com"; // signed in through Access, at the demo dealer
     expect(await currentMember()).toMatchObject({ name: "Aoife Brennan", role: "Owner" });
     expect(await can("margins")).toBe(true);

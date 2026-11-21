@@ -55,7 +55,6 @@ function deps(over: Partial<Deps> = {}): Deps {
     getCar: async (id) => cars.find((c) => c.id === id) ?? null,
     limiter: { allow: async () => true },
     verifyTurnstile: async (t) => t === "ok",
-    demo: true,
     bucket: { put: async () => {}, delete: async () => {} },
     photoLinkSecret: () => "test-secret",
     ...over,

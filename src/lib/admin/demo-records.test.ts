@@ -13,31 +13,22 @@ async function fresh() {
 describe("demo records", () => {
   afterEach(() => vi.unstubAllEnvs());
 
-  it("a production site seeds no made-up records, even for the demo dealer", async () => {
+  // The directory's demo flag decides, on any deploy (APP_ENV=production here, as on the one shared deploy).
+  it("a real dealer (not a demo in the directory) starts empty, with the settings it needs and no made-up team", async () => {
     vi.stubEnv("APP_ENV", "production");
-    const c = await fresh();
-    expect(await c.leadsStore.list()).toEqual([]);
-    expect(await c.reviewsStore.list()).toEqual([]);
-    expect(await c.postsStore.list()).toEqual([]);
-  });
-
-  it("a real dealer (not a demo in the directory) starts empty, with the settings it needs and no made-up team, even on a showcase build", async () => {
-    vi.stubEnv("APP_ENV", "production");
-    vi.stubEnv("DEMO_RECORDS", "on");
     const c = await fresh();
     const { runAsDealer } = await import("@/lib/tenancy/current");
     await runAsDealer("test-motors", async () => {
       expect(await c.leadsStore.list()).toEqual([]);
       expect(await c.reviewsStore.list()).toEqual([]);
+      expect(await c.postsStore.list()).toEqual([]);
       expect((await c.getSettings()).team).toEqual([]);
       expect((await c.getSettings()).leadSlaHours).toBe(24);
     });
   });
 
-  it("the demo is seeded, and DEMO_RECORDS=on seeds a production showcase too", async () => {
-    expect((await (await fresh()).leadsStore.list()).length).toBeGreaterThan(10);
+  it("the demo dealer has its made-up records on a production deploy too", async () => {
     vi.stubEnv("APP_ENV", "production");
-    vi.stubEnv("DEMO_RECORDS", "on");
     expect((await (await fresh()).leadsStore.list()).length).toBeGreaterThan(10);
   });
 
@@ -91,14 +82,28 @@ describe("the demo's stories", () => {
 describe("reset demo data", () => {
   afterEach(() => vi.unstubAllEnvs());
 
-  it("does nothing on a site without demo records, so a real dealer's leads are never wiped", async () => {
+  it("puts a demo dealer back on a production deploy, and never touches a real dealer", async () => {
     vi.stubEnv("APP_ENV", "production");
     vi.resetModules();
     vi.doMock("next/cache", () => ({ revalidatePath: () => {} }));
+    vi.doMock("next/headers", () => ({ cookies: async () => ({ get: () => undefined }) })); // no role picked: the owner
     const { leadsStore } = await import("./collections");
     const { resetDemoAction } = await import("@/app/settings/actions");
-    await leadsStore.put({ id: "lead-own-1", type: "enquiry", status: "new", name: "A", email: "", phone: "", message: "", source: "Website", notes: [], createdAt: 1 });
+    const { resetDemoRecords } = await import("./demo-reset");
+    const { mayResetDemo } = await import("./docs");
+    const { runAsDealer } = await import("@/lib/tenancy/current");
+    const own = { id: "lead-own-1", type: "enquiry" as const, status: "new" as const, name: "A", email: "", phone: "", message: "", source: "Website" as const, notes: [], createdAt: 1 };
+    // The demo dealer (as the open app's owner): the button puts its records back.
+    expect(await mayResetDemo()).toBe(true);
+    await leadsStore.put(own);
     await resetDemoAction();
-    expect((await leadsStore.list()).map((l) => l.id)).toEqual(["lead-own-1"]);
+    expect(await leadsStore.get(own.id)).toBeUndefined();
+    // A real dealer: no button, and the reset itself refuses.
+    await runAsDealer("test-motors", async () => {
+      expect(await mayResetDemo()).toBe(false);
+      await leadsStore.put(own);
+      await expect(resetDemoRecords()).rejects.toThrow("Not a demo dealer");
+      expect((await leadsStore.list()).map((l) => l.id)).toEqual(["lead-own-1"]);
+    });
   });
 });

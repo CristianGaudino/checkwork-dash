@@ -1,8 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
 
-// Posts and ads are written in one composer on the dashboard's own records. The three outward services are simulated on the demo
-// (SIMULATE_INTEGRATIONS), so publishing, starting and sending succeed without leaving the dashboard. With simulation off they say not
-// connected: src/lib/admin/publishers.test.ts.
+// Posts and ads are written in one composer on the dashboard's own records. The outward services are simulated for a demo dealer
+// (src/lib/integrations.ts), so publishing, starting and sending succeed without leaving the dashboard. For a real dealer without keys
+// they say not connected: src/lib/admin/publishers.test.ts.
 // The composer's first step: the second car's card. Picking it moves on to Where.
 async function startPost(page: Page) {
   await page.goto("/marketing/new");

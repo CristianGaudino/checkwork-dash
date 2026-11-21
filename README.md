@@ -24,8 +24,8 @@ npm run typecheck
 npm test
 bash scripts/check-migrations.sh main
 npm run stock:redate   # sold cars back inside the 30 day window; restore the two JSON files afterwards
-APP_ENV=production SIMULATE_INTEGRATIONS=on NEXT_PUBLIC_ADMIN_OPEN=1 DEMO_RECORDS=on npm run build
-APP_ENV=production SIMULATE_INTEGRATIONS=on NEXT_PUBLIC_ADMIN_OPEN=1 DEMO_RECORDS=on npm run e2e
+APP_ENV=production NEXT_PUBLIC_ADMIN_OPEN=1 npm run build
+APP_ENV=production NEXT_PUBLIC_ADMIN_OPEN=1 npm run e2e
 ```
 
 Settings are listed in `.env.example`. How the dashboard works: `docs/dealer-admin.md`. The Worker's set-up (D1, R2, Access, crons):

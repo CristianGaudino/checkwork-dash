@@ -1,7 +1,6 @@
 import "server-only";
-import { isProduction } from "../site";
 import { directionsUrl } from "../dealer";
-import { dealerProfile } from "../tenancy/current";
+import { currentDealer, dealerProfile } from "../tenancy/current";
 import { DEMO_PROFILE } from "../tenancy/profile";
 import { devMode } from "../dev-data";
 import { createPlacesProvider } from "./places-provider";
@@ -80,9 +79,9 @@ export async function getReviews(): Promise<Reviews | null> {
   }
   const placeId = (await dealerProfile()).placeId;
   const apiKey = process.env.GOOGLE_PLACES_API_KEY;
-  // The fixtures are for demos only: a live site with a missing key shows no reviews, never invented ones. The E2E server is built as
-  // production and needs them, so E2E_FAKE_BACKENDS (set only by playwright.config.ts; ci.yml fails a Worker that sets it) lets them through.
-  if (!placeId || !apiKey) return isProduction() && process.env.E2E_FAKE_BACKENDS !== "1" ? null : DEMO_REVIEWS;
+  // The fixtures are for a demo dealer only (the directory's flag, on any deploy): a real dealer with a missing key or place shows no
+  // reviews, never invented ones.
+  if (!placeId || !apiKey) return (await currentDealer()).demo ? DEMO_REVIEWS : null;
   if (!places.has(placeId)) places.set(placeId, createPlacesProvider({ placeId, apiKey })); // one per place, so its day memo survives between requests
   return places.get(placeId)!.get();
 }

@@ -49,7 +49,7 @@ type Meter = { allowed(): Promise<boolean>; paid(): Promise<void> };
 export async function lookupReg(raw: string, visitor: string | null, service: (reg: string) => Promise<CarFound | null> = cartell, meter?: Meter): Promise<RegLookup | null> {
   const facts = parseIrishReg(raw);
   if (!facts) return null;
-  const mode = modeOf("reglookup");
+  const mode = await modeOf("reglookup");
   if (mode === "off") return facts;
 
   const now = Date.now();

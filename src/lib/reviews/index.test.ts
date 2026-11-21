@@ -4,7 +4,8 @@ import { DEMO_PROFILE } from "../tenancy/profile";
 vi.mock("server-only", () => ({}));
 // The dealer's Google place is in their profile.
 let placeId = "";
-vi.mock("../tenancy/current", () => ({ dealerProfile: async () => ({ placeId }) }));
+let demo = true; // the directory's flag: the fixtures are a demo dealer's only
+vi.mock("../tenancy/current", () => ({ dealerProfile: async () => ({ placeId }), currentDealer: async () => ({ demo }) }));
 
 const PLACES = { googleMapsUri: "https://maps.google.com/?cid=1", rating: 4.5, userRatingCount: 9, reviews: [{ rating: 5, relativePublishTimeDescription: "a day ago", authorAttribution: { displayName: "B." } }] };
 
@@ -13,6 +14,7 @@ const load = () => import("./index");
 
 beforeEach(() => vi.resetModules());
 afterEach(() => {
+  demo = true;
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
 });
@@ -22,8 +24,8 @@ describe("getReviews", () => {
     ["neither", "", ""],
     ["only the place ID", "ChIJ1", ""],
     ["only the key", "", "key"],
-  ])("returns the demo fixtures without fetching when %s is set", async (_, place, key) => {
-    vi.stubEnv("APP_ENV", "demo"); // not production, whatever the run's own APP_ENV is
+  ])("gives a demo dealer the fixtures without fetching when %s is set, on a production deploy too", async (_, place, key) => {
+    vi.stubEnv("APP_ENV", "production"); // the deploy does not decide: the dealer does
     placeId = place;
     vi.stubEnv("GOOGLE_PLACES_API_KEY", key);
     const fetch = vi.fn();
@@ -33,21 +35,12 @@ describe("getReviews", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it("returns nothing, never the fixtures, in production without the place ID or key", async () => {
-    vi.stubEnv("APP_ENV", "production");
+  it("gives a real dealer nothing, never the fixtures, without the place ID or key", async () => {
+    demo = false;
     placeId = "";
     vi.stubEnv("GOOGLE_PLACES_API_KEY", "");
     const { getReviews } = await load();
     expect(await getReviews()).toBeNull();
-  });
-
-  it("keeps the fixtures for the E2E server, which is built as production", async () => {
-    vi.stubEnv("APP_ENV", "production");
-    vi.stubEnv("E2E_FAKE_BACKENDS", "1");
-    placeId = "";
-    vi.stubEnv("GOOGLE_PLACES_API_KEY", "");
-    const { getReviews, DEMO_REVIEWS } = await load();
-    expect(await getReviews()).toBe(DEMO_REVIEWS);
   });
 
   it("returns Places data when both are set", async () => {
