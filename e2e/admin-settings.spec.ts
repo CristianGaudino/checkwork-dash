@@ -32,7 +32,7 @@ test("a team member is added, shows in the lead owner choices, and cannot be add
 
 test("the sections are one at a time; services say what is connected and how to ask for the rest, and the business details are shown", async ({ page }) => {
   await page.goto("/settings");
-  await expect(page.getByRole("main").getByText("Checkwork Motors").first()).toBeVisible(); // the business details, not the menu
+  await expect(page.getByRole("main").getByRole("textbox", { name: "Name", exact: true })).toHaveValue("Checkwork Motors"); // the business details, not the menu
   await expect(page.getByRole("region", { name: "Team" })).toHaveCount(0); // one section at a time
   await page.getByRole("navigation", { name: "Settings" }).getByRole("link", { name: "Connected services", exact: true }).click();
   await expect(page).toHaveURL(/section=services/);

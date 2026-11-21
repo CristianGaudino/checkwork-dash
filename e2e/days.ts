@@ -1,6 +1,7 @@
 import type { Page } from "@playwright/test";
 import { fmtDay } from "../src/lib/admin/format";
 import { driveTimes } from "../src/lib/leads/constants";
+import { DEMO_PROFILE } from "../src/lib/tenancy/profile";
 
 
 // The dashboard's slot picker shows a week at a time: move on until the day is there, then pick it.
@@ -28,6 +29,6 @@ export async function bookDrive(page: Page, o: { car: number; day: string; time:
 export function openDay(seed: number): string {
   const today = new Date().toLocaleDateString("en-CA", { timeZone: "Europe/Dublin" });
   const days = Array.from({ length: 40 }, (_, i) => new Date(Date.parse(`${today}T12:00:00Z`) + (14 + i) * 86_400_000).toISOString().slice(0, 10));
-  const open = days.filter((d) => driveTimes(d).length > 0);
+  const open = days.filter((d) => driveTimes(d, DEMO_PROFILE.hours).length > 0);
   return open[seed % open.length];
 }

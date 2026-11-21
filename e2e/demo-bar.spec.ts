@@ -34,7 +34,9 @@ test("on Showroom there is no dashboard: every page is not found, the dealer too
   await bar.getByRole("button", { name: /^Showroom/ }).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("We couldn't find that page");
   await expect(bar.getByRole("combobox", { name: "Role" })).toHaveCount(0);
-  await bar.getByRole("button", { name: /^Plan/ }).click();
+  // The page is not reloaded (no 404 now: the layout answers), so the plan list may still be open.
+  const plan = bar.getByRole("button", { name: /^Plan/ });
+  if ((await plan.getAttribute("aria-expanded")) !== "true") await plan.click();
   await bar.getByRole("button", { name: /^Dealer/ }).click();
   await expect(bar.getByRole("combobox", { name: "Role" })).toBeVisible(); // the dealer tools are back
 });
@@ -53,7 +55,13 @@ test("light is the default, dark is a choice that sticks and does not flash", as
   await expect(html).not.toHaveAttribute("data-theme", "dark");
 });
 
+// Without the dashboard module every page is the not found screen (the root layout decides per dealer, src/app/layout.tsx), with the bar
+// still there to choose again. The proxy reads no directory, so the answer is the screen, not a 404 status.
 test("the dashboard follows the modules: with none on, its pages are gone", async ({ page, context, baseURL }) => {
   await context.addCookies([{ name: "checkwork-demo-modules", value: "none", url: baseURL! }]);
-  for (const path of ["/", "/leads", "/test-drives"]) expect((await page.request.get(path)).status(), path).toBe(404);
+  for (const path of ["/", "/leads", "/test-drives"]) {
+    await page.goto(path);
+    await expect(page.getByRole("heading", { level: 1 }), path).toHaveText("We couldn't find that page");
+    await expect(page.getByRole("navigation", { name: "Dealer dashboard" }).getByRole("link"), path).toHaveCount(0);
+  }
 });

@@ -101,7 +101,7 @@ test("a draft is published, its website link opens the dealer's site in a new ta
   await page.goto("/stock?q=" + MAKE);
   await page.getByRole("row", { name: new RegExp(MAKE) }).getByRole("link").first().click();
   const site = page.getByRole("link", { name: /^View on the website/ });
-  await expect(site).toHaveAttribute("href", /^https:\/\/www\.demo\.checkwork\.ie\/used-cars\/zztest-draft-/); // the dealer's site (SITE_URL), not a page here
+  await expect(site).toHaveAttribute("href", /^https:\/\/www\.demo\.checkwork\.ie\/used-cars\/zztest-draft-/); // the dealer's site (their profile's website), not a page here
   await expect(site).toHaveAttribute("target", "_blank");
 
   // Hide. Undo in the toast puts it back.
