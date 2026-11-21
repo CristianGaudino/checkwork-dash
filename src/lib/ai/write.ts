@@ -1,6 +1,7 @@
 import "server-only";
 import { modeOf } from "@/lib/integrations";
 import { getBindings } from "@/lib/leads/bindings";
+import { currentDealer } from "@/lib/tenancy/current";
 import { claudeText } from "./claude";
 import { mockText } from "./mock";
 import type { AiModel } from "@/lib/billing/rules";
@@ -20,9 +21,10 @@ export async function writeWithAI<T extends Task>(model: AiModel, task: T, facts
   if (mode === "off") return { ok: false };
   let text: string | null;
   if (mode === "live") {
-    // A backstop on top of the monthly cap: at most AI_LIMITER's calls a minute (wrangler.jsonc; counted per Cloudflare location), so nothing can run up a bill.
+    // A backstop on top of the monthly cap: at most AI_LIMITER's calls a minute per dealer (wrangler.jsonc; counted per Cloudflare location),
+    // so nothing can run up a bill, and one busy dealer never uses up another's.
     const limiter = getBindings().AI_LIMITER;
-    if (limiter && !(await limiter.limit({ key: "ai" })).success) return { ok: false };
+    if (limiter && !(await limiter.limit({ key: `ai:${(await currentDealer()).id}` })).success) return { ok: false };
     text = await claudeText(model, task, facts, adjust, current);
   }
   else {

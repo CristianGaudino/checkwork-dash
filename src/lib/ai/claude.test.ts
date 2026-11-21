@@ -20,10 +20,11 @@ describe("writeWithAI with a key (Claude), for a real dealer", () => {
   const real = (...a: Parameters<typeof writeWithAI>) => runAsDealer("test-motors", () => writeWithAI(...a));
   beforeEach(() => { process.env.ANTHROPIC_API_KEY = "test-key"; create.mockReset(); limit.mockReset().mockResolvedValue({ success: true }); });
 
-  it("never calls Claude past the site-wide rate limit", async () => {
+  it("never calls Claude past the dealer's rate limit", async () => {
     limit.mockResolvedValueOnce({ success: false });
     expect(await real("opus", "leadReply", facts)).toEqual({ ok: false });
     expect(create).not.toHaveBeenCalled();
+    expect(limit).toHaveBeenCalledWith({ key: "ai:test-motors" }); // per dealer: one dealer's use never blocks another's
   });
   afterEach(() => { delete process.env.ANTHROPIC_API_KEY; });
 
