@@ -43,7 +43,8 @@ const WARRANTY_STATUS_LABELS: Record<LeadStatus, string> = { ...LEAD_STATUS_LABE
 export const leadStatusLabel = (type: LeadType, s: LeadStatus) => (type === "warranty" ? WARRANTY_STATUS_LABELS : LEAD_STATUS_LABELS)[s];
 // The steps a lead can be moved to. New is where it starts, so it is not one.
 export const leadStatusSteps = (type: LeadType): LeadStatus[] => (type === "warranty" ? ["contacted", "appointment", "lost"] : ["contacted", "appointment", "won", "lost"]);
-export const LEAD_TYPE_LABELS: Record<LeadType, string> = { enquiry: "Car enquiry", "test-drive": "Test drive", finance: "Finance", "trade-in": "Trade-in", sell: "Selling a car", "find-a-car": "Find a car", order: "New car order", warranty: "Warranty request", service: "Service", general: "General" };
+// In the words a dealer uses for each kind of request: the leads list, its filter, the lead, exports, emails and the bell's headings.
+export const LEAD_TYPE_LABELS: Record<LeadType, string> = { enquiry: "Car enquiry", "test-drive": "Test drive request", finance: "Finance application", "trade-in": "Trade-in valuation", sell: "Selling a car", "find-a-car": "Car finder request", order: "Factory order request", warranty: "Warranty request", service: "Service request", general: "Message" };
 // Why a lead was lost, so the reports can say where sales go. A fixed list, so they can be counted.
 export const LOST_REASONS = ["Bought elsewhere", "Price", "Finance declined", "Stopped replying", "Car sold to someone else", "Other"] as const;
 export type LostReason = (typeof LOST_REASONS)[number];
