@@ -1,28 +1,29 @@
-import { rowButton } from "@/components/admin/kit";
-import { PhoneIcon, WhatsAppIcon } from "@/components/stock/icons";
+import { adminButtonQuiet } from "@/components/admin/kit";
+import { MailIcon, PhoneIcon, WhatsAppIcon } from "@/components/stock/icons";
 import { NEW_TAB } from "@/components/ui";
 import { telHref, waHref } from "@/lib/phone";
 
 // Call, Email and WhatsApp, one tap each: only the ways this person can be reached (a website lead may give a phone or an email, not both).
-// The same on a lead and a test drive, so a salesperson finds them in the same place.
+// Secondary (tonal) buttons with their icons, under the page's one filled action. The same on a lead and a test drive, so a salesperson finds them in the same place.
 export function ContactButtons({ phone, email }: { phone?: string; email?: string }) {
   const tel = phone ? telHref(phone) : undefined;
   const wa = phone ? waHref(phone) : undefined;
   return (
     <div className="grid grid-cols-3 gap-2">
       {tel && (
-        <a href={tel} className={rowButton}>
+        <a href={tel} className={`${adminButtonQuiet} px-3`}>
           <PhoneIcon className="size-4" />
           Call
         </a>
       )}
       {email && (
-        <a href={`mailto:${email}`} className={rowButton}>
+        <a href={`mailto:${email}`} className={`${adminButtonQuiet} px-3`}>
+          <MailIcon className="size-4" />
           Email
         </a>
       )}
       {wa && (
-        <a href={wa} {...NEW_TAB} className={rowButton}>
+        <a href={wa} {...NEW_TAB} className={`${adminButtonQuiet} px-3`}>
           <WhatsAppIcon className="size-4 text-whatsapp" />
           WhatsApp<span className="sr-only"> (opens in a new tab)</span>
         </a>

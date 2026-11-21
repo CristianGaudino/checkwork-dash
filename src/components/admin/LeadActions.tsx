@@ -1,16 +1,16 @@
 import { ChoiceAct } from "@/components/admin/ActButton";
-import { rowButton } from "@/components/admin/kit";
-import { CalendarIcon, CheckIcon, InboxIcon, PhoneIcon, WhatsAppIcon } from "@/components/stock/icons";
+import { rowButton, rowButtonStrong } from "@/components/admin/kit";
+import { CalendarIcon, CheckIcon, MailIcon, PhoneIcon, WhatsAppIcon } from "@/components/stock/icons";
 import { NEW_TAB } from "@/components/ui";
 import { leadStatusLabel, type Lead, type LeadStatus } from "@/lib/admin/collections";
 import { telHref, waHref } from "@/lib/phone";
 import { setStatusAction } from "@/app/leads/actions";
 
-// A call to them, named for a screen reader ("Call Mary Byrne"). Nothing when there is no number to call.
+// A call to them, the row's strong action (tonal), named for a screen reader ("Call Mary Byrne"). Nothing when there is no number to call.
 export function CallButton({ phone, name }: { phone: string; name: string }) {
   const tel = phone ? telHref(phone) : undefined;
   return tel ? (
-    <a href={tel} aria-label={`Call ${name}`} className={rowButton}>
+    <a href={tel} aria-label={`Call ${name}`} className={rowButtonStrong}>
       <PhoneIcon className="size-4" />
       Call
     </a>
@@ -24,15 +24,15 @@ export function ReachButton({ lead }: { lead: Pick<Lead, "name" | "phone" | "ema
   const wa = lead.phone ? waHref(lead.phone) : undefined;
   if (via === "whatsapp" && wa)
     return (
-      <a href={wa} {...NEW_TAB} aria-label={`WhatsApp ${lead.name} (opens in a new tab)`} className={rowButton}>
+      <a href={wa} {...NEW_TAB} aria-label={`WhatsApp ${lead.name} (opens in a new tab)`} className={rowButtonStrong}>
         <WhatsAppIcon className="size-4 text-whatsapp" />
         WhatsApp
       </a>
     );
   if ((via === "email" || !tel) && lead.email)
     return (
-      <a href={`mailto:${lead.email}`} aria-label={`Email ${lead.name}`} className={rowButton}>
-        <InboxIcon className="size-4" />
+      <a href={`mailto:${lead.email}`} aria-label={`Email ${lead.name}`} className={rowButtonStrong}>
+        <MailIcon className="size-4" />
         Email
       </a>
     );

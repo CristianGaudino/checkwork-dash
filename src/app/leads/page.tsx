@@ -9,6 +9,7 @@ import { LEAD_SOURCES, LEAD_STATUSES, LEAD_STATUS_LABELS, LEAD_TYPE_LABELS, getS
 import { dublinDay, fmtAgo, fmtDate } from "@/lib/admin/format";
 import { SALES_LEAD_TYPES, countByStatus, filterLeads, followUpDue, isHotLead, isOpenLead, isSalesLead, parseLeadFilter, urgentFirst } from "@/lib/admin/leads";
 import { TOPICS, isUrgent, leadTags } from "@/lib/leads/contact-topics";
+import { LeadKind, LeadTags, leadChips } from "@/components/admin/LeadKind";
 import { enabledModules } from "@/lib/modules";
 import { BrandIcon } from "@/components/admin/BrandIcon";
 
@@ -36,22 +37,27 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
       key: "who",
       header: "Who",
       sort: (l) => l.name,
+      // The name is the row's title; under it what kind of request it is (a word and an icon), where it came from, then the form's
+      // answers as chips. On a phone, where the About column is hidden, the car is named here too.
       cell: (l) => (
-        <span className="flex min-w-0 flex-col">
-          <Link href={`/leads/${l.id}`} className="font-medium text-text [overflow-wrap:anywhere] after:absolute after:inset-0">
+        <span className="flex min-w-0 flex-col gap-1">
+          <Link href={`/leads/${l.id}`} className="font-bold text-text [overflow-wrap:anywhere] after:absolute after:inset-0">
             {l.name}
           </Link>
-          <span className="truncate text-meta text-text-2">
-            {LEAD_TYPE_LABELS[l.type]} · <BrandIcon name={sourceText(l)} className="size-3.5 align-[-2px]" /> {sourceText(l)}
+          <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-meta">
+            <LeadKind type={l.type} topic={l.topic} />
+            <span className="inline-flex min-w-0 items-center gap-1 text-text-2">
+              <BrandIcon name={sourceText(l)} className="size-3.5 shrink-0" /> {sourceText(l)}
+            </span>
           </span>
-          {l.topic && (
-            <span className={`truncate text-meta ${l.status === "new" && isUrgent(l.answers ?? {}) ? "font-medium text-warn" : "text-text-2"}`}>{leadTags(l.topic, l.answers ?? {}).join(" · ")}</span>
-          )}
+          {l.carTitle && <span className="truncate text-meta font-medium text-text sm:hidden">{l.carTitle}</span>}
+          <LeadTags tags={leadChips(l.type, l.topic, l.answers)} urgent={l.status === "new" && isUrgent(l.answers ?? {})} />
         </span>
       ),
-      className: "max-w-[9.5rem] sm:max-w-[14rem]",
+      className: "min-w-[10rem] max-w-[12rem] sm:min-w-[14rem] sm:max-w-[18rem]",
     },
-    { key: "about", header: "About", sort: (l) => l.carTitle, cell: (l) => <span title={l.carTitle ?? l.message} className="line-clamp-2">{l.carTitle ?? <span className="text-text-2">{l.message.split("\n")[0]}</span>}</span>, className: "max-w-[16rem]", hide: "sm" },
+    // The car in full, else the first words of their message, quoted and muted so the two never read alike.
+    { key: "about", header: "About", sort: (l) => l.carTitle, cell: (l) => <span title={l.carTitle ?? l.message} className="line-clamp-2 min-w-[9rem]">{l.carTitle ? <span className="font-medium">{l.carTitle}</span> : l.message.trim() ? <span className="text-text-2">&ldquo;{l.message.split("\n")[0]}&rdquo;</span> : null}</span>, className: "max-w-[16rem]", hide: "sm" },
     {
       key: "status",
       header: "Status",
@@ -77,14 +83,14 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
             </span>
           )}
           {/* On a phone the Received column is hidden; when it came in sits here, under its status. */}
-          <span className="text-meta text-text-2 sm:hidden">{fmtAgo(l.createdAt)}</span>
+          <span className={`text-meta sm:hidden ${l.status === "new" ? "font-medium text-text" : "text-text-2"}`}>{fmtAgo(l.createdAt)}</span>
         </span>
       ),
     },
-    { key: "owner", header: "Who has it", hide: "xl", nowrap: true, sort: (l) => l.assignedTo, cell: (l) => (l.assignedTo ? <span className="inline-flex items-center gap-2"><Avatar name={l.assignedTo} />{l.assignedTo.split(" ")[0]}</span> : <span className="text-text-2">Nobody</span>) },
-    { key: "when", header: "Received", sort: (l) => l.createdAt, cell: (l) => fmtAgo(l.createdAt), align: "right", nowrap: true, hide: "sm" }, // on a phone it is in the Who column
+    { key: "owner", header: "Who has it", hide: "2xl", nowrap: true, sort: (l) => l.assignedTo, cell: (l) => (l.assignedTo ? <span className="inline-flex items-center gap-2"><Avatar name={l.assignedTo} />{l.assignedTo.split(" ")[0]}</span> : <span className="text-text-2">Nobody</span>) },
+    { key: "when", header: "Received", sort: (l) => l.createdAt, cell: (l) => <span className={l.status === "new" ? "font-medium" : "text-text-2"}>{fmtAgo(l.createdAt)}</span>, align: "right", nowrap: true, hide: "sm" }, // on a phone it is in the Who column
     // The two things done most from the list: reach them the way they asked, and move it on a step. Above the row's link.
-    { key: "act", header: "Next step", quietHeader: true, hide: "md", nowrap: true, cell: (l) => <span className="relative z-10 flex justify-end gap-2">{isOpenLead(l) && <ReachButton lead={l} />}<NextStatusButton lead={l} /></span> },
+    { key: "act", header: "Next step", quietHeader: true, hide: "lg", nowrap: true, cell: (l) => <span className="relative z-10 flex justify-end gap-2">{isOpenLead(l) && <ReachButton lead={l} />}<NextStatusButton lead={l} /></span> },
   ];
   const ordered = sortRows(filterLeads(all, f, today, leadSlaHours), columns, sp, { key: "when", dir: "desc" });
   // Unless a column was chosen, the urgent new ones come first.
@@ -144,8 +150,16 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
                   href={`/leads/${l.id}`}
                   urgency={urgency}
                   icon={l.status !== "new" ? <CalendarIcon /> : urgency === "now" ? <AlertIcon /> : <InboxIcon />}
-                  title={`${l.name}: ${l.carTitle ?? LEAD_TYPE_LABELS[l.type]}`}
-                  detail={why}
+                  title={l.name}
+                  detail={
+                    <span className="flex flex-col gap-0.5">
+                      <span className="flex flex-wrap items-center gap-x-2">
+                        <LeadKind type={l.type} topic={l.topic} />
+                        {l.carTitle && <span className="text-text">{l.carTitle}</span>}
+                      </span>
+                      <span className={urgency === "now" ? "font-medium text-bad" : undefined}>{why}</span>
+                    </span>
+                  }
                   action={
                     <>
                       <ReachButton lead={l} />

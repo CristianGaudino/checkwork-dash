@@ -12,14 +12,14 @@ import { RegLookup } from "@/components/leads/RegLookup";
 import { AITextarea } from "@/components/admin/AIWriter";
 import { IfModule } from "@/components/IfModule";
 import { lookupRegStaffAction } from "@/app/reg-action";
-import { Avatar, Badge, Field, PageHeader, Panel, adminButton, adminButtonQuiet, adminInput, rowButton } from "@/components/admin/kit";
-import { LEAD_TYPE_LABELS, LOST_REASONS, drivesStore, getSettings, leadStatusLabel, leadStatusSteps, leadsStore } from "@/lib/admin/collections";
+import { Avatar, Badge, Field, PageHeader, Panel, adminButton, adminButtonQuiet, adminInput, rowButton, rowDanger } from "@/components/admin/kit";
+import { LOST_REASONS, drivesStore, getSettings, leadStatusLabel, leadStatusSteps, leadsStore } from "@/lib/admin/collections";
 import { isOpenDrive } from "@/lib/admin/drives";
 import { matchesAny, parsePersonQuery, type PersonQuery } from "@/lib/admin/person-match";
 
 import { adminCars } from "@/lib/admin/stock-admin";
 import { isSold } from "@/lib/stock/types";
-import { CalendarIcon, CheckIcon, CloseIcon, PhoneIcon } from "@/components/stock/icons";
+import { CalendarIcon, CarIcon, CheckIcon, CloseIcon, PhoneIcon } from "@/components/stock/icons";
 import type { LeadStatus } from "@/lib/admin/collections";
 import { addNoteAction, assignLeadAction, setFollowUpAction, setLostReasonAction, setStatusAction } from "../actions";
 import { dublinDay, fmtDate, fmtDateTime, fmtDay, fmtTime } from "@/lib/admin/format";
@@ -29,7 +29,7 @@ import { dealerProfile } from "@/lib/tenancy/current";
 import { stockSource } from "@/lib/stock-source";
 import { NotesPanel } from "@/components/admin/NotesPanel";
 import { ContactButtons } from "@/components/admin/ContactButtons";
-import { leadTags } from "@/lib/leads/contact-topics";
+import { LeadKind, LeadTags, leadChips } from "@/components/admin/LeadKind";
 import { SubmitButton } from "@/components/admin/SubmitButton";
 
 // The quick actions on a lead: the steps it moves through (leadStatusSteps), each with its icon.
@@ -57,7 +57,14 @@ export async function LeadView({ id }: { id: string }) {
     <>
       <PageHeader
         title={lead.name}
-        text={`${LEAD_TYPE_LABELS[lead.type]} · ${sourceText(lead)} · ${fmtDateTime(lead.createdAt)}`}
+        text={
+          <span className="flex flex-wrap items-center gap-x-2">
+            <LeadKind type={lead.type} topic={lead.topic} />
+            <span>
+              {sourceText(lead)} · {fmtDateTime(lead.createdAt)}
+            </span>
+          </span>
+        }
         // A warranty request is aftersales work: it is listed there, so the way back is there.
         back={lead.type === "warranty" && (await hasModule("service")) ? { href: "/aftersales?view=requests", label: "Aftersales" } : { href: "/leads", label: "Leads" }}
       />
@@ -65,9 +72,10 @@ export async function LeadView({ id }: { id: string }) {
       <Panel>
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
           <section aria-labelledby="asked" className="flex min-w-0 flex-col gap-3">
-            <h2 id="asked" className="text-meta font-medium text-text-2">What they asked</h2>
+            <h2 id="asked" className="text-section font-semibold">What they asked</h2>
             {lead.carTitle && (
-              <p className="text-heading font-semibold">
+              <p className="flex items-center gap-2 text-heading font-semibold">
+              <CarIcon className="size-5 shrink-0 text-accent-text" />
                 {/* A link only while the car has a page on the site: not hidden, a draft or sold long ago, and its kind on the plan. */}
                 {lead.carSlug && car && siteUrl && onPublicSite(car, rules.soldVisibleDays) && conditionShown(await enabledModules(), car.condition) ? (
                   <a href={siteCarUrl(siteUrl, lead.carSlug)} {...NEW_TAB} className="underline-offset-4 hover:underline">
@@ -79,8 +87,9 @@ export async function LeadView({ id }: { id: string }) {
               </p>
             )}
             {/* A guided contact form's taps say what they want, often with no words typed: the same tags as the list. */}
-            {lead.topic && <p className="text-body font-medium">{leadTags(lead.topic, lead.answers ?? {}).join(" · ")}</p>}
-            {lead.message && <p className="max-w-measure whitespace-pre-line text-body">{lead.message}</p>}
+            <LeadTags tags={leadChips(lead.type, lead.topic, lead.answers)} />
+            {/* Their own words, set apart as a quote so they read as the customer's, not the dashboard's. */}
+            {lead.message && <blockquote className="max-w-measure whitespace-pre-line rounded-control border-l-4 border-accent bg-row-alt px-4 py-3 text-body">{lead.message}</blockquote>}
             {carSold && (
               <p className="rounded-control bg-warn-soft px-4 py-3 text-body text-warn">
                 This car has sold. Offer them something similar
@@ -95,13 +104,13 @@ export async function LeadView({ id }: { id: string }) {
                 .
               </p>
             )}
-            <p className="flex flex-col text-meta text-text-2">
-              <span className="break-all">{lead.email}</span>
-              <span>{lead.phone}</span>
-            </p>
+            <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-0.5 text-meta">
+              {lead.email && (<><dt className="text-text-2">Email</dt><dd className="break-all">{lead.email}</dd></>)}
+              {lead.phone && (<><dt className="text-text-2">Phone</dt><dd className="tabular-nums">{lead.phone}</dd></>)}
+            </dl>
           </section>
           <section aria-labelledby="next" className="flex min-w-0 flex-col gap-4 max-lg:order-first max-lg:border-b max-lg:border-hairline max-lg:pb-5 lg:border-l lg:border-hairline lg:pl-6">
-            <h2 id="next" className="text-meta font-medium text-text-2">Next step</h2>
+            <h2 id="next" className="text-section font-semibold">Next step</h2>
             <ContactButtons phone={lead.phone} email={lead.email} />
             {/* Booking a drive from the lead carries their car, name and number into the form. */}
             {lead.type !== "warranty" && isOpenLead(lead) && (
@@ -219,7 +228,7 @@ export async function LeadView({ id }: { id: string }) {
                 </SubmitButton>
               </form>
               {lead.followUpOn && (
-                <ChoiceAct action={setFollowUpAction.bind(null, lead.id)} set={{ clear: "1" }} back={followUpBack} active={false} done="Follow-up cleared" className={`${rowButton} w-fit text-bad`}>
+                <ChoiceAct action={setFollowUpAction.bind(null, lead.id)} set={{ clear: "1" }} back={followUpBack} active={false} done="Follow-up cleared" className={`${rowDanger} w-fit`}>
                   Clear the follow-up
                 </ChoiceAct>
               )}
@@ -232,7 +241,7 @@ export async function LeadView({ id }: { id: string }) {
               </ChoiceAct>
               {settings.team.map((t) => (
                 <ChoiceAct key={t.id} action={assignLeadAction.bind(null, lead.id)} set={{ assignedTo: t.name }} back={{ assignedTo: lead.assignedTo ?? "" }} active={lead.assignedTo === t.name} done={`Given to ${t.name}`}>
-                  <Avatar name={t.name} className="-ml-2 size-7 bg-card" />
+                  <Avatar name={t.name} className="-ml-2 size-7 bg-card!" />
                   {t.name}
                 </ChoiceAct>
               ))}
