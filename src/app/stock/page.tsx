@@ -73,6 +73,14 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
       </Link>
     ) : null;
   const social = await hasModule("social");
+  // Post and View as More items below 1536px (in the row from there); anyLaptopItems mirrors when they show (CarActions), so More is never empty.
+  const laptopItems = (c: Car) => (
+    <>
+      {social && <PostToSocial car={c} className={`${rowButton} 2xl:hidden`} />}
+      <ViewOnSite car={c} shown={conditionShown(mods, c.condition)} className={`${rowButton} 2xl:hidden`} />
+    </>
+  );
+  const anyLaptopItems = (c: Car) => (social && forSale(c)) || (conditionShown(mods, c.condition) && Boolean(siteUrl) && onPublicSite(c, rules.soldVisibleDays));
 
   const columns: Column<Car>[] = [
     // Tick several cars to change them at once (#104). Our version only: DoneDeal stock is changed on DoneDeal.
@@ -153,32 +161,38 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
       hide: "sm", // on a phone the row opens the car, and its page has these at the top
       cell: (c) => (
         // Above the row's own link, so these buttons are what a press on them hits. The most used ones are in the row, labelled; the rest
-        // are under More. On a smaller laptop Post and View show their icon only (CarActions), so the row fits.
+        // are under More. Post and View are in the row from 1536px and under More below it, so a laptop row fits, always in words.
         <div className="relative z-10 flex justify-end gap-2">
           {recordSale(c)}
-          {social && <PostToSocial car={c} short className={rowButton} />}
-          <ViewOnSite car={c} shown={conditionShown(mods, c.condition)} short className={rowButton} />
+          {social && <PostToSocial car={c} className={`${rowButton} max-2xl:hidden`} />}
+          <ViewOnSite car={c} shown={conditionShown(mods, c.condition)} className={`${rowButton} max-2xl:hidden`} />
           {synced ? (
             <>
               {undoSale(c)}
               {!c.takenDownAt && (
               <a href={listingHref(c, listingUrl)} {...NEW_TAB} className={rowButton} aria-label={`Edit ${carName(c)} on ${listingSite} (opens in a new tab)`}>
-                <PencilIcon className="size-4" />
+                <PencilIcon className="shrink-0 size-4" />
                 Edit on {listingSite}
               </a>
+              )}
+              {/* Synced stock has no other menu items: More is there only while Post and View are out of the row. */}
+              {anyLaptopItems(c) && (
+                <span className="contents 2xl:hidden">
+                  <RowMenu label={`More for ${carName(c)}`}>{laptopItems(c)}</RowMenu>
+                </span>
               )}
             </>
           ) : (
             <>
               {!isSold(c) && (
                 <Link href={`/stock/${c.id}/sale`} aria-label={`Mark sold: ${carName(c)}`} className={rowButtonStrong}>
-                  <CheckIcon className="size-4" />
+                  <CheckIcon className="shrink-0 size-4" />
                   Mark sold
                 </Link>
               )}
               <RowMenu label={`More for ${carName(c)}`}>
                 <Link href={`/stock/${c.id}`} className={rowButton}>
-                  <PencilIcon className="size-4" />
+                  <PencilIcon className="shrink-0 size-4" />
                   Edit details and photos
                 </Link>
                 {deposits && (forSale(c) || c.reserved) && !isSold(c) && (
@@ -186,6 +200,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
                     {c.reserved ? "Deposit" : "Reserve"}
                   </Link>
                 )}
+                {laptopItems(c)}
                 <ListingButton car={c} className={rowButton} />
                 {undoSale(c)}
                 {/* Back on sale only where no sale is recorded: undoing a recorded sale keeps its record (Undo sale). */}
@@ -251,13 +266,13 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
           <>
             {synced ? (
               <a href={listingUrl} {...NEW_TAB} className={adminButton}>
-                <SyncIcon className="size-4" />
+                <SyncIcon className="shrink-0 size-4" />
                 Open {listingSite}
                 <span className="sr-only"> (opens in a new tab)</span>
               </a>
             ) : (
               <Link href="/stock/new" className={adminButton}>
-                <PlusIcon className="size-4" />
+                <PlusIcon className="shrink-0 size-4" />
                 Add a car
               </Link>
             )}
