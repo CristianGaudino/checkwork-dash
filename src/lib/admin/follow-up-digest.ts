@@ -1,7 +1,7 @@
 import "server-only";
 import { sendTo } from "@/lib/leads/mail";
 import { hasModule } from "@/lib/modules";
-import { APP_URL } from "@/lib/site";
+import { appUrl } from "@/lib/site";
 import { currentDealer } from "@/lib/tenancy/current";
 import { getSettings, leaderEmails, leadsStore, LEAD_TYPE_LABELS, type Lead, type TeamMember } from "./collections";
 import { followUpDue } from "./follow-ups";
@@ -32,7 +32,7 @@ export async function sendFollowUpDigest(now = Date.now()): Promise<{ sent: numb
   for (const [email, leads] of digestGroups(await leadsStore.list(), team, today)) {
     const lines = leads
       .sort((a, b) => a.followUpOn!.localeCompare(b.followUpOn!))
-      .map((l) => `- ${l.name}, ${LEAD_TYPE_LABELS[l.type]}${l.carTitle ? `, ${l.carTitle}` : ""}${l.followUpOn! < today ? ` (due ${fmtDate(`${l.followUpOn}T12:00:00Z`)})` : ""}\n  ${APP_URL}/leads/${l.id}`);
+      .map((l) => `- ${l.name}, ${LEAD_TYPE_LABELS[l.type]}${l.carTitle ? `, ${l.carTitle}` : ""}${l.followUpOn! < today ? ` (due ${fmtDate(`${l.followUpOn}T12:00:00Z`)})` : ""}\n  ${appUrl()}/leads/${l.id}`);
     try {
       await sendTo([email], { subject: `${name}: ${leads.length === 1 ? "1 follow-up" : `${leads.length} follow-ups`} today`, text: `Due today or overdue:\n\n${lines.join("\n")}\n` });
       sent++;
