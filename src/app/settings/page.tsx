@@ -1,11 +1,13 @@
 import Link from "next/link";
-import { AddTeamForm, BusinessForm, RoleForm, LeadEmailsForm, MarketingForm, NotificationsForm, TargetsForm } from "@/components/admin/SettingsForms";
+import { AddTeamForm, BusinessForm, RoleForm, LeadEmailsForm, MarketingForm, NotificationsForm, SiteKeyForm, TargetsForm } from "@/components/admin/SettingsForms";
 import { Badge, DataTable, Facts, Notice, PageHeader, Panel, adminButtonQuiet, rowButton } from "@/components/admin/kit";
 import { ActButton } from "@/components/admin/ActButton";
 import { getSettings } from "@/lib/admin/collections";
 import { INTEGRATIONS, type IntegrationId, integrationText, modeOf } from "@/lib/integrations";
 import { formatHours } from "@/lib/dealer";
-import { removeTeamAction, resetDemoAction } from "./actions";
+import { removeTeamAction, resetDemoAction, revokeSiteKeyAction } from "./actions";
+import { siteKeysOf } from "@/lib/tenancy/directory";
+import { fmtDateTime } from "@/lib/admin/format";
 import { mayResetDemo } from "@/lib/admin/docs";
 import { syncLine } from "@/components/admin/SyncPanel";
 import { syncStatus } from "@/lib/donedeal/sync";
@@ -43,7 +45,7 @@ const SERVICE_MODULE: Partial<Record<IntegrationId, ModuleId | ModuleId[]>> = {
 };
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ section?: string }> }) {
-  const [s, me, source, sp, resettable, { name, profile }, { site: listingSite, url: listingUrl }] = await Promise.all([getSettings(), currentMember(), stockSource(), searchParams, mayResetDemo(), currentDealer(), listing()]);
+  const [s, me, source, sp, resettable, { id: dealerId, name, profile }, { site: listingSite, url: listingUrl }] = await Promise.all([getSettings(), currentMember(), stockSource(), searchParams, mayResetDemo(), currentDealer(), listing()]);
   const synced = source === "donedeal";
   const sync = synced ? await syncStatus() : null;
   // The listing site is a service only for a dealer whose stock comes from there; the others only with their module (#173).
@@ -63,6 +65,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
   // Your business mentions the posts' voice only when that panel is there (posts or the newsletter are on).
   const sections = SECTIONS.filter(([k]) => k !== "demo" || (resettable && edit)).map(([k, label, line]) => [k, label, k === "business" && !voice ? "Your details and opening hours" : line] as const);
   const [section, , about] = sections.find(([k]) => k === sp.section) ?? sections[0];
+  // Website keys only for those who make and revoke them (owners and managers).
+  const keys = section === "services" && edit ? await siteKeysOf(dealerId) : [];
   return (
     <>
       <PageHeader title="Settings" text="How your site and dashboard work for you and your team." />
@@ -246,6 +250,37 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
                   { key: "account", header: "Account", hide: "sm", cell: (i) => (mode(i.id) === "off" ? <Link href={ASK_CHANGE} className="text-meta font-medium text-accent-text underline underline-offset-2">Ask us to connect it</Link> : <span className="break-words text-meta text-text-2">{mode(i.id) === "simulated" ? i.demoAccount : "Nothing to do"}</span>) },
                 ]}
               />
+            </Panel>
+          )}
+
+          {section === "services" && edit && (
+            <Panel title="Website connection" text="Your website sends its leads here, and reads your cars, with a key made here.">
+              <SiteKeyForm />
+              {keys.length > 0 && (
+                <DataTable
+                  bare
+                  rows={keys}
+                  rowKey={(k) => k.id}
+                  columns={[
+                    { key: "name", header: "Key", cell: (k) => <span className="font-medium">{k.label}</span> },
+                    { key: "made", header: "Made", cell: (k) => fmtDateTime(k.createdAt), hide: "sm" },
+                    { key: "used", header: "Last used", cell: (k) => (k.lastUsedAt ? fmtDateTime(k.lastUsedAt) : "Not yet"), hide: "sm" },
+                    {
+                      key: "state",
+                      header: "Status",
+                      align: "right",
+                      cell: (k) =>
+                        k.revokedAt ? (
+                          <Badge>Revoked</Badge>
+                        ) : (
+                          <ActButton act={revokeSiteKeyAction.bind(null, k.id)} confirm={{ title: `Revoke ${k.label}?`, text: "A website using this key can no longer send leads or read your cars.", yes: "Revoke" }} className={`${rowButton} text-bad`}>
+                            Revoke
+                          </ActButton>
+                        ),
+                    },
+                  ]}
+                />
+              )}
             </Panel>
           )}
 

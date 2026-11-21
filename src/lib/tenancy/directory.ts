@@ -1,7 +1,8 @@
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNull, lt, or, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import { getBindings } from "@/lib/leads/bindings";
-import { dealers, members } from "@/lib/db/directory-schema";
+import { dealers, members, siteKeys } from "@/lib/db/directory-schema";
+import { same } from "@/lib/cron";
 import type { Role } from "@/lib/permission-rules";
 import { DEMO_NAME, DEMO_PROFILE, parseProfile, type DealerProfile } from "./profile";
 
@@ -37,16 +38,27 @@ const SEED_MEMBERS: Member[] = [
   { dealerId: DEMO_DEALER, email: DEV_EMAIL, role: "Owner", addedAt: 10 },
   { dealerId: "test-motors", email: DEV_EMAIL, role: "Owner", addedAt: 11 },
 ];
-// shortcut: memory is per server instance, like the record store (src/lib/admin/docs.ts). Fine for dev and tests; the Worker uses D1.
-let memory: { dealers: Row[]; members: Member[] } | null = null;
+// The demo dealer's website key, in memory only (next dev and the E2E run, so the E2E suite can call the site API): not a secret, since memory
+// never runs in production (mem() throws there). docs/site-api.md. Its hash is checked against it in site-keys.test.ts.
+export const DEMO_SITE_KEY = "cw_site_demo-key-for-next-dev-and-e2e-not-a-secret0";
+const DEMO_SITE_KEY_HASH = "78630084e15e7eb9948b4531f317f2860bdfc95d41d07ed2431d837044395552";
+type KeyRow = SiteKey & { hash: string };
+// shortcut: memory is per server instance, like the record store (src/lib/admin/docs.ts). Fine for dev and tests; the Worker uses D1. Kept on
+// globalThis so the route handlers (the site API) and the pages, which `next start` bundles apart, share one copy.
+type Mem = { dealers: Row[]; members: Member[]; siteKeys: KeyRow[] };
+const held = globalThis as { __checkworkDirectory?: Mem | null };
 const mem = () => {
   // A production build with no DIRECTORY bound is a broken deploy, not the E2E run: fail loudly instead of answering from memory and losing
   // every write (the same rule as stock, src/lib/stock/index.ts).
   if (process.env.NODE_ENV === "production" && process.env.E2E_FAKE_BACKENDS !== "1") throw new Error("Missing binding DIRECTORY");
-  return (memory ??= { dealers: SEED_DEALERS.map((d) => ({ ...d })), members: SEED_MEMBERS.map((m) => ({ ...m })) });
+  return (held.__checkworkDirectory ??= {
+    dealers: SEED_DEALERS.map((d) => ({ ...d })),
+    members: SEED_MEMBERS.map((m) => ({ ...m })),
+    siteKeys: [{ id: "demo-site-key", dealerId: DEMO_DEALER, hash: DEMO_SITE_KEY_HASH, label: "Demo website", createdAt: Date.now(), lastUsedAt: null, revokedAt: null }],
+  });
 };
 // Tests: back to the two seeded dealers.
-export const resetMemoryDirectory = () => void (memory = null);
+export const resetMemoryDirectory = () => void (held.__checkworkDirectory = null);
 
 const db = () => {
   const d1 = getBindings().DIRECTORY;
@@ -139,4 +151,65 @@ export async function patchDealer(id: string, name: string, patch: Partial<Deale
     .update(dealers)
     .set({ name, profile: patch ? sql`json_patch(${dealers.profile}, ${json})` : json })
     .where(eq(dealers.id, id));
+}
+
+// ---- Website keys (the site API, docs/site-api.md) ----
+// A key is "cw_site_" and 32 random bytes in base64url. Only its SHA-256 is stored; the key itself is shown once, when it is made.
+export type SiteKey = { id: string; dealerId: string; label: string; createdAt: number; lastUsedAt: number | null; revokedAt: number | null };
+const KEY_SHAPE = /^cw_site_[A-Za-z0-9_-]{43}$/;
+const HOUR_MS = 3_600_000;
+export async function hashSiteKey(key: string): Promise<string> {
+  const d = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(key));
+  return [...new Uint8Array(d)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+const toSiteKey = ({ id, dealerId, label, createdAt, lastUsedAt, revokedAt }: KeyRow): SiteKey => ({ id, dealerId, label, createdAt, lastUsedAt, revokedAt }); // never the hash
+const fromRow = (r: typeof siteKeys.$inferSelect): KeyRow => ({ ...r, createdAt: r.createdAt.getTime(), lastUsedAt: r.lastUsedAt?.getTime() ?? null, revokedAt: r.revokedAt?.getTime() ?? null });
+
+export async function makeSiteKey(dealerId: string, label: string): Promise<{ key: string; siteKey: SiteKey }> {
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  const key = "cw_site_" + btoa(String.fromCharCode(...bytes)).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
+  const row: KeyRow = { id: crypto.randomUUID(), dealerId, hash: await hashSiteKey(key), label, createdAt: Date.now(), lastUsedAt: null, revokedAt: null };
+  if (!hasD1()) mem().siteKeys.push(row);
+  else await db().insert(siteKeys).values({ ...row, createdAt: new Date(row.createdAt), lastUsedAt: null, revokedAt: null });
+  return { key, siteKey: toSiteKey(row) };
+}
+
+// One dealer's keys, revoked ones too, newest first. Never the hash.
+export async function siteKeysOf(dealerId: string): Promise<SiteKey[]> {
+  if (!hasD1()) return mem().siteKeys.filter((k) => k.dealerId === dealerId).sort((a, b) => b.createdAt - a.createdAt).map(toSiteKey);
+  return (await db().select().from(siteKeys).where(eq(siteKeys.dealerId, dealerId)).orderBy(desc(siteKeys.createdAt))).map((r) => toSiteKey(fromRow(r)));
+}
+
+// Revokes one of this dealer's keys (a key of another dealer is not found). The key revoked, or undefined if there was none still on.
+export async function revokeSiteKey(dealerId: string, id: string): Promise<SiteKey | undefined> {
+  const now = Date.now();
+  if (!hasD1()) {
+    const k = mem().siteKeys.find((x) => x.dealerId === dealerId && x.id === id && x.revokedAt === null);
+    if (k) k.revokedAt = now;
+    return k && toSiteKey(k);
+  }
+  const [r] = await db().update(siteKeys).set({ revokedAt: new Date(now) }).where(and(eq(siteKeys.dealerId, dealerId), eq(siteKeys.id, id), isNull(siteKeys.revokedAt))).returning();
+  return r && toSiteKey(fromRow(r));
+}
+
+// The dealer a website key belongs to: an active dealer and a key not revoked, else null. Looked up by the key's hash, and the hash then
+// compared in constant time. Marks the key used, at most once an hour, so a busy website does not write on every request.
+export async function dealerOfSiteKey(key: string): Promise<{ dealer: Dealer; keyId: string } | null> {
+  if (!KEY_SHAPE.test(key)) return null;
+  const hash = await hashSiteKey(key);
+  const now = Date.now();
+  if (!hasD1()) {
+    const m = mem();
+    const k = m.siteKeys.find((x) => same(x.hash, hash) && x.revokedAt === null);
+    const d = k && m.dealers.find((x) => x.id === k.dealerId && x.status === "active");
+    if (!k || !d) return null;
+    if (k.lastUsedAt === null || k.lastUsedAt < now - HOUR_MS) k.lastUsedAt = now;
+    return { dealer: withProfile(d), keyId: k.id };
+  }
+  const [r] = await db().select().from(siteKeys).innerJoin(dealers, eq(siteKeys.dealerId, dealers.id)).where(and(eq(siteKeys.hash, hash), isNull(siteKeys.revokedAt), eq(dealers.status, "active"))).limit(1);
+  if (!r || !same(r.site_keys.hash, hash)) return null;
+  const used = r.site_keys.lastUsedAt?.getTime();
+  if (used === undefined || used < now - HOUR_MS)
+    await db().update(siteKeys).set({ lastUsedAt: new Date(now) }).where(and(eq(siteKeys.id, r.site_keys.id), or(isNull(siteKeys.lastUsedAt), lt(siteKeys.lastUsedAt, new Date(now - HOUR_MS)))));
+  return { dealer: toDealer(r.dealers), keyId: r.site_keys.id };
 }

@@ -12,7 +12,7 @@ vi.mock("next/headers", () => ({
   cookies: async () => ({ get: (n: string) => (n === "checkwork-demo-role" && role ? { value: role } : undefined) }),
   headers: async () => ({ get: () => null }),
 }));
-const { addTeamAction, removeTeamAction, resetDemoAction, saveBusinessAction, saveLeadEmailsAction, saveMarketingAction, saveNotificationsAction, saveTargetsAction, sendTestEmailAction, setRoleAction } = await import("./actions");
+const { addTeamAction, removeTeamAction, resetDemoAction, saveBusinessAction, saveLeadEmailsAction, saveMarketingAction, saveNotificationsAction, saveTargetsAction, sendTestEmailAction, setRoleAction, makeSiteKeyAction, revokeSiteKeyAction } = await import("./actions");
 const { adminCars, saveCar } = await import("@/lib/admin/stock-admin");
 const { getSettings, leadsStore, settingsStore } = await import("@/lib/admin/collections");
 const { listActivity } = await import("@/lib/admin/activity");
@@ -231,5 +231,42 @@ describe("removing a person", () => {
     await drivesStore.put({ ...drive, assignedTo: person.name });
     await removeTeamAction(person.id);
     expect((await drivesStore.get(drive.id))!.assignedTo).toBeUndefined();
+  });
+});
+
+describe("website keys", () => {
+  it("an owner or manager makes one, shown once and kept only as its hash, and revokes it; the history names it, never the key", async () => {
+    const { dealerOfSiteKey, hashSiteKey, siteKeysOf } = await import("@/lib/tenancy/directory");
+    role = "Manager";
+    const made = await makeSiteKeyAction(undefined, form({ label: "Main website" }));
+    expect(made?.key).toMatch(/^cw_site_[A-Za-z0-9_-]{43}$/);
+    const key = made!.key!;
+    const [k] = (await siteKeysOf("checkwork-motors")).filter((x) => x.label === "Main website");
+    expect(k).toMatchObject({ dealerId: "checkwork-motors", label: "Main website", lastUsedAt: null, revokedAt: null });
+    expect(JSON.stringify(await siteKeysOf("checkwork-motors"))).not.toContain(key); // never listed again
+    expect(JSON.stringify(await siteKeysOf("checkwork-motors"))).not.toContain(await hashSiteKey(key)); // nor its hash
+    expect((await dealerOfSiteKey(key))?.dealer.id).toBe("checkwork-motors");
+    expect(await revokeSiteKeyAction(k.id)).toBeUndefined();
+    expect(await dealerOfSiteKey(key)).toBeNull();
+    const history = (await listActivity({ area: "settings" }, 1, 5)).rows.map((r) => r.summary);
+    expect(history).toEqual(expect.arrayContaining(["Made a website key: Main website", "Revoked the website key: Main website"]));
+    expect(JSON.stringify(history)).not.toContain("cw_site_");
+  });
+
+  it("refuses Sales, and a name that is empty or more than one line", async () => {
+    const { siteKeysOf } = await import("@/lib/tenancy/directory");
+    const before = await siteKeysOf("checkwork-motors");
+    role = "Sales";
+    expect(await makeSiteKeyAction(undefined, form({ label: "Website" }))).toEqual({ errors: { label: "Only an owner or manager can change this" } });
+    expect(await revokeSiteKeyAction(before[0].id)).toEqual({ error: "Only an owner or manager can change this" });
+    role = "Owner";
+    expect((await makeSiteKeyAction(undefined, form({ label: " " })))?.errors?.label).toBeTruthy();
+    expect((await makeSiteKeyAction(undefined, form({ label: `a${String.fromCharCode(10)}b` })))?.errors?.label).toBeTruthy();
+    expect(await siteKeysOf("checkwork-motors")).toEqual(before);
+  });
+
+  it("the demo dealer's fixed key, in memory only, is the one its stored hash says", async () => {
+    const { DEMO_SITE_KEY, dealerOfSiteKey } = await import("@/lib/tenancy/directory");
+    expect((await dealerOfSiteKey(DEMO_SITE_KEY))?.dealer.id).toBe("checkwork-motors");
   });
 });

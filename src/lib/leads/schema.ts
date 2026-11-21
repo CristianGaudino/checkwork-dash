@@ -1,4 +1,4 @@
-import { DEMO_PROFILE } from "@/lib/tenancy/profile";
+import { DEMO_PROFILE, type Hours } from "@/lib/tenancy/profile";
 import { z } from "zod";
 import { FINANCE } from "@/lib/finance/finance.config";
 import { PRICE_STOPS } from "@/lib/stock/types";
@@ -12,7 +12,7 @@ import { CHANNELS, CHANNEL_LABELS } from "@/lib/visit-rules";
 // The lead validation, run on the server. Client components import ./constants, never this file (it brings zod).
 
 // One line only: a line break in a name or car text could pass for a new field (a fake "Phone:" line) in the dealer's plain-text email.
-const oneLine = (s: z.ZodString) => s.regex(/^[^\r\n\u2028\u2029]*$/, "Keep this to one line.");
+export const oneLine = (s: z.ZodString) => s.regex(/^[^\r\n\u2028\u2029]*$/, "Keep this to one line.");
 const tooLong = (n: number) => `Use ${n} characters or fewer.`;
 // An empty or blank field counts as not given.
 const given = <T extends z.ZodType>(s: T) => z.preprocess((v) => (typeof v === "string" && v.trim() === "" ? undefined : v), s);
@@ -140,11 +140,11 @@ const finance = {
 // A booking: the car, a day and a time that are really open (from the opening hours), then contact details.
 // Checked from a day earlier, so a form opened before midnight Irish time still sends its "tomorrow" after midnight; the time must not
 // have passed, so that day's grace never books a slot that is already over.
-const testDrive = {
+const testDrive = (hours: Hours) => ({
   carId,
-  driveDate: given(z.string({ error: BAD_DRIVE_DAY }).refine((v) => driveDays(INTAKE_HOURS).includes(v) || driveDays(INTAKE_HOURS, new Date(Date.now() - DAY)).includes(v), BAD_DRIVE_DAY)),
+  driveDate: given(z.string({ error: BAD_DRIVE_DAY }).refine((v) => driveDays(hours).includes(v) || driveDays(hours, new Date(Date.now() - DAY)).includes(v), BAD_DRIVE_DAY)),
   driveTime: given(z.string({ error: BAD_DRIVE_TIME })),
-};
+});
 
 // A stock alert: an email is all it takes. It may name a car (back in stock, price drop) or none (any new arrival).
 export const ALERT_KINDS = ["back-in-stock", "price-drop", "new-arrival"] as const;
@@ -155,9 +155,8 @@ const alert = {
   alertKind: z.enum(ALERT_KINDS, { error: "Choose an alert." }),
 };
 
-// shortcut: the website's booking is checked against the demo business's hours; the site API (#7) takes the dealer's own (their profile).
-const INTAKE_HOURS = DEMO_PROFILE.hours;
-export const leadSchema = z
+// A booking is checked against the dealer's opening hours: the site API passes their profile's (src/lib/site-api/leads.ts).
+export const leadSchemaFor = (hours: Hours) => z
   .discriminatedUnion("type", [
     z.object({ type: z.literal("enquiry"), carId, ...contact }),
     // At least one of make, model and type, so there is something to look for. `when` runs it even if another field failed.
@@ -172,7 +171,7 @@ export const leadSchema = z
     z
       .object({ type: z.literal("finance"), ...contact, ...finance })
       .refine((d) => typeof d.term !== "number" || Boolean((d.product === "pcp" ? FINANCE.pcp?.terms : FINANCE.terms)?.includes(d.term)), { path: ["term"], message: "Choose a term from the list.", when: (p) => typeof p.value === "object" && p.value !== null }),
-    z.object({ type: z.literal("test_drive"), ...contact, ...testDrive }).refine((d) => driveTimes(d.driveDate ?? "", INTAKE_HOURS).includes(d.driveTime ?? "") && dublinMs(d.driveDate ?? "", d.driveTime ?? "") > Date.now(), { path: ["driveTime"], message: BAD_DRIVE_TIME, when: (p) => typeof p.value === "object" && p.value !== null }),
+    z.object({ type: z.literal("test_drive"), ...contact, ...testDrive(hours) }).refine((d) => driveTimes(d.driveDate ?? "", hours).includes(d.driveTime ?? "") && dublinMs(d.driveDate ?? "", d.driveTime ?? "") > Date.now(), { path: ["driveTime"], message: BAD_DRIVE_TIME, when: (p) => typeof p.value === "object" && p.value !== null }),
     z.object({ type: z.literal("alert"), ...contact, ...alert }),
   ])
   // D-12. `when` runs it even if another field failed, so a blank form shows every error at once.
@@ -181,6 +180,8 @@ export const leadSchema = z
     message: CONTACT_ERROR,
     when: (p) => typeof p.value === "object" && p.value !== null,
   });
+// The website's own form path (processLead), against the demo business's hours.
+export const leadSchema = leadSchemaFor(DEMO_PROFILE.hours);
 
 export type LeadInput = z.infer<typeof leadSchema>;
 export type LeadType = LeadInput["type"];

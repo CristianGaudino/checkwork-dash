@@ -32,3 +32,21 @@ export const members = sqliteTable(
   },
   (t) => [primaryKey({ columns: [t.dealerId, t.email] }), index("members_email_idx").on(t.email)],
 );
+
+// The keys dealer websites send to the site API (/api/site/v1, docs/site-api.md). Only the SHA-256 of a key is kept: the key itself is shown
+// once, when it is made. A key belongs to one dealer, and decides it: nothing in a request can name another. Revoked keys stay, revoked.
+export const siteKeys = sqliteTable(
+  "site_keys",
+  {
+    id: text().primaryKey(),
+    dealerId: text("dealer_id")
+      .notNull()
+      .references(() => dealers.id),
+    hash: text().notNull().unique(), // hex SHA-256 of the key
+    label: text().notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+    lastUsedAt: integer("last_used_at", { mode: "timestamp_ms" }), // written at most once an hour per key
+    revokedAt: integer("revoked_at", { mode: "timestamp_ms" }),
+  },
+  (t) => [index("site_keys_dealer_idx").on(t.dealerId)],
+);

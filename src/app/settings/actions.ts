@@ -13,7 +13,8 @@ import { can, currentMember } from "@/lib/permissions";
 import { ROLES, type Role } from "@/lib/permission-rules";
 import { logActivity } from "@/lib/admin/activity";
 import { currentDealer } from "@/lib/tenancy/current";
-import { patchDealer } from "@/lib/tenancy/directory";
+import { makeSiteKey, patchDealer, revokeSiteKey } from "@/lib/tenancy/directory";
+import { oneLine } from "@/lib/leads/schema";
 import { FACTS_SCHEMA } from "@/lib/tenancy/profile";
 import { requireStaff } from "@/lib/staff";
 import { staffStore } from "@/lib/whatsapp/store";
@@ -200,4 +201,27 @@ export async function resetDemoAction() {
   await resetDemoRecords();
   await logActivity("settings", "Reset the demo data");
   revalidatePath("/", "layout");
+}
+
+// Website keys (the site API, docs/site-api.md): owners and managers make and revoke them. A new key is returned once, to be shown once; only
+// its hash is kept. The activity history gets the key's name, never the key.
+export type SiteKeyState = { key?: string; errors?: Record<string, string> } | undefined;
+const keyLabel = oneLine(z.string().trim().min(1, "Give it a name, like Main website").max(60, "Use 60 characters or fewer"));
+export async function makeSiteKeyAction(_p: SiteKeyState, data: FormData): Promise<SiteKeyState> {
+  await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
+  if (!(await can("settings"))) return { errors: { label: NOT_ALLOWED } };
+  const label = keyLabel.safeParse(data.get("label") ?? "");
+  if (!label.success) return { errors: { label: label.error.issues[0].message } };
+  const { key } = await makeSiteKey((await currentDealer()).id, label.data);
+  await logActivity("settings", `Made a website key: ${label.data}`);
+  revalidatePath("/settings");
+  return { key };
+}
+
+export async function revokeSiteKeyAction(id: string) {
+  await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
+  if (!(await can("settings"))) return { error: NOT_ALLOWED };
+  const gone = await revokeSiteKey((await currentDealer()).id, id); // another dealer's key is not found
+  if (gone) await logActivity("settings", `Revoked the website key: ${gone.label}`);
+  revalidatePath("/settings");
 }
