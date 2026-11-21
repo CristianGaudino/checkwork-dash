@@ -36,7 +36,12 @@ const SEED_MEMBERS: Member[] = [
 ];
 // shortcut: memory is per server instance, like the record store (src/lib/admin/docs.ts). Fine for dev and tests; the Worker uses D1.
 let memory: { dealers: Dealer[]; members: Member[] } | null = null;
-const mem = () => (memory ??= { dealers: SEED_DEALERS.map((d) => ({ ...d })), members: SEED_MEMBERS.map((m) => ({ ...m })) });
+const mem = () => {
+  // A production build with no DIRECTORY bound is a broken deploy, not the E2E run: fail loudly instead of answering from memory and losing
+  // every write (the same rule as stock, src/lib/stock/index.ts).
+  if (process.env.NODE_ENV === "production" && process.env.E2E_FAKE_BACKENDS !== "1") throw new Error("Missing binding DIRECTORY");
+  return (memory ??= { dealers: SEED_DEALERS.map((d) => ({ ...d })), members: SEED_MEMBERS.map((m) => ({ ...m })) });
+};
 // Tests: back to the two seeded dealers.
 export const resetMemoryDirectory = () => void (memory = null);
 
