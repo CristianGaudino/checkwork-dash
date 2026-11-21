@@ -54,7 +54,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
           <LeadTags tags={leadChips(l.type, l.topic, l.answers)} urgent={l.status === "new" && isUrgent(l.answers ?? {})} />
         </span>
       ),
-      className: "max-w-[12rem] sm:max-w-[18rem]",
+      className: "max-w-[11rem] sm:max-w-[18rem]",
     },
     // The car in full, else the first words of their message, quoted and muted so the two never read alike.
     { key: "about", header: "About", sort: (l) => l.carTitle, cell: (l) => <span title={l.carTitle ?? l.message} className="line-clamp-2">{l.carTitle ? <span className="font-medium">{l.carTitle}</span> : l.message.trim() ? <span className="text-text-2">&ldquo;{l.message.split("\n")[0]}&rdquo;</span> : null}</span>, className: "max-w-[16rem]", hide: "sm" },
@@ -62,11 +62,11 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
       key: "status",
       header: "Status",
       sort: (l) => STATUS_ORDER[l.status],
-      nowrap: true,
-      // A new lead waiting past the reply target says so, filled: it is the one to answer now.
+      // A new lead waiting past the reply target says so, filled: it is the one to answer now. The badges may wrap, each whole, so the
+      // row's Next step fits a laptop card and a phone has no sideways scroll.
       cell: (l) => (
         <span className="flex flex-col items-start gap-1">
-          <span className="inline-flex items-center gap-1.5">
+          <span className="inline-flex flex-wrap items-center gap-1.5">
             <LeadStatusBadge status={l.status} type={l.type} />
             {/* Why it sits at the top of the list: urgentFirst pins these. */}
             {isHotLead(l) && <Badge tone="warn">Urgent</Badge>}

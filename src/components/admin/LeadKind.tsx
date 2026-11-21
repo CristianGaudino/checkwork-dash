@@ -23,7 +23,7 @@ export function LeadKind({ type, topic }: { type: LeadType; topic?: string }) {
   const { label, icon } = leadKind(type, topic);
   const Icon = ICONS[icon];
   return (
-    <span className="inline-flex items-center gap-1.5 whitespace-nowrap font-medium text-text">
+    <span className="inline-flex items-center gap-1.5 font-medium text-text">
       <Icon className="size-4 shrink-0 text-accent-text" />
       {label}
     </span>
