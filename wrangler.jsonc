@@ -16,7 +16,9 @@
 	// when the dealer turned them on) and the WhatsApp daily alerts. On the 1st at 07:00 UTC, last month's report by email. At 06:30 UTC, the
 	// demo reset (the demo only). These need the CRON_KEY secret.
 	"triggers": { "crons": ["17 3 * * *", "*/15 * * * *", "0 7 * * *", "0 7 1 * *", "30 6 * * *"] },
-	"observability": { "enabled": true },
+	// Our own console lines only (they never carry personal data). No invocation logs, which record each request's URL, and query strings
+	// redacted anywhere a URL is still logged: the leads and customers search (?q=) and their exports carry names, emails and phones.
+	"observability": { "enabled": true, "redact_query_string": true, "logs": { "invocation_logs": false } },
 	// Cloudflare Access in front of the whole app (src/lib/access.ts): the team domain and this application's audience tag. Neither is a
 	// secret. Until both are set every page answers 404 (docs/dealer-admin.md, "Cloudflare Access").
 	"vars": {
