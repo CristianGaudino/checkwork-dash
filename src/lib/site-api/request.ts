@@ -1,11 +1,11 @@
 import "server-only";
 import { getBindings } from "@/lib/leads/bindings";
 import { logSite, type SiteOutcome } from "@/lib/log";
-import { runAsDealer } from "@/lib/tenancy/current";
+import { runAsDealerRow } from "@/lib/tenancy/current";
 import { dealerOfSiteKey } from "@/lib/tenancy/directory";
 
 // The site API (/api/site/v1, docs/site-api.md): what a dealer's website sends and reads. The website key decides the dealer, and the route's
-// work runs inside that dealer's store (runAsDealer), so nothing in a request can name or reach another dealer. Error answers carry no body.
+// work runs inside that dealer's store (runAsDealerRow), so nothing in a request can name or reach another dealer. Error answers carry no body.
 export type Answer = { status: number; outcome: SiteOutcome; body?: unknown; headers?: Record<string, string> };
 
 const HEADERS = { "Cache-Control": "no-store", "X-Robots-Tag": "noindex" };
@@ -21,7 +21,7 @@ export async function siteRequest(req: Request, route: "leads" | "stock", run: (
     // Per key, 60 a minute (wrangler.jsonc). No binding (next dev, the E2E run): no limit.
     const limiter = getBindings().SITE_LIMITER;
     if (limiter && !(await limiter.limit({ key: found.keyId })).success) return { status: 429, outcome: "rate" };
-    return runAsDealer(found.dealer.id, run);
+    return runAsDealerRow(found.dealer, run);
   })().catch((): Answer => ({ status: 500, outcome: "error" })); // nothing from the error: a query's message carries its values
   logSite({ route, dealerId, outcome: answer.outcome, status: answer.status });
   const headers = { ...HEADERS, ...answer.headers };

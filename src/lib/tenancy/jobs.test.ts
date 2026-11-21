@@ -1,6 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
+// Counts the directory reads of a dealer row, so a job reads its dealer once.
+const reads = vi.hoisted(() => ({ n: 0 }));
+vi.mock("./directory", async (orig) => {
+  const real = await orig<typeof import("./directory")>();
+  return { ...real, dealerById: (id: string) => (reads.n++, real.dealerById(id)) };
+});
 const { dealerJob } = await import("./jobs");
 const { runForDealers } = await import("./run-jobs");
 const { currentDealer } = await import("./current");
@@ -17,6 +23,13 @@ describe("a scheduled job's route", () => {
     expect((await dealerJob(call("test-motors", "wrong"), run)).status).toBe(404);
     expect((await dealerJob(call("nobody-motors"), run)).status).toBe(404);
     expect(run).toHaveBeenCalledTimes(2);
+  });
+
+  it("reads the dealer from the directory once", async () => {
+    vi.stubEnv("CRON_KEY", "k");
+    reads.n = 0;
+    await dealerJob(call("test-motors"), async () => ({ dealer: (await currentDealer()).id }));
+    expect(reads.n).toBe(1);
   });
 
   it("answers 404 when the job does not apply to that dealer", async () => {

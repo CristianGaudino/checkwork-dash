@@ -1,5 +1,5 @@
 import { cronAuthorized } from "@/lib/cron";
-import { runAsDealer } from "./current";
+import { runAsDealerRow } from "./current";
 import { dealerById, type Dealer } from "./directory";
 
 const HEADERS = { "Cache-Control": "no-store", "X-Robots-Tag": "noindex" };
@@ -12,6 +12,6 @@ export async function dealerJob(req: Request, run: (dealer: Dealer) => Promise<u
   if (!cronAuthorized(req)) return none();
   const dealer = await dealerById(new URL(req.url).searchParams.get("dealer") ?? "");
   if (!dealer || dealer.status !== "active") return none();
-  const body = await runAsDealer(dealer.id, () => run(dealer));
+  const body = await runAsDealerRow(dealer, () => run(dealer));
   return body === null ? none() : Response.json(body, { headers: HEADERS });
 }

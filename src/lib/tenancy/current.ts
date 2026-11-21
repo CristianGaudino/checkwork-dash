@@ -14,8 +14,10 @@ const scope = new AsyncLocalStorage<Dealer>();
 export async function runAsDealer<T>(dealerId: string, fn: () => Promise<T>): Promise<T> {
   const dealer = await dealerById(dealerId);
   if (!dealer) throw new Error("Unknown dealer");
-  return scope.run(dealer, fn);
+  return runAsDealerRow(dealer, fn);
 }
+// The same with the dealer's row already read from the directory (a site key's lookup, a job's check), so it is not read twice.
+export const runAsDealerRow = <T,>(dealer: Dealer, fn: () => Promise<T>): Promise<T> => scope.run(dealer, fn);
 
 export async function currentDealer(): Promise<Dealer> {
   const scoped = scope.getStore();
