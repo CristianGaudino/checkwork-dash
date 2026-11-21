@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getDb } from "@/lib/db";
+import { getDb } from "@/test/sqlite-db"; // the same database the mock of @/lib/db gives the code
 import { leads } from "@/lib/db/schema";
 import demoCars from "@/lib/stock/demo-cars.json";
 import { carTitle } from "@/lib/stock/format";

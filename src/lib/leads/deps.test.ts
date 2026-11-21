@@ -12,7 +12,7 @@ describe("the real lead dependencies", () => {
     await expect(getDeps().store.insert({} as never)).rejects.toThrow("Missing LEAD_TO_EMAIL");
     vi.stubEnv("LEAD_TO_EMAIL", "dealer@example.com");
     // Past the email check, the next missing thing is the database binding (there is none outside the Worker).
-    await expect(getDeps().store.insert({} as never)).rejects.toThrow("Missing binding DB");
+    await expect(getDeps().store.insert({} as never)).rejects.toThrow("Missing the dealer's database binding");
   });
 
   it("do not rate limit a request with no IP, which would lock every buyer into one shared bucket", async () => {

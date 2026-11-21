@@ -1,6 +1,6 @@
 import "server-only";
 import { DAY, HOUR } from "@/lib/time";
-import { getBindings } from "@/lib/leads/bindings";
+import { dealerBucket } from "@/lib/tenancy/current";
 import { sniffImage } from "@/lib/leads/photos";
 import { defineCollection } from "./docs";
 import { newId } from "./ids";
@@ -39,7 +39,7 @@ export async function storeScreenshot(id: string, file: unknown): Promise<string
   const bytes = new Uint8Array(await file.arrayBuffer());
   const kind = sniffImage(bytes);
   if (!kind) return null;
-  const bucket = getBindings().LEAD_PHOTOS;
+  const bucket = await dealerBucket();
   if (!bucket) return `data:${kind.contentType};base64,${Buffer.from(bytes).toString("base64")}`;
   const key = `help/${id}.${kind.ext}`;
   await bucket.put(key, bytes.slice().buffer, { httpMetadata: { contentType: kind.contentType } });

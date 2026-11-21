@@ -2,21 +2,22 @@ import "server-only";
 import { and, eq, notLike, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import { adminDocs } from "@/lib/db/schema";
-import { getBindings } from "@/lib/leads/bindings";
 import { isProduction } from "@/lib/site";
+import { currentDealer, hasD1 } from "@/lib/tenancy/current";
+import type { Dealer } from "@/lib/tenancy/directory";
 
-// One small record store for everything the dealer admin keeps (test drives, posts, campaigns, settings...). On the Worker it
-// is the `admin_docs` D1 table; with no D1 binding (next dev, the E2E run) it is a map in memory, so the areas work with nothing set up.
+// One small record store for everything the dealer admin keeps (test drives, posts, campaigns, settings...), in the current dealer's own
+// store (src/lib/tenancy). On the Worker it is the `admin_docs` table of that dealer's D1 database; with no D1 (next dev, the E2E run) it is
+// a map in memory, one per dealer, so the areas work with nothing set up and dealers stay apart there too.
 // A collection starts from its seed function the first time it is read, so a fresh database shows a lived-in demo.
 // shortcut: memory is per server instance (and `next start` gives route handlers their own copy, apart from pages and actions), so with no
 // D1 binding edits last only as long as the process, and a route handler sees the seed. Fine for dev and tests; the Worker uses D1.
 export type Doc = { id: string } & Record<string, unknown>;
 
-const memory = new Map<string, Map<string, Doc>>();
+const memory = new Map<string, Map<string, Map<string, Doc>>>(); // dealer id, collection, record id
 export const SEEDED = "_seeded"; // collection holding one marker row per seeded collection (the activity log uses it too)
-const seededHere = new Set<string>(); // collections this instance already knows are seeded, so a call costs no extra query
-
-const hasDb = () => Boolean(getBindings().DB);
+const seededHere = new Set<string>(); // "dealer/collection" this instance already knows are seeded, so a call costs no extra query
+const memoryOf = (dealer: Dealer) => memory.get(dealer.id) ?? memory.set(dealer.id, new Map()).get(dealer.id)!;
 
 // The made-up records (leads, reviews, posts, a team...) are for the demo. A real dealer's dashboard starts empty: on a production site
 // (APP_ENV=production) nothing is seeded, unless DEMO_RECORDS=on; DEMO_RECORDS=off turns them off anywhere. `always` is for a record a
@@ -24,10 +25,13 @@ const hasDb = () => Boolean(getBindings().DB);
 export const seedsDemoRecords = () => (process.env.DEMO_RECORDS ? process.env.DEMO_RECORDS !== "off" : !isProduction());
 // The Settings reset button: only where there are made-up records, and never on production, where a showcase (DEMO_RECORDS=on) also
 // holds records staff entered. The weekly cron is stricter still (APP_ENV=demo only).
-export const mayResetDemo = () => seedsDemoRecords() && !isProduction();
+// Both only for a dealer the directory marks as a demo: a real dealer never gets made-up records, nor the button that wipes its own.
+export const demoRecordsFor = (dealer: Pick<Dealer, "demo">) => dealer.demo && seedsDemoRecords();
+export const mayResetDemo = async () => demoRecordsFor(await currentDealer()) && !isProduction();
 
-export function defineCollection<T extends Doc>(name: string, demoSeed: () => T[], { always = false }: { always?: boolean } = {}) {
-  const seed = () => (always || seedsDemoRecords() ? demoSeed() : []);
+// `demoSeed` gets whether the dealer has made-up records, for an `always` collection whose defaults differ (the settings).
+export function defineCollection<T extends Doc>(name: string, demoSeed: (demo: boolean) => T[], { always = false }: { always?: boolean } = {}) {
+  const seedFor = (dealer: Dealer) => (always || demoRecordsFor(dealer) ? demoSeed(demoRecordsFor(dealer)) : []);
   // A failed query's error carries its values (a lead's name, email, phone), and an uncaught error is printed to Workers Logs. Rethrown
   // with the collection's name only, so a D1 hiccup never puts a customer in the logs.
   const quiet = <R,>(q: PromiseLike<R>, op: string): Promise<R> =>
@@ -35,47 +39,53 @@ export function defineCollection<T extends Doc>(name: string, demoSeed: () => T[
       throw new Error(`admin_docs ${name} ${op} failed`);
     });
   // `seedIfNew` false is for a public page: it never writes, so a visitor's page view cannot seed a collection. Returns whether it is ready.
-  async function ready(seedIfNew = true): Promise<boolean> {
-    if (!hasDb()) {
-      if (!memory.has(name)) memory.set(name, new Map(seed().map((d) => [d.id, d])));
-      return true;
+  // The current dealer's records of this collection: a map in memory, or their D1 database. `ok` false: not seeded, and not to be.
+  type Where = { ok: boolean; mem?: Map<string, Doc>; db?: Awaited<ReturnType<typeof getDb>>; dealer: Dealer };
+  async function ready(seedIfNew = true): Promise<Where> {
+    const dealer = await currentDealer();
+    if (!hasD1()) {
+      const mine = memoryOf(dealer);
+      if (!mine.has(name)) mine.set(name, new Map(seedFor(dealer).map((d) => [d.id, d])));
+      return { ok: true, mem: mine.get(name)!, dealer };
     }
-    if (seededHere.has(name)) return true;
-    const db = getDb();
+    const db = await getDb();
+    const key = `${dealer.id}/${name}`;
+    if (seededHere.has(key)) return { ok: true, db, dealer };
     const done = await quiet(db.select({ id: adminDocs.id }).from(adminDocs).where(and(eq(adminDocs.collection, SEEDED), eq(adminDocs.id, name))).limit(1), "ready");
     if (done.length) {
-      seededHere.add(name);
-      return true;
+      seededHere.add(key);
+      return { ok: true, db, dealer };
     }
-    if (!seedIfNew) return false;
+    if (!seedIfNew) return { ok: false, db, dealer };
     // Twenty rows a statement (D1 allows 100 bound values, three a row), so a first visit is a few round trips, not one per record.
     // Conflicts are ignored, so two first visits cannot clash.
-    const rows = seed().map((d) => ({ collection: name, id: d.id, data: d }));
+    const rows = seedFor(dealer).map((d) => ({ collection: name, id: d.id, data: d }));
     for (let i = 0; i < rows.length; i += 20) await quiet(db.insert(adminDocs).values(rows.slice(i, i + 20)).onConflictDoNothing(), "seed");
     await quiet(db.insert(adminDocs).values({ collection: SEEDED, id: name, data: {} }).onConflictDoNothing(), "seed");
-    seededHere.add(name);
-    return true;
+    seededHere.add(key);
+    return { ok: true, db, dealer };
   }
 
   return {
     name,
     async list(opts?: { seed?: boolean }): Promise<T[]> {
-      if (!(await ready(opts?.seed ?? true))) return [];
-      if (!hasDb()) return [...memory.get(name)!.values()] as T[];
-      const rows = await quiet(getDb().select({ data: adminDocs.data }).from(adminDocs).where(eq(adminDocs.collection, name)), "list");
+      const w = await ready(opts?.seed ?? true);
+      if (!w.ok) return [];
+      if (w.mem) return [...w.mem.values()] as T[];
+      const rows = await quiet(w.db!.select({ data: adminDocs.data }).from(adminDocs).where(eq(adminDocs.collection, name)), "list");
       return rows.map((r) => r.data as T);
     },
     async get(id: string): Promise<T | undefined> {
-      await ready();
-      if (!hasDb()) return memory.get(name)!.get(id) as T | undefined;
-      const rows = await quiet(getDb().select({ data: adminDocs.data }).from(adminDocs).where(and(eq(adminDocs.collection, name), eq(adminDocs.id, id))).limit(1), "get");
+      const w = await ready();
+      if (w.mem) return w.mem.get(id) as T | undefined;
+      const rows = await quiet(w.db!.select({ data: adminDocs.data }).from(adminDocs).where(and(eq(adminDocs.collection, name), eq(adminDocs.id, id))).limit(1), "get");
       return rows[0]?.data as T | undefined;
     },
     async put(doc: T): Promise<void> {
-      await ready();
-      if (!hasDb()) return void memory.get(name)!.set(doc.id, doc);
+      const w = await ready();
+      if (w.mem) return void w.mem.set(doc.id, doc);
       await quiet(
-        getDb()
+        w.db!
           .insert(adminDocs)
           .values({ collection: name, id: doc.id, data: doc })
           // Always a later updated_at than the row had, even in the same millisecond, so an update() racing this put sees it.
@@ -87,16 +97,16 @@ export function defineCollection<T extends Doc>(name: string, demoSeed: () => T[
     // the write only lands if nobody wrote it since (updated_at unchanged); one retry on a clash. A record that is gone (erased, purged)
     // stays gone: nothing is written and it returns undefined.
     async update(id: string, fn: (doc: T) => T | Promise<T>): Promise<T | undefined> {
-      await ready();
-      if (!hasDb()) {
-        const cur = memory.get(name)!.get(id) as T | undefined;
+      const w = await ready();
+      if (w.mem) {
+        const cur = w.mem.get(id) as T | undefined;
         if (!cur) return undefined;
         const next = await fn(cur);
-        if (!memory.get(name)!.has(id)) return undefined;
-        memory.get(name)!.set(id, next);
+        if (!w.mem.has(id)) return undefined;
+        w.mem.set(id, next);
         return next;
       }
-      const db = getDb();
+      const db = w.db!;
       const where = and(eq(adminDocs.collection, name), eq(adminDocs.id, id));
       for (let attempt = 0; attempt < 2; attempt++) {
         const [row] = await quiet(db.select({ data: adminDocs.data, at: adminDocs.updatedAt }).from(adminDocs).where(where).limit(1), "update");
@@ -110,18 +120,20 @@ export function defineCollection<T extends Doc>(name: string, demoSeed: () => T[
       throw new Error(`admin_docs ${name} update clashed`);
     },
     async remove(id: string): Promise<void> {
-      await ready();
-      if (!hasDb()) return void memory.get(name)!.delete(id);
-      await quiet(getDb().delete(adminDocs).where(and(eq(adminDocs.collection, name), eq(adminDocs.id, id))), "remove");
+      const w = await ready();
+      if (w.mem) return void w.mem.delete(id);
+      await quiet(w.db!.delete(adminDocs).where(and(eq(adminDocs.collection, name), eq(adminDocs.id, id))), "remove");
     },
     // Back to the seed: used by "Reset demo data". Records that came from visitors (ids starting "real-") are never touched.
     async reset(): Promise<void> {
-      if (!hasDb()) {
-        const real = [...(memory.get(name) ?? [])].filter(([id]) => id.startsWith("real-"));
-        return void memory.set(name, new Map([...seed().map((d): [string, Doc] => [d.id, d]), ...real]));
+      const dealer = await currentDealer();
+      if (!hasD1()) {
+        const mine = memoryOf(dealer);
+        const real = [...(mine.get(name) ?? [])].filter(([id]) => id.startsWith("real-"));
+        return void mine.set(name, new Map([...seedFor(dealer).map((d): [string, Doc] => [d.id, d]), ...real]));
       }
-      const db = getDb();
-      seededHere.delete(name);
+      const db = await getDb();
+      seededHere.delete(`${dealer.id}/${name}`);
       await db.delete(adminDocs).where(and(eq(adminDocs.collection, name), notLike(adminDocs.id, "real-%")));
       await db.delete(adminDocs).where(and(eq(adminDocs.collection, SEEDED), eq(adminDocs.id, name)));
       // Seeded again at once: other Worker isolates still remember this collection as seeded and would otherwise list nothing.
@@ -129,4 +141,3 @@ export function defineCollection<T extends Doc>(name: string, demoSeed: () => T[
     },
   };
 }
-

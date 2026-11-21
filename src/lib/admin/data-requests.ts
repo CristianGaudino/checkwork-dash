@@ -2,7 +2,7 @@ import "server-only";
 import { inArray } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import { leads as formLeads } from "@/lib/db/schema";
-import { getBindings } from "@/lib/leads/bindings";
+import { dealerBucket, hasD1 } from "@/lib/tenancy/current";
 import { alertsStore, claimsStore, customersStore, drivesStore, leadsStore, ordersStore, reservationsStore, salesStore, subscribersStore, type Claim, type Customer, type Lead, type Order, type Reservation, type Sale, type StockAlert, type Subscriber, type TestDrive } from "./collections";
 import { messagesStore, type Msg } from "@/lib/whatsapp/store";
 import { matchesAny, widen, type PersonQuery } from "./person-match";
@@ -15,13 +15,11 @@ import { matchesAny, widen, type PersonQuery } from "./person-match";
 type FormLead = typeof formLeads.$inferSelect;
 export type Held = { formLeads: FormLead[]; leads: Lead[]; drives: TestDrive[]; alerts: StockAlert[]; subscribers: Subscriber[]; customers: Customer[]; sales: Sale[]; deposits: Reservation[]; claims: Claim[]; orders: Order[]; messages: Msg[] };
 
-const hasDb = () => Boolean(getBindings().DB);
-
 // The form submissions: every row's contact details are read (a year's worth at most, the purge sees to that) and matched here, so a phone
 // written any way is found; then the matching rows in full.
 async function formLeadsOf(qs: PersonQuery[]): Promise<FormLead[]> {
-  if (!hasDb()) return [];
-  const db = getDb();
+  if (!hasD1()) return [];
+  const db = await getDb();
   const all = await db.select({ id: formLeads.id, email: formLeads.email, phone: formLeads.phone }).from(formLeads);
   const ids = all.filter((r) => matchesAny(r, qs)).map((r) => r.id);
   const rows: FormLead[] = [];
@@ -89,12 +87,12 @@ export async function erasePerson(q: PersonQuery): Promise<number> {
   for (const o of h.orders) await ordersStore.update(o.id, (x) => ({ ...x, customerId: undefined, leadId: undefined, notes: [] }));
   if (h.formLeads.length) {
     const keys = h.formLeads.flatMap((r) => r.photoKeys);
-    const bucket = getBindings().LEAD_PHOTOS;
+    const bucket = await dealerBucket();
     if (keys.length) {
       if (!bucket) throw new Error("Missing binding LEAD_PHOTOS");
       for (let i = 0; i < keys.length; i += 1000) await bucket.delete(keys.slice(i, i + 1000));
     }
-    for (const part of chunks(h.formLeads.map((r) => r.id))) await getDb().delete(formLeads).where(inArray(formLeads.id, part));
+    for (const part of chunks(h.formLeads.map((r) => r.id))) await (await getDb()).delete(formLeads).where(inArray(formLeads.id, part));
   }
   for (const m of h.messages) await messagesStore.remove(m.id);
   for (const l of h.leads) await leadsStore.remove(l.id);

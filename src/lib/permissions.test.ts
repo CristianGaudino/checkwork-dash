@@ -11,25 +11,28 @@ vi.mock("next/headers", () => ({
 }));
 // The verified Access email (src/lib/staff.ts verifies the token; here the test says who it is).
 vi.mock("@/lib/staff", () => ({ staffIdentity: async () => (email === undefined ? { ok: false } : { ok: true, email: email.toLowerCase() }) }));
+vi.mock("@/lib/tenancy/membership", () => vi.importActual("@/lib/tenancy/membership")); // the real directory check, not the setup's stand-in
 const { can, currentMember } = await import("./permissions");
 const { settingsStore } = await import("@/lib/admin/collections");
+const { runAsDealer } = await import("@/lib/tenancy/current");
 
 afterEach(async () => {
   vi.unstubAllEnvs();
   cookie = undefined;
   email = undefined;
-  await settingsStore.reset();
+  await runAsDealer("checkwork-motors", () => settingsStore.reset()); // nobody is signed in here, so as the dealer itself
 });
 
 const production = () => {
   vi.stubEnv("APP_ENV", "production");
   vi.stubEnv("NEXT_PUBLIC_ADMIN_OPEN", "");
-  vi.stubEnv("DEMO_RECORDS", "on"); // the demo team (Aoife Owner, Conor Sales, Niamh Finance), to match emails against
+  vi.stubEnv("DEMO_RECORDS", "on"); // the demo team's names (Aoife Owner, Conor Sales, Niamh Finance); their roles are the directory's
 };
 
 describe("on the demo", () => {
   it("acts as the owner by default, and as the first team member with the role the bar picked", async () => {
     vi.stubEnv("APP_ENV", "demo");
+    email = "aoife@example.com"; // signed in through Access, at the demo dealer
     expect(await currentMember()).toMatchObject({ name: "Aoife Brennan", role: "Owner" });
     expect(await can("margins")).toBe(true);
     cookie = "Sales";
@@ -53,7 +56,7 @@ describe("on a production site", () => {
     expect(await can("margins")).toBe(false);
   });
 
-  it("matches the signed-in email to the team, whatever its case", async () => {
+  it("gives the signed-in email the role the directory has for it, whatever its case, and the team's name for it", async () => {
     production();
     email = "CONOR@example.com";
     expect(await currentMember()).toMatchObject({ name: "Conor Doyle", role: "Sales" });
@@ -64,13 +67,16 @@ describe("on a production site", () => {
     expect(await can("team")).toBe(true);
   });
 
-  it("makes ADMIN_OWNER_EMAILS owners, team or not, and grants nothing to anyone else", async () => {
+  it("takes the role from the directory, not the team record, and grants nothing to anyone the directory does not have", async () => {
     production();
-    vi.stubEnv("ADMIN_OWNER_EMAILS", "Boss@dealer.ie, other@dealer.ie");
-    email = "boss@dealer.ie";
-    expect(await can("team")).toBe(true);
+    const { putMember, resetMemoryDirectory } = await import("@/lib/tenancy/directory");
+    await putMember("checkwork-motors", "conor@example.com", "Manager"); // the team record still says Sales
+    email = "conor@example.com";
+    expect(await currentMember()).toMatchObject({ name: "Conor Doyle", role: "Manager" });
+    resetMemoryDirectory();
     email = "stranger@dealer.ie";
     expect(await currentMember()).toMatchObject({ role: null });
+    expect(await can("margins")).toBe(false);
     email = undefined;
     expect(await can("margins")).toBe(false);
   });

@@ -2,12 +2,12 @@ import "server-only";
 import { and, count, desc, eq, gte, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import { activity, adminDocs } from "@/lib/db/schema";
-import { getBindings } from "@/lib/leads/bindings";
+import { currentDealer, hasD1 } from "@/lib/tenancy/current";
 import { currentMember } from "@/lib/permissions";
 import demoCars from "@/lib/stock/demo-cars.json";
 import type { Car } from "@/lib/stock/types";
 import { DAY, HOUR, MINUTE } from "@/lib/time";
-import { SEEDED, seedsDemoRecords } from "./docs";
+import { SEEDED, demoRecordsFor } from "./docs";
 import { aOrAn } from "./activity-text";
 import { fmtEur } from "./format";
 import { newId } from "./ids";
@@ -27,11 +27,10 @@ export const PERSONAL_KINDS: readonly RefKind[] = ["lead", "drive", "alert", "su
 export type Ref = { kind: RefKind; id: string; label?: string };
 export type ActivityEntry = { id: string; at: number; actor: string; area: ActivityArea; summary: string; refKind: RefKind | null; refId: string | null; refLabel: string | null };
 
-const hasDb = () => Boolean(getBindings().DB);
-// With no D1 binding (next dev, the E2E run) the log is a list in memory, like the record store (docs.ts).
+// The current dealer's log, in their own store. With no D1 (next dev, the E2E run) a list in memory per dealer, like the record store (docs.ts).
 // shortcut: memory is per server instance and grows until restart. Fine for dev and tests, never used on the Worker.
-let memory: ActivityEntry[] | null = null;
-let seededHere = false;
+const memory = new Map<string, ActivityEntry[]>(); // by dealer id
+const seededHere = new Set<string>(); // dealer ids whose log this instance knows is seeded
 
 const row = (at: number, actor: string, area: ActivityArea, summary: string, ref?: Ref): ActivityEntry => ({
   id: newId("act"),
@@ -88,20 +87,19 @@ function seedActivity(now = Date.now()): ActivityEntry[] {
 }
 
 // The demo seeds its history once, the first time the log is read or written. A real dealer's log starts empty.
-async function ready() {
-  if (!hasDb()) {
-    memory ??= seedsDemoRecords() ? seedActivity() : [];
-    return;
-  }
-  if (seededHere || !seedsDemoRecords()) return;
-  const db = getDb();
+// Returns the dealer's list in memory, or undefined on D1.
+async function ready(): Promise<ActivityEntry[] | undefined> {
+  const dealer = await currentDealer();
+  if (!hasD1()) return memory.get(dealer.id) ?? memory.set(dealer.id, demoRecordsFor(dealer) ? seedActivity() : []).get(dealer.id)!;
+  if (seededHere.has(dealer.id) || !demoRecordsFor(dealer)) return;
+  const db = await getDb();
   const done = await db.select({ id: adminDocs.id }).from(adminDocs).where(and(eq(adminDocs.collection, SEEDED), eq(adminDocs.id, "activity"))).limit(1);
   if (!done.length) {
     const rows = seedActivity();
     for (let i = 0; i < rows.length; i += 10) await db.insert(activity).values(rows.slice(i, i + 10)).onConflictDoNothing(); // D1: 100 bound values a statement
     await db.insert(adminDocs).values({ collection: SEEDED, id: "activity", data: {} }).onConflictDoNothing();
   }
-  seededHere = true;
+  seededHere.add(dealer.id);
 }
 
 // Records one change, by the signed-in person unless `actor` names someone else (the stock sync). Best effort: a log that cannot be
@@ -109,9 +107,9 @@ async function ready() {
 export async function logActivity(area: ActivityArea, summary: string, ref?: Ref, actor?: string): Promise<void> {
   try {
     const entry = row(Date.now(), actor ?? ((await currentMember()).name || "Someone"), area, summary, ref);
-    await ready();
-    if (!hasDb()) return void memory!.push(entry);
-    await getDb().insert(activity).values(entry);
+    const mem = await ready();
+    if (mem) return void mem.push(entry);
+    await (await getDb()).insert(activity).values(entry);
   } catch {
     console.error(JSON.stringify({ job: "activity", error: "could not record a change" }));
   }
@@ -123,17 +121,17 @@ export type ActivityPage = { rows: ActivityEntry[]; total: number; byArea: Parti
 // One page of the history, newest first, with the count per area (for the summary tiles, under the person and date filters) and everyone
 // who appears in it (for the person filter).
 export async function listActivity(filter: ActivityFilter, page: number, size: number): Promise<ActivityPage> {
-  await ready();
+  const mem = await ready();
   const offset = (page - 1) * size;
-  if (!hasDb()) {
-    const base = memory!.filter((e) => (!filter.actor || e.actor === filter.actor) && (!filter.since || e.at >= filter.since));
+  if (mem) {
+    const base = mem.filter((e) => (!filter.actor || e.actor === filter.actor) && (!filter.since || e.at >= filter.since));
     // Reversed first, so entries made in the same millisecond still come newest written first (the sort keeps ties in order).
     const hits = base.filter((e) => !filter.area || e.area === filter.area).reverse().sort((a, b) => b.at - a.at);
     const byArea: ActivityPage["byArea"] = {};
     for (const e of base) byArea[e.area] = (byArea[e.area] ?? 0) + 1;
-    return { rows: hits.slice(offset, offset + size), total: hits.length, byArea, actors: [...new Set(memory!.map((e) => e.actor))].sort() };
+    return { rows: hits.slice(offset, offset + size), total: hits.length, byArea, actors: [...new Set(mem.map((e) => e.actor))].sort() };
   }
-  const db = getDb();
+  const db = await getDb();
   const base = [filter.actor ? eq(activity.actor, filter.actor) : undefined, filter.since ? gte(activity.at, filter.since) : undefined];
   const where = and(...base, filter.area ? eq(activity.area, filter.area) : undefined);
   const [rows, [{ n }], areas, actors] = await Promise.all([
@@ -147,14 +145,15 @@ export async function listActivity(filter: ActivityFilter, page: number, size: n
 
 // "Reset demo data": the history goes back to the seed with the rest of the demo. Demo only (the caller checks).
 export async function resetActivity(): Promise<void> {
-  if (!hasDb()) {
-    memory = null;
+  const dealer = await currentDealer();
+  if (!hasD1()) {
+    memory.delete(dealer.id);
     return;
   }
-  const db = getDb();
+  const db = await getDb();
   await db.delete(activity);
   await db.delete(adminDocs).where(and(eq(adminDocs.collection, SEEDED), eq(adminDocs.id, "activity")));
-  seededHere = false;
+  seededHere.delete(dealer.id);
   await ready(); // at once: other Worker isolates still remember the log as seeded
 
 }

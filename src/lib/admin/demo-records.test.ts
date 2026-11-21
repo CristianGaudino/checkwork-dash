@@ -12,14 +12,25 @@ async function fresh() {
 describe("demo records", () => {
   afterEach(() => vi.unstubAllEnvs());
 
-  it("a production site starts empty, with the settings it needs and no made-up team", async () => {
+  it("a production site seeds no made-up records, even for the demo dealer", async () => {
     vi.stubEnv("APP_ENV", "production");
     const c = await fresh();
     expect(await c.leadsStore.list()).toEqual([]);
     expect(await c.reviewsStore.list()).toEqual([]);
     expect(await c.postsStore.list()).toEqual([]);
-    expect((await c.getSettings()).team).toEqual([]);
-    expect((await c.getSettings()).leadSlaHours).toBe(24);
+  });
+
+  it("a real dealer (not a demo in the directory) starts empty, with the settings it needs and no made-up team, even on a showcase build", async () => {
+    vi.stubEnv("APP_ENV", "production");
+    vi.stubEnv("DEMO_RECORDS", "on");
+    const c = await fresh();
+    const { runAsDealer } = await import("@/lib/tenancy/current");
+    await runAsDealer("test-motors", async () => {
+      expect(await c.leadsStore.list()).toEqual([]);
+      expect(await c.reviewsStore.list()).toEqual([]);
+      expect((await c.getSettings()).team).toEqual([]);
+      expect((await c.getSettings()).leadSlaHours).toBe(24);
+    });
   });
 
   it("the demo is seeded, and DEMO_RECORDS=on seeds a production showcase too", async () => {

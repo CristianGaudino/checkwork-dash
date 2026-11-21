@@ -1,10 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.unmock("@/lib/staff"); // the setup stubs it for the action tests; this file tests the real one
+vi.mock("@/lib/tenancy/membership", () => vi.importActual("@/lib/tenancy/membership")); // and the real dealer check behind requireStaff
 vi.mock("server-only", () => ({}));
 vi.mock("react", async (orig) => ({ ...(await orig<typeof import("react")>()), cache: <T,>(fn: T) => fn }));
 let sent: Record<string, string> = {};
-vi.mock("next/headers", () => ({ headers: async () => ({ get: (n: string) => sent[n] ?? null }) }));
+vi.mock("next/headers", () => ({ headers: async () => ({ get: (n: string) => sent[n] ?? null }), cookies: async () => ({ get: () => undefined }) }));
 const verify = vi.fn();
 vi.mock("@/lib/access", async (orig) => ({ ...(await orig<typeof import("@/lib/access")>()), verifyAccessJwt: (...a: unknown[]) => verify(...a) }));
 const { requireStaff, staffIdentity } = await import("./staff");
@@ -40,6 +41,14 @@ describe("who the dashboard is talking to", () => {
 
   it("is open where the dashboard is open (development, the E2E build)", async () => {
     vi.stubEnv("NEXT_PUBLIC_ADMIN_OPEN", "1");
-    expect(await staffIdentity()).toEqual({ ok: true, email: "" });
+    expect(await staffIdentity()).toEqual({ ok: true, email: "dev@checkwork.invalid" });
+    await expect(requireStaff()).resolves.toBeUndefined(); // a member of the demo dealer, opened by default
+  });
+
+  it("refuses an action from someone Access let in who works at no dealer", async () => {
+    access();
+    verify.mockResolvedValueOnce({ email: "stranger@dealer.ie" });
+    sent = { "cf-access-jwt-assertion": "a.b.c" };
+    await expect(requireStaff()).rejects.toThrow();
   });
 });

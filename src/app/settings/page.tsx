@@ -42,7 +42,7 @@ const SERVICE_MODULE: Partial<Record<IntegrationId, ModuleId | ModuleId[]>> = {
 };
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ section?: string }> }) {
-  const [s, me, source, sp] = await Promise.all([getSettings(), currentMember(), stockSource(), searchParams]);
+  const [s, me, source, sp, resettable] = await Promise.all([getSettings(), currentMember(), stockSource(), searchParams, mayResetDemo()]);
   const synced = source === "donedeal";
   const sync = synced ? await syncStatus() : null;
   // The listing site is a service only for a dealer whose stock comes from there; the others only with their module (#173).
@@ -56,7 +56,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
   const mayChange = (t: { role: Role }) => team && (owner || t.role !== "Owner");
   // Demo data only where there are made-up records to put back: a real dealer's dashboard has no demo, and the server refuses it there too.
   // Your business mentions the posts' voice only when that panel is there (posts or the newsletter are on).
-  const sections = SECTIONS.filter(([k]) => k !== "demo" || (mayResetDemo() && edit)).map(([k, label, line]) => [k, label, k === "business" && !voice ? "Your details and opening hours" : line] as const);
+  const sections = SECTIONS.filter(([k]) => k !== "demo" || (resettable && edit)).map(([k, label, line]) => [k, label, k === "business" && !voice ? "Your details and opening hours" : line] as const);
   const [section, , about] = sections.find(([k]) => k === sp.section) ?? sections[0];
   return (
     <>

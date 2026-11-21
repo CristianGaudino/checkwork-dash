@@ -23,7 +23,7 @@ describe("GET /lead-photos (T-03-32)", () => {
   it("streams a photo for a signed link, uncached, unindexed and unsniffed", async () => {
     const res = await call(await signPhotoPath(KEY, "test-secret"));
     expect(res.status).toBe(200);
-    expect(get).toHaveBeenCalledWith(KEY);
+    expect(get).toHaveBeenCalledWith(`dealers/checkwork-motors/${KEY}`); // the current dealer's part of the bucket only
     expect(Object.fromEntries(res.headers)).toMatchObject({ "content-type": "image/jpeg", "cache-control": "private, no-store", "x-robots-tag": "noindex", "x-content-type-options": "nosniff" });
   });
 

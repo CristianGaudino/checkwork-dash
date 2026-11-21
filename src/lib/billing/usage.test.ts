@@ -21,12 +21,12 @@ beforeEach(async () => {
 afterEach(() => vi.unstubAllEnvs());
 
 describe("who hears that a limit is reached", () => {
-  it("each owner and manager by name, and an owner known only by ADMIN_OWNER_EMAILS by their email; never Sales", async () => {
+  it("each owner and manager by name (an owner the directory has with no name yet goes by their email); never Sales", async () => {
     team.list = [
       { id: "1", name: "Ciara Walsh", email: "ciara@example.com", role: "Manager" },
       { id: "2", name: "Conor Doyle", email: "conor@example.com", role: "Sales" },
+      { id: "3", name: "owner@example.com", email: "owner@example.com", role: "Owner" },
     ];
-    vi.stubEnv("ADMIN_OWNER_EMAILS", "Owner@Example.com, ciara@example.com");
     await recordUsage("lookup", "website", 29); // 25 included, then 4 at €1.20, past the €1 limit
     expect([...new Set(notices.map((n) => n.for))].sort()).toEqual(["Ciara Walsh", "owner@example.com"]);
   });

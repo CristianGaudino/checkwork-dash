@@ -1,17 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { truncate } from "@/test/sqlite-db";
+import { drizzle, truncateIn } from "@/test/sqlite-d1";
 
 vi.mock("server-only", () => ({}));
 vi.mock("react", async (orig) => ({ ...(await orig<typeof import("react")>()), cache: <T,>(fn: T) => fn }));
-vi.mock("@/lib/db", () => import("@/test/sqlite-db"));
-vi.mock("@/lib/leads/bindings", () => ({ getBindings: () => ({ DB: {} }) }));
+// The D1 path: the directory and the dealers' databases on SQLite (src/test/sqlite-d1.ts), picked by the real getDb().
+vi.mock("drizzle-orm/d1", () => import("@/test/sqlite-d1"));
+vi.mock("@opennextjs/cloudflare", async () => {
+  const { env } = await import("@/test/sqlite-d1");
+  return { getCloudflareContext: () => ({ env }) };
+});
+const truncate = (...tables: string[]) => truncateIn("DB_CHECKWORK_MOTORS", ...tables);
 vi.mock("next/headers", () => ({ cookies: async () => ({ get: () => undefined }), headers: async () => ({ get: () => null }) }));
 // These act as the demo's roles (the demo bar's cookie), which count only on the demo deploy (src/lib/demo.ts, demoCookiesCount).
 beforeEach(() => vi.stubEnv("APP_ENV", "demo"));
 
 const { listActivity, logActivity, resetActivity } = await import("./activity");
 const { purgeOldActivity } = await import("./activity-purge");
-const { getDb } = await import("@/test/sqlite-db");
+const getDb = () => drizzle("DB_CHECKWORK_MOTORS");
 
 // The D1 path, on SQLite with the committed migrations.
 describe("activity history (D1 path, on SQLite)", () => {

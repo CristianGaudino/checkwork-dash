@@ -16,6 +16,8 @@ const { addTeamAction, removeTeamAction, resetDemoAction, saveLeadEmailsAction, 
 const { adminCars, saveCar } = await import("@/lib/admin/stock-admin");
 const { getSettings, leadsStore, settingsStore } = await import("@/lib/admin/collections");
 const { listActivity } = await import("@/lib/admin/activity");
+const { resetMemoryDirectory } = await import("@/lib/tenancy/directory");
+beforeEach(() => resetMemoryDirectory()); // who is on the team, and as what, is the directory's
 
 const form = (o: Record<string, string>) => Object.entries(o).reduce((f, [k, v]) => (f.set(k, v), f), new FormData());
 

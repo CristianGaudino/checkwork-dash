@@ -16,6 +16,3 @@ export const roleCan = (role: Role | null, p: Permission) => (role ? ROLE_PERMIS
 // The owner by default, so the demo shows every feature.
 export const ROLE_COOKIE = "checkwork-demo-role";
 export const parseRole = (v: string | undefined): Role => ((ROLES as readonly string[]).includes(v ?? "") ? (v as Role) : "Owner");
-
-// ADMIN_OWNER_EMAILS: the comma separated addresses that are always owners on a real site, so a new dealer (no team yet) can set one up.
-export const emailHas = (list: string | undefined, email: string) => email !== "" && (list ?? "").split(",").some((e) => e.trim().toLowerCase() === email.toLowerCase());

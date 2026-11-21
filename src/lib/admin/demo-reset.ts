@@ -6,13 +6,14 @@ import { noticesStore, readsStore } from "./notifications";
 import { sentAlertsStore, usageStore } from "@/lib/billing/usage";
 import { billsStore } from "@/lib/billing/bills";
 import { feedbackStore, helpStore } from "./help";
-import { getBindings } from "@/lib/leads/bindings";
+import { currentDealer, dealerBucket } from "@/lib/tenancy/current";
 import { adminCars, saveCar } from "./stock-admin";
 import { messagesStore, staffStore } from "@/lib/whatsapp/store";
 
 // The demo's made-up records back to their seed, dated from today: Settings, Reset demo data, and each morning (worker.mjs), on a Monday after
-// the deploy moves the demo cars' sold dates. What visitors sent (ids starting "real-") stays. The callers check that this is the demo.
+// the deploy moves the demo cars' sold dates. What visitors sent (ids starting "real-") stays. The current dealer's only, and only a demo dealer.
 export async function resetDemoRecords() {
+  if (!(await currentDealer()).demo) throw new Error("Not a demo dealer"); // a real dealer's records are never put back to a seed
   // The usage, bills and Help records too, so the Billing page's month and bills are dated from today and a reached limit is lifted.
   for (const c of [...DEALER_COLLECTIONS, noticesStore, readsStore, usageStore, sentAlertsStore, billsStore, helpStore, feedbackStore, messagesStore, staffStore]) await c.reset();
   // The deposits are back to the seed, so the Reserved marks follow them (the mark is on the car, which the reset keeps): on the cars with a
@@ -23,7 +24,7 @@ export async function resetDemoRecords() {
   await resetSyncStatus();
   // The media library's uploads and the Help screenshots in R2 go too, best effort: their records are already back to the seed.
   try {
-    const bucket = getBindings().LEAD_PHOTOS;
+    const bucket = await dealerBucket();
     let cursor: string | undefined;
     for (const prefix of bucket ? ["media/", "help/"] : [])
       do {

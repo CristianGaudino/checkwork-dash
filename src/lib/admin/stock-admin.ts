@@ -2,7 +2,7 @@ import "server-only";
 import { eq } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import { cars } from "@/lib/db/schema";
-import { getBindings } from "@/lib/leads/bindings";
+import { hasD1 } from "@/lib/tenancy/current";
 import { memoryCars, refreshMemoryStock } from "@/lib/stock";
 import type { Car } from "@/lib/stock/types";
 import { devFixtureCars } from "@/lib/dev-data";
@@ -10,22 +10,22 @@ import { reservationsStore, salesStore } from "./collections";
 import { carSlug, nextCarId } from "./stock-admin-pure";
 import { dropCarPhotos } from "./car-photos";
 
-// The dealer's view of the stock: every car, sold ones too, and the writes. On the Worker this is the `cars` table the public site reads
-// (so a change shows on the site within seconds). With no D1 binding it edits the in-memory list the site reads (dev and E2E).
-const hasDb = () => Boolean(getBindings().DB);
+// The dealer's view of the stock: every car, sold ones too, and the writes, in the current dealer's own store. On the Worker this is the
+// `cars` table of their D1 database. With no D1 binding it edits that dealer's in-memory list (dev and E2E).
+const hasDb = hasD1;
 
 async function afterWrite() {
-  if (hasDb()) (await import("@/lib/stock/d1-provider")).invalidateStockSnapshot();
-  else refreshMemoryStock();
+  if (hasDb()) await (await import("@/lib/stock/d1-provider")).invalidateStockSnapshot();
+  else await refreshMemoryStock();
 }
 
 export async function adminCars(): Promise<Car[]> {
   if (!hasDb()) {
     // break-ui: in `next dev` the Demo / Worst case switch reaches the dashboard too, so its lists can be tried at 0, 1 or 1,284 cars.
     const dev = await devFixtureCars();
-    return [...(dev ?? memoryCars)];
+    return [...(dev ?? (await memoryCars()))];
   }
-  const rows = await getDb().select({ data: cars.data }).from(cars);
+  const rows = await (await getDb()).select({ data: cars.data }).from(cars);
   return rows.map((r) => r.data as Car);
 }
 
@@ -41,11 +41,12 @@ export async function adminCar(id: string): Promise<Car | undefined> {
 
 export async function saveCar(car: Car): Promise<void> {
   if (hasDb()) {
-    await getDb().insert(cars).values({ id: car.id, slug: car.slug, data: car }).onConflictDoUpdate({ target: cars.id, set: { slug: car.slug, data: car } });
+    await (await getDb()).insert(cars).values({ id: car.id, slug: car.slug, data: car }).onConflictDoUpdate({ target: cars.id, set: { slug: car.slug, data: car } });
   } else {
-    const i = memoryCars.findIndex((c) => c.id === car.id);
-    if (i >= 0) memoryCars[i] = car;
-    else memoryCars.unshift(car);
+    const mem = await memoryCars();
+    const i = mem.findIndex((c) => c.id === car.id);
+    if (i >= 0) mem[i] = car;
+    else mem.unshift(car);
   }
   await afterWrite();
 }
@@ -56,8 +57,8 @@ export async function addCar(draft: Car): Promise<Car> {
   for (let attempt = 0; attempt < 5; attempt++) {
     const id = await freeCarId();
     const car = { ...draft, id, slug: carSlug({ ...draft, id }) };
-    if (!hasDb()) memoryCars.unshift(car);
-    else if (!(await getDb().insert(cars).values({ id, slug: car.slug, data: car }).onConflictDoNothing().returning({ id: cars.id })).length) continue;
+    if (!hasDb()) (await memoryCars()).unshift(car);
+    else if (!(await (await getDb()).insert(cars).values({ id, slug: car.slug, data: car }).onConflictDoNothing().returning({ id: cars.id })).length) continue;
     await afterWrite();
     return car;
   }
@@ -68,10 +69,11 @@ export async function addCar(draft: Car): Promise<Car> {
 // `known`: the car, when the caller already has it, so a bulk delete does not read the whole table once per car.
 export async function removeCar(id: string, known?: Car): Promise<void> {
   const car = known ?? (await adminCar(id));
-  if (hasDb()) await getDb().delete(cars).where(eq(cars.id, id));
+  if (hasDb()) await (await getDb()).delete(cars).where(eq(cars.id, id));
   else {
-    const i = memoryCars.findIndex((c) => c.id === id);
-    if (i >= 0) memoryCars.splice(i, 1);
+    const mem = await memoryCars();
+    const i = mem.findIndex((c) => c.id === id);
+    if (i >= 0) mem.splice(i, 1);
   }
   await afterWrite();
   if (car) await dropCarPhotos(car.photos);

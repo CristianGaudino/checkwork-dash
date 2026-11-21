@@ -1,7 +1,9 @@
 import "server-only";
 import demoCars from "@/lib/stock/demo-cars.json";
 import extraCars from "@/lib/stock/demo-cars-extra.json";
-import { defineCollection, seedsDemoRecords } from "./docs";
+import { defineCollection } from "./docs";
+import { currentDealer } from "@/lib/tenancy/current";
+import { DEV_EMAIL, membersOf, putMember, removeMember } from "@/lib/tenancy/directory";
 import { AD_PLATFORMS, NETWORKS, type AdPlatform, type Network, type PostFormat, type StoryLayout } from "./networks";
 import { demoCost } from "./margins";
 import { DAY, HOUR, MINUTE } from "@/lib/time";
@@ -314,11 +316,9 @@ export const demoReviews = seedReviews; // for the WhatsApp conversation's own s
 // ---- Settings: one record ----
 // Only what the admin itself uses. The business details (name, phone, hours) live in the site configuration and change with a deploy.
 export type TeamMember = { id: string; name: string; email: string; role: Role }; // matched to the signed-in Access email (src/lib/permissions.ts)
-// Who the dealer's own warnings go to: the owners and managers on the team, and the owners named in ADMIN_OWNER_EMAILS (a new dealer may
-// have no team yet). Lower case, each once. Never a customer address.
-export const leaderEmails = (team: TeamMember[]): string[] => [
-  ...new Set([...team.filter((t) => roleCan(t.role, "billing")).map((t) => t.email), ...(process.env.ADMIN_OWNER_EMAILS ?? "").split(",")].map((e) => e.trim().toLowerCase()).filter(Boolean)),
-];
+// Who the dealer's own warnings go to: the owners and managers on the team (the directory's, so a new dealer's first owner, added there by
+// scripts/add-dealer.mjs, is one before they have a name here). Lower case, each once. Never a customer address.
+export const leaderEmails = (team: TeamMember[]): string[] => [...new Set(team.filter((t) => roleCan(t.role, "billing")).map((t) => t.email.trim().toLowerCase()).filter(Boolean))];
 export type DealerSettings = {
   id: "dealer";
   leadSlaHours: number; // a new lead waiting longer than this needs attention (overview)
@@ -343,8 +343,7 @@ export const SETTINGS_DEFAULT: DealerSettings = {
 };
 // A real dealer starts with no team (the made-up one is the demo's) and adds its people in Settings.
 // The demo has the morning follow-up email on, so it can be shown (the made-up team's mail goes to the lead inbox, src/lib/leads/mail.ts).
-const seedSettings = (): DealerSettings[] => {
-  const demo = seedsDemoRecords();
+const seedSettings = (demo: boolean): DealerSettings[] => {
   // The demo's limits: well above a month of its seeded use plus visitors trying things, so nothing on the demo stops; a ceiling of ours.
   const billing: BillingSettings | undefined = demo ? { ...BILLING_DEFAULT, caps: { ai: 25, whatsapp: 15, total: 140 }, ceilings: { ai: 25, total: 150 }, alerts: [{ scope: "total", amountEur: 25 }] } : undefined;
   return [{ ...SETTINGS_DEFAULT, team: demo ? SETTINGS_DEFAULT.team : [], notifications: { ...SETTINGS_DEFAULT.notifications, followUps: demo }, billing, updatedAt: Date.now() }];
@@ -409,9 +408,44 @@ function seedNewsletters(): Newsletter[] {
 }
 export const newslettersStore = defineCollection<Newsletter>("newsletters", seedNewsletters);
 
-// The settings record, or the defaults if it is somehow missing, so no page has to handle "no settings".
+// The settings record, or the defaults if it is somehow missing, so no page has to handle "no settings". A saved record from before a
+// setting existed still reads whole. The team is the directory's (who is on it, and as what) with the dealer's own details for each.
 export async function getSettings(): Promise<DealerSettings> {
-  return { ...SETTINGS_DEFAULT, ...(await settingsStore.get("dealer")) }; // a saved record from before a setting existed still reads whole
+  const s = { ...SETTINGS_DEFAULT, ...(await settingsStore.get("dealer")) };
+  return { ...s, team: await teamOf(s.team) };
+}
+
+// Who is on the team and with which role comes from the directory only (src/lib/tenancy/directory.ts); the name (and, by id, the phone and
+// alerts) is the dealer's own, kept here by email. Someone the dealer has no name for yet (a new dealer's first owner, added by
+// scripts/add-dealer.mjs) goes by their email. The open app's own person (DEV_EMAIL) is not on anyone's team.
+// shortcut: one directory read per call; cache it per request if getSettings shows in a profile.
+async function teamOf(details: TeamMember[]): Promise<TeamMember[]> {
+  const members = await membersOf((await currentDealer()).id);
+  return members
+    .filter((m) => m.email !== DEV_EMAIL)
+    .map((m) => {
+      const d = details.find((t) => t.email.toLowerCase() === m.email);
+      return d ? { ...d, email: m.email, role: m.role } : { id: `m-${hashOf(m.email)}`, name: m.email, email: m.email, role: m.role };
+    });
+}
+// A stable id for someone with no details yet (FNV-1a), so their row's buttons and WhatsApp link keep working across requests.
+const hashOf = (s: string) => [...s].reduce((h, c) => Math.imul(h ^ c.charCodeAt(0), 16777619) >>> 0, 2166136261).toString(36);
+
+// Adds, changes or removes one person, in both places together: the directory first (who may open this dealer, and as what), then the
+// dealer's own details (`details`). If the directory write fails nothing has changed; if the details fail, the directory is put back.
+export async function changeTeamMember(email: string, role: Role | null, details: () => Promise<void>): Promise<void> {
+  const { id } = await currentDealer();
+  const e = email.trim().toLowerCase();
+  const before = (await membersOf(id)).find((m) => m.email === e);
+  if (role) await putMember(id, e, role);
+  else await removeMember(id, e);
+  try {
+    await details();
+  } catch (err) {
+    if (before) await putMember(id, e, before.role);
+    else await removeMember(id, e);
+    throw err;
+  }
 }
 
 // ---- Sales ----

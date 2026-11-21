@@ -1,5 +1,6 @@
 import "server-only";
 import { getDb } from "@/lib/db";
+import { currentDealer } from "@/lib/tenancy/current";
 import { cars } from "@/lib/db/schema";
 import { createStockEngine } from "./engine";
 import type { Car, StockProvider } from "./types";
@@ -9,23 +10,25 @@ import type { Car, StockProvider } from "./types";
 // shortcut: every call works on a snapshot of the whole table, kept for 30 seconds per Worker instance and filtered in memory by the engine.
 // Fine for a few hundred cars. With more, query D1 by filter and page it instead of loading it all.
 const TTL_MS = 30_000;
-// The promise is kept, not the result, so requests that arrive together while it loads share one read of the table.
-let snapshot: { at: number; engine: Promise<StockProvider> } | undefined;
+// One snapshot per dealer, each from that dealer's own database. The promise is kept, not the result, so requests that arrive together
+// while it loads share one read of the table.
+const snapshots = new Map<string, { at: number; engine: Promise<StockProvider> }>();
 
-function engine(): Promise<StockProvider> {
+async function engine(): Promise<StockProvider> {
+  const { id } = await currentDealer();
+  const snapshot = snapshots.get(id);
   if (snapshot && Date.now() - snapshot.at < TTL_MS) return snapshot.engine;
   const load = getDb()
-    .select({ data: cars.data })
-    .from(cars)
+    .then((db) => db.select({ data: cars.data }).from(cars))
     .then((rows) => createStockEngine(rows.map((r) => r.data as Car)));
   const mine = { at: Date.now(), engine: load };
-  snapshot = mine;
-  load.catch(() => void (snapshot === mine && (snapshot = undefined))); // a failed read is not kept: the next request tries again
+  snapshots.set(id, mine);
+  load.catch(() => void (snapshots.get(id) === mine && snapshots.delete(id))); // a failed read is not kept: the next request tries again
   return load;
 }
 
-// The admin changed a car: the next read rebuilds the snapshot instead of waiting out the 30 seconds.
-export const invalidateStockSnapshot = () => void (snapshot = undefined);
+// The admin changed a car: the current dealer's next read rebuilds the snapshot instead of waiting out the 30 seconds.
+export const invalidateStockSnapshot = async () => void snapshots.delete((await currentDealer()).id);
 
 export const d1Provider: StockProvider = {
   query: async (q) => (await engine()).query(q),

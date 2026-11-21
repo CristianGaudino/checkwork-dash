@@ -3,7 +3,7 @@ import { truncate } from "@/test/sqlite-db";
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/db", () => import("@/test/sqlite-db"));
-vi.mock("@/lib/leads/bindings", () => ({ getBindings: () => ({ DB: {} }) }));
+vi.mock("@/lib/leads/bindings", () => ({ getBindings: () => ({ DIRECTORY: {} }) })); // the D1 path; @/lib/db is the SQLite stand-in
 const { getDb } = await import("@/test/sqlite-db");
 const { leads } = await import("@/lib/db/schema");
 const { erasePerson, findPerson } = await import("./data-requests");

@@ -1,12 +1,13 @@
 import "server-only";
 import { drizzle } from "drizzle-orm/d1";
-import { getBindings } from "@/lib/leads/bindings";
+import { currentDealer, dealerBinding } from "@/lib/tenancy/current";
 import * as schema from "./schema";
 
-// Per call: the D1 binding exists only inside a request (wrangler.jsonc DB). Outside the Worker there is none, so this throws,
-// which processLead logs as an error line: a missing binding fails the lead loudly and never silently.
-export function getDb() {
-  const d1 = getBindings().DB;
-  if (!d1) throw new Error("Missing binding DB");
+// The current dealer's own D1 database (src/lib/tenancy), per call: the binding exists only inside a request or a job. No current dealer, or
+// a dealer whose binding is missing, throws: never another dealer's database. processLead logs that as an error line, so it fails loudly.
+export async function getDb() {
+  const dealer = await currentDealer();
+  const d1 = dealerBinding(dealer.binding);
+  if (!d1) throw new Error("Missing the dealer's database binding");
   return drizzle(d1, { schema });
 }

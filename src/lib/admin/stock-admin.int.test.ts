@@ -4,7 +4,7 @@ import type { Car } from "@/lib/stock/types";
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/db", () => import("@/test/sqlite-db"));
-vi.mock("@/lib/leads/bindings", () => ({ getBindings: () => ({ DB: {} }) }));
+vi.mock("@/lib/leads/bindings", () => ({ getBindings: () => ({ DIRECTORY: {} }) })); // the D1 path; @/lib/db is the SQLite stand-in
 vi.mock("@/lib/stock/d1-provider", () => ({ invalidateStockSnapshot: vi.fn() }));
 const { addCar, adminCar, adminCars, removeCar, saveCar } = await import("./stock-admin");
 

@@ -57,10 +57,9 @@ export async function recordUsage<S extends Service>(service: S, kind: Kind<S>, 
     const alerts = alertsCrossed(usageCosts(before, allowance), usageCosts(after, allowance), b, month);
     if (!alerts.length || !SHOW_PRICING) return; // no limit notices while pricing is hidden, and none marked sent
     const { team } = await getSettings();
-    // Each owner and manager, by the name the bell knows them by (src/lib/permissions.ts): the team's, and an owner in ADMIN_OWNER_EMAILS who is
-    // not on the team goes by their email. Only them, so Sales and Finance never see what the dealer pays; with nobody, no notice.
-    const teamEmails = new Set(team.map((t) => t.email.toLowerCase()));
-    const leaders = [...team.filter((t) => roleCan(t.role, "billing")).map((t) => t.name), ...(process.env.ADMIN_OWNER_EMAILS ?? "").split(",").map((e) => e.trim().toLowerCase()).filter((e) => e && !teamEmails.has(e))];
+    // Each owner and manager, by the name the bell knows them by (src/lib/permissions.ts): the team's, from the directory (an owner added
+    // there with no name yet goes by their email). Only them, so Sales and Finance never see what the dealer pays; with nobody, no notice.
+    const leaders = team.filter((t) => roleCan(t.role, "billing")).map((t) => t.name);
     for (const a of alerts) {
       if (await sentAlertsStore.get(a.key)) continue;
       await sentAlertsStore.put({ id: a.key });

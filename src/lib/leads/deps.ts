@@ -4,6 +4,7 @@ import { requireEnv } from "@/lib/env";
 import { isProduction } from "@/lib/site";
 import { stock } from "@/lib/stock";
 import { getBindings } from "./bindings";
+import { dealerBucket } from "@/lib/tenancy/current";
 import type { Deps, LeadStore, Mailer } from "./process";
 import { mirrorLead } from "@/lib/admin/real-leads";
 import { leadRecipients, sendToDealer } from "./mail";
@@ -37,16 +38,16 @@ function fakeDeps(): Deps {
 }
 
 // D1 through Drizzle. Built per call, so a missing DB binding throws inside processLead, which logs it as an error line.
-const db = () => createDrizzleStore(getDb());
+const db = async () => createDrizzleStore(await getDb());
 const store: LeadStore = {
-  exists: (ref) => db().exists(ref),
+  exists: async (ref) => (await db()).exists(ref),
   // A lead nobody is told about is worse than a refused one: with no address to email, refuse before storing, so the buyer is
   // told to call instead of waiting for a reply that never comes. Set LEAD_TO_EMAIL before the bot-check secret.
   insert: async (row) => {
     if ((await leadRecipients()).length === 0) throw new Error("Missing LEAD_TO_EMAIL");
-    return db().insert(row);
+    return (await db()).insert(row);
   },
-  markNotified: (id) => db().markNotified(id),
+  markNotified: async (id) => (await db()).markNotified(id),
 };
 let fakes: Deps | undefined;
 
@@ -70,14 +71,15 @@ export function getDeps(): Deps {
 }
 
 // Trade-in photos (D-13): wrangler.jsonc LEAD_PHOTOS, a private EU bucket. Read per call, like the other bindings.
-const photos = () => {
-  const b = getBindings().LEAD_PHOTOS;
+// The current dealer's part of it (dealers/<id>/), like every photo here.
+const photos = async () => {
+  const b = await dealerBucket();
   if (!b) throw new Error("Missing binding LEAD_PHOTOS");
   return b;
 };
 const bucket: Deps["bucket"] = {
-  put: (key, value, opts) => photos().put(key, value, opts),
-  delete: (keys) => photos().delete(keys),
+  put: async (key, value, opts) => (await photos()).put(key, value, opts),
+  delete: async (keys) => (await photos()).delete(keys),
 };
 
 // Cloudflare Email Service (D-01). From the onboarded domain to the dealer; the buyer's address only goes in replyTo (D-02).

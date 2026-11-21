@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { sendToDealer } from "@/lib/leads/mail";
-import { SETTINGS_DEFAULT, getSettings, leadsStore, settingsStore, type DealerSettings, drivesStore } from "@/lib/admin/collections";
+import { SETTINGS_DEFAULT, changeTeamMember, getSettings, leadsStore, settingsStore, type DealerSettings, drivesStore } from "@/lib/admin/collections";
 import { resetDemoRecords } from "@/lib/admin/demo-reset";
 import { EMAIL_INVALID, NAME_REQUIRED } from "@/lib/copy";
 import { newId } from "@/lib/admin/ids";
@@ -128,7 +128,7 @@ export async function addTeamAction(_p: SettingsState, data: FormData): Promise<
   if (team.some((t) => t.name.toLowerCase() === r.data.name.toLowerCase())) return { errors: { name: "Someone with that name is already on the team" } };
   if (team.some((t) => t.email.toLowerCase() === r.data.email)) return { errors: { email: "Someone with that email is already on the team" } };
   const id = newId("u");
-  await change((s) => ({ ...s, team: [...s.team, { id, ...r.data }] }));
+  await changeTeamMember(r.data.email, r.data.role, () => change((s) => ({ ...s, team: [...s.team.filter((t) => t.email.toLowerCase() !== r.data.email), { id, ...r.data }] })));
   await logActivity("settings", `Added ${r.data.name} to the team as ${r.data.role}`, { kind: "team", id, label: r.data.name });
   return { saved: true };
 }
@@ -145,7 +145,7 @@ export async function setRoleAction(id: string, _p: SettingsState, data: FormDat
   const next = team.map((t) => (t.id === id ? { ...t, role: role.data } : t));
   if (hasOwner(team) && !hasOwner(next)) return { errors: { role: NO_OWNER } };
   if (was.role === role.data) return { saved: true };
-  await change((s) => ({ ...s, team: next }));
+  await changeTeamMember(was.email, role.data, () => change((s) => ({ ...s, team: s.team.map((t) => (t.id === id ? { ...t, role: role.data } : t)) })));
   await logActivity("settings", `Changed ${was.name}'s role from ${was.role} to ${role.data}`, { kind: "team", id, label: was.name });
   return { saved: true };
 }
@@ -161,7 +161,7 @@ export async function removeTeamAction(id: string) {
   const no = await mayTouch(gone.role);
   if (no) return { error: no };
   if (hasOwner(team) && !hasOwner(team.filter((t) => t.id !== id))) return { error: "Make someone else an Owner first. The team always has one." };
-  await change((s) => ({ ...s, team: s.team.filter((t) => t.id !== id) }));
+  await changeTeamMember(gone.email, null, () => change((s) => ({ ...s, team: s.team.filter((t) => t.id !== id) })));
   for (const l of await leadsStore.list()) if (l.assignedTo === gone.name) await leadsStore.update(l.id, (x) => ({ ...x, assignedTo: x.assignedTo === gone.name ? undefined : x.assignedTo }));
   for (const d of await drivesStore.list()) if (d.assignedTo === gone.name) await drivesStore.update(d.id, (x) => ({ ...x, assignedTo: x.assignedTo === gone.name ? undefined : x.assignedTo }));
   await staffStore.remove(id); // their WhatsApp phone goes too: no more buyers' alerts to someone who left
@@ -170,7 +170,7 @@ export async function removeTeamAction(id: string) {
 
 export async function resetDemoAction() {
   await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
-  if (!mayResetDemo() || !(await can("settings"))) return; // a real dealer's records are never wiped from a button
+  if (!(await mayResetDemo()) || !(await can("settings"))) return; // a real dealer's records are never wiped from a button
   await resetDemoRecords();
   await logActivity("settings", "Reset the demo data");
   revalidatePath("/", "layout");

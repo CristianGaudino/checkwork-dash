@@ -12,7 +12,7 @@ describe("/media-files", () => {
     const key = "media/3f9a1c2e-0000-4000-8000-000000000001.jpg";
     const r = await fetchKey(key);
     expect(r.status).toBe(200);
-    expect(get).toHaveBeenCalledWith(key);
+    expect(get).toHaveBeenCalledWith(`dealers/checkwork-motors/${key}`); // the current dealer's part of the bucket only
     expect(r.headers.get("cache-control")).toContain("immutable");
   });
 
