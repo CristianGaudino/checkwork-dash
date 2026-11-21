@@ -10,7 +10,9 @@ const env = t.env === "production" ? ["--env=production"] : []; // OpenNext drop
 const run = (cmd, ...args) => execFileSync(cmd, args, { stdio: "inherit", shell: process.platform === "win32" });
 console.log(`\nDeploying ${t.env}: Worker ${t.config.name}`);
 run("npx", "opennextjs-cloudflare", "build", ...env);
-run("node", "scripts/migrate-dealers.mjs", "--directory", ...t.args);
-run("node", "scripts/migrate-dealers.mjs", ...t.args);
+// The migration scripts take this script's own flags, not wrangler's (t.args holds --env= for wrangler, which they refuse).
+const flags = ["--remote", ...(t.env === "production" ? ["--env", "production"] : [])];
+run("node", "scripts/migrate-dealers.mjs", "--directory", ...flags);
+run("node", "scripts/migrate-dealers.mjs", ...flags);
 run("npx", "opennextjs-cloudflare", "deploy", ...env);
 console.log(`\nDeployed ${t.env}: Worker ${t.config.name}`);
