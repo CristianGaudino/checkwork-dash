@@ -58,7 +58,7 @@ export function separationCases() {
   });
 
   it("keeps each dealer's stock apart, in the dashboard and on the dealer's own stock reads", async () => {
-    const { adminCar, adminCars, removeCar, saveCar } = await import("@/lib/admin/stock-admin");
+    const { adminCar, adminCars, removeCar, saveCar, updateCar } = await import("@/lib/admin/stock-admin");
     const { stock } = await import("@/lib/stock");
     const { runAsDealer } = await import("@/lib/tenancy/current");
     await runAsDealer(A, () => saveCar(car("990001")));
@@ -66,10 +66,12 @@ export function separationCases() {
       expect((await adminCars()).map((c) => c.id)).not.toContain("990001");
       expect(await stock.getById("990001")).toBeNull();
       await removeCar("990001"); // not B's: nothing happens to A's
+      expect(await updateCar("990001", (c) => ({ ...c, priceEur: 1 }))).toBeUndefined(); // nor a change: not B's, so not found
       await saveCar(car("990002"));
     });
     await runAsDealer(A, async () => {
       expect(await adminCar("990001")).toMatchObject({ id: "990001" });
+      expect((await adminCar("990001"))?.priceEur).not.toBe(1);
       expect(await stock.getById("990001")).toMatchObject({ id: "990001" });
       expect(await adminCar("990002")).toBeUndefined();
     });
