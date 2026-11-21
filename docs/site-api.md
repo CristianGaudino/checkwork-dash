@@ -68,10 +68,10 @@ website is not built yet.
 
 ## What the owner sets up
 
-- **Cloudflare Access:** the staff application covers the whole domain, so add an application for `www.dash.checkwork.ie/api/site/*` with
+- **Cloudflare Access:** the staff application covers the whole host, so add an application for `www.dash.checkwork.ie/api/site/*` (and `dev.dash.checkwork.ie/api/site/*` on dev) with
   a **Bypass** policy (as for `/api/owner/*`), or a website calling over the internet is turned away by Access. A website Worker in the
   same Cloudflare account that calls through a service binding (`DASH` in `checkwork-demo`) does not pass through Access at all.
-- **Rate limit:** `SITE_LIMITER` uses namespace `1004` in `wrangler.jsonc`; change it if that id is taken in the account.
-- **Directory:** apply the new migration (`npm run directory:migrate`), which adds `site_keys`.
+- **Rate limit:** `SITE_LIMITER` uses namespace `1004` in production and `2004` in dev (`wrangler.jsonc`); change one if that id is taken in the account.
+- **Directory:** apply the new migration (`npm run directory:migrate`, and `directory:migrate:prod`), which adds `site_keys`.
 - **Each website:** make its key in that dealer's Settings and set it as `DASH_SITE_KEY` on the website's Worker (`wrangler secret put
   DASH_SITE_KEY`). The demo website takes the demo dealer's key, made the same way.

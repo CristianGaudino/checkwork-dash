@@ -12,7 +12,7 @@ The Checkwork dealer dashboard: one shared app at https://www.dash.checkwork.ie 
 - Dealer websites (Showroom) are separate repos made from `checkwork-demo`. They will talk to this app through its site API (GitHub issues). Where the dashboard links to a page on a dealer's website it uses the full address in a new tab, never a relative link.
 - www.checkwork.ie is Checkwork's own public site, not this app.
 - Design: the dashboard keeps checkwork-demo's look (`docs/design-contract.md`, `docs/dashboard-polish.md`, `docs/dashboard-usability.md`). Design with the skills in `.agents/skills`, primarily `apple-design`, and write the contract before building UI.
-- The repo is public for now: never commit secrets, dealer data or anything personal. Ids that are not secrets (a D1 database id, a bucket name) still go in only when the owner says so.
+- The repo is public for now: never commit secrets, dealer data or anything personal. Ids that are not secrets (a D1 database id, a bucket name) go in `wrangler.jsonc` (the owner said so for go-live, #9).
 - Planning lives in GitHub issues. Some code comments cite decision ids (D-08, T-03-27 and so on) from planning notes in `checkwork-demo` that were removed: treat them as history, and put new planning in issues.
 
 ## Standards
@@ -37,8 +37,10 @@ Check by exit code, not by reading output for "error": `npm run lint; echo $?`, 
 ## Next.js 16
 This is not the Next.js in your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing code, and heed deprecation notices. `next dev` writes an `AGENTS.md` block about this; commit it.
 
-## Releases
-There is no deploy workflow in this repo yet; it comes with the first deploy, as in `checkwork-demo` (every merge to `main` deploys to production through deploy.yml, the Release workflow only tags and publishes notes, roll back by running Deploy from the Actions tab with an older tag or commit). Move to release-tag deploys, as in vintage, once real dealers use the app.
+## Environments and releases
+- Two fully separate environments (`wrangler.jsonc`, README): **dev** (`dev.dash.checkwork.ie`, the top level, the default) and **production** (`www.dash.checkwork.ie`, `env.production`). Each has its own Worker, databases (`checkwork-dev-directory` and `checkwork-dev-dealer-<id>`; `checkwork-directory` and `checkwork-dealer-<id>`), bucket, rate limits, secrets and Access application. Adding a dealer means a database in each.
+- Dev by default, production only with `--env production`: plain `wrangler`, the npm scripts and `scripts/*.mjs` act on dev; production is `--env production` or an npm script ending in `:prod`. Never run a command against production unless the owner asked for that command; try things on dev. A script that touches a database goes through `target()` in `scripts/dealers.mjs`, which enforces this.
+- Every merge to `main` deploys production (`.github/workflows/deploy.yml`, lint and unit tests first); a manual run deploys dev or production, or an older tag or commit to roll back. Actions minutes run out, so `npm run deploy` / `npm run deploy:prod` from a laptop does the same. Move to release-tag deploys, as in vintage, once real dealers use the app.
 
 ## Product rules
 - On-screen text is plain, short and human. No em dashes anywhere on the site. If a label already says it, drop the helper text.

@@ -19,7 +19,13 @@ import { stockSource } from "@/lib/stock-source";
 import { enabledModules } from "@/lib/modules";
 import { modulesValue, pathAllowed } from "@/lib/modules-rules";
 import { dealerAccess } from "@/lib/tenancy/membership";
+import { staffIdentity } from "@/lib/staff";
 import "./globals.css";
+
+const signedInEmail = async () => {
+  const who = await staffIdentity();
+  return who.ok ? who.email : undefined;
+};
 
 // Sora, from a file kept in the repo (src/app/fonts): no request to Google when a page loads, and none when the app is built. One
 // variable file covers every weight; the latin range covers English and Irish.
@@ -44,7 +50,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
         </head>
         <body className="flex min-h-dvh flex-col">
-          <DealerGate choices={access.state === "choose" ? access.choices : undefined} />
+          <DealerGate choices={access.state === "choose" ? access.choices : undefined} email={access.state === "no-access" ? await signedInEmail() : undefined} />
         </body>
       </html>
     );

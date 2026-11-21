@@ -3,7 +3,7 @@ import { getSettings, leaderEmails } from "@/lib/admin/collections";
 import { dublinDay, fmtNum } from "@/lib/admin/format";
 import { monthLabel } from "@/lib/admin/reports";
 import { sendTo } from "@/lib/leads/mail";
-import { APP_URL } from "@/lib/site";
+import { appUrl } from "@/lib/site";
 import { currentDealer } from "@/lib/tenancy/current";
 import { loadReportData } from "./load";
 import { hasModule } from "@/lib/modules";
@@ -33,7 +33,7 @@ export async function sendMonthlyReport(now = Date.now()): Promise<{ month: stri
     "",
     advice(s, oldDays),
     "",
-    `The full report: ${APP_URL}/monthly-report?month=${month}`,
+    `The full report: ${appUrl()}/monthly-report?month=${month}`,
   ].join("\n");
   try {
     await sendTo(to, { subject: `${name}: your report for ${monthLabel(month)}`, text });

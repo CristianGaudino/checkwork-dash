@@ -18,7 +18,8 @@ import { APP_URL } from "./src/lib/site.ts";
 // OpenNext's worker exports these classes for features this site does not use; kept so the wrapper stays a drop-in.
 export { BucketCachePurge, DOQueueHandler, DOShardedTagCache } from "./.open-next/worker.js";
 
-const HOST = new URL(APP_URL).hostname;
+// This deploy's own address: the APP_URL var of its environment (wrangler.jsonc), production's when unset.
+const appUrl = (env) => env.APP_URL || APP_URL;
 // The jobs that live in the app, by cron (wrangler.jsonc triggers): the Worker calls their route through the app's own handler with the
 // CRON_KEY secret and the dealer's id, once per dealer. Without the key nothing runs. A 404 means the job does not apply to that dealer.
 // Logs the job, the dealer's id and counts only. A list runs in order.
@@ -34,7 +35,7 @@ const APP_JOBS = {
 
 // One app job for one dealer: its counts, or null when it does not apply (404). A failure throws, so runForDealers counts it.
 async function runAppJob({ path }, dealer, env, ctx) {
-  const url = `${APP_URL}${path}?dealer=${encodeURIComponent(dealer.id)}`;
+  const url = `${appUrl(env)}${path}?dealer=${encodeURIComponent(dealer.id)}`;
   const res = await handler.fetch(new Request(url, { method: "POST", headers: { authorization: `Bearer ${env.CRON_KEY}` } }), env, ctx);
   if (res.status === 404) return null;
   if (!res.ok) throw new Error("failed");
@@ -47,7 +48,7 @@ const allDealers = (env) => drizzle(env.DIRECTORY).select().from(dealersTable);
 const worker = {
   // The bare domain is a second custom domain on this Worker (wrangler.jsonc routes); it only redirects.
   fetch(request, env, ctx) {
-    const to = apexRedirect(request.url, HOST);
+    const to = apexRedirect(request.url, new URL(appUrl(env)).hostname);
     return to ? Response.redirect(to, 308) : handler.fetch(request, env, ctx);
   },
   // wrangler.jsonc "triggers". A failure throws, so Cloudflare marks the run failed and Workers Logs shows it.

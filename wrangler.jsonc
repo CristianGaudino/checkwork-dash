@@ -1,42 +1,72 @@
 {
-	// The Checkwork dealer dashboard: its own Worker, domain, D1 database and R2 bucket. The names below are created in the Cloudflare
-	// dashboard or with wrangler. The ids marked REPLACE are the owner's to fill in before the first deploy.
+	// The Checkwork dealer dashboard, in two fully separate environments: each has its own Worker, domain, D1 databases, R2 bucket and rate
+	// limit counters.
+	// - dev is the top level, and the default: `wrangler deploy`, `wrangler d1 ...` and the scripts with no --env act on dev.
+	// - production is env.production, reached only with an explicit `--env production` (npm run deploy:prod, db:migrate:prod, ...).
+	// wrangler does not pass bindings, vars or services down to an environment, so env.production repeats every one of them; keys that
+	// are inherited (main, compatibility, assets, observability) are written once here. The ids are not secrets (owner, go-live, #9).
 	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "checkwork-dash",
+	"name": "checkwork-dash-dev",
 	"main": "worker.mjs", // wraps .open-next/worker.js and adds the daily purges and the app's scheduled jobs
 	"compatibility_date": "2026-10-01",
 	"compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
 	"assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
-	"services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "checkwork-dash" }],
-	// The bare domain is a second custom domain: worker.mjs redirects it to www (APP_URL in src/lib/site.ts).
-	"routes": [{ "pattern": "www.dash.checkwork.ie", "custom_domain": true }, { "pattern": "dash.checkwork.ie", "custom_domain": true }],
+	// Each environment's own Worker: OpenNext calls itself through this, so it must never name the other environment's Worker.
+	"services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "checkwork-dash-dev" }],
+	"routes": [{ "pattern": "dev.dash.checkwork.ie", "custom_domain": true }],
 	"workers_dev": false,
 	// worker.mjs: daily at 03:17 UTC, deletes old leads, their photos and old activity, and removes the buyer from sales over six years old.
 	// Every 15 minutes, syncs DoneDeal stock (nothing for a dealer whose stock is not from DoneDeal). At 07:00 UTC, the follow-up emails (only
 	// when the dealer turned them on) and the WhatsApp daily alerts. On the 1st at 07:00 UTC, last month's report by email. At 06:30 UTC, the
-	// demo reset (the demo only). These need the CRON_KEY secret.
+	// demo reset (demo dealers only). These need the CRON_KEY secret (each environment its own). The same in both environments, so dev
+	// runs what production runs, on dev's databases.
 	"triggers": { "crons": ["17 3 * * *", "*/15 * * * *", "0 7 * * *", "0 7 1 * *", "30 6 * * *"] },
 	// Our own console lines only (they never carry personal data). No invocation logs, which record each request's URL, and query strings
 	// redacted anywhere a URL is still logged: the leads and customers search (?q=) and their exports carry names, emails and phones.
 	"observability": { "enabled": true, "redact_query_string": true, "logs": { "invocation_logs": false } },
 	// Cloudflare Access in front of the whole app (src/lib/access.ts): the team domain and this application's audience tag. Neither is a
-	// secret. Until both are set every page answers 404 (docs/dealer-admin.md, "Cloudflare Access").
+	// secret. Until both are set every page answers 404 (docs/dealer-admin.md, "Cloudflare Access"). dev.dash.checkwork.ie is an Access
+	// application of its own, so its audience tag is not production's.
 	"vars": {
-		"CF_ACCESS_TEAM_DOMAIN": "REPLACE_WITH_TEAM_DOMAIN",
-		"CF_ACCESS_AUD": "REPLACE_WITH_ACCESS_AUD"
+		"CF_ACCESS_TEAM_DOMAIN": "plain-tree-3979.cloudflareaccess.com",
+		"CF_ACCESS_AUD": "0433f1e74c24f6f5c996f8ed8dc3eaa764633a385f9c7d4624e2538d79f9787a",
+		"APP_URL": "https://dev.dash.checkwork.ie"
 	},
 	// Lead emails to the dealer. No "remote": a local wrangler dev has no Cloudflare credentials, so it uses the local simulator.
-	"send_email": [{ "name": "EMAIL" }],
+	// Dev never emails real people: only our own inbox (a verified Email Routing destination, or dev sends nothing at all).
+	"send_email": [{ "name": "EMAIL", "allowed_destination_addresses": ["contact@checkwork.ie"] }],
 	// LEAD_LIMITER: the registration lookup, 5 a minute per visitor (src/lib/reg-lookup.ts). AI_LIMITER: AI writing, per dealer.
-	// SITE_LIMITER: the site API, 60 requests a minute per website key (src/lib/site-api/request.ts).
-	"ratelimits": [{ "name": "LEAD_LIMITER", "namespace_id": "1001", "simple": { "limit": 5, "period": 60 } }, { "name": "AI_LIMITER", "namespace_id": "1003", "simple": { "limit": 10, "period": 60 } }, { "name": "SITE_LIMITER", "namespace_id": "1004", "simple": { "limit": 60, "period": 60 } }],
+	// SITE_LIMITER: the site API, 60 requests a minute per website key (src/lib/site-api/request.ts). Dev's namespaces are 2xxx and
+	// production's 1xxx, so the two never share a counter.
+	"ratelimits": [{ "name": "LEAD_LIMITER", "namespace_id": "2001", "simple": { "limit": 5, "period": 60 } }, { "name": "AI_LIMITER", "namespace_id": "2003", "simple": { "limit": 10, "period": 60 } }, { "name": "SITE_LIMITER", "namespace_id": "2004", "simple": { "limit": 60, "period": 60 } }],
 	// Lead photos, car photos, media and help screenshots: private, EU jurisdiction, read only through their routes. wrangler dev uses a local bucket.
-	"r2_buckets": [{ "binding": "LEAD_PHOTOS", "bucket_name": "REPLACE_WITH_BUCKET_NAME", "jurisdiction": "eu" }],
+	"r2_buckets": [{ "binding": "LEAD_PHOTOS", "bucket_name": "checkwork-dash-dev-files", "jurisdiction": "eu" }],
 	// D1, EU jurisdiction. DIRECTORY lists the dealers and who works at each (src/lib/db/directory-schema.ts, drizzle-directory/). Each dealer
-	// has a database of its own for its leads, stock and records (drizzle/), bound as DB_<DEALER>: docs/new-dealer.md adds one. The ids are
-	// the owner's to fill in (wrangler d1 create ... --jurisdiction eu prints them); never a real id in this public repo until the owner says so.
+	// has a database of its own for its leads, stock and records (drizzle/), bound as DB_<DEALER> in both environments: docs/new-dealer.md
+	// adds one. Dev's are checkwork-dev-directory and checkwork-dev-dealer-<id>; production's checkwork-directory and checkwork-dealer-<id>.
 	"d1_databases": [
-		{ "binding": "DIRECTORY", "database_name": "checkwork-directory", "database_id": "REPLACE_WITH_ID", "migrations_dir": "drizzle-directory" },
-		{ "binding": "DB_CHECKWORK_MOTORS", "database_name": "checkwork-dealer-checkwork-motors", "database_id": "REPLACE_WITH_ID", "migrations_dir": "drizzle" }
-	]
+		{ "binding": "DIRECTORY", "database_name": "checkwork-dev-directory", "database_id": "1a8cf4d2-5ef1-4998-8777-2ca270e54e0e", "migrations_dir": "drizzle-directory" },
+		{ "binding": "DB_CHECKWORK_MOTORS", "database_name": "checkwork-dev-dealer-checkwork-motors", "database_id": "fec427a3-49e8-46d9-802d-148a1c0aa530", "migrations_dir": "drizzle" }
+	],
+	"env": {
+		"production": {
+			"name": "checkwork-dash",
+			"services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "checkwork-dash" }],
+			// The bare domain is a second custom domain: worker.mjs redirects it to www (APP_URL in src/lib/site.ts).
+			"routes": [{ "pattern": "www.dash.checkwork.ie", "custom_domain": true }, { "pattern": "dash.checkwork.ie", "custom_domain": true }],
+			"triggers": { "crons": ["17 3 * * *", "*/15 * * * *", "0 7 * * *", "0 7 1 * *", "30 6 * * *"] },
+			"vars": {
+				"CF_ACCESS_TEAM_DOMAIN": "plain-tree-3979.cloudflareaccess.com",
+				"CF_ACCESS_AUD": "be46642c44cd0d9b5c4908298ec8ba421dec4a9f718f27cea5216fb747a0f786",
+				"APP_URL": "https://www.dash.checkwork.ie"
+			},
+			"send_email": [{ "name": "EMAIL" }],
+			"ratelimits": [{ "name": "LEAD_LIMITER", "namespace_id": "1001", "simple": { "limit": 5, "period": 60 } }, { "name": "AI_LIMITER", "namespace_id": "1003", "simple": { "limit": 10, "period": 60 } }, { "name": "SITE_LIMITER", "namespace_id": "1004", "simple": { "limit": 60, "period": 60 } }],
+			"r2_buckets": [{ "binding": "LEAD_PHOTOS", "bucket_name": "checkwork-dash-files", "jurisdiction": "eu" }],
+			"d1_databases": [
+				{ "binding": "DIRECTORY", "database_name": "checkwork-directory", "database_id": "c46dbf9f-dd6b-42e8-91ac-914f5854ea12", "migrations_dir": "drizzle-directory" },
+				{ "binding": "DB_CHECKWORK_MOTORS", "database_name": "checkwork-dealer-checkwork-motors", "database_id": "355f81b4-0c35-4651-a332-dfe4c0a60ebf", "migrations_dir": "drizzle" }
+			]
+		}
+	}
 }

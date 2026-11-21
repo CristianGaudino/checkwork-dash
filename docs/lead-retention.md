@@ -3,7 +3,7 @@
 Since one app serves every dealer (`docs/new-dealer.md`), each dealer's leads are in that dealer's own database (`DB_<DEALER>` below where
 this page says `DB`).
 
-Leads are personal data. Deleting old leads is automatic (see "Automatic purge"). Until the admin area (#20) ships, the owner does the rest by hand (erasure on request, leads that were not emailed) with `npx wrangler d1 execute DB --remote --command "<SQL>"` (or the Cloudflare dashboard, Storage & Databases, D1, the database, Console). Times are stored as epoch milliseconds and `photo_keys` as JSON text.
+Leads are personal data. Deleting old leads is automatic (see "Automatic purge"). Until the admin area (#20) ships, the owner does the rest by hand (erasure on request, leads that were not emailed) with `npx wrangler d1 execute DB_<DEALER> --remote --env production --command "<SQL>"` (without `--env production` it is dev) (or the Cloudflare dashboard, Storage & Databases, D1, the database, Console). Times are stored as epoch milliseconds and `photo_keys` as JSON text.
 
 ## How long leads are kept
 

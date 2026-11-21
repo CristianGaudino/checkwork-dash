@@ -8,31 +8,60 @@ there are and who works at each. How they are kept apart: `docs/dealer-admin.md`
 Run these from the repo with a logged-in wrangler (`npx wrangler login`). The id is a slug (`example-motors`); its binding is the id in
 capitals with underscores (`DB_EXAMPLE_MOTORS`).
 
+## Two environments
+
+The app runs twice, fully apart: **dev** (`dev.dash.checkwork.ie`, Worker `checkwork-dash-dev`) and **production**
+(`www.dash.checkwork.ie`, Worker `checkwork-dash`). Each has its own databases, photo bucket, rate limit counters, secrets and Access
+application (`wrangler.jsonc`).
+
+- **Dev is the default.** Every command and script below, and plain `wrangler`, acts on dev.
+- **Production only with `--env production`** (or an npm script ending in `:prod`). The scripts print which environment and database
+  they are about to touch (`production: checkwork-directory`), refuse any other `--env` value or an unknown flag, and refuse to run while
+  `CLOUDFLARE_ENV` is set in the shell, so nothing reaches production by default or by a typo.
+
+| | dev | production |
+|---|---|---|
+| Directory | `checkwork-dev-directory` | `checkwork-directory` |
+| A dealer | `checkwork-dev-dealer-<id>` | `checkwork-dealer-<id>` |
+| Photos (R2) | `checkwork-dash-dev-files` | `checkwork-dash-files` |
+
+Adding a dealer means a database in each environment, bound in each (below), and adding it to each directory.
+
 ## Once, for the app
 
+The directories exist (#9). How they were made, and their migrations (`npm run deploy` and `deploy:prod` run these too):
+
 ```sh
+npx wrangler d1 create checkwork-dev-directory --jurisdiction eu
 npx wrangler d1 create checkwork-directory --jurisdiction eu
-npm run directory:migrate
+npm run directory:migrate            # dev
+npm run directory:migrate:prod       # production
 ```
 
-Put the id it prints into the `DIRECTORY` entry of `wrangler.jsonc` at deploy time. The repo is public: no real database id goes into it
-until the owner says so.
+Each id goes into its `DIRECTORY` entry in `wrangler.jsonc`: the top level for dev, `env.production` for production. Database ids are not
+secrets.
 
 ## For each dealer
 
-1. Create its database:
+1. Create its database in each environment:
 
    ```sh
+   npx wrangler d1 create checkwork-dev-dealer-example-motors --jurisdiction eu
    npx wrangler d1 create checkwork-dealer-example-motors --jurisdiction eu
    ```
 
-2. Bind it: add an entry to `d1_databases` in `wrangler.jsonc`, with `migrations_dir` `drizzle`:
+2. Bind each: add an entry to `d1_databases` in `wrangler.jsonc`, with `migrations_dir` `drizzle`, at the top level (dev) and in
+   `env.production` (wrangler does not pass bindings down to an environment):
 
    ```jsonc
-   { "binding": "DB_EXAMPLE_MOTORS", "database_name": "checkwork-dealer-example-motors", "database_id": "REPLACE_WITH_ID", "migrations_dir": "drizzle" }
+   // top level (dev)
+   { "binding": "DB_EXAMPLE_MOTORS", "database_name": "checkwork-dev-dealer-example-motors", "database_id": "<dev id>", "migrations_dir": "drizzle" }
+   // env.production
+   { "binding": "DB_EXAMPLE_MOTORS", "database_name": "checkwork-dealer-example-motors", "database_id": "<production id>", "migrations_dir": "drizzle" }
    ```
 
-   The id stays a placeholder in the repo, as above. Deploy, so the Worker has the binding.
+   `src/lib/environments.test.ts` checks the two stay apart (dev names start `checkwork-dev-`, no id or name shared). Deploy, so each
+   Worker has the binding.
 
 3. Write the dealer's profile, a JSON file kept out of the repo (it is the dealer's): their facts, their plan, where their stock comes
    from and their rules (every field: `src/lib/tenancy/profile.ts`; "Each dealer's profile" in `docs/dealer-admin.md`). Leave out what
@@ -59,24 +88,27 @@ until the owner says so.
      (synced from `stock.listingSite`, `DoneDeal` or `CarsIreland`, with `stock.listingUrl` their page there).
    - `placeId`: their Google place, for their reviews.
 
-4. Apply the dealer migrations to its database and add the dealer, with its profile and first owner, to the directory:
+4. Apply the dealer migrations to its database and add the dealer, with its profile and first owner, to the directory. Once in each
+   environment:
 
    ```sh
-   node scripts/add-dealer.mjs example-motors "Example Motors" owner@example.com --remote --profile=example-motors.json
+   node scripts/add-dealer.mjs example-motors "Example Motors" owner@example.com --remote --profile=example-motors.json                    # dev
+   node scripts/add-dealer.mjs example-motors "Example Motors" owner@example.com --remote --profile=example-motors.json --env production   # production
    ```
 
    `--demo` makes it a demo dealer (made-up records, the morning reset, the demo bar's switches, and the made-up team so the bar's roles
    have people); without `--profile` it is then the demo business. An existing dealer or member is left as it is, so it is safe to run
    again (change an existing dealer's profile as below).
 
-5. Add the owner's email to the Cloudflare Access policy (named emails only, never Everyone: `docs/dealer-admin.md`, "Cloudflare
+5. Add the owner's email to the Cloudflare Access policy of each host they use (named emails only, never Everyone: `docs/dealer-admin.md`, "Cloudflare
    Access"). The owner signs in, checks their details in Settings, Your business, adds the team in Settings, Team (which writes the
    directory), then Lead emails. Each person they add needs their email added to the Access policy too, until our own sign-in (#10).
 
 ## Every deploy
 
-`npm run db:migrate` applies the dealer migrations to every dealer database bound in `wrangler.jsonc` (`scripts/migrate-dealers.mjs`; one
-that fails is reported and the rest still run). `npm run directory:migrate` applies the directory's. Both folders are additive only
+`npm run deploy` (dev) and `npm run deploy:prod` (production) run them for you (`scripts/deploy.mjs`). By hand: `npm run db:migrate` applies
+the dealer migrations to every dealer database bound in that environment (`scripts/migrate-dealers.mjs`; one that fails is reported and
+the rest still run), `npm run directory:migrate` the directory's; add `:prod` for production. Both folders are additive only
 (`scripts/check-migrations.sh`).
 
 ## Changing a dealer's profile
@@ -86,7 +118,8 @@ the fields to change in a JSON file and merge it in. A field given replaces that
 one level down, `null` removes a field; the rest stays. Each page and job reads it on its next request.
 
 ```sh
-node scripts/dealer-profile.mjs example-motors plan.json --remote
+node scripts/dealer-profile.mjs example-motors plan.json --remote                    # dev
+node scripts/dealer-profile.mjs example-motors plan.json --remote --env production   # production
 ```
 
 with, for example, `plan.json` holding `{ "modules": "all" }` for the Group plan, or `{ "stock": { "source": "donedeal" } }` once
@@ -97,5 +130,7 @@ their DoneDeal sync is connected.
 Set its `status` to `paused` in the directory. Nobody can open it and no job runs for it; its database is kept.
 
 ```sh
-npx wrangler d1 execute DIRECTORY --remote --command "UPDATE dealers SET status = 'paused' WHERE id = 'example-motors'"
+npx wrangler d1 execute DIRECTORY --remote --env production --command "UPDATE dealers SET status = 'paused' WHERE id = 'example-motors'"
 ```
+
+Without `--env production` this pauses it in dev.
