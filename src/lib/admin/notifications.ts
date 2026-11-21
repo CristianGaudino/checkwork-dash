@@ -3,6 +3,7 @@ import { DAY, MINUTE } from "@/lib/time";
 import { LEAD_TYPE_LABELS, TEAM_SEED, demoDrives, demoLeads, type Lead } from "./collections";
 import { defineCollection } from "./docs";
 import { newId } from "./ids";
+import { pushToTeam } from "@/lib/push";
 
 // The dashboard's own notifications: the bell. In the app only, never emailed. Each says what happened in a few words and links to it.
 // Never a customer's name or details, only the kind of request and the car, so they are not personal data (nothing to erase, nothing to
@@ -29,14 +30,21 @@ const key = (r: Reader) => (r.email || r.name).toLowerCase();
 const seesIt = (n: Notice, r: Reader) => !n.for || n.for === r.name;
 export const readsOf = async (r: Reader) => new Set((await readsStore.get(key(r)))?.ids ?? []);
 
+// What a push to the phone says for the kinds that have one (#11, src/lib/push): what happened, as its title.
+export const PUSH_TITLES: Partial<Record<NoticeKind, string>> = { lead: "New enquiry", order: "New enquiry", drive: "Test drive request", assigned: "A lead for you" };
+
 // Best effort: a notification is never worth failing the thing that caused it, so callers need not catch. Old ones go as new ones come.
-export async function notify(n: Omit<Notice, "id" | "at">, at = Date.now()): Promise<void> {
+// `about`: the push's text for a kind that has one, the car (or the kind of request without one), never the customer: a lock screen is not
+// private. It goes to the same people as the bell: the one it is `for`, or everyone.
+export async function notify(n: Omit<Notice, "id" | "at">, at = Date.now(), about?: string): Promise<void> {
   try {
     await noticesStore.put({ id: newId("note"), at, ...n });
     for (const old of await noticesStore.list()) if (old.at < at - NOTICE_KEEP_DAYS * DAY) await noticesStore.remove(old.id);
   } catch {
     // shortcut: a lost notification is acceptable, the record itself is saved and shows in its list
   }
+  const title = PUSH_TITLES[n.kind];
+  if (title && about !== undefined) await pushToTeam({ title, body: about, url: n.href }, n.for);
 }
 
 // The newest for this person, with how many they have not read (`read`: the ids they have).

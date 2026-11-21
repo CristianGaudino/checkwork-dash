@@ -68,7 +68,7 @@ export async function assignLeadAction(id: string, data: FormData) {
   await logActivity("leads", to ? `Gave the lead to ${to}` : `Took the lead off ${lead.assignedTo}`, ref(id));
   // The person it was given to hears of it in their bell, unless they took it themselves.
   const me = await currentMember();
-  if (to && to !== me.name) await notify({ kind: "assigned", for: to, text: `${me.name} gave you a lead: ${LEAD_TYPE_LABELS[lead.type]}`, href: `/leads/${id}` });
+  if (to && to !== me.name) await notify({ kind: "assigned", for: to, text: `${me.name} gave you a lead: ${LEAD_TYPE_LABELS[lead.type]}`, href: `/leads/${id}` }, undefined, lead.carTitle ?? LEAD_TYPE_LABELS[lead.type]);
   revalidatePath("/leads");
   revalidatePath(`/leads/${id}`);
   revalidatePath(`/aftersales/requests/${id}`);
