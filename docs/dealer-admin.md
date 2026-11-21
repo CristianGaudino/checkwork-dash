@@ -288,18 +288,26 @@ cars are added, changed and sold on DoneDeal only. The dashboard never edits the
 - **Still to write:** the adapter that reads DoneDeal's API (`src/lib/donedeal/feed.ts`), once DoneDeal sends its docs and the full usage
   policy (what may be stored, photos, call limits).
 
-## Cloudflare Access (owner set-up, once)
+## Cloudflare Access (owner set-up, once per environment)
 
-1. Zero Trust, Access, Applications, Add, Self-hosted. Add the whole of `www.dash.checkwork.ie` and `dash.checkwork.ie`, with the one-time
-   PIN login. The policy is **Allow** for **named emails only** (an Emails include, or an Access group of them): never Everyone, never a
+Dev (`dev.dash.checkwork.ie`) and production (`www.dash.checkwork.ie`, `dash.checkwork.ie`) each get the same set-up, as applications of
+their own, so each has its own audience tag and its own list of people.
+
+1. Zero Trust, Access, Applications, Add, Self-hosted, with the one-time PIN login:
+   - production: the whole of `www.dash.checkwork.ie` and `dash.checkwork.ie`;
+   - dev: the whole of `dev.dash.checkwork.ie`.
+
+   The policy is **Allow** for **named emails only** (an Emails include, or an Access group of them): never Everyone, never a
    whole email domain. The dashboard is private: sign-in only, with no sign-up and no public demo (owner, 2026-11-22). Which dealer a
    person opens, and as what, is still the app's decision, from the directory (#4).
-   Give `/api/owner*` and `/api/site/*` their own applications with a Bypass policy (each brings its own token or key, `docs/owner-api.md`,
-   `docs/site-api.md`).
+   On each host, give `/api/owner/*` and `/api/site/*` their own applications with a **Bypass** policy (each brings its own token or key,
+   `docs/owner-api.md`, `docs/site-api.md`): four Bypass applications in all.
 2. **Adding a person** takes both, until our own sign-in replaces Access (#10): they are added in Settings, Team (the directory), and their
-   email is added to the Access policy (ours to do). Removing someone: take them off both.
-3. Copy the application's Audience tag. Your team domain is `<team>.cloudflareaccess.com`.
-4. On the Worker, add two variables (not secrets): `CF_ACCESS_TEAM_DOMAIN` and `CF_ACCESS_AUD`.
+   email is added to the Access policy (ours to do). Removing someone: take them off both. Dev has its own directory and policy.
+3. Copy each application's Audience tag. Your team domain is `<team>.cloudflareaccess.com` (the same for both).
+4. Put them in `wrangler.jsonc` `vars` (not secrets): `CF_ACCESS_TEAM_DOMAIN` in both places, `CF_ACCESS_AUD` the dev application's at the
+   top level and production's in `env.production`. A deploy sets them on the Worker; one set by hand in the dashboard is replaced by the
+   next deploy.
 
 Until both are set every page answers 404 for everyone. The Worker checks Access's signed token itself (`src/lib/access.ts`), so a missing policy fails closed instead of open.
 
@@ -390,7 +398,7 @@ The `whatsapp` module. On the demo it is simulated (integration `whatsapp`): `/w
 - **Media library** (`mediaStore`, tab Media): photos (JPEG, PNG, WebP; shrunk to 1,600px on the device) and videos (MP4, MOV, up to 15 MB and 90 seconds on the demo; length read in the browser and checked loosely on the server), optionally tagged to a car. Stored in R2 under `media/` in the `LEAD_PHOTOS` bucket and served by `/media-files`; with no bucket a data URL is kept in memory. Rules in `src/lib/admin/media-rules.ts`. No range requests yet, so add them before real video use.
 - **Calendar**: a week of scheduled and posted posts and started ads (`calendarWeek`); drafts are not on it.
 - **Modules**: posts, calendar and media need Social and ads, newsletters need Newsletter and alerts; the page needs one of them.
-- **AI writing** (#179): `writeAction` (`src/lib/ai/actions.ts`) checks the `ai` module, then the monthly cap, builds the facts from the records (the browser sends ids only), writes with the model chosen on Billing, then counts the action under that model. On the demo `writeWithAI` is the mock in `src/lib/ai/mock.ts` (deterministic, facts only, dashes stripped, 700 ms pause). With `ANTHROPIC_API_KEY` set as a Worker secret (`npx wrangler secret put ANTHROPIC_API_KEY`) it is real Claude instead (`src/lib/ai/claude.ts`, every prompt in one place): a refusal, a cut-off answer or an error is a failed write, not billed, and the facts and text are never logged. Limits: the monthly AI cap (demo €25), our AI ceiling that a cap can never go past (`AI_CEILING_EUR`, €50 on every site unless the owner's program sets another; €25 on a freshly seeded demo), `AI_LIMITER` of 10 calls a minute per dealer (wrangler.jsonc, namespace 1003; Cloudflare counts it per location), short prompts (a message or review is cut to 600 characters; phone numbers and emails are taken out of the facts and the draft, and the dealer's own are put back in the answer) and `max_tokens` 2048. Set a spend limit on the Claude Console workspace too. `AIWriter` / `AITextarea` show the button, adjust chips, Undo and an "AI draft" label, and hide with the module off. Used in the post composer, newsletters, the car description, the lead page (Draft a reply) and review replies.
+- **AI writing** (#179): `writeAction` (`src/lib/ai/actions.ts`) checks the `ai` module, then the monthly cap, builds the facts from the records (the browser sends ids only), writes with the model chosen on Billing, then counts the action under that model. On the demo `writeWithAI` is the mock in `src/lib/ai/mock.ts` (deterministic, facts only, dashes stripped, 700 ms pause). With `ANTHROPIC_API_KEY` set as a Worker secret (`npx wrangler secret put ANTHROPIC_API_KEY`) it is real Claude instead (`src/lib/ai/claude.ts`, every prompt in one place): a refusal, a cut-off answer or an error is a failed write, not billed, and the facts and text are never logged. Limits: the monthly AI cap (demo €25), our AI ceiling that a cap can never go past (`AI_CEILING_EUR`, €50 on every site unless the owner's program sets another; €25 on a freshly seeded demo), `AI_LIMITER` of 10 calls a minute per dealer (wrangler.jsonc, namespace 1003, 2003 on dev; Cloudflare counts it per location), short prompts (a message or review is cut to 600 characters; phone numbers and emails are taken out of the facts and the draft, and the dealer's own are put back in the answer) and `max_tokens` 2048. Set a spend limit on the Claude Console workspace too. `AIWriter` / `AITextarea` show the button, adjust chips, Undo and an "AI draft" label, and hide with the module off. Used in the post composer, newsletters, the car description, the lead page (Draft a reply) and review replies.
 
 ## Where things are
 

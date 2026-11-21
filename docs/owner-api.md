@@ -6,7 +6,7 @@ Read only, for the owner's own program (#62): how each dealer uses the app. One 
 
 - Worker secret `OWNER_API_TOKEN`: a long random string. Without it the routes answer 404 to everyone.
 - Optional Worker secret `OWNER_API_MONEY=1`: adds sale values. It is one switch for the whole app until each dealer's own settings exist (#5): set it only when every dealer's contract allows.
-- The routes are under `/api/owner/`. The staff Cloudflare Access application covers the whole domain, so give `/api/owner*` its own application with a Bypass policy, or the owner's program is turned away by Access.
+- The routes are under `/api/owner/`. The staff Cloudflare Access application covers the whole host, so give `/api/owner/*` its own application with a Bypass policy on each host (`www.dash.checkwork.ie`, and `dev.dash.checkwork.ie` on dev), or the owner's program is turned away by Access.
 
 ## Calls
 
