@@ -60,6 +60,7 @@ export async function LeadView({ id }: { id: string }) {
         text={
           <span className="flex flex-wrap items-center gap-x-2">
             <LeadKind type={lead.type} topic={lead.topic} />
+            <span>·</span>
             <span>
               {sourceText(lead)} · {fmtDateTime(lead.createdAt)}
             </span>
@@ -117,13 +118,13 @@ export async function LeadView({ id }: { id: string }) {
               <IfModule id="testDrives">
                 {drive ? (
                   <Link href={`/test-drives/${drive.id}`} className={adminButtonQuiet}>
-                    <CalendarIcon className="size-4" />
+                    <CalendarIcon className="shrink-0 size-4" />
                     Test drive {fmtDay(dublinDay(drive.startsAt), "weekday")} {fmtDay(dublinDay(drive.startsAt), "day")} {fmtDay(dublinDay(drive.startsAt), "month")}, {fmtTime(drive.startsAt)}
                   </Link>
                 ) : (
                   // An order request's main job is Place the order, so the drive is the quiet one there: one filled button.
                   <Link href={`/test-drives/new?lead=${lead.id}`} className={lead.type === "order" ? adminButtonQuiet : adminButton}>
-                    <CalendarIcon className="size-4" />
+                    <CalendarIcon className="shrink-0 size-4" />
                     Book a test drive
                   </Link>
                 )}

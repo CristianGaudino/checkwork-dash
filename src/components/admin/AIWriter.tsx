@@ -11,7 +11,7 @@ import type { PostFormat } from "@/lib/admin/networks";
 import { adminButtonQuiet, adminInput, rowButton } from "./kit";
 
 // The changes to a draft: small neutral chips, a quieter group than Write with AI, 44px on a phone and 36px from 640px.
-const chip = `inline-flex min-h-11 items-center rounded-full bg-hairline px-3.5 text-meta font-medium text-text transition-colors hover:bg-accent-soft hover:text-accent-text disabled:opacity-50 sm:min-h-9 ${press}`;
+const chip = `inline-flex min-h-11 items-center rounded-full bg-hairline px-3.5 text-meta font-medium text-text transition-colors hover:bg-accent-soft hover:text-accent-text disabled:opacity-50 pointer-fine:min-h-9 ${press}`;
 // With our pricing hidden the limit is not on Billing, so the message says where to ask.
 const SAID = { limit: `The monthly AI limit is reached. Your text is unchanged.${SHOW_PRICING ? "" : " Ask us in Help to raise it."}`, failed: "Couldn't write that, try again. Your text is unchanged." };
 
@@ -49,13 +49,13 @@ export function AIWriter({ task, request, text, onText, format }: { task: Task; 
         {/* Its own look among the secondary buttons: the sparkle in a filled dot says this one writes for you. */}
         <button type="button" onClick={() => run()} disabled={pending} aria-busy={pending} className={`${adminButtonQuiet} pl-2.5 disabled:opacity-60`}>
           <span aria-hidden="true" className="grid size-7 place-items-center rounded-full bg-accent text-on-accent">
-            <SparkleIcon className="size-4" />
+            <SparkleIcon className="shrink-0 size-4" />
           </span>
           {pending ? "Writing" : ai === null ? "Write with AI" : "Write again"}
         </button>
         {ai !== null && text.trim() !== "" && (
           <span className="inline-flex h-6 items-center gap-1 rounded-full bg-info-soft px-2.5 text-meta font-medium text-info">
-            <SparkleIcon className="size-3.5" />
+            <SparkleIcon className="shrink-0 size-3.5" />
             {text === ai ? "AI draft" : "AI draft, edited"}
           </span>
         )}

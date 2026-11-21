@@ -54,10 +54,10 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
           <LeadTags tags={leadChips(l.type, l.topic, l.answers)} urgent={l.status === "new" && isUrgent(l.answers ?? {})} />
         </span>
       ),
-      className: "min-w-[10rem] max-w-[12rem] sm:min-w-[14rem] sm:max-w-[18rem]",
+      className: "max-w-[12rem] sm:max-w-[18rem]",
     },
     // The car in full, else the first words of their message, quoted and muted so the two never read alike.
-    { key: "about", header: "About", sort: (l) => l.carTitle, cell: (l) => <span title={l.carTitle ?? l.message} className="line-clamp-2 min-w-[9rem]">{l.carTitle ? <span className="font-medium">{l.carTitle}</span> : l.message.trim() ? <span className="text-text-2">&ldquo;{l.message.split("\n")[0]}&rdquo;</span> : null}</span>, className: "max-w-[16rem]", hide: "sm" },
+    { key: "about", header: "About", sort: (l) => l.carTitle, cell: (l) => <span title={l.carTitle ?? l.message} className="line-clamp-2">{l.carTitle ? <span className="font-medium">{l.carTitle}</span> : l.message.trim() ? <span className="text-text-2">&ldquo;{l.message.split("\n")[0]}&rdquo;</span> : null}</span>, className: "max-w-[16rem]", hide: "sm" },
     {
       key: "status",
       header: "Status",
