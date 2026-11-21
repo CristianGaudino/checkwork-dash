@@ -126,7 +126,8 @@ code path reaches another dealer's (#3, #4, #6; `src/lib/tenancy/`).
 - **Lead emails are a setting.** Settings, Lead emails: up to five addresses, a test button, and the dealer's profile `leadEmail` as the fallback.
 - **The bell is in the app only** (`src/lib/admin/notifications.ts`). A new website request, test drive booking, warranty or order request,
   a DoneDeal ad taken down, a sync outage (once, as it starts), a lead given to you by someone else. Never a customer's name, so they are not
-  personal data. Read per person; kept 60 days. No email: the lead emails above are the email.
+  personal data. Read per person; kept 60 days. No email: the lead emails above are the email. Three of them also go to the phone, for those who turned that on
+  (below, "The app on the phone").
 - **No demo, draft or placeholder labels on the public site.** The demo bar and the dev-only data toggle are the only chrome that says "demo".
 - All names, emails, numbers and figures in the admin are made up. Emails use `example.com`.
 
@@ -392,6 +393,47 @@ The `whatsapp` module. On the demo it is simulated (integration `whatsapp`): `/w
 - Messages about a lead are removed once the lead is gone (purge, data request), on the next read of the page.
 - The real Cloud API goes where `ADAPTER GOES HERE` is, in `src/lib/whatsapp/send.ts`: approved templates outside the 24 hour window, and a webhook that checks Meta's signature and ignores unknown numbers.
 
+## The app on the phone (#11)
+
+The dashboard installs on a phone's home screen as "Checkwork" and can send notifications. Standard web features only, nothing from an
+app store and no outside service.
+
+- **Installing.** `public/manifest.webmanifest` (name, start at `/`, standalone, the icons), the Apple tags and the manifest link in
+  `src/app/layout.tsx`. The icons are made from the mark by `node scripts/app-icons.mjs` and kept in `public/brand/`. The manifest is a
+  static file, not `app/manifest.ts`: a browser fetches a manifest without cookies unless its link says `use-credentials`, Access turns that
+  request away, and Next's own link cannot say it.
+- **The service worker** (`public/sw.js`, registered by `src/components/admin/ServiceWorker.tsx` in a build only) caches the offline
+  screen (`public/offline.html`) and the icon, nothing else: pages and data always come from the network, since everything a dealer sees
+  is live and personal. With no network a page shows the offline screen. It shows a push and opens the app at its link when tapped.
+- **Behind Access.** The manifest, the worker, the offline screen and the icons are behind Access like everything else, and the browser
+  sends its Access cookie with them. On an installed iPhone app Access's login can be awkward: the app keeps its cookies apart from
+  Safari's, so a sign-in in Safari does not carry over, and the one-time PIN login may be needed again inside the app. We do not work around it: our own sign-in (#10) fixes it.
+- **Notifications** (`src/lib/push`): Web Push with VAPID, encrypted and signed with WebCrypto on the Worker (RFC 8291 and 8292, tested
+  against the RFC's own example). Three of the bell's notices also go to the phone, to the same people the bell shows them to:
+  | What happened | Title | Text | Opens |
+  |---|---|---|---|
+  | A new website enquiry (any lead in Leads, an order request too) | New enquiry | The car, or the kind of request without one | The lead |
+  | A test drive request | Test drive request | The car | The booking |
+  | A lead given to you by someone else | A lead for you | The car, or the kind of request | The lead |
+
+  Never the customer's name, email or phone: a lock screen is not private. Warranty requests, ads taken down, sync outages, WhatsApp
+  replies and the rest stay in the bell. Each goes to everyone still on the team (a lead given to someone: that person only) who turned
+  notifications on, on each of their devices. A demo dealer sends them too: they go only to its own team's devices and cost nothing.
+- **Turning them on** is per person and per device: Settings, Notifications, "Notifications on this phone". The panel lists your own devices
+  with Turn off on each. Each turn on and turn off is in the activity history, with the device's kind (iPhone, Android phone, Mac), never its
+  address. On an iPhone push needs iOS 16.4 or later and the app on the home screen; the panel says "Add this to your home screen first".
+- **Kept** in the dealer's own store (`push-subscriptions`): the person's email, the device's push address and keys, its kind and when it
+  was added, one record per device. The push address is never logged. A device the push service says is gone (404 or 410) is removed; any
+  other failure is logged by its status only and never stops what caused it. Removing someone from the team removes their devices. Staff
+  are not covered by data requests (customers are), the same as their WhatsApp phone: each person removes their own devices here, and
+  leaving the team removes the rest.
+- **Keys.** A VAPID key pair per environment: `VAPID_PUBLIC_KEY` a var in `wrangler.jsonc`, `VAPID_PRIVATE_KEY` a Worker secret, made
+  by `node scripts/vapid-keys.mjs` (README, "Going live"). With either missing, Settings says notifications are not set up yet and nothing
+  is sent. A new pair turns notifications off on every device until each person turns them on again. The push services allowed are
+  Google's, Apple's, Mozilla's and Microsoft's (`validSub`), so the Worker never posts to any other address.
+- **Not tested here:** real delivery to a phone. The unit tests open what was sent with the phone's own keys; the E2E suite stubs the
+  browser's push subscription.
+
 ## Marketing formats, media and AI writing
 
 - **Formats** (#177): a post is a Post, Story (9:16 with a ready layout: Just in or Price drop, drawn over the car photo), Reel or video, or Carousel (2 to 10 photos). The composer previews each at phone size. Limits live in `src/lib/admin/networks.ts` (`FORMAT_LIMITS`, `FORMATS_FOR`) and the server checks the same numbers. `PUBLISH_MODE` there says which formats a network's API can publish ("auto") and which are prepared here and posted from the phone ("prepare": Facebook and Instagram stories, all TikTok). Publishing stays simulated.
@@ -421,6 +463,7 @@ The `whatsapp` module. On the demo it is simulated (integration `whatsapp`): `/w
 | Billing page, bills and their maths | `src/app/billing/`, `src/lib/billing/bills.ts`, `bills-rules.ts` |
 | Help requests | `src/app/help/`, `src/lib/admin/help.ts`, `help-rules.ts` |
 | Monthly report maths, page and email; owner API and counters | `src/lib/reports/`, `src/app/monthly-report/`, `src/lib/owner-api/`, `docs/owner-api.md` |
+| The app on the phone: manifest, service worker, push | `public/manifest.webmanifest`, `public/sw.js`, `src/lib/push/`, `src/components/admin/PushPanel.tsx` |
 | Contact form topics, tags and subject | `src/lib/leads/contact-topics.ts`, `src/components/leads/GeneralFields.tsx` |
 
 ## Connecting a service
