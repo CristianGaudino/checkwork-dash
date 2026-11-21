@@ -1,0 +1,35 @@
+{
+	// The Checkwork dealer dashboard: its own Worker, domain, D1 database and R2 bucket. The names below are created in the Cloudflare
+	// dashboard or with wrangler. The ids marked REPLACE are the owner's to fill in before the first deploy.
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "checkwork-dash",
+	"main": "worker.mjs", // wraps .open-next/worker.js and adds the daily purges and the app's scheduled jobs
+	"compatibility_date": "2026-10-01",
+	"compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+	"assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
+	"services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "checkwork-dash" }],
+	// The bare domain is a second custom domain: worker.mjs redirects it to www (APP_URL in src/lib/site.ts).
+	"routes": [{ "pattern": "www.dash.checkwork.ie", "custom_domain": true }, { "pattern": "dash.checkwork.ie", "custom_domain": true }],
+	"workers_dev": false,
+	// worker.mjs: daily at 03:17 UTC, deletes old leads, their photos and old activity, and removes the buyer from sales over six years old.
+	// Every 15 minutes, syncs DoneDeal stock (nothing for a dealer whose stock is not from DoneDeal). At 07:00 UTC, the follow-up emails (only
+	// when the dealer turned them on) and the WhatsApp daily alerts. On the 1st at 07:00 UTC, last month's report by email. At 06:30 UTC, the
+	// demo reset (the demo only). These need the CRON_KEY secret.
+	"triggers": { "crons": ["17 3 * * *", "*/15 * * * *", "0 7 * * *", "0 7 1 * *", "30 6 * * *"] },
+	"observability": { "enabled": true },
+	// Cloudflare Access in front of the whole app (src/lib/access.ts): the team domain and this application's audience tag. Neither is a
+	// secret. Until both are set every page answers 404 (docs/dealer-admin.md, "Cloudflare Access").
+	"vars": {
+		"CF_ACCESS_TEAM_DOMAIN": "REPLACE_WITH_TEAM_DOMAIN",
+		"CF_ACCESS_AUD": "REPLACE_WITH_ACCESS_AUD"
+	},
+	// Lead emails to the dealer. No "remote": a local wrangler dev has no Cloudflare credentials, so it uses the local simulator.
+	"send_email": [{ "name": "EMAIL" }],
+	// Per-IP limit on lead submits, a second layer behind Turnstile: 5 per minute. COUNT_LIMITER: the feature counters. AI_LIMITER: AI writing.
+	"ratelimits": [{ "name": "LEAD_LIMITER", "namespace_id": "1001", "simple": { "limit": 5, "period": 60 } }, { "name": "COUNT_LIMITER", "namespace_id": "1002", "simple": { "limit": 20, "period": 60 } }, { "name": "AI_LIMITER", "namespace_id": "1003", "simple": { "limit": 10, "period": 60 } }],
+	// Lead photos, car photos, media and help screenshots: private, EU jurisdiction, read only through their routes. wrangler dev uses a local bucket.
+	"r2_buckets": [{ "binding": "LEAD_PHOTOS", "bucket_name": "REPLACE_WITH_BUCKET_NAME", "jurisdiction": "eu" }],
+	// Leads, stock and the dashboard's records: Cloudflare D1. Create it once with `npx wrangler d1 create checkwork-dash --jurisdiction eu`
+	// and paste the id below (an id is not a secret). migrations_dir is where drizzle-kit writes the SQL; npm run db:migrate applies it.
+	"d1_databases": [{ "binding": "DB", "database_name": "checkwork-dash", "database_id": "REPLACE_WITH_ID", "migrations_dir": "drizzle" }]
+}
