@@ -41,7 +41,7 @@ Send `Authorization: Bearer <OWNER_API_TOKEN>`. No token or a wrong one: `404`, 
 
 - `leads.byWeekday`: Monday first. `bySource` is the channel (Website, Phone, WhatsApp...). `outOfHours` uses the opening hours in `src/lib/site.ts`, Irish time.
 - `replies`: minutes from a lead arriving to the first note on it, by when it arrived. `none`: leads with no note within 24 hours, once those 24 hours have passed. `null` when there are none.
-- `stock`: `added` and `sold` are in the range. `inStock`, `avgDaysInStock`, `oldStock` (for sale `DEALER_RULES.oldStockDays` or more, 120 by default) and `priceDrops` are the stock now (the site keeps no daily history).
+- `stock`: `added` and `sold` are in the range. `inStock`, `avgDaysInStock`, `oldStock` (for sale the dealer's `rules.oldStockDays` or more, 120 by default) and `priceDrops` are the stock now (the site keeps no daily history).
 - `sales.valueEur` appears only with `OWNER_API_MONEY=1`. Orders and deposits are not counted yet.
 - `features`: anonymous daily counters (`saved`, `compare`, `finance`, `units` for km or miles, `no-results`, `contact-topic`, `filter:<make|model|body|fuel|price|year|km|gearbox>`; `visit:<channel>`, one per visit by where it came from; `band:<price band>`; `missed:<make>` for a search with no cars to show). The lists are in `src/lib/visit-rules.ts`. `dashboard`: page opens per dashboard area, counted by the dashboard itself behind Access. Neither says who.
 - Visits are the `visit:*` counts in `features`. Errors in the last 24 hours are not included yet.

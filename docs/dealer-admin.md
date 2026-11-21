@@ -1,14 +1,16 @@
 # Dealer dashboard
 
-This app is the dealer dashboard, at the root of https://www.dash.checkwork.ie (`/` is the overview, `/leads` the leads and so on). It came out of checkwork-demo, where it lived under `/dashboard` (history). The dealer's website (Showroom) is a separate app made from checkwork-demo: where the dashboard links to a car or a page there it uses the full address (`SITE_URL` in `src/lib/site.ts`) in a new tab. Parts below that describe the website's pages (`/contact`, `/reviews`, `/warranty` and so on) are kept because the dashboard works on what they send. The demo bar at the foot of every page holds the role, plan, DoneDeal and theme switches. There is no login of our own: on a deployed app Cloudflare Access is the login (see below). One app serves every dealer, each in a store of its own (see "Dealers kept apart"). There is no superuser role and no platform area.
+This app is the dealer dashboard, at the root of https://www.dash.checkwork.ie (`/` is the overview, `/leads` the leads and so on). It came out of checkwork-demo, where it lived under `/dashboard` (history). The dealer's website (Showroom) is a separate app made from checkwork-demo: where the dashboard links to a car or a page there it uses the full address (the dealer's website, `siteUrl` in their profile) in a new tab. Parts below that describe the website's pages (`/contact`, `/reviews`, `/warranty` and so on) are kept because the dashboard works on what they send. The demo bar at the foot of every page holds the theme switch, and for a demo dealer the role, plan and DoneDeal switches. There is no login of our own: on a deployed app Cloudflare Access is the login (see below). One app serves every dealer, each in a store of its own (see "Dealers kept apart"). There is no superuser role and no platform area.
 
 ## Modules
 
-A dealer has the base site plus the modules they pay for (#173, `src/lib/modules-rules.ts`). A module that is off has its pages answer
-404 (the proxy checks, for public and dashboard pages alike), its links leave the menus, footer and pages (`IfModule`), and its server
-actions refuse. On the demo the bar's Modules switches choose them (a cookie); on a real site `NEXT_PUBLIC_SITE_MODULES` does, and a
-cookie never can. Data is never deleted when a module goes off. Stock kept in the dashboard is not a module switch: it follows where the
-stock comes from.
+A dealer has the base site plus the modules they pay for (#173, `src/lib/modules-rules.ts`): their plan, `modules` in their profile
+(see "Each dealer's profile"). A module that is off has its pages show the not-in-plan screen (each module's folder has a `layout.tsx`
+with `PlanGate`, checked on the server on every load), its links leave the menus and pages (`IfModule`), and its server actions refuse
+(`requireModule`, a 404). Without the dashboard module every page is the not found screen (the root layout). The proxy only checks the
+Access token: it reads no directory. On a demo dealer the bar's Plan switch chooses them instead (a cookie); for any other dealer a cookie
+never can. Data is never deleted when a module goes off. Stock kept in the dashboard is not a module switch: it follows where the stock
+comes from.
 
 ## Usage billed per use
 
@@ -43,11 +45,32 @@ permissions, each checked on the server in every page and action that needs it (
   person and period. Changes only, never page views. See below.
 
 Who the person is:
-- **On the demo** (the demo bar is on) the bar's role buttons (Owner, Manager, Sales, Finance), shown while viewing as the dealer, set a
-  cookie the server reads, and the demo acts as the first team member with that role. It opens as the owner, so every feature shows.
-- **On a real site** (the demo bar is off, `NEXT_PUBLIC_DEMO_BAR=off`) the signed-in Access email, which the Worker verifies itself, and
-  the role the directory gives that email at the dealer that is open. A new dealer's first owner is added to the directory by
+- **At a demo dealer** (the directory's `demo` flag) the bar's role buttons (Owner, Manager, Sales, Finance) set a cookie the server
+  reads, and the demo acts as the first team member with that role. It opens as the owner, so every feature shows.
+- **At any other dealer** the signed-in Access email, which the Worker verifies itself, and the role the directory gives that email at
+  the dealer that is open. The bar shows the theme switch only. A new dealer's first owner is added to the directory by
   `scripts/add-dealer.mjs` (`docs/new-dealer.md`); everyone else is added in Settings, Team. A cookie never grants anything there.
+
+## Each dealer's profile
+
+What differs between dealers beyond their records is in their profile (#5): one JSON value per dealer in the directory
+(`dealers.profile`, `src/lib/tenancy/profile.ts`), read with the dealer in the same query, once a request (`dealerAccess`) or once a job
+(`runAsDealer`). Nothing about a dealer is a build setting.
+
+- **Facts:** website (`siteUrl`, for "View your website" and car links), phone, email, address, opening hours (also the test drive
+  slots), social links, and the logo (`logo.onLight`, `logo.onDark`) and square mark (`mark`) as paths on this app (`public/brand/`,
+  since images load from here only). The name is the directory's `name` column. Owners and managers change the name, website, phone,
+  email, address and hours in Settings, Your business (`saveBusinessAction`, in the activity history); it merges into the profile, never
+  over what is ours.
+- **Ours to set** (shown read only in Settings, Your plan): `modules` (the plan), `stock` (`source` "checkwork" or "donedeal",
+  `listingSite`, `listingUrl`), `rules` (`oldStockDays`, `slowDropEur`, `soldVisibleDays`, `saleNudgeDays`), `placeId` (Google reviews)
+  and `leadEmail` (where leads go when Settings has no address). How to set them: `docs/new-dealer.md`.
+- **Defaults:** a dealer with nothing set has the dashboard alone, stock kept here, the usual rules, no website and no logo (the menu
+  shows the name). A demo dealer's base is the made-up demo business (`DEMO_PROFILE`: every module, its facts and logo); the demo reset
+  puts its profile back to that.
+- **Billing settings** (term, branches, brands, ceilings, caps) were already per dealer: the settings record in the dealer's own store.
+- **Not per dealer yet:** the time zone (Europe/Dublin for all), the finance terms and the website's intake rules (`src/lib/finance/`,
+  `src/lib/leads/schema.ts`, the demo's, until the site API, #7), and the services' keys (Worker secrets, ours).
 
 ## Dealers kept apart
 
@@ -90,10 +113,10 @@ code path reaches another dealer's (#3, #4, #6; `src/lib/tenancy/`).
 - **Every dashboard action checks the login itself.** Next runs a server action on a POST to any page, so the proxy's gate on `/`
   paths is not enough: each action starts with `requireStaff()` (`src/lib/staff.ts`), which verifies the Access token and that the person
   has a dealer open (the directory), and who the person is comes from that token, never from a header. Open where the dashboard is open (development, `NEXT_PUBLIC_ADMIN_OPEN=1`).
-- **Real visitor records only appear behind Cloudflare Access.** The admin shows seeded records plus what visitors send (leads, test drives, stock alerts). That is personal data, so on a deployed site the admin only answers with a valid Access token (checked in `src/proxy.ts`). `NEXT_PUBLIC_ADMIN_OPEN=1` skips the check and is for CI only: never set it on a deploy. Only `next dev` is open without it. Any build, even one that forgot `APP_ENV`, is closed, and the demo bar's role cookie only counts on the demo deploy (`APP_ENV=demo`).
+- **Real visitor records only appear behind Cloudflare Access.** The admin shows seeded records plus what visitors send (leads, test drives, stock alerts). That is personal data, so on a deployed site the admin only answers with a valid Access token (checked in `src/proxy.ts`). `NEXT_PUBLIC_ADMIN_OPEN=1` skips the check and is for CI only: never set it on a deploy. Only `next dev` is open without it. Any build, even one that forgot `APP_ENV`, is closed, and the demo bar's cookies (role, plan, stock sync) only count for a demo dealer (`demoCookie` in `src/lib/tenancy/current.ts`).
 - **Posting, ads and newsletters are simulated on the demo, and send nothing outside.** They go through `src/lib/admin/publishers.ts`. With no keys, and simulation on (the default everywhere except a production site, `APP_ENV=production`; set `SIMULATE_INTEGRATIONS` to `on` or `off` to override), each reports success marked `simulated`, and the admin records made-up figures so the flow can be shown. With `SIMULATE_INTEGRATIONS=off` and no keys they say "not connected". With keys they say "not switched on" until the real adapter replaces the marked line. Lead email, the bot check and reviews are never simulated: Settings shows their true state. A unit test pins all three modes.
 - **What visitors send reaches the admin.** A test drive booking and a stock alert are lead types in the one lead pipeline (consent, bot check, rate limit, retention). After a lead is stored, `src/lib/admin/real-leads.ts` copies it into the admin's collections (ids start `real-`) so the dealer can work it. The daily purge deletes the copies with the lead.
-- **Lead emails are a setting.** Settings, Lead emails: up to five addresses, a test button, and the `LEAD_TO_EMAIL` variable as the fallback.
+- **Lead emails are a setting.** Settings, Lead emails: up to five addresses, a test button, and the dealer's profile `leadEmail` as the fallback.
 - **The bell is in the app only** (`src/lib/admin/notifications.ts`). A new website request, test drive booking, warranty or order request,
   a DoneDeal ad taken down, a sync outage (once, as it starts), a lead given to you by someone else. Never a customer's name, so they are not
   personal data. Read per person; kept 60 days. No email: the lead emails above are the email.
@@ -224,8 +247,8 @@ visitors sign up). Each list, its actions and its export answer only with its mo
   as Google gives them, with the rating, the count and the way to every review on Google Maps. None are chosen or hidden by us (owner's
   decision, 2026-11-11): selecting reviews would mislead, and Irish consumer law asks traders to be open about how reviews are shown.
 - **Without the dashboard** (#224) the site still shows them: the Reviews module needs nothing else, and only the dashboard page (the
-  replies) also needs the dashboard. Showing needs `GOOGLE_PLACE_ID` and `GOOGLE_PLACES_API_KEY` (a Places API key from Google Cloud: the
-  dealer's public listing, no sign-in by the dealer). Replying and the full list need `GOOGLE_BUSINESS_LOCATION` and
+  replies) also needs the dashboard. Showing needs the dealer's `placeId` (their profile) and our `GOOGLE_PLACES_API_KEY` (a Places API key from Google
+  Cloud: the dealer's public listing, no sign-in by the dealer). Replying and the full list need `GOOGLE_BUSINESS_LOCATION` and
   `GOOGLE_BUSINESS_REFRESH_TOKEN` (the Business Profile API, signed in once as the profile's owner or a manager).
 - **In the dashboard** a reply goes to Google first, through the Business Profile API (`postReviewReply` in `publishers.ts`, simulated on
   the demo), and is kept only once Google has it. There is no flag: Google offers no way to take one. The list itself comes from the
@@ -235,9 +258,11 @@ visitors sign up). Each list, its actions and its export answer only with its mo
 ## Listing site stock (DoneDeal or CarsIreland)
 
 Both DoneDeal and CarsIreland offer a dealer API for the dealer's own site, and the site reads either the same way (`src/lib/donedeal/`,
-named for the first). `NEXT_PUBLIC_LISTING_SITE` names it in the dashboard (DoneDeal by default). Below, "DoneDeal" stands for either.
+named for the first). The dealer's profile names it (`stock.listingSite`, DoneDeal by default) with their page there (`stock.listingUrl`).
+Below, "DoneDeal" stands for either.
 
-A dealer whose stock is on DoneDeal (`NEXT_PUBLIC_STOCK_SOURCE=donedeal`, or the demo bar's sync switch) keeps one source of truth:
+A dealer whose stock is on DoneDeal (`stock.source` "donedeal" in their profile, or the demo bar's sync switch at a demo dealer) keeps one
+source of truth:
 cars are added, changed and sold on DoneDeal only. The dashboard never edits them; it holds only the dealer's own figures (cost).
 - **The sync** (`src/lib/donedeal/sync.ts`, rules in `plan.ts`): every 15 minutes the Worker's cron calls `/api/donedeal/sync` with the
   `CRON_KEY` secret; Sync now on Stock or Overview runs the same. New ads are added and changed ones updated. A car DoneDeal no longer
@@ -360,6 +385,7 @@ The `whatsapp` module. On the demo it is simulated (integration `whatsapp`): `/w
 |---|---|
 | AI writing (Claude with a key, the mock without), media library | `src/lib/ai/`, `src/lib/admin/media.ts` |
 | Dealers kept apart: the directory, the current dealer, `runAsDealer`, the bucket prefix, jobs | `src/lib/tenancy/`, `src/lib/db/directory-schema.ts`, `docs/new-dealer.md` |
+| Each dealer's profile (facts, plan, stock source, rules), the demo switches' cookies | `src/lib/tenancy/profile.ts`, `current.ts` (`dealerProfile`, `demoCookie`), `src/components/DealerFacts.tsx` (the browser's copy) |
 | Record store (one D1 table, `admin_docs`, in the dealer's database; memory with no D1) | `src/lib/admin/docs.ts` |
 | The dealer's collections, types and seeds | `src/lib/admin/collections.ts`, `seed-data.ts` |
 | WhatsApp: templates, price parser, sender, handlers, conversation | `src/lib/whatsapp/`, `src/app/whatsapp/` |

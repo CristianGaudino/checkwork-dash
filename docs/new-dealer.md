@@ -32,29 +32,68 @@ until the owner says so.
 
    The id stays a placeholder in the repo, as above. Deploy, so the Worker has the binding.
 
-3. Apply the dealer migrations to it and add the dealer with its first owner to the directory:
+3. Write the dealer's profile, a JSON file kept out of the repo (it is the dealer's): their facts, their plan, where their stock comes
+   from and their rules (every field: `src/lib/tenancy/profile.ts`; "Each dealer's profile" in `docs/dealer-admin.md`). Leave out what
+   they do not have; anything left out is the default (the dashboard alone, stock kept here, the usual rules, no website, no logo):
 
-   ```sh
-   node scripts/add-dealer.mjs murphy-motors "Murphy Motors" owner@example.com --remote
+   ```json
+   {
+     "siteUrl": "https://www.murphymotors.ie",
+     "phone": "+353 45 000 000",
+     "email": "sales@murphymotors.ie",
+     "address": { "street": "Main Street", "town": "Naas", "county": "Co. Kildare", "eircode": "W91 XXXX" },
+     "hours": [{ "day": "Monday", "opens": "09:00", "closes": "18:00" }, { "day": "Tuesday", "opens": "09:00", "closes": "18:00" }, { "day": "Wednesday", "opens": "09:00", "closes": "18:00" }, { "day": "Thursday", "opens": "09:00", "closes": "18:00" }, { "day": "Friday", "opens": "09:00", "closes": "18:00" }, { "day": "Saturday", "opens": "10:00", "closes": "16:00" }, { "day": "Sunday" }],
+     "logo": { "onLight": "/brand/murphy-motors/logo-on-light.svg", "onDark": "/brand/murphy-motors/logo.svg" },
+     "modules": "dashboard,testDrives,sales,reviews",
+     "stock": { "source": "checkwork" },
+     "rules": { "oldStockDays": 90 },
+     "leadEmail": "sales@murphymotors.ie"
+   }
    ```
 
-   `--demo` makes it a demo dealer (made-up records, the morning reset, and the made-up team so the demo bar's roles have people). An
-   existing dealer or member is left as it is, so it is safe to run again.
+   - `logo` and `mark` (a square crest for the folded menu) are paths on this app: put the files in `public/brand/<dealer-id>/` and
+     deploy (the app loads images from its own address only). Without a logo the menu shows the name; without a mark, the initials.
+   - `modules`: ids from `src/lib/modules-rules.ts`, comma separated, or `all`. `stock.source` is `checkwork` (kept here) or `donedeal`
+     (synced from `stock.listingSite`, `DoneDeal` or `CarsIreland`, with `stock.listingUrl` their page there).
+   - `placeId`: their Google place, for their reviews.
 
-4. The photo bucket's lifecycle rule is per dealer (a backstop for trade-in photos with no lead, `docs/lead-retention.md`):
+4. Apply the dealer migrations to its database and add the dealer, with its profile and first owner, to the directory:
+
+   ```sh
+   node scripts/add-dealer.mjs murphy-motors "Murphy Motors" owner@example.com --remote --profile=murphy-motors.json
+   ```
+
+   `--demo` makes it a demo dealer (made-up records, the morning reset, the demo bar's switches, and the made-up team so the bar's roles
+   have people); without `--profile` it is then the demo business. An existing dealer or member is left as it is, so it is safe to run
+   again (change an existing dealer's profile as below).
+
+5. The photo bucket's lifecycle rule is per dealer (a backstop for trade-in photos with no lead, `docs/lead-retention.md`):
 
    ```sh
    npx wrangler r2 bucket lifecycle add <bucket> delete-trade-in-photos-murphy-motors dealers/murphy-motors/trade-in/ --expire-days 365 --jurisdiction eu
    ```
 
-5. Nothing to change in Cloudflare Access: it only proves the email (#4), and the app lets in whoever the directory has. The owner signs in,
-   adds the team in Settings, Team (which writes the directory), then Lead emails.
+6. Nothing to change in Cloudflare Access: it only proves the email (#4), and the app lets in whoever the directory has. The owner signs in,
+   checks their details in Settings, Your business, adds the team in Settings, Team (which writes the directory), then Lead emails.
 
 ## Every deploy
 
 `npm run db:migrate` applies the dealer migrations to every dealer database bound in `wrangler.jsonc` (`scripts/migrate-dealers.mjs`; one
 that fails is reported and the rest still run). `npm run directory:migrate` applies the directory's. Both folders are additive only
 (`scripts/check-migrations.sh`).
+
+## Changing a dealer's profile
+
+Their name, website, phone, email, address and hours: the owner or a manager, in Settings, Your business. Everything else is ours: write
+the fields to change in a JSON file and merge it in. A field given replaces that field, a group (`stock`, `rules`, `address`) is merged
+one level down, `null` removes a field; the rest stays. Each page and job reads it on its next request.
+
+```sh
+node scripts/dealer-profile.mjs murphy-motors plan.json --remote
+```
+
+with, for example, `plan.json` holding `{ "modules": "all" }` for the Group plan, or `{ "stock": { "source": "donedeal" } }` once
+their DoneDeal sync is connected.
 
 ## Pausing a dealer
 

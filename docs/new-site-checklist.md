@@ -1,8 +1,9 @@
 # Starting a new site from this repo
 
 > Written for checkwork-demo, where the website and the dashboard were one app. The website is now its own repo made from
-> checkwork-demo; this copy is kept for the dashboard's parts (Access, the first owner, the switches) and the dealer's facts in
-> `src/lib/site.ts`, until each dealer's set-up in this shared app is written (multi-tenancy, GitHub issues).
+> checkwork-demo, and this app serves every dealer: a dealer's facts, logo, plan, stock source and rules are their profile in the
+> directory, set when they are added (`docs/new-dealer.md`), not files or build settings here. The steps below that name `site.ts`,
+> `dealer.config.ts` or `NEXT_PUBLIC_` variables are the website's (checkwork-demo); for this app follow `docs/new-dealer.md`.
 
 For a dealer who has signed, or a custom demo before a pitch. The dealer's facts and brand live in a few files, and
 `src/lib/clone-ready.test.ts` fails if a page writes the name, town or phone in by hand, so these stay the only places.
@@ -41,34 +42,22 @@ Everything above, then:
 Set `DEALER_FACTS_CONFIRMED = true` in `site.ts` once the dealer has confirmed the services, warranty and About wording: a production
 deploy fails its tests while it is false.
 
-### Stock
-- **Their own uploader:** `NEXT_PUBLIC_STOCK_SOURCE=checkwork`. Staff add and edit cars in the dashboard; the registration lookup fills the basics.
-- **A listing site (DoneDeal or CarsIreland):** `NEXT_PUBLIC_STOCK_SOURCE=donedeal` (it means "synced"), `NEXT_PUBLIC_LISTING_SITE`
-  (`DoneDeal`, the default, or `CarsIreland`: what the dashboard calls it) and `NEXT_PUBLIC_DONEDEAL_DEALER_URL` (the dealer's page on
-  that site). Both sites offer a dealer API for the dealer's own site, read the same way. The dashboard's stock is read only and every
-  edit button points to the listing site. The DoneDeal API is licensed to one dealer's own site with their written consent: get that first, then
-  set `DONEDEAL_API_KEY` and `CRON_KEY` (secrets). The sync runs every 15 minutes (`docs/dealer-admin.md`, DoneDeal stock). The adapter
-  that reads DoneDeal's API is written once DoneDeal sends its docs (`src/lib/donedeal/feed.ts`, issue #108). Empty
-  `src/lib/stock/demo-cars*.json` first, so a deploy adds none of the demo cars to a stock that DoneDeal owns.
-- Replace `src/lib/stock/demo-cars.json` and `public/stock/` with photos you have the right to use, or start the D1 `cars` table empty.
-
-### Modules (what the dealer pays for)
-- `NEXT_PUBLIC_SITE_MODULES`: a comma list of the modules the dealer has (ids in `src/lib/modules-rules.ts`), or `all`. Empty means the
-  base site only. Unset means all, so set it for every real dealer. A module's pages answer 404 without it and its links go (#173).
+### Stock, modules and the dashboard (this app)
+- Where the stock comes from (`stock.source`, `stock.listingSite`, `stock.listingUrl`), the modules the dealer pays for (`modules`) and
+  the business rules (`rules`) are the dealer's profile: `docs/new-dealer.md` sets them, and Settings shows them read only. A synced
+  dealer (DoneDeal or CarsIreland) also needs DoneDeal's written consent and their API key (a follow-up: per dealer, not built yet), and
+  `CRON_KEY`. The sync runs every 15 minutes (`docs/dealer-admin.md`, DoneDeal stock).
 - The registration lookup is two modules: `lookupWebsite` and `lookupDashboard` (#180).
 - The prices on the Billing page are the demo's (`src/lib/billing/rules.ts`). Before a real dealer goes live, choose the payment
   provider and how invoices are made, and connect the dealer's prices and bills from the owner's billing program (#181).
-
-### The dashboard
 - It starts empty for a dealer that is not a demo (no made-up leads, reviews or team). Add the dealer and its owner to the directory
   (`docs/new-dealer.md`); the owner then adds the team in Settings, each with a role, then Lead emails.
-- Cloudflare Access: an application for the dashboard's whole domain, allowing only the dealers' staff. Set `CF_ACCESS_TEAM_DOMAIN`,
-  `CF_ACCESS_AUD` and `NEXT_PUBLIC_ACCESS_ENABLED=1`. Without them the dashboard answers 404 (it fails closed).
+- Cloudflare Access: an application for the dashboard's whole domain. Set `CF_ACCESS_TEAM_DOMAIN` and `CF_ACCESS_AUD`. Without them
+  the dashboard answers 404 (it fails closed).
 - Who sees what: the team's roles in Settings (Owner, Manager, Sales, Finance). See `docs/dealer-admin.md`.
-
-### Switches for a real site
-`APP_ENV=production`, `NEXT_PUBLIC_DEMO_BAR=off`. Simulation and demo records then turn off by themselves; a service without keys says
-"not connected" in Settings instead of pretending. Every variable is listed, with what it does, in `.env.example`.
+- `APP_ENV=production` for the deploy: simulation and demo records then turn off by themselves; a service without keys says "not
+  connected" in Settings instead of pretending. The demo bar's switches count for a demo dealer only, whatever the deploy. Every
+  variable is listed, with what it does, in `.env.example`.
 
 ### Outside services
 Each is optional and listed in the dashboard (Settings, Connected services) with the variables still missing: lead email, bot check,
