@@ -58,7 +58,7 @@ describe("on any other dealer", () => {
     expect(await currentMember()).toMatchObject({ role: "Manager" });
     expect([await can("team"), await realCan("team")]).toEqual([true, true]);
     expect(await can("margins")).toBe(false); // a Manager may see margins, but Test Motors' plan has no margins module
-    email = "stranger@dealer.ie";
+    email = "stranger@dealer.example";
     cookie = "Owner";
     expect(await currentMember()).toMatchObject({ role: null });
     expect(await can("settings")).toBe(false);

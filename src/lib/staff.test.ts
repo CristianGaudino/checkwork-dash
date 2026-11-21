@@ -29,13 +29,13 @@ const access = () => {
 describe("who the dashboard is talking to", () => {
   it("is staff with the email Access signed for, never one a header says", async () => {
     access();
-    verify.mockResolvedValueOnce({ email: "Owner@Dealer.ie" });
+    verify.mockResolvedValueOnce({ email: "Owner@Dealer.example" });
     sent = { "cf-access-jwt-assertion": "a.b.c", "x-admin-email": "forged@evil.example" };
-    expect(await staffIdentity()).toEqual({ ok: true, email: "owner@dealer.ie" });
+    expect(await staffIdentity()).toEqual({ ok: true, email: "owner@dealer.example" });
   });
 
   it("is nobody with no token, a forged token, or no Access set up, and an action then answers as if it were not there", async () => {
-    sent = { "x-admin-email": "owner@dealer.ie" };
+    sent = { "x-admin-email": "owner@dealer.example" };
     expect(await staffIdentity()).toEqual({ ok: false });
     access();
     expect(await staffIdentity()).toEqual({ ok: false });
@@ -56,9 +56,9 @@ describe("who the dashboard is talking to", () => {
     bound = true;
     expect(await staffIdentity()).toEqual({ ok: false });
     access();
-    verify.mockResolvedValueOnce({ email: "owner@dealer.ie" });
+    verify.mockResolvedValueOnce({ email: "owner@dealer.example" });
     sent = { "cf-access-jwt-assertion": "a.b.c" };
-    expect(await staffIdentity()).toEqual({ ok: true, email: "owner@dealer.ie" });
+    expect(await staffIdentity()).toEqual({ ok: true, email: "owner@dealer.example" });
   });
 
   it("refuses every action of a dealer whose plan has no dashboard, but still lets the person switch dealer", async () => {
@@ -70,7 +70,7 @@ describe("who the dashboard is talking to", () => {
 
   it("refuses an action from someone Access let in who works at no dealer", async () => {
     access();
-    verify.mockResolvedValueOnce({ email: "stranger@dealer.ie" });
+    verify.mockResolvedValueOnce({ email: "stranger@dealer.example" });
     sent = { "cf-access-jwt-assertion": "a.b.c" };
     await expect(requireStaff()).rejects.toThrow();
   });

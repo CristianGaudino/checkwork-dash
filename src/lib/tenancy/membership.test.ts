@@ -63,7 +63,7 @@ describe("the current dealer for a request", () => {
   });
 
   it("is no dealer at all for someone at none, or not signed in, and the stores then refuse", async () => {
-    email = "stranger@dealer.ie";
+    email = "stranger@dealer.example";
     expect(await dealerAccess()).toEqual({ state: "no-access" });
     await expect(currentDealer()).rejects.toThrow("No current dealer");
     email = undefined;

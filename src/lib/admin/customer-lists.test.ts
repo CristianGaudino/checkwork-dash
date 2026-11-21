@@ -3,14 +3,14 @@ import type { Customer, StockAlert, Subscriber } from "./collections";
 import { filterAlerts, filterCustomers, filterSubscribers } from "./customer-lists";
 
 const people = [
-  { id: "1", name: "Aoife Byrne", email: "aoife@x.ie", phone: "087 1", source: "Website", marketingConsent: true },
-  { id: "2", name: "Conor Hayes", email: "conor@x.ie", phone: "086 2", source: "Phone", marketingConsent: false },
+  { id: "1", name: "Aoife Byrne", email: "aoife@x.example", phone: "087 1", source: "Website", marketingConsent: true },
+  { id: "2", name: "Conor Hayes", email: "conor@x.example", phone: "086 2", source: "Phone", marketingConsent: false },
 ] as unknown as Customer[];
 const alerts = [
-  { id: "a", email: "a@x.ie", criteria: "Ford Focus", kind: "price-drop", active: true, createdAt: 1 },
-  { id: "b", email: "b@x.ie", criteria: "Kia", kind: "back-in-stock", active: false, createdAt: 2 },
+  { id: "a", email: "a@x.example", criteria: "Ford Focus", kind: "price-drop", active: true, createdAt: 1 },
+  { id: "b", email: "b@x.example", criteria: "Kia", kind: "back-in-stock", active: false, createdAt: 2 },
 ] as StockAlert[];
-const subs = [{ id: "s", email: "s@x.ie", status: "subscribed" }, { id: "t", email: "t@x.ie", status: "unsubscribed" }] as unknown as Subscriber[];
+const subs = [{ id: "s", email: "s@x.example", status: "subscribed" }, { id: "t", email: "t@x.example", status: "unsubscribed" }] as unknown as Subscriber[];
 const ids = (rows: { id: string }[]) => rows.map((r) => r.id);
 
 describe("the customer lists, as the page and its export filter them", () => {

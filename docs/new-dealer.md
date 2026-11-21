@@ -5,8 +5,8 @@ Their website, if it is ours, connects with a key the dealer's owner or manager 
 One app serves every dealer. Each dealer has a D1 database of its own (EU jurisdiction), and the directory (`DIRECTORY`) says which dealers
 there are and who works at each. How they are kept apart: `docs/dealer-admin.md`, "Dealers kept apart".
 
-Run these from the repo with a logged-in wrangler (`npx wrangler login`). The id is a slug (`murphy-motors`); its binding is the id in
-capitals with underscores (`DB_MURPHY_MOTORS`).
+Run these from the repo with a logged-in wrangler (`npx wrangler login`). The id is a slug (`example-motors`); its binding is the id in
+capitals with underscores (`DB_EXAMPLE_MOTORS`).
 
 ## Once, for the app
 
@@ -23,13 +23,13 @@ until the owner says so.
 1. Create its database:
 
    ```sh
-   npx wrangler d1 create checkwork-dealer-murphy-motors --jurisdiction eu
+   npx wrangler d1 create checkwork-dealer-example-motors --jurisdiction eu
    ```
 
 2. Bind it: add an entry to `d1_databases` in `wrangler.jsonc`, with `migrations_dir` `drizzle`:
 
    ```jsonc
-   { "binding": "DB_MURPHY_MOTORS", "database_name": "checkwork-dealer-murphy-motors", "database_id": "REPLACE_WITH_ID", "migrations_dir": "drizzle" }
+   { "binding": "DB_EXAMPLE_MOTORS", "database_name": "checkwork-dealer-example-motors", "database_id": "REPLACE_WITH_ID", "migrations_dir": "drizzle" }
    ```
 
    The id stays a placeholder in the repo, as above. Deploy, so the Worker has the binding.
@@ -40,16 +40,16 @@ until the owner says so.
 
    ```json
    {
-     "siteUrl": "https://www.murphymotors.ie",
+     "siteUrl": "https://www.example.com",
      "phone": "+353 45 000 000",
-     "email": "sales@murphymotors.ie",
+     "email": "sales@example.com",
      "address": { "street": "Main Street", "town": "Naas", "county": "Co. Kildare", "eircode": "W91 XXXX" },
      "hours": [{ "day": "Monday", "opens": "09:00", "closes": "18:00" }, { "day": "Tuesday", "opens": "09:00", "closes": "18:00" }, { "day": "Wednesday", "opens": "09:00", "closes": "18:00" }, { "day": "Thursday", "opens": "09:00", "closes": "18:00" }, { "day": "Friday", "opens": "09:00", "closes": "18:00" }, { "day": "Saturday", "opens": "10:00", "closes": "16:00" }, { "day": "Sunday" }],
-     "logo": { "onLight": "/brand/murphy-motors/logo-on-light.svg", "onDark": "/brand/murphy-motors/logo.svg" },
+     "logo": { "onLight": "/brand/example-motors/logo-on-light.svg", "onDark": "/brand/example-motors/logo.svg" },
      "modules": "dashboard,testDrives,sales,reviews",
      "stock": { "source": "checkwork" },
      "rules": { "oldStockDays": 90 },
-     "leadEmail": "sales@murphymotors.ie"
+     "leadEmail": "sales@example.com"
    }
    ```
 
@@ -62,7 +62,7 @@ until the owner says so.
 4. Apply the dealer migrations to its database and add the dealer, with its profile and first owner, to the directory:
 
    ```sh
-   node scripts/add-dealer.mjs murphy-motors "Murphy Motors" owner@example.com --remote --profile=murphy-motors.json
+   node scripts/add-dealer.mjs example-motors "Example Motors" owner@example.com --remote --profile=example-motors.json
    ```
 
    `--demo` makes it a demo dealer (made-up records, the morning reset, the demo bar's switches, and the made-up team so the bar's roles
@@ -85,7 +85,7 @@ the fields to change in a JSON file and merge it in. A field given replaces that
 one level down, `null` removes a field; the rest stays. Each page and job reads it on its next request.
 
 ```sh
-node scripts/dealer-profile.mjs murphy-motors plan.json --remote
+node scripts/dealer-profile.mjs example-motors plan.json --remote
 ```
 
 with, for example, `plan.json` holding `{ "modules": "all" }` for the Group plan, or `{ "stock": { "source": "donedeal" } }` once
@@ -96,5 +96,5 @@ their DoneDeal sync is connected.
 Set its `status` to `paused` in the directory. Nobody can open it and no job runs for it; its database is kept.
 
 ```sh
-npx wrangler d1 execute DIRECTORY --remote --command "UPDATE dealers SET status = 'paused' WHERE id = 'murphy-motors'"
+npx wrangler d1 execute DIRECTORY --remote --command "UPDATE dealers SET status = 'paused' WHERE id = 'example-motors'"
 ```

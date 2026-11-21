@@ -9,7 +9,7 @@ import { DEALER_ID, directoryRows, readProfile, sqlText as q, target } from "./d
 const args = process.argv.slice(2);
 const [id, file] = args.filter((a) => !a.startsWith("--"));
 const where = target(args);
-if (!id || !DEALER_ID.test(id)) throw new Error("Give the dealer id, a slug like murphy-motors");
+if (!id || !DEALER_ID.test(id)) throw new Error("Give the dealer id, a slug like example-motors");
 if (!file) throw new Error("Give the JSON file with the profile fields to change");
 const patch = readProfile(file);
 // RETURNING says whether the dealer was there: an id the directory does not have changes nothing, and says so.

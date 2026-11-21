@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { listingHref } from "./stock-source-rules";
 
-const DEALER_PAGE = "https://www.donedeal.ie/dealer/murphy-motors";
+const DEALER_PAGE = "https://www.donedeal.ie/dealer/example-motors";
 
 describe("listingHref", () => {
   it("uses a car's own https ad on DoneDeal", () => {

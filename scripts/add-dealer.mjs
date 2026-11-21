@@ -13,8 +13,8 @@ const where = target(args);
 const demo = args.includes("--demo");
 const profileFile = args.find((a) => a.startsWith("--profile="))?.slice("--profile=".length);
 const profile = profileFile ? readProfile(profileFile) : "{}"; // read first: a bad file stops before anything is written
-if (!id || !DEALER_ID.test(id) || id.length > 64) throw new Error("The dealer id is a slug: lower case letters, digits and single dashes, e.g. murphy-motors");
-if (!name?.trim()) throw new Error('Give the dealer\'s name, in quotes: "Murphy Motors"');
+if (!id || !DEALER_ID.test(id) || id.length > 64) throw new Error("The dealer id is a slug: lower case letters, digits and single dashes, e.g. example-motors");
+if (!name?.trim()) throw new Error('Give the dealer\'s name, in quotes: "Example Motors"');
 if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email ?? "")) throw new Error("Give the owner's email");
 const binding = bindingOf(id);
 if (!dealerBindings().includes(binding)) throw new Error(`Bind ${binding} in wrangler.jsonc first (docs/new-dealer.md)`);

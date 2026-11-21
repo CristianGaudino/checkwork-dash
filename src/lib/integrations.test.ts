@@ -26,9 +26,9 @@ describe("integrations", () => {
     expect(INTEGRATIONS.filter((i) => i.env.length === 0).map((i) => i.id)).toEqual(["email"]);
   });
   it("puts the dealer's name and listing site in a service's words", () => {
-    const dd = integrationText(INTEGRATIONS.find((i) => i.id === "donedeal")!, { name: "Murphy Motors", site: "CarsIreland" });
-    expect([dd.name, dd.demoAccount]).toEqual(["CarsIreland stock", "Murphy Motors on CarsIreland"]);
-    expect(integrationText(INTEGRATIONS.find((i) => i.id === "social")!, { name: "Murphy Motors", site: "DoneDeal" }).demoAccount).toBe("@murphymotors");
+    const dd = integrationText(INTEGRATIONS.find((i) => i.id === "donedeal")!, { name: "Example Motors", site: "CarsIreland" });
+    expect([dd.name, dd.demoAccount]).toEqual(["CarsIreland stock", "Example Motors on CarsIreland"]);
+    expect(integrationText(INTEGRATIONS.find((i) => i.id === "social")!, { name: "Example Motors", site: "DoneDeal" }).demoAccount).toBe("@examplemotors");
   });
 });
 

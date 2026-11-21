@@ -49,7 +49,7 @@ describe("the dashboard gate in the proxy", () => {
     vi.stubEnv("APP_ENV", "demo");
     vi.stubEnv("CF_ACCESS_TEAM_DOMAIN", "team.cloudflareaccess.com");
     vi.stubEnv("CF_ACCESS_AUD", "aud");
-    verify.mockResolvedValueOnce({ email: "owner@dealer.ie" });
+    verify.mockResolvedValueOnce({ email: "owner@dealer.example" });
     expect((await get("/margins", { "cf-access-jwt-assertion": "a.b.c" })).status).toBe(200);
     verify.mockResolvedValueOnce(null);
     expect((await get("/", { "cf-access-jwt-assertion": "a.b.c", "x-admin-email": "forged@evil.example" })).status).toBe(404);

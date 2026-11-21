@@ -11,10 +11,10 @@ const { digestGroups, sendFollowUpDigest } = await import("./follow-up-digest");
 const { leadsStore, settingsStore, getSettings } = await import("./collections");
 
 const team: TeamMember[] = [
-  { id: "1", name: "Aoife", email: "aoife@x.ie", role: "Owner" },
-  { id: "2", name: "Conor", email: "conor@x.ie", role: "Sales" },
-  { id: "3", name: "Ciara", email: "ciara@x.ie", role: "Manager" },
-  { id: "4", name: "Niamh", email: "niamh@x.ie", role: "Finance" },
+  { id: "1", name: "Aoife", email: "aoife@x.example", role: "Owner" },
+  { id: "2", name: "Conor", email: "conor@x.example", role: "Sales" },
+  { id: "3", name: "Ciara", email: "ciara@x.example", role: "Manager" },
+  { id: "4", name: "Niamh", email: "niamh@x.example", role: "Finance" },
 ];
 const lead = (id: string, o: Partial<Lead>) => ({ id, status: "contacted", ...o }) as Lead;
 
@@ -32,7 +32,7 @@ describe("digestGroups", () => {
       team,
       "2026-11-11",
     );
-    expect(Object.fromEntries([...g].map(([k, v]) => [k, v.map((l) => l.id)]))).toEqual({ "conor@x.ie": ["mine", "late"], "aoife@x.ie": ["nobody", "gone"], "ciara@x.ie": ["nobody", "gone"] });
+    expect(Object.fromEntries([...g].map(([k, v]) => [k, v.map((l) => l.id)]))).toEqual({ "conor@x.example": ["mine", "late"], "aoife@x.example": ["nobody", "gone"], "ciara@x.example": ["nobody", "gone"] });
   });
 });
 

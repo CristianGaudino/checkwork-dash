@@ -35,7 +35,7 @@ describe("test drive agenda", () => {
     const list = [
       drive("a", at(10, 11), { name: "Aoife Byrne", phone: "087 111", status: "completed", assignedTo: "Conor" }),
       drive("b", at(12, 11), { name: "Ben Hayes", carTitle: "Kia Niro", status: "requested" }),
-      drive("c", at(13, 11), { name: "Cara Lee", email: "cara@x.ie", assignedTo: "Ciara" }),
+      drive("c", at(13, 11), { name: "Cara Lee", email: "cara@x.example", assignedTo: "Ciara" }),
     ];
     const ids = (f: Parameters<typeof filterDrives>[1]) => filterDrives(list, f, now).map((d) => d.id);
     expect(ids({})).toEqual(["a", "b", "c"]);

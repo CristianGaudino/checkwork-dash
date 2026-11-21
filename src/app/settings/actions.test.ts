@@ -23,14 +23,14 @@ const form = (o: Record<string, string>) => Object.entries(o).reduce((f, [k, v])
 
 describe("business details", () => {
   const HOURS = Object.fromEntries([0, 1, 2, 3, 4].flatMap((i) => [[`opens${i}`, "09:00"], [`closes${i}`, "17:30"]]));
-  const facts = { name: "Checkwork Motors", siteUrl: "https://www.example.ie/", phone: "01 234 5678", email: "sales@example.ie", street: "Main Street", town: "Naas", county: "Co. Kildare", eircode: "W91 X2Y3", ...HOURS };
+  const facts = { name: "Checkwork Motors", siteUrl: "https://www.example.com/", phone: "01 234 5678", email: "sales@example.com", street: "Main Street", town: "Naas", county: "Co. Kildare", eircode: "W91 X2Y3", ...HOURS };
 
   it("lets an owner or manager change the dealer's own facts in the directory, and logs it; the plan stays ours", async () => {
     role = "Manager";
     const before = (await listActivity({ area: "settings" }, 1, 1)).total;
     expect(await saveBusinessAction(undefined, form(facts))).toEqual({ saved: true });
     const d = (await dealerById("checkwork-motors"))!;
-    expect(d.profile).toMatchObject({ siteUrl: "https://www.example.ie", phone: "01 234 5678", address: { town: "Naas" }, modules: "all" });
+    expect(d.profile).toMatchObject({ siteUrl: "https://www.example.com", phone: "01 234 5678", address: { town: "Naas" }, modules: "all" });
     expect(d.profile.hours[0]).toEqual({ day: "Monday", opens: "09:00", closes: "17:30" });
     expect(d.profile.hours[6]).toEqual({ day: "Sunday" });
     expect((await listActivity({ area: "settings" }, 1, 1)).rows[0]).toMatchObject({ summary: "Changed the business details" });
@@ -41,7 +41,7 @@ describe("business details", () => {
     role = "Sales";
     expect((await saveBusinessAction(undefined, form(facts)))?.errors?.name).toMatch(/owner or manager/);
     role = "Owner";
-    expect((await saveBusinessAction(undefined, form({ ...facts, siteUrl: "http://www.example.ie" })))?.errors?.siteUrl).toBeTruthy();
+    expect((await saveBusinessAction(undefined, form({ ...facts, siteUrl: "http://www.example.com" })))?.errors?.siteUrl).toBeTruthy();
     expect((await saveBusinessAction(undefined, form({ ...facts, opens1: "18:00" })))?.errors?.opens1).toBeTruthy();
     expect((await saveBusinessAction(undefined, form({ ...facts, closes2: "" })))?.errors?.opens2).toBeTruthy();
     expect((await dealerById("checkwork-motors"))!.profile.phone).toBe("+353 1 906 0045"); // nothing saved
@@ -143,7 +143,7 @@ describe("lead emails", () => {
   });
   it("refuses a bad address or more than five, and changes nothing", async () => {
     expect((await saveLeadEmailsAction(undefined, form({ leadEmails: "ok@example.com nope" })))?.errors?.leadEmails).toMatch(/not a valid email/);
-    expect((await saveLeadEmailsAction(undefined, form({ leadEmails: "1@e.com 2@e.com 3@e.com 4@e.com 5@e.com 6@e.com" })))?.errors?.leadEmails).toMatch(/5 addresses or fewer/);
+    expect((await saveLeadEmailsAction(undefined, form({ leadEmails: "1@example.com 2@example.com 3@example.com 4@example.com 5@example.com 6@example.com" })))?.errors?.leadEmails).toMatch(/5 addresses or fewer/);
     expect((await getSettings()).leadEmails).toEqual([]);
   });
 });
@@ -187,9 +187,9 @@ describe("the other settings", () => {
   });
 
   it("takes up to five lead email addresses, each once, and refuses a bad one", async () => {
-    expect((await saveLeadEmailsAction(undefined, form({ leadEmails: "a@x.ie, A@x.ie\nb@x.ie" })))?.saved).toBe(true);
-    expect((await getSettings()).leadEmails).toEqual(["a@x.ie", "b@x.ie"]);
-    expect((await saveLeadEmailsAction(undefined, form({ leadEmails: "a@x.ie b@x.ie c@x.ie d@x.ie e@x.ie f@x.ie" })))?.errors?.leadEmails).toBe("Use 5 addresses or fewer");
+    expect((await saveLeadEmailsAction(undefined, form({ leadEmails: "a@x.example, A@x.example\nb@x.example" })))?.saved).toBe(true);
+    expect((await getSettings()).leadEmails).toEqual(["a@x.example", "b@x.example"]);
+    expect((await saveLeadEmailsAction(undefined, form({ leadEmails: "a@x.example b@x.example c@x.example d@x.example e@x.example f@x.example" })))?.errors?.leadEmails).toBe("Use 5 addresses or fewer");
     expect((await saveLeadEmailsAction(undefined, form({ leadEmails: "not-an-email" })))?.errors?.leadEmails).toMatch(/is not a valid email$/);
   });
 

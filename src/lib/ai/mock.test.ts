@@ -84,18 +84,18 @@ describe("the demo writer", () => {
 
 describe("what goes to the AI provider", () => {
   it("takes phone numbers and emails out of a customer's message", () => {
-    expect(noContacts("Call 087 123 4567 or +353 87 765 4321, or mail pat.b@example.ie. Is the 2019 car still there?")).toBe("Call [phone] or [phone], or mail [email]. Is the 2019 car still there?");
-    expect(noContacts("Ring 087/1234567 or (087) 123 4567, mail seán.óg@example.ie")).toBe("Ring [phone] or [phone], mail [email]");
+    expect(noContacts("Call 087 123 4567 or +353 87 765 4321, or mail pat.b@example.com. Is the 2019 car still there?")).toBe("Call [phone] or [phone], or mail [email]. Is the 2019 car still there?");
+    expect(noContacts("Ring 087/1234567 or (087) 123 4567, mail seán.óg@example.com")).toBe("Ring [phone] or [phone], mail [email]");
   });
   it("keeps registrations, dates, times, budgets, mileage and prices", () => {
     const kept = "191-D-12345, 06-D-1234567, 22-11-2026, 23.11.2026, Saturday 10.30 - 11.30, 2019 2020 model, 85,000 km, 120 000 km, €12,500";
     expect(noContacts(kept)).toBe(kept);
-    for (const t of ["Can I view it on 14/06/2025 14:00?", "192 Toyota 2019 2020 2021", "Write to me (pat@x.ie) today"]) expect(noContacts(t)).toBe(t.replace("pat@x.ie", "[email]"));
+    for (const t of ["Can I view it on 14/06/2025 14:00?", "192 Toyota 2019 2020 2021", "Write to me (pat@x.example) today"]) expect(noContacts(t)).toBe(t.replace("pat@x.example", "[email]"));
   });
   it("puts the dealer's own number and email back after an adjust, in order", () => {
-    const m = maskContacts("Sales 01 111 2222, Service 01 333 4444, mail sales@dealer.ie", true);
+    const m = maskContacts("Sales 01 111 2222, Service 01 333 4444, mail sales@dealer.example", true);
     expect(m.text).toBe("Sales [phone 1], Service [phone 2], mail [email 1]");
-    expect(unmaskContacts("For a service, call [phone 2] or email [email 1].", m)).toBe("For a service, call 01 333 4444 or email sales@dealer.ie.");
+    expect(unmaskContacts("For a service, call [phone 2] or email [email 1].", m)).toBe("For a service, call 01 333 4444 or email sales@dealer.example.");
     // A customer's number, masked plain in the facts, never gets the dealer's
     expect(unmaskContacts("We'll ring you on [phone]. Or call us on [phone 1].", m)).toBe("We'll ring you on [phone]. Or call us on 01 111 2222.");
   });
