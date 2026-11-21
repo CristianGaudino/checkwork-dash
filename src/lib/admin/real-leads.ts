@@ -3,7 +3,7 @@ import { DETAIL_LABELS } from "@/lib/leads/schema";
 import { ANSWER_KEYS, readable } from "@/lib/leads/contact-topics";
 import type { LeadRow } from "@/lib/leads/store";
 import { clashes } from "./drives";
-import { ALERT_KINDS, LEAD_TYPE_LABELS, alertsStore, getSettings, customersStore, drivesStore, leadsStore, type AlertKind, type Customer, type Lead, type LeadType, type StockAlert, type TestDrive } from "./collections";
+import { ALERT_KINDS, alertsStore, getSettings, customersStore, drivesStore, leadsStore, type AlertKind, type Customer, type Lead, type LeadType, type StockAlert, type TestDrive } from "./collections";
 import { dublinMs } from "./format";
 import { noticeOfLead, notify } from "./notifications";
 import { MINUTE } from "@/lib/time";
@@ -90,7 +90,7 @@ export async function mirrorLead(row: LeadRow, emailed = true, photos = 0): Prom
     const known = await customersStore.get(id);
     const c: Customer = known ?? { id, name: row.name, email: row.email ?? "", phone: row.phone ?? "", source: "Website", marketingConsent: false, createdAt: row.consentAt.getTime(), lastContactAt: 0 };
     await customersStore.put({ ...c, lastContactAt: row.consentAt.getTime() });
-    await notify(noticeOfLead(m.lead, Boolean(m.drive), m.drive?.id), row.consentAt.getTime(), m.lead.carTitle ?? LEAD_TYPE_LABELS[m.lead.type]);
+    await notify(noticeOfLead(m.lead, m.drive), row.consentAt.getTime());
     await alertStaffOnWhatsApp(m.lead);
   }
 }

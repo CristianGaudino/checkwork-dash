@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
-const { notify } = await import("@/lib/admin/notifications");
+const { noticeOfLead, notify } = await import("@/lib/admin/notifications");
+const { LEAD_TYPES } = await import("@/lib/admin/collections");
 const { pushStore, pushToTeam, validSub, deviceLabel } = await import("./index");
 const { b64u, ecJwk, unb64u } = await import("./webpush");
 const { runAsDealer } = await import("@/lib/tenancy/current");
@@ -56,27 +57,52 @@ const to = () => sent.map((s) => s.url.split("/").pop()!.split("-")[0]).sort();
 
 describe("push notifications follow the bell", () => {
   it("sends a new website request to everyone still on the team, saying what happened and the car only", async () => {
-    await notify({ kind: "lead", text: "Car enquiry: 2019 Kia Soul", href: "/leads/real-1" }, Date.now(), "2019 Kia Soul");
+    await notify({ kind: "lead", text: "Car enquiry", detail: "2019 Kia Soul", href: "/leads/real-1" });
     expect(to()).toEqual(["aoife", "conor"]);
-    expect(await open(phones.aoife, sent.find((s) => s.url === phones.aoife.endpoint)!.body)).toEqual({ title: "New enquiry", body: "Checkwork Motors: 2019 Kia Soul", url: "/dealers/open?dealer=checkwork-motors&to=%2Fleads%2Freal-1" });
+    expect(await open(phones.aoife, sent.find((s) => s.url === phones.aoife.endpoint)!.body)).toEqual({ title: "Car enquiry", body: "Checkwork Motors: 2019 Kia Soul", url: "/dealers/open?dealer=checkwork-motors&to=%2Fleads%2Freal-1" });
     sent = [];
-    await notify({ kind: "drive", text: "Test drive request: 2019 Kia Soul", href: "/test-drives/real-2" }, Date.now(), "2019 Kia Soul");
+    await notify({ kind: "drive", text: "Test drive request", detail: "2019 Kia Soul", href: "/test-drives/real-2" });
     expect(await open(phones.conor, sent.find((s) => s.url === phones.conor.endpoint)!.body)).toMatchObject({ title: "Test drive request", url: "/dealers/open?dealer=checkwork-motors&to=%2Ftest-drives%2Freal-2" });
   });
 
   it("sends a lead given to someone to that person alone", async () => {
-    await notify({ kind: "assigned", for: "Conor Doyle", text: "Aoife Brennan gave you a lead: Finance", href: "/leads/l9" }, Date.now(), "2019 Kia Soul");
+    await notify({ kind: "assigned", for: "Conor Doyle", text: "Aoife Brennan gave you a lead", detail: "Finance application · 2019 Kia Soul", href: "/leads/l9" });
     expect(to()).toEqual(["conor"]);
-    expect(await open(phones.conor, sent[0].body)).toEqual({ title: "A lead for you", body: "Checkwork Motors: 2019 Kia Soul", url: "/dealers/open?dealer=checkwork-motors&to=%2Fleads%2Fl9" });
+    expect(await open(phones.conor, sent[0].body)).toEqual({ title: "Aoife Brennan gave you a lead", body: "Checkwork Motors: Finance application · 2019 Kia Soul", url: "/dealers/open?dealer=checkwork-motors&to=%2Fleads%2Fl9" });
   });
 
   it("sends nothing for the bell's other kinds, or with no keys set", async () => {
-    await notify({ kind: "sync", text: "The DoneDeal stock did not update", href: "/stock" }, Date.now(), "x");
-    await notify({ kind: "warranty", text: "Warranty request", href: "/aftersales/requests/w" }, Date.now(), "x");
+    await notify({ kind: "sync", text: "DoneDeal stock did not update", href: "/stock" });
+    await notify({ kind: "warranty", text: "Warranty request", href: "/aftersales/requests/w" });
     expect(sent).toEqual([]);
     vi.stubEnv("VAPID_PRIVATE_KEY", "");
-    await notify({ kind: "lead", text: "Car enquiry", href: "/leads/x" }, Date.now(), "Car enquiry");
+    await notify({ kind: "lead", text: "Car enquiry", href: "/leads/x" });
     expect(sent).toEqual([]);
+  });
+});
+
+describe("what a website request says on the lock screen", () => {
+  it("names the kind and what it is about for every kind of lead, never the customer", async () => {
+    const customer = { name: "Sean O'Brien", email: "sean@example.ie", phone: "087 123 4567" };
+    for (const type of LEAD_TYPES) {
+      sent = [];
+      const n = noticeOfLead({ id: `real-${type}`, type, carTitle: "2020 Audi A3 1.6 TDI", ...customer });
+      await notify(n);
+      if (type === "warranty") {
+        expect(sent).toEqual([]); // stays in the bell
+        continue;
+      }
+      const push = await open(phones.aoife, sent.find((s) => s.url === phones.aoife.endpoint)!.body);
+      expect(push.title).toBe(n.text);
+      expect(push.title).not.toBe("General");
+      expect(push.body).toBe("Checkwork Motors: 2020 Audi A3 1.6 TDI");
+      expect(JSON.stringify(push)).not.toMatch(/Sean|sean@|087/);
+    }
+  });
+
+  it("gives a contact form message its topic and answers, as the leads list tags them", async () => {
+    await notify(noticeOfLead({ id: "real-m", type: "general", topic: "buying", answers: { timing: "this-week", hasTradeIn: "yes", contactVia: "call" } }));
+    expect(await open(phones.aoife, sent.find((s) => s.url === phones.aoife.endpoint)!.body)).toMatchObject({ title: "Message", body: "Checkwork Motors: Buying, this week, trade-in" });
   });
 });
 
@@ -100,11 +126,11 @@ describe("nothing personal in the logs", () => {
     const lines: string[] = [];
     for (const level of ["log", "warn", "error", "info"] as const) vi.spyOn(console, level).mockImplementation((...a: unknown[]) => void lines.push(a.map(String).join(" ")));
     status = 500;
-    await notify({ kind: "lead", text: "Car enquiry: 2019 Kia Soul", href: "/leads/real-1" }, Date.now(), "2019 Kia Soul");
+    await notify({ kind: "lead", text: "Car enquiry", detail: "2019 Kia Soul", href: "/leads/real-1" });
     vi.stubGlobal("fetch", async () => {
       throw new Error(`could not reach ${phones.aoife.endpoint}`);
     });
-    await notify({ kind: "lead", text: "Car enquiry: 2019 Kia Soul", href: "/leads/real-1" }, Date.now(), "2019 Kia Soul");
+    await notify({ kind: "lead", text: "Car enquiry", detail: "2019 Kia Soul", href: "/leads/real-1" });
     expect(lines.length).toBeGreaterThan(0);
     for (const l of lines) {
       expect(l).not.toMatch(/secret-endpoint|fcm\.googleapis|example\.com|Kia/);
@@ -119,7 +145,7 @@ describe("dealers kept apart", () => {
     await runAsDealer("test-motors", async () => {
       expect(await pushStore.list()).toEqual([]);
       await pushStore.put({ id: "push-b", email: "aoife@example.com", endpoint: "https://fcm.googleapis.com/fcm/send/b-secret-endpoint", keys: phones.aoife.keys, label: "Mac", addedAt: 0 });
-      await notify({ kind: "lead", text: "Car enquiry", href: "/leads/x" }, Date.now(), "Car enquiry");
+      await notify({ kind: "lead", text: "Car enquiry", href: "/leads/x" });
     });
     expect(sent).toEqual([]); // Test Motors' team is empty: Aoife works at Checkwork Motors
     expect((await pushStore.list()).map((s) => s.id).sort()).toEqual(["push-aoife", "push-conor", "push-gone"]);

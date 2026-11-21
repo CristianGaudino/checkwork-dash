@@ -50,7 +50,7 @@ export async function addRequest(r: Omit<HelpRequest, "id" | "status" | "at">): 
   const full: HelpRequest = { ...r, id: newId("help"), status: "received", at: Date.now() };
   await helpStore.put(full);
   // ADAPTER GOES HERE: email the request to support and send it to the owner's program. The demo sends nothing outside.
-  await notify({ kind: "help", text: `We got your request: ${r.type}`, href: "/help", for: r.name });
+  await notify({ kind: "help", text: "Checkwork got your message", detail: `${r.type}: ${r.message.slice(0, 120)}`, href: "/help", for: r.name });
   return full;
 }
 

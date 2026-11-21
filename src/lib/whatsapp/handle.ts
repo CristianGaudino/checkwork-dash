@@ -11,7 +11,7 @@ import { HOUR } from "@/lib/time";
 import { listing, stockSource } from "@/lib/stock-source";
 import { currentDealer } from "@/lib/tenancy/current";
 import { isSold } from "@/lib/stock/types";
-import { notify } from "@/lib/admin/notifications";
+import { leadLine, notify } from "@/lib/admin/notifications";
 import { enabledModules } from "@/lib/modules";
 import { sendWhatsApp } from "./send";
 import { addMessage, messagesStore, staffStore, type Msg } from "./store";
@@ -64,7 +64,7 @@ async function toBuyer(lead: Lead, to: string, text: string, answer?: string): P
     await addMessage({ thread: "buyer", from: "buyer", leadId: lead.id, text: answer, at });
     // The answer lands on the lead and in the bell now, dated when it arrives, so reading the conversation never writes.
     await leadsStore.update(lead.id, (cur) => ({ ...cur, notes: [...cur.notes, { at, text: `Replied on WhatsApp: "${answer}"`, auto: true }] }));
-    await notify({ kind: "whatsapp", text: "A buyer replied on WhatsApp", href: `/leads/${lead.id}` }, at);
+    await notify({ kind: "whatsapp", text: "A buyer replied on WhatsApp", detail: leadLine(lead), href: `/leads/${lead.id}` }, at);
     await say(to, { leadId: lead.id, text: `${firstName(lead.name)} replied: "${answer}"`, buttons: ["call", "handled"] }, at);
   }
   return by;

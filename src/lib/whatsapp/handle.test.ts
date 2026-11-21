@@ -49,7 +49,7 @@ vi.mock("@/lib/admin/stock-admin", () => ({ adminCar: async () => db.car, adminC
 vi.mock("@/lib/stock-source", () => ({ stockSource: async () => db.source, listing: async () => ({ site: "DoneDeal", url: "https://www.donedeal.ie/" }) }));
 const sent = vi.hoisted(() => [] as Record<string, unknown>[]);
 vi.mock("./send", () => ({ sendWhatsApp: async (m: Record<string, unknown>, _kind: string, o?: { email?: boolean }) => (sent.push(m), { ...m, ...(o?.email && { via: "email" }) }) }));
-vi.mock("@/lib/admin/notifications", () => ({ notify: async () => {} }));
+vi.mock("@/lib/admin/notifications", () => ({ notify: async () => {}, leadLine: () => "" }));
 vi.mock("./store", () => ({
   messagesStore: { get: async (id: string) => db.msgs.get(id), put: async (m: { id: string }) => void db.msgs.set(m.id, m), list: async () => [...db.msgs.values()] },
   staffStore: { list: async () => [{ id: "t1", name: "Aoife", phone: db.phone, alerts: [], quietFrom: "", quietTo: "" }] },
