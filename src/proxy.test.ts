@@ -53,4 +53,12 @@ describe("what the gate covers", () => {
     expect(gated("/leads")).toBe(true);
     expect(gated("/settings")).toBe(true);
   });
+  it("gates the stock pages, and leaves out only the seeded car photos in public/stock", () => {
+    expect(gated("/stock")).toBe(true);
+    expect(gated("/stock/123")).toBe(true);
+    expect(gated("/stock/new")).toBe(true);
+    expect(gated("/stock/export")).toBe(true);
+    expect(gated("/stock/123/reserve")).toBe(true);
+    expect(gated("/stock/4710001/1-b1b37b33.webp")).toBe(false);
+  });
 });

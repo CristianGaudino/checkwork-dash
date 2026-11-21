@@ -25,7 +25,8 @@ export async function proxy(req: NextRequest) {
 }
 
 // Every page. Not the routes that check their own key (api: CRON_KEY, the owner token or a website key, /api/site; the photo and media
-// routes) nor the static files (Next's own, the car photos and the brand files in public/).
+// routes) nor the static files (Next's own, the seeded car photos in public/stock/<id>/*.webp, and the brand files in public/). Only the photo
+// files: the stock pages under /stock are gated like any other.
 export const config = {
-  matcher: ["/((?!api/|car-photos/|media-files/|lead-photos/|_next/|stock/|brand/|brands/|icon\\.|favicon\\.ico).*)"],
+  matcher: ["/((?!api/|car-photos/|media-files/|lead-photos/|_next/|stock/[^/]+/[^/]+\\.webp|brand/|brands/|icon\\.|favicon\\.ico).*)"],
 };
