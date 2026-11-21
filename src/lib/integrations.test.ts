@@ -1,0 +1,60 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("server-only", () => ({}));
+const { INTEGRATIONS, integrationText, isConnected, missingEnv } = await import("./integrations");
+
+afterEach(() => vi.unstubAllEnvs());
+
+describe("integrations", () => {
+  it("is not connected until every setting is present, and says which are missing", () => {
+    const social = INTEGRATIONS.find((i) => i.id === "social")!;
+    expect(isConnected("social")).toBe(false);
+    expect(missingEnv(social)).toEqual(social.env);
+    vi.stubEnv("META_PAGE_ID", "1");
+    vi.stubEnv("META_PAGE_ACCESS_TOKEN", "x");
+    expect(isConnected("social")).toBe(false);
+    expect(missingEnv(social)).toEqual(["META_INSTAGRAM_ID"]);
+    vi.stubEnv("META_INSTAGRAM_ID", "2");
+    expect(isConnected("social")).toBe(true);
+  });
+  it("treats an empty value as missing", () => {
+    vi.stubEnv("CARTELL_API_KEY", "");
+    expect(isConnected("reglookup")).toBe(false);
+  });
+  it("lists each service once, each with a setting but lead email, whose addresses are the dealer's (their profile, Settings)", () => {
+    expect(new Set(INTEGRATIONS.map((i) => i.id)).size).toBe(INTEGRATIONS.length);
+    expect(INTEGRATIONS.filter((i) => i.env.length === 0).map((i) => i.id)).toEqual(["email"]);
+  });
+  it("puts the dealer's name and listing site in a service's words", () => {
+    const dd = integrationText(INTEGRATIONS.find((i) => i.id === "donedeal")!, { name: "Example Motors", site: "CarsIreland" });
+    expect([dd.name, dd.demoAccount]).toEqual(["CarsIreland stock", "Example Motors on CarsIreland"]);
+    expect(integrationText(INTEGRATIONS.find((i) => i.id === "social")!, { name: "Example Motors", site: "DoneDeal" }).demoAccount).toBe("@examplemotors");
+  });
+});
+
+// Unit tests act for the demo dealer (vitest.setup.ts); runAsDealer("test-motors") is a dealer that is not a demo.
+describe("simulation follows the dealer, never the deploy", () => {
+  const META = ["META_PAGE_ID", "META_PAGE_ACCESS_TOKEN", "META_INSTAGRAM_ID"];
+  it("a demo dealer simulates every outward service, keys or not, so it never sends anything real; reviews show their true state", async () => {
+    const { modeOf, simulating } = await import("./integrations");
+    vi.stubEnv("APP_ENV", "production");
+    expect(await simulating()).toBe(true);
+    expect(await modeOf("social")).toBe("simulated");
+    for (const k of META) vi.stubEnv(k, "x");
+    expect(await modeOf("social")).toBe("simulated");
+    vi.stubEnv("GOOGLE_PLACES_API_KEY", "");
+    expect(await modeOf("reviews")).toBe("off");
+  });
+  it("a real dealer never simulates: off without keys, live with them", async () => {
+    const { modeOf, simulating } = await import("./integrations");
+    const { runAsDealer } = await import("@/lib/tenancy/current");
+    vi.stubEnv("APP_ENV", "production");
+    await runAsDealer("test-motors", async () => {
+      expect(await simulating()).toBe(false);
+      expect(await modeOf("social")).toBe("off");
+      expect(await modeOf("whatsapp")).toBe("off");
+      for (const k of META) vi.stubEnv(k, "x");
+      expect(await modeOf("social")).toBe("live");
+    });
+  });
+});

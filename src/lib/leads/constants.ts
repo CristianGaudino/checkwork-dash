@@ -1,0 +1,81 @@
+import { isBankHoliday } from "../bank-holidays";
+import type { Hours } from "../tenancy/profile";
+import { addDays, addMonths, dublinDay } from "../admin/format";
+
+// What the lead forms and the server share. No zod here: client components import this file, and pulling in
+// schema.ts would ship zod to every car page.
+
+// Change the version whenever the text changes: every lead stores the version it was sent under (D-06). The dealer's name goes in.
+export const CONSENT = { version: "2026-11-10", text: (dealer: string) => `I agree to ${dealer} using these details to reply to my request.` } as const;
+// D-04: leads are kept this long, then deleted by the daily purge (worker.mjs, docs/lead-retention.md). The dealer must confirm
+// the period; /privacy and docs/lead-retention.md state it, so change all three together.
+export const LEAD_RETENTION_MONTHS = 12;
+// A sale record names its buyer: kept this many years (Irish business records), then the buyer is removed (src/lib/admin/sales-purge.ts).
+export const SALE_KEEP_YEARS = 6;
+export const LIMITS = { name: 100, phone: 30, email: 200, message: 1000 } as const;
+const BAD_PHONE = "Enter a phone number we can call, like 087 123 4567.";
+const BAD_IRISH_PHONE = "Irish numbers have 7 to 9 digits after +353, like 87 123 4567.";
+
+/** Checks a phone number. Returns the message to show, or undefined if it is fine. Used by the server and, through it, the form. */
+export function phoneError(v: string): string | undefined {
+  if (!/^\+?[0-9 ()-]+$/.test(v)) return BAD_PHONE;
+  const digits = v.replace(/\D/g, "");
+  if (digits.length < 7 || digits.length > 15) return BAD_PHONE; // E.164 allows at most 15 digits
+  if (v.startsWith("+353")) {
+    const national = digits.slice(3).replace(/^0/, "");
+    if (national.length < 7 || national.length > 9) return BAD_IRISH_PHONE;
+  }
+}
+
+// The kinds of car a find-a-car request can name, and what it says when make, model and type are all empty.
+export const SOURCING_BODIES = ["Hatchback", "Saloon", "Estate", "SUV", "Coupe", "Convertible", "MPV", "Pickup", "Van"] as const;
+export const SOURCING_CAR_ERROR = "Add a make, a model or a type of car.";
+export const CONTACT_ERROR = "Add a phone number or an email.";
+
+// The photo types a car photo may be (src/components/admin/CarPhotos.tsx); the server checks the bytes (src/lib/leads/photos.ts).
+export const PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
+
+// D-17: the only thing a finance application asks about the buyer's circumstances. No income, date of birth or bank details.
+export const EMPLOYMENT = { employed: "Employed", self_employed: "Self-employed", retired: "Retired", student: "Student", other: "Other" } as const;
+
+// The trade-in's two required answers, shared so the stepped form can check a step before the server sees it (D-14).
+export const BAD_REG = "Enter the registration as shown on the car.";
+export const BAD_KM = "Enter the mileage in km, numbers only.";
+export const REG_PATTERN = /^[A-Z0-9 -]{1,12}$/;
+export const KM_PATTERN = /^\d{1,6}$/;
+
+// Test drives (a booking is a lead with a day and a time), the same rules for the website and the dashboard. The days and hours come from
+// the dealer's opening hours (`hours`, their profile), so they never disagree with the opening times on the site. Slots start when we open and stop an hour before we close.
+// Times are Irish time wherever the buyer is. How long one car is out is the dealer's setting (settings.driveSlotMinutes).
+export const TEST_DRIVE = { monthsAhead: 2, stepMinutes: 30 } as const;
+export const BAD_DRIVE_DAY = "Choose a day from the list.";
+export const BAD_DRIVE_TIME = "Choose a time from the list.";
+const mins = (hhmm: string) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5));
+const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+const hoursFor = (iso: string, hours: Hours) => hours[(new Date(`${iso}T12:00:00Z`).getUTCDay() + 6) % 7]; // hours start on Monday
+
+/** The times a car can be driven on a day: every slot from opening until an hour before closing. Empty on a closed day, bank holidays included. */
+export function driveTimes(iso: string, hours: Hours): string[] {
+  if (isBankHoliday(iso)) return [];
+  const h = hoursFor(iso, hours);
+  if (!h?.opens || !h.closes) return [];
+  const out: string[] = [];
+  for (let m = mins(h.opens); m <= mins(h.closes) - 60; m += TEST_DRIVE.stepMinutes) out.push(hhmm(m));
+  return out;
+}
+/** Whether a time typed at the desk (any minute) is inside a day's driving hours. */
+export function inDriveHours(iso: string, time: string, hours: Hours): boolean {
+  const t = driveTimes(iso, hours);
+  return t.length > 0 && time >= t[0] && time <= t[t.length - 1];
+}
+/** The open days the website offers: from tomorrow (the team needs notice) to monthsAhead on, the dashboard's limit too. */
+export function driveDays(hours: Hours, now = new Date()): string[] {
+  const today = dublinDay(now.getTime());
+  const last = addMonths(today, TEST_DRIVE.monthsAhead);
+  const out: string[] = [];
+  for (let d = addDays(today, 1); d <= last; d = addDays(d, 1)) if (driveTimes(d, hours).length > 0) out.push(d);
+  return out;
+}
+
+// How long a registration lookup is cached (src/lib/reg-lookup.ts); the daily purge clears older rows (purge.ts).
+export const REG_CACHE_DAYS = 30;
