@@ -416,10 +416,14 @@ app store and no outside service.
   | A test drive request | Test drive request | The car | The booking |
   | A lead given to you by someone else | A lead for you | The car, or the kind of request | The lead |
 
+  The text starts with the dealer's name ("Checkwork Motors: 2020 Audi A3"). A tap opens `/dealers/open?dealer=<id>&to=<path>`, which
+  switches to that dealer if the person is still a member (the same check as Switch dealer) and then opens the page; otherwise it opens the
+  overview and leaves the dealer as it was. `to` is only ever a path on this site. Pushes are sent after the answer (`after()`), each with a
+  5 second limit, so a slow push service never holds up a website's form or the page that gave a lead.
   Never the customer's name, email or phone: a lock screen is not private. Warranty requests, ads taken down, sync outages, WhatsApp
   replies and the rest stay in the bell. Each goes to everyone still on the team (a lead given to someone: that person only) who turned
   notifications on, on each of their devices. A demo dealer sends them too: they go only to its own team's devices and cost nothing.
-- **Turning them on** is per person and per device: Settings, Notifications, "Notifications on this phone". The panel lists your own devices
+- **Turning them on** is per person and per device: Settings, Notifications, "Notifications on this device". The panel lists your own devices
   with Turn off on each. Each turn on and turn off is in the activity history, with the device's kind (iPhone, Android phone, Mac), never its
   address. On an iPhone push needs iOS 16.4 or later and the app on the home screen; the panel says "Add this to your home screen first".
 - **Kept** in the dealer's own store (`push-subscriptions`): the person's email, the device's push address and keys, its kind and when it

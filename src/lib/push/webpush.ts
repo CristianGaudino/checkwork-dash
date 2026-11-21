@@ -66,6 +66,7 @@ export async function sendPush(sub: { endpoint: string; keys: PushKeys }, payloa
     method: "POST",
     headers: { TTL: "86400", Urgency: "high", "Content-Encoding": "aes128gcm", "Content-Type": "application/octet-stream", Authorization: `vapid t=${jwt}, k=${v.publicKey}` },
     body: await encrypt(payload, sub.keys),
+    signal: AbortSignal.timeout(5000), // a slow push service never holds the rest up; the caller logs it as failed
   });
   return res.status;
 }

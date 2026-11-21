@@ -14,14 +14,16 @@ vi.mock("next/navigation", () => ({
   notFound: () => {
     throw new Error("NOT_FOUND");
   },
-  redirect: () => {
-    throw new Error("REDIRECT");
+  redirect: (to: string) => {
+    throw new Error(`REDIRECT:${to}`);
   },
 }));
 const { dealerAccess } = await import("./membership");
 const { currentDealer } = await import("./current");
 const { putMember, resetMemoryDirectory } = await import("./directory");
 const { chooseDealerAction } = await import("@/app/dealers/actions");
+const { GET: openDealer } = await import("@/app/dealers/open/route");
+const open = (dealer: string, to: string) => openDealer(new Request(`http://localhost/dealers/open?${new URLSearchParams({ dealer, to })}`));
 
 const form = (dealer: string) => {
   const f = new FormData();
@@ -99,5 +101,30 @@ describe("the current dealer for a request", () => {
     expect(await ok()).toBe("checkwork-motors");
     picked = "test-motors";
     expect(await ok()).toBe("test-motors");
+  });
+});
+
+describe("a push notification's link (/dealers/open)", () => {
+  it("switches someone at two dealers to the one it came from, then opens its page", async () => {
+    await putMember("test-motors", "conor@example.com", "Manager");
+    email = "conor@example.com";
+    picked = "test-motors";
+    await expect(open("checkwork-motors", "/leads/abc?x=1")).rejects.toThrow("REDIRECT:/leads/abc?x=1");
+    expect(set).toHaveBeenCalledWith("checkwork-dealer", "checkwork-motors", { path: "/", maxAge: 31_536_000, sameSite: "lax", httpOnly: true, secure: true });
+  });
+
+  it("sends someone not at that dealer to the overview and keeps their cookie", async () => {
+    email = "conor@example.com";
+    await expect(open("test-motors", "/leads/abc")).rejects.toThrow(/^REDIRECT:\/$/);
+    expect(set).not.toHaveBeenCalled();
+    email = undefined;
+    await expect(open("checkwork-motors", "/leads/abc")).rejects.toThrow(/^REDIRECT:\/$/);
+    expect(set).not.toHaveBeenCalled();
+  });
+
+  it("opens only a path on this site", async () => {
+    email = "conor@example.com";
+    for (const to of ["https://evil.example", "//evil.example", "/\\evil.example", "/\t/evil.example", "javascript:alert(1)", "leads", ""])
+      await expect(open("checkwork-motors", to), to).rejects.toThrow(/^REDIRECT:\/$/);
   });
 });

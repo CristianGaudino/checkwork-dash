@@ -3,7 +3,9 @@ import { DAY, MINUTE } from "@/lib/time";
 import { LEAD_TYPE_LABELS, TEAM_SEED, demoDrives, demoLeads, type Lead } from "./collections";
 import { defineCollection } from "./docs";
 import { newId } from "./ids";
+import { after } from "next/server";
 import { pushToTeam } from "@/lib/push";
+import { currentDealer } from "@/lib/tenancy/current";
 
 // The dashboard's own notifications: the bell. In the app only, never emailed. Each says what happened in a few words and links to it.
 // Never a customer's name or details, only the kind of request and the car, so they are not personal data (nothing to erase, nothing to
@@ -35,7 +37,8 @@ export const PUSH_TITLES: Partial<Record<NoticeKind, string>> = { lead: "New enq
 
 // Best effort: a notification is never worth failing the thing that caused it, so callers need not catch. Old ones go as new ones come.
 // `about`: the push's text for a kind that has one, the car (or the kind of request without one), never the customer: a lock screen is not
-// private. It goes to the same people as the bell: the one it is `for`, or everyone.
+// private. It goes to the same people as the bell: the one it is `for`, or everyone. It says the dealer and opens through /dealers/open, so
+// someone at several dealers lands in the one it came from. Sent after the answer (after()), so a slow push service never holds up a form.
 export async function notify(n: Omit<Notice, "id" | "at">, at = Date.now(), about?: string): Promise<void> {
   try {
     await noticesStore.put({ id: newId("note"), at, ...n });
@@ -44,7 +47,15 @@ export async function notify(n: Omit<Notice, "id" | "at">, at = Date.now(), abou
     // shortcut: a lost notification is acceptable, the record itself is saved and shows in its list
   }
   const title = PUSH_TITLES[n.kind];
-  if (title && about !== undefined) await pushToTeam({ title, body: about, url: n.href }, n.for);
+  if (!title || about === undefined) return;
+  const dealer = await currentDealer().catch(() => null);
+  if (!dealer) return;
+  const send = () => pushToTeam({ title, body: `${dealer.name}: ${about}`, url: `/dealers/open?${new URLSearchParams({ dealer: dealer.id, to: n.href })}` }, n.for);
+  try {
+    after(send);
+  } catch {
+    await send(); // outside a request (a test, a script): now
+  }
 }
 
 // The newest for this person, with how many they have not read (`read`: the ids they have).

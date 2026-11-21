@@ -58,16 +58,16 @@ describe("push notifications follow the bell", () => {
   it("sends a new website request to everyone still on the team, saying what happened and the car only", async () => {
     await notify({ kind: "lead", text: "Car enquiry: 2019 Kia Soul", href: "/leads/real-1" }, Date.now(), "2019 Kia Soul");
     expect(to()).toEqual(["aoife", "conor"]);
-    expect(await open(phones.aoife, sent.find((s) => s.url === phones.aoife.endpoint)!.body)).toEqual({ title: "New enquiry", body: "2019 Kia Soul", url: "/leads/real-1" });
+    expect(await open(phones.aoife, sent.find((s) => s.url === phones.aoife.endpoint)!.body)).toEqual({ title: "New enquiry", body: "Checkwork Motors: 2019 Kia Soul", url: "/dealers/open?dealer=checkwork-motors&to=%2Fleads%2Freal-1" });
     sent = [];
     await notify({ kind: "drive", text: "Test drive request: 2019 Kia Soul", href: "/test-drives/real-2" }, Date.now(), "2019 Kia Soul");
-    expect(await open(phones.conor, sent.find((s) => s.url === phones.conor.endpoint)!.body)).toMatchObject({ title: "Test drive request", url: "/test-drives/real-2" });
+    expect(await open(phones.conor, sent.find((s) => s.url === phones.conor.endpoint)!.body)).toMatchObject({ title: "Test drive request", url: "/dealers/open?dealer=checkwork-motors&to=%2Ftest-drives%2Freal-2" });
   });
 
   it("sends a lead given to someone to that person alone", async () => {
     await notify({ kind: "assigned", for: "Conor Doyle", text: "Aoife Brennan gave you a lead: Finance", href: "/leads/l9" }, Date.now(), "2019 Kia Soul");
     expect(to()).toEqual(["conor"]);
-    expect(await open(phones.conor, sent[0].body)).toEqual({ title: "A lead for you", body: "2019 Kia Soul", url: "/leads/l9" });
+    expect(await open(phones.conor, sent[0].body)).toEqual({ title: "A lead for you", body: "Checkwork Motors: 2019 Kia Soul", url: "/dealers/open?dealer=checkwork-motors&to=%2Fleads%2Fl9" });
   });
 
   it("sends nothing for the bell's other kinds, or with no keys set", async () => {
