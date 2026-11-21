@@ -418,6 +418,7 @@ app store and no outside service.
   | A new website request (any lead in Leads, an order request too) | Its kind ("Car enquiry", "Message") | Its topic and answers, and the car | The lead |
   | A test drive request | Test drive request | The car, and the day and time asked for | The booking |
   | A lead given to you by someone else | "Ciara Walsh gave you a lead" | Its kind, topic and car | The lead |
+  | A test drive given to you by someone else | "Ciara Walsh gave you a test drive" | The car | The booking |
 
   The title and text are the bell's own heading and line (`PUSH_KINDS` in `src/lib/admin/notifications.ts`), and the text starts with the
   dealer's name ("Checkwork Motors: Buying, this week, trade-in · 2020 Audi A3"). A tap opens `/dealers/open?dealer=<id>&to=<path>`, which

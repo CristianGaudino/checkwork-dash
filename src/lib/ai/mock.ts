@@ -75,7 +75,7 @@ function description(f: FactsOf["carDescription"], a: Adjust | undefined): strin
 
 function leadReply(f: FactsOf["leadReply"], a: Adjust | undefined): string {
   const about = f.car ? ` about the ${f.car}` : "";
-  const ask = f.kind === "Test drive" ? "We would be glad to set up a test drive. What day suits you?" : f.kind === "Trade-in" || f.kind === "Selling a car" ? "We will look at your car and come back to you with a valuation." : "We would be happy to help. What time suits you for a call?";
+  const ask = f.type === "test-drive" ? "We would be glad to set up a test drive. What day suits you?" : f.type === "trade-in" || f.type === "sell" ? "We will look at your car and come back to you with a valuation." : "We would be happy to help. What time suits you for a call?";
   switch (a) {
     case "formal": return lines(`Dear ${f.firstName},`, `Thank you for contacting ${f.dealer}${about}.`, ask, BR, "Yours sincerely,", f.dealer);
     case "friendlier": return lines(`Hi ${f.firstName}, thanks so much for getting in touch${about}.`, ask, BR, "Speak soon,", f.dealer);
