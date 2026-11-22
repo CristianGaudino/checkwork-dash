@@ -3,6 +3,11 @@ import { expect, test } from "@playwright/test";
 // The WhatsApp panel (#178): the conversation, a tap and a typed price that update the lead, and the page gone without its module.
 test("the page shows the dealer's conversation, with the buttons under an alert", async ({ page }) => {
   await page.goto("/whatsapp");
+  // Staff phones first; the demo and the alerts are folded under What it does.
+  await expect(page.getByRole("heading", { name: "Staff phones" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "What reaches your phone" })).toBeHidden();
+  await page.getByText("What it does").click();
+  await expect(page.getByRole("heading", { name: /days in stock/ })).toHaveText(/^A car \d+ days in stock$/); // the dealer's days, not "{days}"
   const phone = page.getByRole("region", { name: "Your WhatsApp" });
   await expect(phone.getByText(/wants (to sell their car|a price for a trade-in)/).first()).toBeVisible();
   await expect(phone.getByRole("button", { name: "Reply with a price" })).toBeVisible();
@@ -13,6 +18,7 @@ test("the page shows the dealer's conversation, with the buttons under an alert"
 
 test("reply with a price: the lead gets the offer, and the buyer answers", async ({ page }) => {
   await page.goto("/whatsapp");
+  await page.getByText("What it does").click();
   const phone = page.getByRole("region", { name: "Your WhatsApp" });
   await phone.getByRole("button", { name: "Reply with a price" }).click();
   await expect(phone.getByText(/What price do you want to offer/)).toBeVisible();

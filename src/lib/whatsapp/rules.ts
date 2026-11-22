@@ -47,6 +47,9 @@ export const EVENT_IDS = Object.keys(EVENTS) as EventId[];
 export const eventText = (id: EventId, oldDays: number) => ({ label: EVENTS[id].label.replace("{days}", String(oldDays)), does: EVENTS[id].does.replace("{days}", String(oldDays)) });
 
 export const eventsFor = (modules: ReadonlySet<ModuleId>): EventId[] => EVENT_IDS.filter((e) => modules.has(EVENTS[e].module));
+// Every alert as the WhatsApp page lists it, words filled in (never the raw "{days}"), the ones the plan has first.
+export const eventList = (modules: ReadonlySet<ModuleId>, oldDays: number) =>
+  EVENT_IDS.map((id) => ({ id, ...eventText(id, oldDays), module: EVENTS[id].module, on: modules.has(EVENTS[id].module) })).sort((a, b) => Number(b.on) - Number(a.on));
 
 // The module a message needs: an alert's own, and a question's (a price or a new time asks from an alert, `from`; a review reply is Reviews).
 // None for the rest. With that module off, the message is hidden and acting on it is refused.
