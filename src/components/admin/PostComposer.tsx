@@ -50,7 +50,7 @@ export function PostComposer({ cars, initialSlug, initialFormat = "post", initia
       live = false;
     };
   }, [slug, load]);
-  const car = loaded?.slug === slug ? loaded : undefined;
+  const car = loaded && slug && slugId(loaded.slug) === slugId(slug) ? loaded : undefined; // by id: the car may have been edited since
   const limits = FORMAT_LIMITS[format];
   // A story is a few words over the photo, led by the layout; the other formats start from the car's facts for this network.
   const storyLine = car ? (layout === "price-drop" && car.was ? `Now ${car.price}, was ${car.was}.` : `${car.price}.`) : "";
