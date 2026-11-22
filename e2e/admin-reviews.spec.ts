@@ -7,8 +7,14 @@ test("reviews show a rating summary, and a reply can be posted, then the review 
   const first = page.locator("[data-review]").first();
   const author = await first.locator("[data-author]").textContent();
   await first.getByText("Reply", { exact: true }).click();
+  await first.getByRole("button", { name: "Post reply" }).click();
+  await expect(first.getByRole("alert")).toHaveText("Write a reply first");
   await first.locator("textarea").fill("Thank you, we are glad it went well.");
   await first.getByRole("button", { name: "Post reply" }).click();
+  // Public on Google, so it asks first and shows the text.
+  const dialog = page.getByRole("dialog", { name: "Post this reply on Google?" });
+  await expect(dialog).toContainText("Thank you, we are glad it went well.");
+  await dialog.getByRole("button", { name: "Post reply" }).click();
   await expect(page.getByRole("status")).toHaveText("Reply posted on Google.");
   await page.goto("/reviews?filter=unreplied");
   await expect(page.getByText(author!, { exact: true })).toHaveCount(0);
@@ -24,6 +30,7 @@ test("a reply goes to Google first and says so; flags are gone, since Google can
   await first.getByText(/^(Reply|Edit reply)$/).click();
   await first.locator("textarea").fill(`Sorry to hear it. Please call us. ${Date.now()}`);
   await first.getByRole("button", { name: /^(Post|Update) reply$/ }).click();
+  await page.getByRole("dialog").getByRole("button", { name: /^(Post|Update) reply$/ }).click();
   await expect(page.getByRole("status")).toHaveText("Reply posted on Google.");
 });
 
