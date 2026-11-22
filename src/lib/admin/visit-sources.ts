@@ -1,6 +1,6 @@
 import { CHANNEL_LABELS, type Channel } from "@/lib/visit-rules";
 import { addDays, dublinDay } from "@/lib/admin/format";
-import { TOO_FEW } from "@/lib/reports/monthly";
+import { countChange } from "@/lib/reports/monthly";
 
 // "Where visits come from" (#35): each channel's visits, the change on the period before, the leads it brought and leads per 100 visits,
 // grouped as a dealer thinks of them. Pure, so the maths is tested. The same shape from the real counts (./visitor-figures.ts) and the
@@ -23,13 +23,14 @@ export type SourceGroup = SourceFigures & { id: string; channels: SourceTile[]; 
 // Leads per 100 visits, to one decimal; none without visits (a lead whose visit was counted the period before).
 export const ratePer100 = (leads: number, visits: number) => (visits ? Math.round((leads / visits) * 1000) / 10 : null);
 
-// The change in short ("Up 6%"): the panel above names the period. Under five either side it is too few to compare, and on a base under
-// ten it gives the count before ("Up from 6"), as in the monthly report. `trend` colours it: none when too few or it rounds to no change.
+// The change in short ("Up 6%", "Up from 6"; the rule is countChange's): the panel above names the period. `trend` colours it: none when
+// too few or it rounds to no change.
 function figures(label: string, visits: number, before: number, leads: number): SourceFigures {
-  const pct = visits < TOO_FEW || before < TOO_FEW ? null : Math.round(((visits - before) / before) * 100);
-  const small = before < 2 * TOO_FEW;
-  const change = pct === null ? "Too few to compare" : pct === 0 ? "No change" : `${pct > 0 ? "Up" : "Down"} ${small ? `from ${before}` : `${Math.abs(pct)}%`}`;
-  return { label, visits, before, leads, rate: ratePer100(leads, visits), change, trend: !pct ? null : pct > 0 ? "up" : "down" };
+  const c = countChange(visits, before);
+  const pct = c.kind === "pct" ? Math.round(c.pct) : 0;
+  const trend = c.kind === "from" ? (c.up ? "up" : "down") : !pct ? null : pct > 0 ? "up" : "down";
+  const change = c.kind === "few" ? "Too few to compare" : c.kind === "from" ? `${c.up ? "Up" : "Down"} from ${c.before}` : pct === 0 ? "No change" : `${pct > 0 ? "Up" : "Down"} ${Math.abs(pct)}%`;
+  return { label, visits, before, leads, rate: ratePer100(leads, visits), change, trend };
 }
 
 // The one that brought the most leads (then the better rate) is `best`; none when nothing brought a lead.

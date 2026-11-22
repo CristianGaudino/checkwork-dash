@@ -88,13 +88,23 @@ export function summarise(data: ReportData, from: string, to: string, now: numbe
   };
 }
 
-// A change on the month before, in words. Under five either month there is too little to say a percentage means anything. On a base
-// under ten a percentage swings wildly (6 to 56 is "Up 833%"), so it gives the count before instead.
+// How a count moved on the period before, for every page that says so (here, Analytics, visit sources), each in its own words. Under
+// five either side there is too little to say a percentage means anything ("few"). On a base under ten a percentage swings wildly (6 to
+// 56 is "Up 833%"), so it gives the count before ("from"). Otherwise the change in percent, unrounded ("pct").
 export const TOO_FEW = 5;
+export type CountChange = { kind: "few" } | { kind: "from"; before: number; up: boolean } | { kind: "pct"; pct: number };
+export function countChange(now: number, before: number): CountChange {
+  if (now < TOO_FEW || before < TOO_FEW) return { kind: "few" };
+  if (before < 2 * TOO_FEW && now !== before) return { kind: "from", before, up: now > before };
+  return { kind: "pct", pct: ((now - before) / before) * 100 };
+}
+
+// A change on the month before, in words.
 export function compare(now: number, before: number): string {
-  if (now < TOO_FEW || before < TOO_FEW) return "Too few to compare";
-  if (before < 2 * TOO_FEW && now !== before) return `${now > before ? "Up" : "Down"} from ${before} the month before`;
-  const pct = Math.round(((now - before) / before) * 100);
+  const c = countChange(now, before);
+  if (c.kind === "few") return "Too few to compare";
+  if (c.kind === "from") return `${c.up ? "Up" : "Down"} from ${c.before} the month before`;
+  const pct = Math.round(c.pct);
   return pct === 0 ? "The same as the month before" : `${pct > 0 ? "Up" : "Down"} ${Math.abs(pct)}% on the month before`;
 }
 
