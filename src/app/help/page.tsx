@@ -42,7 +42,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ f
     synced
       ? { title: "Record a sale", icon: <ReceiptIcon />, steps: [`When a car's ad comes down on ${listingSite}, it shows under To do.`, "Press Check, then It sold.", "Add the buyer and the price."], href: "/stock?view=sold", go: "Go to sold cars" }
       : { title: "Mark a car as sold", icon: <ReceiptIcon />, steps: ["Open Stock and find the car.", "Press Mark sold.", "Add the buyer and the price. It shows as Sold on your website."], href: "/stock", go: "Go to stock" },
-    ...(mods.has("social") ? [{ title: "Post a car to Facebook and Instagram", icon: <ShareIcon />, steps: ["Press New post on the Overview.", "Pick the car and the photos, and write a line or two.", "Post now, or choose a day and time."], href: "/marketing/new", go: "New post" }] : []),
+    ...(mods.has("social") ? [{ title: "Post a car to Facebook, Instagram or TikTok", icon: <ShareIcon />, steps: ["Press New post on the Overview.", "Pick the car and the photos, and write a line or two.", "Post now, or choose a day and time."], href: "/marketing/new", go: "New post" }] : []),
     { title: "Add someone to your team", icon: <UsersIcon />, steps: ["Open Settings, then Team.", "Enter their name and email, and choose their role.", "Only an owner or manager can do this."], href: "/settings?section=team", go: "Open team settings" },
   ];
 
