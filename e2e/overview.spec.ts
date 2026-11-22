@@ -22,7 +22,7 @@ test("a new lead is called or answered from its row in To do", async ({ page }) 
   await page.goto("/");
   const leads = page.getByRole("list", { name: "To do" });
   await expect(leads.getByRole("link", { name: /^Call / }).first()).toHaveAttribute("href", /^tel:/);
-  await leads.getByRole("link", { name: /^Reply to / }).first().click();
+  await leads.getByRole("link", { name: /^Open .*'s lead$/ }).first().click();
   await expect(page).toHaveURL(/\/leads\/[^/]+$/);
 });
 

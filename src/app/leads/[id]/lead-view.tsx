@@ -23,7 +23,7 @@ import { CalendarIcon, CarIcon, CheckIcon, CloseIcon, PhoneIcon } from "@/compon
 import type { LeadStatus } from "@/lib/admin/collections";
 import { addNoteAction, assignLeadAction, setFollowUpAction, setLostReasonAction, setStatusAction } from "../actions";
 import { dublinDay, fmtDate, fmtDateTime, fmtDay, fmtTime } from "@/lib/admin/format";
-import { followUpDue, isOpenLead } from "@/lib/admin/leads";
+import { followUpDue, isOpenLead, leadMain, replyVia } from "@/lib/admin/leads";
 import { siteCarUrl } from "@/lib/stock/format";
 import { dealerProfile } from "@/lib/tenancy/current";
 import { stockSource } from "@/lib/stock-source";
@@ -54,6 +54,9 @@ export async function LeadView({ id }: { id: string }) {
   // What puts the follow-up back as it was, for Undo: none, or its day (a day that has passed cannot be set again).
   // And the status as it was, with the follow-up day and the lost reason a move clears.
   const statusBack = { status: lead.status, ...(lead.followUpOn && { on: lead.followUpOn }), ...(lead.lostReason && { reason: lead.lostReason }) };
+  // The one filled button: the request's own job when it can be done here, else answering them the way they got in touch.
+  const modules = await enabledModules();
+  const main = leadMain(lead.type, { drive: !drive && isOpenLead(lead) && modules.has("testDrives"), order: modules.has("newCars") && (await stockSource()) !== "donedeal", claim: modules.has("service") });
   const followUpBack: Record<string, string> | undefined = !lead.followUpOn ? { clear: "1" } : lead.followUpOn >= today ? { on: lead.followUpOn } : undefined;
 
   return (
@@ -115,7 +118,7 @@ export async function LeadView({ id }: { id: string }) {
           </section>
           <section aria-labelledby="next" className="flex min-w-0 flex-col gap-4 max-lg:order-first max-lg:border-b max-lg:border-hairline max-lg:pb-5 lg:border-l lg:border-hairline lg:pl-6">
             <h2 id="next" className="text-section font-semibold">Next step</h2>
-            <ContactButtons phone={lead.phone} email={lead.email} />
+            <ContactButtons phone={lead.phone} email={lead.email} main={main === "reply" ? replyVia(lead) : undefined} />
             {/* Booking a drive from the lead carries their car, name and number into the form. */}
             {lead.type !== "warranty" && isOpenLead(lead) && (
               <IfModule id="testDrives">
@@ -125,8 +128,8 @@ export async function LeadView({ id }: { id: string }) {
                     Test drive {fmtDay(dublinDay(drive.startsAt), "weekday")} {fmtDay(dublinDay(drive.startsAt), "day")} {fmtDay(dublinDay(drive.startsAt), "month")}, {fmtTime(drive.startsAt)}
                   </Link>
                 ) : (
-                  // An order request's main job is Place the order, so the drive is the quiet one there: one filled button.
-                  <Link href={`/test-drives/new?lead=${lead.id}`} className={lead.type === "order" ? adminButtonQuiet : adminButton}>
+                  // Filled only on a test drive request: elsewhere the reply (or the order) is the main job.
+                  <Link href={`/test-drives/new?lead=${lead.id}`} className={main === "drive" ? adminButton : adminButtonQuiet}>
                     <CalendarIcon className="shrink-0 size-4" />
                     Book a test drive
                   </Link>
@@ -134,17 +137,9 @@ export async function LeadView({ id }: { id: string }) {
               </IfModule>
             )}
             {/* A factory order request from the website: place it, copying from what they asked for. Orders are for stock kept here. */}
-            {lead.type === "order" && (await stockSource()) !== "donedeal" && (
-              <IfModule id="newCars">
-                <Link href={`/orders/new?lead=${lead.id}`} className={adminButton}>Place the order</Link>
-              </IfModule>
-            )}
+            {main === "order" && <Link href={`/orders/new?lead=${lead.id}`} className={adminButton}>Place the order</Link>}
             {/* A warranty claim from the website: open it on the sale, with the buyer found from their details. */}
-            {lead.type === "warranty" && (
-              <IfModule id="service">
-                <Link href={`/aftersales/new?lead=${lead.id}`} className={adminButton}>Open a claim</Link>
-              </IfModule>
-            )}
+            {main === "claim" && <Link href={`/aftersales/new?lead=${lead.id}`} className={adminButton}>Open a claim</Link>}
             <div role="group" aria-label="Status" className="flex flex-col gap-2">
               <p className="flex items-center gap-2 text-meta text-text-2">
                 Where it stands <LeadStatusBadge status={lead.status} type={lead.type} />
@@ -155,7 +150,7 @@ export async function LeadView({ id }: { id: string }) {
                   return (
                     <ChoiceAct key={status} action={setStatusAction.bind(null, lead.id)} set={{ status }} back={statusBack} active={lead.status === status} done={`${lead.name}: ${leadStatusLabel(lead.type, status)}`}>
                       <Icon className="size-4" />
-                      {leadStatusLabel(lead.type, status)}
+                      Mark {leadStatusLabel(lead.type, status).toLowerCase()}
                     </ChoiceAct>
                   );
                 })}
@@ -194,10 +189,11 @@ export async function LeadView({ id }: { id: string }) {
         <div className="flex min-w-0 flex-col gap-6">
           {/* What they did on the website before they got in touch, when they sent it: first, as it is read before the call. Nothing without it. */}
           {lead.journey && <VisitPanel lead={{ ...lead, journey: lead.journey }} stock={stock} />}
-          {/* A reply to copy into email or WhatsApp: written from their message and the car, never from their phone or email. */}
+          {/* A reply to copy into email or WhatsApp: written from their message and the car, never from their phone or email. Only the
+              button until it is used, so a phone is not handed a big empty box. */}
           <IfModule id="ai">
             <Panel title="Draft a reply">
-              <AITextarea label="Reply draft" task="leadReply" rows={6} copy request={{ task: "leadReply", leadId: lead.id }} />
+              <AITextarea label="Reply draft" task="leadReply" rows={6} copy folded request={{ task: "leadReply", leadId: lead.id }} />
             </Panel>
           </IfModule>
           {/* Selling or trading in: the car's plate, and a lookup so the dealer sees what it is before calling back. */}

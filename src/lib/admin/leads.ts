@@ -1,6 +1,7 @@
 import { LEAD_SOURCES, LEAD_STATUSES, LEAD_TYPES, type Claim, type Lead, type LeadStatus, type LeadType } from "./collections";
 import { TOPIC_IDS, type TopicId } from "@/lib/leads/contact-topics";
 import { followUpDue, isHotLead, pastReplyTarget } from "./follow-ups";
+import { intlDigits } from "@/lib/phone";
 export { followUpDue, forPerson, isHotLead, isOpenLead, leadsToAnswer, type LeadTask } from "./follow-ups";
 
 // A warranty message from the website is aftersales work, not a sale: it is listed in Aftersales as a request, and left out of Leads, its
@@ -56,5 +57,32 @@ export function countByStatus(leads: Lead[]): Record<LeadStatus, number> {
   return out;
 }
 
-// The hot new leads (isHotLead) first; the rest keep their order.
-export const urgentFirst = (leads: Lead[]): Lead[] => [...leads.filter(isHotLead), ...leads.filter((l) => !isHotLead(l))];
+// Late or urgent (leadFlag) first, the rest keep their order.
+export function urgentFirst(leads: Lead[], slaHours: number, now = Date.now()): Lead[] {
+  const pinned = (l: Lead) => leadFlag(l, slaHours, now) !== undefined;
+  return [...leads.filter(pinned), ...leads.filter((l) => !pinned(l))];
+}
+
+// One badge for a new lead that cannot wait, the same on every list: Late once past the reply target (it is overdue now), else Urgent when
+// they said this week. Never both.
+export const leadFlag = (l: Lead, slaHours: number, now = Date.now()) => (pastReplyTarget(l, now, slaHours) ? "late" : isHotLead(l) ? "urgent" : undefined);
+
+// How to answer a lead, from how they got in touch: the way they asked for on the form, WhatsApp for a WhatsApp lead, an email when they
+// asked for one or left no number to dial, else a call (a phone lead, a message). Nothing when they cannot be reached.
+export type ReplyVia = "call" | "whatsapp" | "email";
+export function replyVia(l: Pick<Lead, "source" | "phone" | "email" | "answers">): ReplyVia | undefined {
+  const via = l.answers?.contactVia ?? (l.source === "WhatsApp" ? "whatsapp" : undefined);
+  const dial = Boolean(l.phone && intlDigits(l.phone));
+  if (via === "whatsapp" && dial) return "whatsapp";
+  if (l.email && (via === "email" || !dial)) return "email";
+  return dial ? "call" : undefined;
+}
+
+// The lead page's one filled button: the request's own job when the dealer can do it here (place the order, open the claim, book the drive
+// they asked for), else the reply. `can` says which of those this dealer and this lead allow.
+export function leadMain(type: LeadType, can: { drive: boolean; order: boolean; claim: boolean }): "reply" | "drive" | "order" | "claim" {
+  if (type === "order" && can.order) return "order";
+  if (type === "warranty" && can.claim) return "claim";
+  if (type === "test-drive" && can.drive) return "drive";
+  return "reply";
+}

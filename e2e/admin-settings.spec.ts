@@ -10,7 +10,7 @@ test("a target is checked, saved, and changes what the overview calls late", asy
   await page.locator("form").filter({ has: page.locator('input[name="leadSlaHours"]') }).getByRole("button", { name: "Save" }).click();
   await expect(page.getByRole("status").filter({ hasText: "Saved" })).toBeVisible();
   await page.goto("/");
-  await expect(page.getByRole("list", { name: "To do" }).getByRole("link", { name: /^Reply to / }).first()).toBeVisible();
+  await expect(page.getByRole("list", { name: "To do" }).getByRole("link", { name: /^Open .*'s lead$/ }).first()).toBeVisible();
 });
 
 test("a team member is added, shows in the lead owner choices, and cannot be added twice", async ({ page }) => {

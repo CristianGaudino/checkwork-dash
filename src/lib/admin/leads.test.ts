@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 import type { Lead } from "./collections";
-import { SALES_LEAD_TYPES, countByStatus, filterLeads, isSalesLead, openWarrantyRequests, parseLeadFilter } from "./leads";
+import { SALES_LEAD_TYPES, countByStatus, filterLeads, isSalesLead, leadFlag, leadMain, openWarrantyRequests, parseLeadFilter, replyVia, urgentFirst } from "./leads";
 
 const lead = (id: string, o: Partial<Lead> = {}): Lead => ({ id, type: "enquiry", status: "new", name: id, email: `${id}@example.com`, phone: "", message: "", source: "Website", notes: [], createdAt: Number(id.replace(/\D/g, "")) || 0, ...o });
 
@@ -39,5 +39,47 @@ describe("warranty requests", () => {
     expect(leads.filter(isSalesLead).map((l) => l.id)).toEqual(["l1"]);
     expect(SALES_LEAD_TYPES).not.toContain("warranty");
     expect(openWarrantyRequests(leads, [{ leadId: "w3" }, { leadId: undefined }]).map((l) => l.id)).toEqual(["w5", "w2"]); // newest first
+  });
+});
+
+describe("the lead's main button", () => {
+  const PHONE = "+353 87 123 4567";
+  it("replies the way they got in touch", () => {
+    expect(replyVia(lead("a", { source: "Phone", phone: PHONE }))).toBe("call");
+    expect(replyVia(lead("a", { type: "general", source: "Website", phone: PHONE }))).toBe("call");
+    expect(replyVia(lead("a", { source: "WhatsApp", phone: PHONE }))).toBe("whatsapp");
+    expect(replyVia(lead("a", { phone: PHONE, answers: { contactVia: "whatsapp" } }))).toBe("whatsapp");
+    expect(replyVia(lead("a", { phone: PHONE, answers: { contactVia: "email" } }))).toBe("email");
+    expect(replyVia(lead("a", { source: "WhatsApp", phone: "" }))).toBe("email"); // no number to message
+    expect(replyVia(lead("a", { phone: "12", email: "" }))).toBeUndefined();
+  });
+  it("is the request's own job when it can be done here, else the reply", () => {
+    const all = { drive: true, order: true, claim: true };
+    expect(leadMain("enquiry", all)).toBe("reply");
+    expect(leadMain("general", all)).toBe("reply");
+    expect(leadMain("test-drive", all)).toBe("drive");
+    expect(leadMain("test-drive", { ...all, drive: false })).toBe("reply"); // already booked, or no test drives
+    expect(leadMain("order", all)).toBe("order");
+    expect(leadMain("order", { ...all, order: false })).toBe("reply");
+    expect(leadMain("warranty", all)).toBe("claim");
+  });
+});
+
+describe("the lateness badge", () => {
+  it("is Late past the reply target, else Urgent for this week, never both", () => {
+    const H = 3_600_000;
+    const hot = { topic: "buying", answers: { timing: "this-week" } };
+    expect(leadFlag(lead("a", { createdAt: 0, ...hot }), 24, 30 * H)).toBe("late");
+    expect(leadFlag(lead("a", { createdAt: 0, ...hot }), 24, 1 * H)).toBe("urgent");
+    expect(leadFlag(lead("a", { createdAt: 0 }), 24, 1 * H)).toBeUndefined();
+    expect(leadFlag(lead("a", { createdAt: 0, status: "contacted", ...hot }), 24, 30 * H)).toBeUndefined();
+  });
+});
+
+describe("the list's order", () => {
+  it("pins late and urgent new leads first, the rest keep their order", () => {
+    const H = 3_600_000;
+    const leads = [lead("a1", { createdAt: 29 * H }), lead("a2", { createdAt: 0 }), lead("a3", { createdAt: 29 * H, topic: "buying", answers: { timing: "this-week" } }), lead("a4", { createdAt: 29 * H })];
+    expect(urgentFirst(leads, 24, 30 * H).map((l) => l.id)).toEqual(["a2", "a3", "a1", "a4"]);
   });
 });

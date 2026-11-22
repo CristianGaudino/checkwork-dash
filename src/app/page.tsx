@@ -20,7 +20,7 @@ import { enabledModules } from "@/lib/modules";
 import type { ModuleId } from "@/lib/modules-rules";
 import { setDriveStatusAction } from "@/app/test-drives/actions";
 import { DRIVE_STATUS_LABELS } from "@/lib/admin/drives";
-import { CallButton } from "@/components/admin/LeadActions";
+import { CallButton, ReachButton } from "@/components/admin/LeadActions";
 import { VisitSources } from "@/components/admin/VisitSources";
 import { visitSources } from "@/lib/admin/visit-sources-load";
 
@@ -36,19 +36,19 @@ const MODULE_OF: Record<string, ModuleId> = { drives: "testDrives", "sold-drives
 const GROUPED: Record<string, { noun: string; verb: string; icon: React.ReactNode }> = {
   reviews: { noun: "review", verb: "Reply", icon: <StarIcon /> },
   sync: { noun: "problem", verb: "Check", icon: <SyncIcon /> },
-  "sold-drives": { noun: "booking", verb: "See them", icon: <CalendarIcon /> },
-  deposits: { noun: "reservation", verb: "See them", icon: <ReceiptIcon /> },
-  orders: { noun: "car", verb: "See them", icon: <TruckIcon /> },
+  "sold-drives": { noun: "booking", verb: "Open", icon: <CalendarIcon /> },
+  deposits: { noun: "reservation", verb: "Open", icon: <ReceiptIcon /> },
+  orders: { noun: "car", verb: "Open", icon: <TruckIcon /> },
   "taken-down": { noun: "car", verb: "Check", icon: <CarIcon /> },
-  old: { noun: "car", verb: "See them", icon: <CarIcon /> },
+  old: { noun: "car", verb: "Open", icon: <CarIcon /> },
   costs: { noun: "car", verb: "Add costs", icon: <PercentIcon /> },
 };
 
 // A lead in a line: the car, else the first line of the message.
 const about = (l: Lead) => l.carTitle ?? (l.message.trim().split("\n")[0] || undefined);
-const ReplyButton = ({ id, name }: { id: string; name: string }) => (
-  <Link href={`/leads/${id}`} aria-label={`Reply to ${name}`} className={rowButton}>
-    Reply
+const OpenLeadButton = ({ id, name }: { id: string; name: string }) => (
+  <Link href={`/leads/${id}`} aria-label={`Open ${name}'s lead`} className={rowButton}>
+    Open
   </Link>
 );
 const ConfirmDrive = ({ id, name, status }: { id: string; name: string; status: string }) => (
@@ -92,7 +92,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
       case "reply":
         return [
           ...o.reply.slice(0, EACH).map(({ lead: l, urgency, late }) => (
-            <Task key={`reply-${l.id}`} urgency={urgency} icon={<InboxIcon />} title={`Reply to ${l.name}`} detail={[about(l), `came in ${fmtAgo(l.createdAt)}${late ? ", past your reply time" : ""}`].filter(Boolean).join(" · ")} action={<><CallButton phone={l.phone} name={l.name} /><ReplyButton id={l.id} name={l.name} /></>} />
+            <Task key={`reply-${l.id}`} urgency={urgency} icon={<InboxIcon />} title={`Reply to ${l.name}`} detail={[about(l), `came in ${fmtAgo(l.createdAt)}${late ? ", past your reply time" : ""}`].filter(Boolean).join(" · ")} action={<><ReachButton lead={l} /><OpenLeadButton id={l.id} name={l.name} /></>} />
           )),
           ...rest(a.key, o.reply.length, "new lead to answer", "new leads to answer", a.href, a.urgency),
         ];
@@ -101,7 +101,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
           ...o.due.slice(0, EACH).map(({ lead: l, urgency }) => {
             const late = l.followUpOn! < today; // the words by the date, as on Leads; the colour is the rule's (urgency), which is also red for a late new lead
             return (
-              <Task key={`follow-${l.id}`} urgency={urgency} icon={<PhoneIcon />} title={`Follow up with ${l.name}`} detail={[late ? `Was due ${fmtDay(l.followUpOn!, "dayMonth")}` : "Due today", about(l)].filter(Boolean).join(" · ")} action={<><CallButton phone={l.phone} name={l.name} /><Link href={`/leads/${l.id}`} aria-label={`Open ${l.name}'s lead`} className={rowButton}>Open</Link></>} />
+              <Task key={`follow-${l.id}`} urgency={urgency} icon={<PhoneIcon />} title={`Follow up with ${l.name}`} detail={[late ? `Was due ${fmtDay(l.followUpOn!, "dayMonth")}` : "Due today", about(l)].filter(Boolean).join(" · ")} action={<><CallButton phone={l.phone} name={l.name} /><OpenLeadButton id={l.id} name={l.name} /></>} />
             );
           }),
           ...rest(a.key, o.due.length, "follow-up due", "follow-ups due", a.href, a.urgency),

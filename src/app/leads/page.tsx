@@ -7,8 +7,8 @@ import { AlertIcon, CalendarIcon, CheckIcon, InboxIcon } from "@/components/stoc
 import { can, currentMember } from "@/lib/permissions";
 import { LEAD_SOURCES, LEAD_STATUSES, LEAD_STATUS_LABELS, LEAD_TYPE_LABELS, getSettings, leadsStore, type Lead } from "@/lib/admin/collections";
 import { dublinDay, fmtAgo, fmtDate } from "@/lib/admin/format";
-import { SALES_LEAD_TYPES, countByStatus, filterLeads, followUpDue, forPerson, isHotLead, isOpenLead, isSalesLead, leadsToAnswer, parseLeadFilter, urgentFirst, type LeadTask } from "@/lib/admin/leads";
-import { TOPICS, isUrgent, leadTags } from "@/lib/leads/contact-topics";
+import { SALES_LEAD_TYPES, countByStatus, filterLeads, followUpDue, forPerson, isHotLead, isOpenLead, isSalesLead, leadFlag, leadsToAnswer, parseLeadFilter, urgentFirst, type LeadTask } from "@/lib/admin/leads";
+import { TOPICS, leadTags } from "@/lib/leads/contact-topics";
 import { LeadKind, LeadTags, leadChips } from "@/components/admin/LeadKind";
 import { enabledModules } from "@/lib/modules";
 import { BrandIcon } from "@/components/admin/BrandIcon";
@@ -17,6 +17,19 @@ export const metadata = { title: "Leads" };
 
 // The time, read once a request (a plain Date.now() in the render trips the purity lint), as on Reports.
 const now = () => Date.now();
+
+// What kind of request it is (a word and an icon) and where it came from, in one line.
+function KindSource({ l, className = "" }: { l: Lead; className?: string }) {
+  return (
+    <span className={`flex flex-wrap items-center gap-x-2 gap-y-0.5 text-meta ${className}`}>
+      <LeadKind type={l.type} topic={l.topic} />
+      <span className="inline-flex min-w-0 items-center gap-1 text-text-2">
+        <BrandIcon name={sourceText(l)} className="size-3.5 shrink-0" /> {sourceText(l)}
+      </span>
+    </span>
+  );
+}
+
 // What each status means, in a few words under it.
 const STATUS_HINTS = { new: "Not answered yet", contacted: "Answered", appointment: "Coming in", won: "Bought", lost: "Did not buy" } as const;
 
@@ -30,53 +43,60 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
   const counts = countByStatus(all);
   const today = dublinDay();
   const due = all.filter((l) => followUpDue(l, today)).length;
-  // New leads waiting past the reply target: counted for the filter, and marked Late on their rows.
-  const lateIds = new Set(filterLeads(all, { q: "", late: true }, today, leadSlaHours).map((l) => l.id));
-  const late = lateIds.size;
+  // New leads waiting past the reply target, counted for the filter.
+  const late = filterLeads(all, { q: "", late: true }, today, leadSlaHours).length;
   const STATUS_ORDER = Object.fromEntries(LEAD_STATUSES.map((s, i) => [s, i]));
   const columns: Column<Lead>[] = [
     {
       key: "who",
       header: "Who",
       sort: (l) => l.name,
-      // The name is the row's title; under it what kind of request it is (a word and an icon), where it came from, then the form's
-      // answers as chips. On a phone, where the About column is hidden, the car is named here too.
+      // The name is the row's title, and the form's first answer as a chip. On a phone, where the About column is hidden, what it is about
+      // is here too: the kind, where it came from and the car.
       cell: (l) => (
         <span className="flex min-w-0 flex-col gap-1">
           <Link href={`/leads/${l.id}`} className="font-bold text-text [overflow-wrap:anywhere] after:absolute after:inset-0">
             {l.name}
           </Link>
-          <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-meta">
-            <LeadKind type={l.type} topic={l.topic} />
-            <span className="inline-flex min-w-0 items-center gap-1 text-text-2">
-              <BrandIcon name={sourceText(l)} className="size-3.5 shrink-0" /> {sourceText(l)}
-            </span>
-          </span>
+          <KindSource l={l} className="sm:hidden" />
           {l.carTitle && <span className="truncate text-meta font-medium text-text sm:hidden">{l.carTitle}</span>}
-          <LeadTags tags={leadChips(l.type, l.topic, l.answers)} urgent={l.status === "new" && isUrgent(l.answers ?? {})} />
+          {/* No width of its own (w-0), so a long answer is cut short rather than widen the column. */}
+          <span className="w-0 min-w-full">
+            <LeadTags tags={leadChips(l.type, l.topic, l.answers).slice(0, 1)} />
+          </span>
         </span>
       ),
-      className: "max-w-[11rem] sm:max-w-[18rem]",
+      className: "max-w-[11rem] sm:max-w-[14rem]",
     },
-    // The car in full, else the first words of their message, quoted and muted so the two never read alike.
-    { key: "about", header: "About", sort: (l) => l.carTitle, cell: (l) => <span title={l.carTitle ?? l.message} className="line-clamp-2">{l.carTitle ? <span className="font-medium">{l.carTitle}</span> : l.message.trim() ? <span className="text-text-2">&ldquo;{l.message.split("\n")[0]}&rdquo;</span> : null}</span>, className: "max-w-[16rem]", hide: "sm" },
+    // What kind of request and where it came from, then the car in full, else the first words of their message, quoted and muted so the
+    // two never read alike.
+    {
+      key: "about",
+      header: "About",
+      sort: (l) => l.carTitle,
+      cell: (l) => (
+        <span className="flex min-w-0 flex-col gap-1">
+          <KindSource l={l} />
+          <span title={l.carTitle ?? l.message} className="line-clamp-2">{l.carTitle ? <span className="font-medium">{l.carTitle}</span> : l.message.trim() ? <span className="text-text-2">&ldquo;{l.message.split("\n")[0]}&rdquo;</span> : null}</span>
+        </span>
+      ),
+      className: "max-w-[20rem]",
+      hide: "sm",
+    },
     {
       key: "status",
       header: "Status",
       sort: (l) => STATUS_ORDER[l.status],
       // A new lead waiting past the reply target says so, filled: it is the one to answer now. The badges may wrap, each whole, so the
       // row's Next step fits a laptop card and a phone has no sideways scroll.
-      cell: (l) => (
+      cell: (l) => {
+        const flag = leadFlag(l, leadSlaHours);
+        return (
         <span className="flex flex-col items-start gap-1">
           <span className="inline-flex flex-wrap items-center gap-1.5">
             <LeadStatusBadge status={l.status} type={l.type} />
-            {/* Why it sits at the top of the list: urgentFirst pins these. */}
-            {isHotLead(l) && <Badge tone="warn">Urgent</Badge>}
-            {lateIds.has(l.id) && (
-              <Badge tone="bad" strong>
-                Late
-              </Badge>
-            )}
+            {/* One badge for a lead that cannot wait (leadFlag). These sit at the top of the list: urgentFirst pins them. */}
+            {flag === "late" ? <Badge tone="bad" strong>Late</Badge> : flag === "urgent" && <Badge tone="warn">Urgent</Badge>}
           </span>
           {/* The follow-up, when there is one, under the status: one place to look for what to do next. Overdue is red, today amber. */}
           {l.followUpOn && isOpenLead(l) && (
@@ -87,16 +107,18 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
           {/* On a phone the Received column is hidden; when it came in sits here, under its status. */}
           <span className={`text-meta sm:hidden ${l.status === "new" ? "font-medium text-text" : "text-text-2"}`}>{fmtAgo(l.createdAt)}</span>
         </span>
-      ),
+        );
+      },
     },
     { key: "owner", header: "Who has it", hide: "2xl", nowrap: true, sort: (l) => l.assignedTo, cell: (l) => (l.assignedTo ? <span className="inline-flex items-center gap-2"><Avatar name={l.assignedTo} />{l.assignedTo.split(" ")[0]}</span> : <span className="text-text-2">Nobody</span>) },
     { key: "when", header: "Received", sort: (l) => l.createdAt, cell: (l) => <span className={l.status === "new" ? "font-medium" : "text-text-2"}>{fmtAgo(l.createdAt)}</span>, align: "right", nowrap: true, hide: "sm" }, // on a phone it is in the Who column
     // The two things done most from the list: reach them the way they asked, and move it on a step. Above the row's link.
-    { key: "act", header: "Next step", quietHeader: true, hide: "lg", nowrap: true, cell: (l) => <span className="relative z-10 flex justify-end gap-2">{isOpenLead(l) && <ReachButton lead={l} />}<NextStatusButton lead={l} /></span> },
+    // Two fixed slots, so the buttons line up from row to row whichever are there.
+    { key: "act", header: "Next step", quietHeader: true, hide: "lg", nowrap: true, cell: (l) => <span className="relative z-10 grid grid-cols-[7.5rem_12.5rem] gap-2"><span>{isOpenLead(l) && <ReachButton lead={l} />}</span><span><NextStatusButton lead={l} /></span></span> },
   ];
   const ordered = sortRows(filterLeads(all, f, today, leadSlaHours), columns, sp, { key: "when", dir: "desc" });
   // Unless a column was chosen, the urgent new ones come first.
-  const sorted = sp.sort ? ordered.rows : urgentFirst(ordered.rows);
+  const sorted = sp.sort ? ordered.rows : urgentFirst(ordered.rows, leadSlaHours);
   const sort = ordered.sort;
   const paged = pageOf(sorted, sp);
   const rows = paged.rows;
