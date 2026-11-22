@@ -61,6 +61,7 @@ describe("the spam check on a lead as it arrives (#56)", () => {
       ["Get more leads https://wa.me:x@evil.xyz backlinks guest posts"], // the host is evil.xyz, not wa.me
       ["https://www.wa.me:a.b@evil.xyz"],
       ["www.wa.me:x@evil.xyz and www.facebook.com:a.b@evil.xyz"],
+      ["WWW.wa.me:x@evil.xyz"],
       ["https://wa.me:x-y@evil.xyz and https://wa.me:x+y@evil.xyz"],
       ["https://evil.xyz\\@wa.me"], // a browser reads "\\" as "/": evil.xyz
       ["Backlinks and guest posts: https://user@evil.xyz/path"],
