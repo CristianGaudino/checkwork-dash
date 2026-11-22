@@ -14,7 +14,7 @@ import { SlotPicker } from "@/components/admin/SlotPicker";
 import { addDriveAction, moveDriveAction, type DriveFormState } from "@/app/test-drives/actions";
 import type { CarCard } from "@/lib/admin/car-cards";
 import { DRIVE_LIMITS, drivePhoneError } from "@/lib/admin/drives";
-import { EMAIL_INVALID, NAME_REQUIRED } from "@/lib/copy";
+import { NAME_REQUIRED } from "@/lib/copy";
 import { slugId } from "@/lib/admin/stock-admin-pure";
 import { firstOpen } from "@/lib/admin/slots";
 
@@ -47,7 +47,7 @@ export function BookDriveForm({ cars, team, me, slots, initialCar, person }: { c
   const e = { ...state?.errors, ...(fixes.of === state ? fixes.e : {}) };
   const recheck = ({ target: t }: React.ChangeEvent<HTMLElement>) => {
     if (!(t instanceof HTMLInputElement) || !state?.errors?.[t.name]) return;
-    const error = t.name === "name" ? (t.value.trim() ? undefined : NAME_REQUIRED) : t.name === "phone" ? drivePhoneError(t.value) : t.name === "email" && t.validity.typeMismatch ? EMAIL_INVALID : undefined;
+    const error = t.name === "name" ? (t.value.trim() ? undefined : NAME_REQUIRED) : t.name === "phone" ? drivePhoneError(t.value) : t.name === "email" && t.value.trim() ? state.errors.email : undefined; // email stays wrong until the server checks it again: the browser's rule is looser than the server's
     setFixes({ of: state, e: { ...(fixes.of === state ? fixes.e : {}), [t.name]: error } });
   };
   const [car, setCar] = useState(start);
