@@ -113,9 +113,12 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
 // A day's bookings in time order. Each opens its booking; the next steps (confirm, done, no show, cancel) are on the row, with Undo.
 function Agenda({ drives, gone, empty = "Nothing booked.", withDay = false }: { drives: TestDrive[]; gone: Set<string>; empty?: string; withDay?: boolean }) {
   if (drives.length === 0) return <p className="text-body text-text-2">{empty}</p>;
+  const today = dublinDay();
   return (
     <ul className="-mx-5 flex flex-col">
-      {drives.map((d) => (
+      {drives.map((d) => {
+        const ahead = dublinDay(d.startsAt) > today;
+        return (
         <li key={d.id} className="relative grid grid-cols-[3.5rem_minmax(0,1fr)] items-center gap-x-4 gap-y-2 px-5 py-3 even:bg-row-alt hover:bg-surface md:grid-cols-[3.5rem_minmax(0,1fr)_auto]">
           <span className="self-start font-medium tabular-nums md:self-center">
             {fmtTime(d.startsAt)}
@@ -133,13 +136,14 @@ function Agenda({ drives, gone, empty = "Nothing booked.", withDay = false }: { 
               {d.carTitle} · {d.assignedTo ?? "Not assigned"}
             </span>
           </span>
-          {/* Call them, then the next step, one press each. */}
+          {/* Call them, then the next step, one press each. One strong button a row: Call is quiet when a step (Confirm, Mark done) is the strong one. */}
           <span className="relative z-10 col-span-2 flex flex-wrap gap-2 md:col-span-1 md:col-start-3 md:justify-end">
-            {isOpenDrive(d) && <CallButton phone={d.phone} name={d.name} quiet={d.status === "requested"} />}
-            <DriveSteps drive={d} ahead={dublinDay(d.startsAt) > dublinDay()} />
+            {isOpenDrive(d) && <CallButton phone={d.phone} name={d.name} quiet={d.status === "requested" || !ahead} />}
+            <DriveSteps drive={d} ahead={ahead} />
           </span>
         </li>
-      ))}
+        );
+      })}
     </ul>
   );
 }
