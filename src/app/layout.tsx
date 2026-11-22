@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import { cookies } from "next/headers";
+import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { NavProgress } from "@/components/NavProgress";
 import { Toaster } from "@/components/Toaster";
@@ -61,6 +62,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // A page outside the proxy (the sign-in pages, the proxy's own 404) is drawn bare, with its own content. A signed-out page load under our
   // sign-in has already gone to sign in (dealerAccess).
   const gate = await pageGate();
+  // Signed out anywhere else (a POST with a dead session, which is never redirected): not there, as the proxy answers. "No access" below
+  // is only for someone signed in who is at no dealer.
+  if (gate === "frame" && access.state === "signed-out") notFound();
   if (gate === "bare" || access.state !== "ok")
     return (
       <html lang="en-IE" className={`${sora.variable} ${inter.variable}`} suppressHydrationWarning>

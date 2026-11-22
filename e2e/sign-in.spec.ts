@@ -21,7 +21,7 @@ test.describe("SIGN_IN unset (the open app, and production today)", () => {
 test("SIGN_IN unset on a closed server: the sign-in page and /sign-out are 404s, as every page is without Access", async () => {
   test.skip(!!process.env.E2E_BASE_URL, "needs the run's own closed server");
   const api = await http.newContext({ baseURL: CLOSED_ACCESS });
-  for (const headers of [{}, DEAD]) {
+  for (const headers of [{}, DEAD, { "x-cw-path": "/x" }] as Record<string, string>[]) { // a forged path header never reaches the app
     expect((await api.get("/sign-in", { headers, maxRedirects: 0 })).status()).toBe(404);
     expect((await api.get("/sign-in?next=%2Fleads", { headers, maxRedirects: 0 })).status()).toBe(404);
     expect((await api.post("/sign-out", { headers: { ...headers, origin: CLOSED_ACCESS }, maxRedirects: 0 })).status()).toBe(404);
@@ -60,10 +60,19 @@ test.describe("SIGN_IN=own on a closed server", () => {
   test("a POST with no session is a 404, never a redirect", async () => {
     const res = await api.post("/leads", { maxRedirects: 0 });
     expect(res.status()).toBe(404);
+    expect((await api.post("/leads", { headers: { "x-cw-path": "/leads" }, maxRedirects: 0 })).status()).toBe(404); // a forged path changes nothing
+  });
+
+  test("a plain POST or PUT with a dead cookie is not there either: signed out is not \"No access\"", async () => {
+    for (const method of ["POST", "PUT"] as const) {
+      const res = await api.fetch("/leads", { method, headers: { ...DEAD, "content-type": "application/x-www-form-urlencoded" }, data: "a=1", maxRedirects: 0 });
+      expect(res.status(), method).toBe(404);
+      expect(await res.text(), method).not.toContain("No access");
+    }
   });
 
   test("the sign-in page answers signed out, with or without a dead cookie, and never loops", async () => {
-    for (const headers of [{}, DEAD]) {
+    for (const headers of [{}, DEAD, { "x-cw-path": "/x" }] as Record<string, string>[]) {
       const res = await api.get("/sign-in?next=%2Fleads", { headers, maxRedirects: 0 });
       expect(res.status()).toBe(200);
       expect(await res.text()).toContain("Sign in to Checkwork");

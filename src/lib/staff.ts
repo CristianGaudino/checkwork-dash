@@ -52,12 +52,14 @@ export async function signInOpen(): Promise<boolean> {
 // A page load with no live session goes to sign in, and comes back to where it was after. Called by dealerAccess() (src/lib/tenancy/
 // membership.ts), which every page, layout, store and permission check goes through, so a client-side navigation (which skips the root
 // layout) is caught too. Only where our sign-in is on: under Access alone (the default) nothing changes, since the proxy already refused
-// anyone Access did not let in. Only with a path from the proxy: a POST (a server action) has an empty one and answers 404 instead, and
-// a page outside the proxy (the sign-in pages) has none, so it never loops. The path is the proxy's header, never the browser's.
+// anyone Access did not let in. Only with a path from the proxy: a POST (a server action, a plain form) has an empty one and is not there
+// (404, never a redirect: the caller is script), whichever page or store asked first; a page outside the proxy (the sign-in pages) has
+// none, so it never loops. The path is the proxy's header, never the browser's (the proxy strips any other).
 export async function toSignIn(): Promise<void> {
   if (signInMode() === "access" || appOpen()) return;
   const path = (await headers()).get(PATH_HEADER);
   if (path) redirect(signInPath(path));
+  if (path === "") notFound();
 }
 
 // What the root layout draws (src/app/layout.tsx). "bare": a page outside the proxy (the sign-in pages, and the proxy's own 404), which

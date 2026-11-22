@@ -74,9 +74,41 @@ describe("what the gate covers", () => {
     expect(gated("/stock/123/reserve")).toBe(true);
     expect(gated("/stock/4710001/1-b1b37b33.webp")).toBe(false);
   });
-  it("leaves our sign-in pages and /sign-out to check SIGN_IN themselves, so a signed-out visit never loops", () => {
-    for (const p of ["/sign-in", "/sign-in/", "/sign-in/code", "/sign-in/link", "/sign-out"]) expect(gated(p), p).toBe(false);
-    for (const p of ["/sign-inx", "/sign-outside", "/sign-out/x", "/leads/sign-in"]) expect(gated(p), p).toBe(true);
+  it("runs on our sign-in pages and /sign-out too, so a browser's x-cw-path is stripped there", () => {
+    for (const p of ["/sign-in", "/sign-in/code", "/sign-in/link", "/sign-out"]) expect(gated(p), p).toBe(true);
+  });
+});
+
+describe("x-cw-path reaches the app only as the proxy wrote it", () => {
+  const FORGED = { "x-cw-path": "/x", accept: "text/html" };
+  const send = (path: string, method = "GET", headers: Record<string, string> = FORGED) => proxy(new NextRequest(`https://demo.example${path}`, { method, headers }));
+  // What the app will see: Next's override list names every request header kept, and each one's new value.
+  const kept = (res: Response) => (res.headers.get("x-middleware-override-headers") ?? "").split(",");
+  const stripped = (res: Response) => !kept(res).includes("x-cw-path") && res.headers.get("x-middleware-request-x-cw-path") === null;
+
+  it("strips it on the sign-in pages and /sign-out, in every mode, and gates nothing there", async () => {
+    vi.stubEnv("APP_ENV", "demo");
+    for (const mode of ["", "both", "own"]) {
+      vi.stubEnv("SIGN_IN", mode);
+      for (const [path, method] of [["/sign-in", "GET"], ["/sign-in/code", "POST"], ["/sign-in", "POST"], ["/sign-out", "POST"]]) {
+        const res = await send(path, method);
+        expect(res.status, `${mode} ${path}`).toBe(200);
+        expect(res.headers.get("location"), `${mode} ${path}`).toBeNull();
+        expect(kept(res), `${mode} ${path}`).toContain("accept"); // the rest of the request goes on as it was
+        expect(stripped(res), `${mode} ${path}`).toBe(true);
+      }
+    }
+  });
+
+  it("strips it on the closed area's 404, in every mode", async () => {
+    vi.stubEnv("APP_ENV", "demo");
+    for (const [mode, method] of [["", "GET"], ["both", "GET"], ["own", "POST"], ["own", "PUT"]]) {
+      vi.stubEnv("SIGN_IN", mode);
+      const res = await send("/leads", method);
+      expect(res.status, mode).toBe(404);
+      expect(res.headers.get("location"), mode).toBeNull();
+      expect(stripped(res), mode).toBe(true);
+    }
   });
 });
 

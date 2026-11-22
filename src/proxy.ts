@@ -3,8 +3,17 @@ import type { NextRequest } from "next/server";
 import { accessConfig, verifyAccessJwt } from "@/lib/access";
 import { PATH_HEADER, SESSION_COOKIE, SESSION_VALUE, appOpen, signInMode, signInPath } from "@/lib/auth/gate";
 
+// The request's headers without PATH_HEADER: only the proxy ever writes it, so a copy the browser sent never reaches the app.
+const withoutPath = (req: NextRequest) => {
+  const h = new Headers(req.headers);
+  h.delete(PATH_HEADER);
+  return h;
+};
 // The app's own not found page, not a bare line. A path no route matches renders app/not-found.tsx.
-const notThere = (req: NextRequest) => NextResponse.rewrite(new URL("/not-found-closed-area", req.url), { status: 404, headers: { "X-Robots-Tag": "noindex" } });
+const notThere = (req: NextRequest) => NextResponse.rewrite(new URL("/not-found-closed-area", req.url), { status: 404, headers: { "X-Robots-Tag": "noindex" }, request: { headers: withoutPath(req) } });
+// Our sign-in's pages and /sign-out check SIGN_IN themselves (signInOpen in src/lib/staff.ts): the proxy only strips PATH_HEADER there and
+// gates nothing, so a signed-out visit to /sign-in is never sent to /sign-in again.
+const SIGN_IN_PAGES = /^\/(sign-in(\/.*)?|sign-out)$/;
 const isPageLoad = (req: NextRequest) => req.method === "GET" || req.method === "HEAD";
 // The page's path and query, for the sign-in redirect's `next` (src/lib/staff.ts toSignIn).
 const pathOf = (req: NextRequest) => {
@@ -26,6 +35,7 @@ const pass = (req: NextRequest) => {
 // (src/components/admin/PlanGate.tsx), and every action checks it again (requireModule). Proxy is not for data fetching (Next 16 docs), so
 // it reads no directory and no session: the server checks the session (src/lib/staff.ts), and a dead one goes to sign in from dealerAccess.
 export async function proxy(req: NextRequest) {
+  if (SIGN_IN_PAGES.test(req.nextUrl.pathname)) return NextResponse.next({ request: { headers: withoutPath(req) } });
   // A closed area looks like a page that is not there. Server actions post to the page itself, so this covers them too.
   // Open in development and when the build says so, but never with a real directory bound (the Worker, where OpenNext gives the proxy the
   // bindings too). staffIdentity checks the same again.
@@ -50,8 +60,7 @@ export async function proxy(req: NextRequest) {
 
 // Every page. Not the routes that check their own key (api: CRON_KEY, the owner token or a website key, /api/site; the photo and media
 // routes) nor the static files (Next's own, the seeded car photos in public/stock/<id>/*.webp, and the brand files in public/). Only the photo
-// files: the stock pages under /stock are gated like any other. Nor our sign-in's pages and /sign-out, which check SIGN_IN themselves
-// (signInOpen in src/lib/staff.ts): gated here, a signed-out visit to /sign-in would be sent to /sign-in over and over.
+// files: the stock pages under /stock are gated like any other. Our sign-in's pages pass through ungated (SIGN_IN_PAGES above).
 export const config = {
-  matcher: ["/((?!api/|car-photos/|media-files/|_next/|stock/[^/]+/[^/]+\\.webp|brand/|brands/|icon\\.|favicon\\.ico|sign-in(?:/|$)|sign-out$).*)"],
+  matcher: ["/((?!api/|car-photos/|media-files/|_next/|stock/[^/]+/[^/]+\\.webp|brand/|brands/|icon\\.|favicon\\.ico).*)"],
 };

@@ -222,8 +222,9 @@ describe("SIGN_IN: the sign-in pages, and a signed-out page", () => {
       sent = { ...sent, "x-cw-path": "/leads?status=new" }; // a page load or a client-side navigation: the proxy set the path
       expect(await sentTo(dealerAccess()), `${mode} ${state}`).toMatch(/^NEXT_REDIRECT;replace;\/sign-in\?next=%2Fleads%3Fstatus%3Dnew;307;/);
       expect(await sentTo(currentDealer()), `${mode} ${state}`).toMatch(/^NEXT_REDIRECT;replace;\/sign-in\?/); // a store asking first
-      sent = { ...sent, "x-cw-path": "" }; // a POST (a server action): the proxy leaves the path empty
-      expect(await dealerAccess()).toEqual({ state: "signed-out" });
+      sent = { ...sent, "x-cw-path": "" }; // a POST (a server action, a plain form): the proxy leaves the path empty
+      await expect(dealerAccess()).rejects.toThrow(/NEXT_HTTP_ERROR_FALLBACK;404/); // not there, never a redirect
+      await expect(currentDealer()).rejects.toThrow(/NEXT_HTTP_ERROR_FALLBACK;404/); // whichever store asks first
       await expect(requireStaff()).rejects.toThrow(/NEXT_HTTP_ERROR_FALLBACK;404/);
       const { "x-cw-path": _, ...outside } = sent; // a page outside the proxy (the sign-in pages): no path, so no loop
       sent = outside;
