@@ -6,7 +6,7 @@ import {
 } from "@/test/authenticator";
 import { decodeCborAll, type CborMap } from "./cbor";
 import fixtures from "./webauthn-fixtures.json";
-import { MAX_INPUT, counterAdvances, derToRaw, importCoseKey, parseAuthData, verifyAssertion, verifyRegistration, type NewPasskey, type StoredPasskey } from "./webauthn";
+import { MAX_INPUT, derToRaw, importCoseKey, parseAuthData, verifyAssertion, verifyRegistration, type NewPasskey, type StoredPasskey } from "./webauthn";
 
 // Every check in docs/sign-in.md, section 2, with one failing case each, against a software authenticator made with node:crypto
 // (src/test/authenticator.ts) and responses recorded from Chrome's virtual authenticator (scripts/record-webauthn-fixtures.mjs).
@@ -27,6 +27,9 @@ async function register(a: Authenticator, o: Parameters<typeof registration>[2] 
   return verifyRegistration(registration(a, c, o), registering(c));
 }
 
+// The counter rule counterWhere puts in the directory's statement (webauthn.int.test.ts runs that on SQLite), for the in-memory stand-in.
+const counterAdvances = (stored: number, next: number) => stored < next || (stored === 0 && next === 0);
+
 // The sign-in side: passkeys held, live challenges, and the counter written only where counterAdvances holds (as the statement does).
 function directory() {
   const rows = new Map<string, StoredPasskey & { active: boolean }>();
@@ -39,7 +42,7 @@ function directory() {
       live.add(c);
       return c;
     },
-    rp: (confirming?: string) => ({
+    rp: (confirming: string | null = null) => ({
       ...RP,
       confirming,
       findPasskey: async (id: string) => {
@@ -69,6 +72,12 @@ async function person(kind: Kind = "ES256", o: { flags?: number } = {}) {
 }
 
 const refusedWith = (code: string) => ({ ok: false, code });
+
+// A valid clientDataJSON of exactly MAX_INPUT + 1 bytes.
+function padded(type: string, challenge: string) {
+  const base = clientDataJSON(type, challenge, { pad: "" }).length;
+  return clientDataJSON(type, challenge, { pad: "x".repeat(MAX_INPUT + 1 - base) });
+}
 
 describe("ES256 signatures, DER to raw r and s", () => {
   const int = (v: number[]) => [0x02, v.length, ...v];
@@ -342,6 +351,15 @@ describe("registration (adding a passkey)", () => {
       expect(await withKey(ed, edit(ed, [-1, 7]))).toEqual(refusedWith("bad-data")); // Ed448
     });
 
+    it("refuses an RSA exponent other than 65537 (e = 1 would let anyone forge a signature), and a modulus over 4096 bits", async () => {
+      const rsa = authenticator("RS256");
+      for (const e of [[1], [3], [1, 0, 0, 1], [1, 0, 0], []]) {
+        expect(await withKey(rsa, edit(rsa, [-2, new Uint8Array(e)]))).toEqual(refusedWith("bad-data"));
+      }
+      const big = new Uint8Array(513).fill(0xc5);
+      expect(await withKey(rsa, edit(rsa, [-1, big]))).toEqual(refusedWith("bad-data"));
+    });
+
     it("refuses a 1024-bit RSA key, and one just under 2048 bits", async () => {
       expect(await register(authenticator("RS256", { rsaBits: 1024 }))).toEqual(refusedWith("bad-data"));
       const rsa = authenticator("RS256");
@@ -352,11 +370,14 @@ describe("registration (adding a passkey)", () => {
     });
   });
 
-  it("refuses an oversized part before reading it", async () => {
+  it("refuses an otherwise valid clientDataJSON over MAX_INPUT before spending the challenge", async () => {
     const a = authenticator("ES256");
     const c = newChallenge();
-    const res = registration(a, c);
-    expect(await verifyRegistration({ ...res, attestationObject: cat(res.attestationObject, new Uint8Array(MAX_INPUT)) }, registering(c))).toEqual(refusedWith("bad-data"));
+    const clientData = padded("webauthn.create", c);
+    expect(clientData.length).toBe(MAX_INPUT + 1);
+    const rp = registering(c);
+    expect(await verifyRegistration(registration(a, c, { clientData }), rp)).toEqual(refusedWith("bad-data"));
+    expect((await verifyRegistration(registration(a, c), rp)).ok).toBe(true); // the challenge was not spent
   });
 });
 
@@ -366,6 +387,30 @@ describe("sign-in", () => {
     const r = await verifyAssertion(assertion(p.a, p.dir.challenge(), p.handle, { signCount: 3 }), p.dir.rp());
     expect(r).toEqual({ ok: true, staffId: p.staffId, credentialId: p.passkey.id, signCount: 3, backedUp: true });
     expect(p.dir.rows.get(p.passkey.id)?.signCount).toBe(3);
+  });
+
+  it.each(KINDS)("accepts a %s passkey whose stored key comes back from D1 as a Buffer, a view into shared memory", async (kind) => {
+    const p = await person(kind);
+    const row = p.dir.rows.get(p.passkey.id)!;
+    const pool = Buffer.alloc(row.publicKey.length + 64, 0xee);
+    pool.set(row.publicKey, 40);
+    row.publicKey = pool.subarray(40, 40 + row.publicKey.length); // a non-zero byteOffset, as Buffer's pool gives
+    expect(row.publicKey.byteOffset).toBe(40);
+    expect(await verifyAssertion(assertion(p.a, p.dir.challenge(), p.handle, { signCount: 1 }), p.dir.rp())).toMatchObject({ ok: true });
+    row.publicKey = Buffer.from(p.passkey.publicKey);
+    expect(await verifyAssertion(assertion(p.a, p.dir.challenge(), p.handle, { signCount: 2 }), p.dir.rp())).toMatchObject({ ok: true });
+  });
+
+  it("refuses an oversized clientDataJSON, signature or user handle before looking anything up", async () => {
+    const p = await person();
+    let lookups = 0;
+    const rp = { ...p.dir.rp(), findPasskey: async () => (lookups++, null) };
+    const c = p.dir.challenge();
+    expect(await verifyAssertion(assertion(p.a, c, p.handle, { clientData: padded("webauthn.get", c) }), rp)).toEqual(refusedWith("bad-data"));
+    const res = assertion(p.a, c, p.handle);
+    expect(await verifyAssertion({ ...res, signature: new Uint8Array(MAX_INPUT + 1) }, rp)).toEqual(refusedWith("bad-data"));
+    expect(await verifyAssertion({ ...res, userHandle: new Uint8Array(MAX_INPUT + 1) }, rp)).toEqual(refusedWith("bad-data"));
+    expect(lookups).toBe(0);
   });
 
   it("1: refuses a credential we do not hold (the only unknown-credential), and one of someone at no active dealer", async () => {
@@ -527,6 +572,7 @@ describe("responses recorded from Chrome's virtual authenticator", () => {
     const deps = {
       ...rp,
       findPasskey: async (id: string) => (id === stored.id ? { passkey: stored, atActiveDealer: true } : null),
+      confirming: null,
       useChallenge: async (c: string) => c === f.signIn.challenge,
       advanceCounter: async (_: string, next: number) => counterAdvances(stored.signCount, next),
     };

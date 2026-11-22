@@ -91,6 +91,16 @@ describe("the CBOR reader (RFC 8949)", () => {
     expect(() => decodeCborAll(hex("baffffffff"))).toThrow(CborError);
   });
 
+  it("reads a Buffer that is a view at a non-zero offset into shared memory, as D1 gives a blob", () => {
+    const pool = Buffer.alloc(400, 0xee);
+    pool.set(hex("a2 01 590100 " .replaceAll(" ", "") + "00".repeat(256) + "02 1a00010000".replaceAll(" ", "")), 7);
+    const view = pool.subarray(7, 7 + 1 + 1 + 3 + 256 + 1 + 5);
+    expect(view.byteOffset).toBe(7);
+    const m = decodeCborAll(view) as Map<number, Cbor>;
+    expect((m.get(1) as Uint8Array).length).toBe(256);
+    expect(m.get(2)).toBe(65536);
+  });
+
   it("gives byte strings as copies, so the input can change after", () => {
     const input = hex("4401020304");
     const out = decodeCborAll(input) as Uint8Array;

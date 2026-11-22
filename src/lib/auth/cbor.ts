@@ -17,7 +17,9 @@ export const MAX_DEPTH = 8;
 const utf8 = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
 
 // Decodes one item from `start` and reports where it ended. The caller decides whether anything may follow.
-export function decodeCbor(bytes: Uint8Array, start = 0): { value: Cbor; end: number } {
+export function decodeCbor(input: Uint8Array, start = 0): { value: Cbor; end: number } {
+  // A copy: a Node Buffer (D1's blob) can be a view into shared memory, and every slice below is then a plain array of its own.
+  const bytes = new Uint8Array(input);
   let at = start;
   const fail = (): never => {
     throw new CborError();
@@ -32,8 +34,7 @@ export function decodeCbor(bytes: Uint8Array, start = 0): { value: Cbor; end: nu
     if (major === 6) fail();
     let arg = info;
     if (info === 24) arg = take(1)[0];
-    else if (info === 25) arg = new DataView(take(2).buffer).getUint16(0);
-    else if (info === 26) arg = new DataView(take(4).buffer).getUint32(0);
+    else if (info === 25 || info === 26) arg = take(info === 25 ? 2 : 4).reduce((n, b) => n * 256 + b, 0); // big endian
     else if (info > 26) fail(); // 27: 8 bytes; 28 to 30: reserved; 31: indefinite
     if (major === 0) return arg;
     if (major === 1) return -1 - arg;

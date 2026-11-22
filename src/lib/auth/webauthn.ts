@@ -81,7 +81,8 @@ export type AuthData = {
 
 // 37 bytes (rpIdHash, flags, count); at registration (AT set) the AAGUID, the credential id and the key as one CBOR item; if ED is set,
 // the extensions as one CBOR map; then nothing. AT must be set at registration and clear at sign-in.
-export function parseAuthData(raw: Uint8Array, registration: boolean): AuthData {
+export function parseAuthData(input: Uint8Array, registration: boolean): AuthData {
+  const raw = new Uint8Array(input); // our own copy, whatever view came in
   if (raw.length < 37) refuse();
   const flags = raw[32];
   if (registration !== Boolean(flags & AT)) refuse();
@@ -104,7 +105,7 @@ export function parseAuthData(raw: Uint8Array, registration: boolean): AuthData 
     at = end;
   }
   if (at !== raw.length) refuse(); // bytes after the key with ED clear, or after the extensions
-  return { rpIdHash: raw.slice(0, 32), flags, signCount: new DataView(raw.buffer, raw.byteOffset).getUint32(33), credential };
+  return { rpIdHash: raw.slice(0, 32), flags, signCount: new DataView(raw.buffer).getUint32(33), credential };
 }
 
 // A COSE key (RFC 9052, 9053) as a WebCrypto key, only for the three algorithms we offer, with registration step 8's checks. importKey
@@ -126,7 +127,8 @@ export async function importCoseKey(cose: CborMap): Promise<{ alg: Alg; key: Cry
     params = { name: "ECDSA", namedCurve: "P-256" };
   } else if (alg === -257 && kty === 3) {
     const [n, e] = [unsigned(bytes(-1)), unsigned(bytes(-2))];
-    if (n.length < 256 || (n.length === 256 && n[0] < 0x80) || e.length === 0) refuse(); // the modulus at least 2048 bits
+    // The modulus 2048 to 4096 bits, and e exactly 65537: e = 1 would let anyone forge a signature without a private key.
+    if (n.length < 256 || (n.length === 256 && n[0] < 0x80) || n.length > 512 || e.length !== 3 || e[0] !== 1 || e[1] !== 0 || e[2] !== 1) refuse();
     jwk = { kty: "RSA", n: b64u(n), e: b64u(e) };
     params = { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" };
   } else return refuse();
@@ -229,7 +231,7 @@ export type StoredPasskey = { id: string; staffId: string; publicKey: Uint8Array
 export async function verifyAssertion(
   res: Assertion,
   rp: RelyingParty & {
-    confirming?: string; // the session's staff id in "Confirm it's you"; absent in a sign-in, where no one is identified beforehand
+    confirming: string | null; // the session's staff id in "Confirm it's you"; null in a sign-in, where no one is identified beforehand. Required, so every caller chooses
     findPasskey: (id: string) => Promise<{ passkey: StoredPasskey; atActiveDealer: boolean } | null>;
     useChallenge: (challenge: string) => Promise<boolean>; // this kind of request's challenge (sign-in, or this session's confirmation)
     advanceCounter: (id: string, signCount: number, backedUp: boolean) => Promise<boolean>; // counterWhere's statement: false when refused
@@ -245,7 +247,7 @@ export async function verifyAssertion(
     const { passkey } = found;
     if (!found.atActiveDealer) refuse("no-dealer");
     const handle = res.userHandle && b64u(res.userHandle);
-    if (rp.confirming === undefined ? handle !== passkey.staffId : passkey.staffId !== rp.confirming || (handle !== null && handle !== passkey.staffId)) refuse();
+    if (rp.confirming === null ? handle !== passkey.staffId : passkey.staffId !== rp.confirming || (handle !== null && handle !== passkey.staffId)) refuse();
     // 2: clientDataJSON, origin, and the challenge spent.
     const challenge = clientData(res.clientDataJSON, "webauthn.get", rp.origin);
     if (!(await rp.useChallenge(challenge))) refuse("expired");
@@ -267,8 +269,7 @@ export async function verifyAssertion(
 }
 
 // ---- The counter ("Signature Counter Considerations") ----
-// It must go up, except a passkey that never counts (synced ones send 0 every time). The directory writes it only WHERE this holds, in
-// the same statement that checks it, so two sign-ins with the same count cannot both pass:
+// It must go up (sign_count < :new), except a passkey that never counts (synced ones send 0 every time: 0 over 0). The directory writes it
+// only WHERE this holds, in the same statement that checks it, so two sign-ins with the same count cannot both pass:
 //   UPDATE passkeys SET sign_count = :new, backed_up = :bs, last_used_at = :now WHERE id = :id AND <counterWhere(:new)> RETURNING id
-export const counterAdvances = (stored: number, next: number) => stored < next || (stored === 0 && next === 0);
 export const counterWhere = (next: number): SQL => (next === 0 ? eq(passkeys.signCount, 0) : lt(passkeys.signCount, next));
