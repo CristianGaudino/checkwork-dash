@@ -62,3 +62,14 @@ describe("our limits", () => {
     expect(capOf(b, "whatsapp")).toBe(20);
   });
 });
+
+describe("the demo's real AI usage", () => {
+  it("is kept when the demo's records are put back to their seed, so the month's cap holds across the morning reseed", async () => {
+    await recordUsage("ai", "opus", 3);
+    await usageStore.reset();
+    const { monthCounts } = await import("./usage");
+    const ai = (await monthCounts()).filter((c) => c.service === "ai" && c.kind === "opus");
+    expect(ai.reduce((n, c) => n + c.count, 0)).toBeGreaterThanOrEqual(3 + 4); // 3 real, plus the seeded line
+    expect(ai.some((c) => c.id.startsWith("real-"))).toBe(true);
+  });
+});

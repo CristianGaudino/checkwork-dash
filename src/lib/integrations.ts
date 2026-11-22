@@ -43,7 +43,7 @@ export function integrationText(i: Integration, dealer: { name: string; site: st
 }
 
 // A demo dealer (the directory's flag) shows every feature working and never reaches anyone real: its outward services are simulated, keys
-// or not, so it does their work in its own records and sends nothing outside, on any deploy. Any other dealer never simulates: a service
+// or not (AI writing excepted, see modeOf), so it does their work in its own records and sends nothing outside, on any deploy. Any other dealer never simulates: a service
 // without keys says it is not connected.
 export const simulating = async () => (await currentDealer()).demo;
 
@@ -59,5 +59,8 @@ export type Mode = "live" | "simulated" | "off";
 // Only the outward services (and the registration lookup, DoneDeal stock, review replies and AI writing) are simulated. Lead email and reviews
 // always show their true state, and analytics shows its sample figures only while simulating (src/app/analytics/page.tsx).
 const SIMULATABLE: readonly IntegrationId[] = ["social", "ads", "newsletter", "reglookup", "donedeal", "gbp", "whatsapp", "ai"];
-export const modeOf = async (id: IntegrationId): Promise<Mode> => ((await simulating()) && SIMULATABLE.includes(id) ? "simulated" : isConnected(id) ? "live" : "off");
+// The exception is AI writing on a demo dealer: with its key set it is real Claude (owner, 2026-11-22; the demo's spend is bounded by the usage caps),
+// and without one (next dev, tests, E2E) it is the mock.
+export const modeOf = async (id: IntegrationId): Promise<Mode> =>
+  (await simulating()) && SIMULATABLE.includes(id) && !(id === "ai" && isConnected(id)) ? "simulated" : isConnected(id) ? "live" : "off";
 export const isUsable = async (id: IntegrationId) => (await modeOf(id)) !== "off";

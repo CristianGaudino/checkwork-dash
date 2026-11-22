@@ -19,7 +19,7 @@ export async function resetDemoRecords() {
   if (!dealer.demo) throw new Error("Not a demo dealer"); // a real dealer's records are never put back to a seed
   // The made-up business's facts too, which a visitor may have changed in Settings.
   await patchDealer(dealer.id, dealer.id === DEMO_DEALER ? DEMO_NAME : dealer.name, null);
-  // The usage, bills and Help records too, so the Billing page's month and bills are dated from today and a reached limit is lifted.
+  // The usage, bills and Help records too, so the Billing page's month and bills are dated from today and a reached limit is lifted (not the demo's real AI use, a `real-` record: that is real Claude, so its cap holds all month).
   for (const c of [...DEALER_COLLECTIONS, noticesStore, readsStore, usageStore, sentAlertsStore, billsStore, helpStore, feedbackStore, messagesStore, staffStore]) await c.reset();
   // The deposits are back to the seed, so the Reserved marks follow them (the mark is on the car, which the reset keeps): on the cars with a
   // held deposit, off every other car.

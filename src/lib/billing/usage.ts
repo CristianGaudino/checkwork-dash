@@ -6,6 +6,7 @@ import { notify } from "@/lib/admin/notifications";
 import { SHOW_PRICING, alertsCrossed, allowanceFor, inAllowance, usageCosts, usageId, withinCaps, withBranchCeilings, type BillingSettings, type Kind, type Service, type UsageCount, withBillingDefaults } from "./rules";
 import { enabledModules } from "@/lib/modules";
 import { roleCan } from "@/lib/permission-rules";
+import { currentDealer } from "@/lib/tenancy/current";
 
 // The meters for what is billed per use (#181): registration lookups, AI actions and WhatsApp messages. Every paid use is counted here,
 // once, by the code that makes it; the Billing page, the owner API (#174) and the bill all read these counts, so they never disagree.
@@ -48,7 +49,9 @@ export async function recordUsage<S extends Service>(service: S, kind: Kind<S>, 
     const month = monthOf();
     const b = await billingSettings();
     const before = await monthCounts(month);
-    const id = usageId(month, service, kind);
+    // A demo dealer's AI is real Claude and costs real money: its count is a "real-" record, which the demo reset keeps, so the month's cap holds
+    // across the morning reseed and Reset demo data (the seeded lines above it still reset).
+    const id = service === "ai" && (await currentDealer()).demo ? `real-${usageId(month, service, kind)}` : usageId(month, service, kind);
     const prev = before.find((c) => c.id === id);
     const next: UsageCount = { id, month, service, kind, count: (prev?.count ?? 0) + n };
     await usageStore.put(next);

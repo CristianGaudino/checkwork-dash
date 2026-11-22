@@ -15,7 +15,7 @@ const { runAsDealer } = await import("@/lib/tenancy/current");
 const facts = { dealer: "Checkwork Motors", firstName: "Aoife", kind: "Test drive", message: "Can I see it Saturday? Call 087 123 4567", car: "2021 Skoda Octavia" };
 const reply = (text: string, stop_reason = "end_turn") => ({ stop_reason, content: [{ type: "thinking", thinking: "" }, { type: "text", text }] });
 
-// A real dealer (not a demo): a demo dealer always gets the mock, key or not.
+// A real dealer (not a demo); the demo dealer is below: Claude with a key, the mock without.
 describe("writeWithAI with a key (Claude), for a real dealer", () => {
   const real = (...a: Parameters<typeof writeWithAI>) => runAsDealer("test-motors", () => writeWithAI(...a));
   beforeEach(() => { process.env.ANTHROPIC_API_KEY = "test-key"; create.mockReset(); limit.mockReset().mockResolvedValue({ success: true }); });
@@ -85,12 +85,21 @@ describe("writeWithAI with a key (Claude), for a real dealer", () => {
 });
 
 describe("writeWithAI for a demo dealer", () => {
-  it("uses the mock and never calls Claude, even with a key", async () => {
-    process.env.ANTHROPIC_API_KEY = "test-key";
-    create.mockReset();
+  beforeEach(() => { create.mockReset(); limit.mockReset().mockResolvedValue({ success: true }); });
+  afterEach(() => { delete process.env.ANTHROPIC_API_KEY; });
+
+  it("uses the mock and never calls Claude without a key", async () => {
     const r = await writeWithAI("opus", "leadReply", facts);
     expect(r).toMatchObject({ ok: true, text: expect.stringContaining("Hi Aoife,") });
     expect(create).not.toHaveBeenCalled();
-    delete process.env.ANTHROPIC_API_KEY;
+  });
+
+  it("calls real Claude with a key, through the same rate limiter", async () => {
+    process.env.ANTHROPIC_API_KEY = "test-key";
+    create.mockResolvedValue(reply("From Claude."));
+    expect(await writeWithAI("opus", "leadReply", facts)).toEqual({ ok: true, text: "From Claude." });
+    expect(limit).toHaveBeenCalledWith({ key: "ai:checkwork-motors" });
+    limit.mockResolvedValueOnce({ success: false });
+    expect(await writeWithAI("opus", "leadReply", facts)).toEqual({ ok: false });
   });
 });
