@@ -20,8 +20,8 @@ test("open a lead, change who has it and its status, add a note", async ({ page 
   await page.goto("/leads?status=new");
   await page.getByRole("row").nth(1).getByRole("link").first().click();
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-  await page.getByRole("button", { name: "Mark contacted" }).click();
-  await expect(page.getByRole("button", { name: "Mark contacted" })).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: "Contacted", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Contacted", exact: true })).toHaveAttribute("aria-pressed", "true");
   const person = page.getByRole("region", { name: "Who has it" }).getByRole("button").nth(1);
   await person.click();
   await expect(person).toHaveAttribute("aria-pressed", "true");
@@ -48,15 +48,15 @@ test("the list opens with what to answer now, and a lead moves on a step from it
   const href = (await first.locator('a[href^="/leads/lead-"]').first().getAttribute("href"))!;
   const mark = first.getByRole("button", { name: /^Mark / });
   const to = (await mark.textContent())!.trim().replace(/^Mark /, "");
-  // The lead's own page, in a second tab: "Where it stands" is what the store holds.
+  // The lead's own page, in a second tab: its pressed status pill is what the store holds.
   const lead = await context.newPage();
-  const status = () => lead.getByRole("group", { name: "Status" }).getByText(/^Where it stands/);
+  const status = () => lead.getByRole("group", { name: "Status" }).getByRole("button", { pressed: true });
   await lead.goto(href);
   const before = (await status().textContent())!.trim();
   await mark.click();
   await expect(page.getByTestId("toast")).toContainText(new RegExp(to, "i"));
   await lead.reload();
-  await expect(status()).toHaveText(new RegExp(`Where it stands\\s*${to}$`, "i"));
+  await expect(status()).toHaveText(new RegExp(`^${to}$`, "i"));
   await page.getByTestId("toast").getByRole("button", { name: "Undo" }).click();
   await expect.poll(async () => (await lead.reload(), (await status().textContent())?.trim())).toBe(before);
 });
@@ -89,14 +89,15 @@ test("a lead marked spam from To answer now leaves the panel and the Overview co
 
 test("a closed lead says why, and Reopen puts back the status it had (#55)", async ({ page }) => {
   await page.goto("/leads/lead-4002"); // a lead already answered, which no other spec changes
-  const status = page.getByRole("group", { name: "Status" }).getByText(/^Where it stands/);
-  await expect(status).toHaveText(/Contacted$/);
+  const group = page.getByRole("group", { name: "Status" });
+  const contacted = group.getByRole("button", { name: "Contacted", exact: true });
+  await expect(contacted).toHaveAttribute("aria-pressed", "true");
   await page.getByRole("button", { name: /^More for / }).click();
   await page.getByRole("button", { name: /^Close: Duplicate/ }).click();
   await expect(page.getByText("Closed: Duplicate. Not counted as a lost sale.")).toBeVisible();
-  await expect(status).toHaveText(/Closed$/);
+  await expect(group.getByText(/^Where it stands/)).toHaveText(/Closed$/);
   await page.getByRole("button", { name: "Reopen" }).click();
-  await expect(status).toHaveText(/Contacted$/);
+  await expect(contacted).toHaveAttribute("aria-pressed", "true");
 });
 
 test("Book a test drive on a lead fills in their name and number", async ({ page }) => {

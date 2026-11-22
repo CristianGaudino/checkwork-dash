@@ -158,7 +158,9 @@ export async function LeadView({ id }: { id: string }) {
             {main === "claim" && <Link href={`/aftersales/new?lead=${lead.id}`} className={adminButton}>Open a claim</Link>}
             <div role="group" aria-label="Status" className="flex flex-col gap-2">
               <p className="flex items-center gap-2 text-meta text-text-2">
-                Where it stands <LeadStatusBadge status={lead.status} type={lead.type} />
+                Where it stands
+                {/* The pressed pill says it, except for spam and closed, which have none. */}
+                {(lead.status === "spam" || lead.status === "closed") && <LeadStatusBadge status={lead.status} type={lead.type} />}
               </p>
               {/* A spam lead has no steps: Not spam, below, is the way back. */}
               {lead.status !== "spam" && (
@@ -169,7 +171,7 @@ export async function LeadView({ id }: { id: string }) {
                     return (
                       <ChoiceAct key={status} action={setStatusAction.bind(null, lead.id)} set={{ status }} back={undoStatus} active={lead.status === status} done={`${lead.name}: ${leadStatusLabel(lead.type, status)}`}>
                         <Icon className="size-4" />
-                        Mark {leadStatusLabel(lead.type, status).toLowerCase()}
+                        {leadStatusLabel(lead.type, status)}
                       </ChoiceAct>
                     );
                   })}
