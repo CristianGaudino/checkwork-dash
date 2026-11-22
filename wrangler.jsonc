@@ -36,7 +36,8 @@
 	// Dev never emails real people: only our own inbox (a verified Email Routing destination, or dev sends nothing at all).
 	"send_email": [{ "name": "EMAIL", "allowed_destination_addresses": ["contact@checkwork.ie"] }],
 	// LEAD_LIMITER: the registration lookup, 5 a minute per visitor (src/lib/reg-lookup.ts). AI_LIMITER: AI writing, per dealer.
-	// SITE_LIMITER: the site API, 60 requests a minute per website key (src/lib/site-api/request.ts). Namespace ids are account-wide: Cloudflare shares one
+	// SITE_LIMITER: the site API, 60 requests a minute per website key and route (`<keyId>:<route>`, src/lib/site-api/request.ts), and per visitor IP for
+	// the unsubscribe route (`unsub:<ip>`). SIGN_IN_LIMITER: sign-in, 30 a minute per hashed IP (src/app/sign-in/actions.ts). Namespace ids are account-wide: Cloudflare shares one
 	// counter between every Worker in the account that uses the same id, so they must be unique across all of them. Taken: 1001-1002 and
 	// 1003 demo site, 2001 checkwork site, 1001 cartwright, 3xxx this dashboard in production, 4xxx this dashboard in dev (#65).
 	"ratelimits": [{ "name": "LEAD_LIMITER", "namespace_id": "4001", "simple": { "limit": 5, "period": 60 } }, { "name": "AI_LIMITER", "namespace_id": "4003", "simple": { "limit": 10, "period": 60 } }, { "name": "SITE_LIMITER", "namespace_id": "4004", "simple": { "limit": 60, "period": 60 } }, { "name": "SIGN_IN_LIMITER", "namespace_id": "4005", "simple": { "limit": 30, "period": 60 } }],

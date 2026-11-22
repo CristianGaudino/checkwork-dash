@@ -50,15 +50,15 @@ const store = defineCollection<Sealed>("secrets", () => []);
 export const savedNamesNow = async () => new Set((await store.list()).map((d) => d.id));
 export const savedNames = cache(savedNamesNow);
 
-// Every value is sealed before any is written, so a failed seal leaves the old keys whole. shortcut: the record store has no batch, so a
-// write that fails midway can still leave a mix; the owner sees the error and saves again.
+// Every value is sealed before any is written, so a failed seal leaves the old keys whole; the write is one all-or-nothing batch.
 export async function saveSecrets(values: Record<string, string>) {
   const { id } = await currentDealer();
   const sealed = await Promise.all(Object.entries(values).map(async ([name, v]) => ({ id: name, sealed: await seal(id, name, v), at: Date.now() })));
-  for (const doc of sealed) await store.put(doc);
+  await store.replaceMany(Object.keys(values), sealed);
 }
 export const saveSecret = (name: string, value: string) => saveSecrets({ [name]: value });
 export const removeSecret = (name: string) => store.remove(name);
+export const removeSecrets = (names: string[]) => store.replaceMany(names, []);
 
 // The value for the current dealer, and only theirs: a dealer's own setting never falls back to an app-wide variable, or one leftover token
 // would be every dealer's account. A setting that is not per dealer (ours) is read from the Worker secret by its own adapter, not here.

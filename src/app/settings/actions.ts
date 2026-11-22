@@ -21,7 +21,7 @@ import { staffStore } from "@/lib/whatsapp/store";
 import { removePushOf } from "@/lib/push";
 import { INTEGRATIONS, integrationText } from "@/lib/integrations";
 import { listing } from "@/lib/stock-source";
-import { removeSecret, saveSecrets, savedNamesNow, secretsKeyReady } from "@/lib/dealer-secrets";
+import { removeSecrets, saveSecrets, savedNamesNow, secretsKeyReady } from "@/lib/dealer-secrets";
 
 export type SettingsState = { errors?: Record<string, string>; saved?: boolean } | undefined;
 
@@ -265,7 +265,7 @@ export async function removeKeysAction(id: string): Promise<{ error: string } | 
   if (no) return { error: no };
   const service = perDealerService(id);
   if (!service) return { error: "Not found" };
-  for (const n of Object.keys(service.perDealer!)) await removeSecret(n);
+  await removeSecrets(Object.keys(service.perDealer!));
   await logActivity("settings", `Removed the keys for ${await nameOf(service)}`);
   revalidatePath("/settings");
 }
