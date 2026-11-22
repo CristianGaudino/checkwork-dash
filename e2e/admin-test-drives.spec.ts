@@ -9,9 +9,9 @@ test("a request is confirmed from the list, and Undo puts it back", async ({ pag
   const first = waiting.getByRole("listitem").first();
   const who = (await first.locator("[data-name]").textContent())!.trim();
   // Cancel is not beside Confirm in a row: it is under More.
-  await expect(first.getByRole("button", { name: `Cancel: ${who}` })).toHaveCount(0);
+  await expect(first.getByRole("button", { name: `Cancel test drive: ${who}` })).toHaveCount(0);
   await first.getByRole("button", { name: `More for ${who}` }).click();
-  await expect(page.getByRole("button", { name: `Cancel: ${who}` })).toBeVisible();
+  await expect(page.getByRole("button", { name: `Cancel test drive: ${who}` })).toBeVisible();
   await page.keyboard.press("Escape");
   await first.getByRole("button", { name: "Confirm" }).click();
   await expect(page.getByText(`${who}: Confirmed`)).toBeVisible();
@@ -36,7 +36,7 @@ test("a request's row has one strong button, Confirm; on its own page Confirm is
   await row.locator("[data-name]").click();
   await expect(page).toHaveURL(/\/test-drives\/drive-/);
   const status = page.getByRole("region", { name: "Status" });
-  await expect(status.getByRole("button", { name: `Cancel: ${who}` })).toBeVisible();
+  await expect(status.getByRole("button", { name: `Cancel test drive: ${who}` })).toBeVisible();
   // Filled (bg-accent), not tonal (bg-accent-soft).
   await expect(status.getByRole("button", { name: `Confirm: ${who}` })).toHaveClass(/(^|\s)bg-accent(\s|$)/);
 });

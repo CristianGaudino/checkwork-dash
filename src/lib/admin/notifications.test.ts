@@ -59,7 +59,7 @@ describe("the bell", () => {
     expect(noticeOfLead({ id: "l6", type: "general", topic: "other" })).toMatchObject({ text: "Message", detail: undefined }); // "Message" twice says nothing
     // A test drive: the car and the day and time asked for (Irish time), linking to the booking when it has one.
     const at = Date.parse("2026-11-28T11:00:00Z"); // a Saturday
-    expect(noticeOfLead({ id: "l3", type: "test-drive", carTitle: "2019 Kia Soul" }, { id: "drive-9", startsAt: at })).toEqual({ kind: "drive", text: "Test drive request", detail: "2019 Kia Soul · Sat 28 Nov, 11:00", href: "/test-drives/drive-9" });
+    expect(noticeOfLead({ id: "l3", type: "test-drive", carTitle: "2019 Kia Soul" }, { id: "drive-9", startsAt: at })).toEqual({ kind: "drive", text: "Test drive request", detail: "2019 Kia Soul · asked for Sat 28 Nov, 11:00", href: "/test-drives/drive-9" });
     expect(noticeOfLead({ id: "l3", type: "test-drive", carTitle: "2019 Kia Soul" }, {})).toMatchObject({ href: "/test-drives" });
     expect(leadLine({ type: "enquiry", carTitle: "2019 Kia Soul" })).toBe("Car enquiry · 2019 Kia Soul");
   });

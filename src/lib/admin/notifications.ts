@@ -87,11 +87,11 @@ export function leadAbout(lead: LeadFacts): string | undefined {
 export const leadLine = (lead: LeadFacts) => [LEAD_TYPE_LABELS[lead.type], leadAbout(lead)].filter(Boolean).join(" · ");
 
 // What a website request says in the bell: the kind as the heading, then what it is about; a test drive booking (`drive`) adds the time
-// asked for and links to itself when it has an id.
+// asked for, worded as the request since the booking may be moved after, and links to itself when it has an id.
 export function noticeOfLead(lead: Pick<Lead, "id"> & LeadFacts, drive?: { id?: string; startsAt?: number }): Omit<Notice, "id" | "at"> {
   const text = LEAD_TYPE_LABELS[lead.type];
   if (drive) {
-    const when = drive.startsAt === undefined ? undefined : `${fmtDay(dublinDay(drive.startsAt), "weekday")} ${fmtDateTime(drive.startsAt)}`;
+    const when = drive.startsAt === undefined ? undefined : `asked for ${fmtDay(dublinDay(drive.startsAt), "weekday")} ${fmtDateTime(drive.startsAt)}`;
     const detail = [leadAbout(lead), when].filter(Boolean).join(" · ") || undefined;
     return { kind: "drive", text, detail, href: drive.id ? `/test-drives/${drive.id}` : "/test-drives" };
   }
