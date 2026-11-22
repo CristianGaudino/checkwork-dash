@@ -10,21 +10,24 @@ export const pastReplyTarget = (l: Pick<Lead, "status" | "createdAt">, now: numb
 export const followUpDue = (l: Pick<Lead, "status" | "followUpOn">, today: string) => Boolean(l.followUpOn && isOpenLead(l) && l.followUpOn <= today);
 // New leads that need an answer first: "this week" ("can't be driven" is a car bought here, filed in Aftersales).
 export const isHotLead = (l: Lead) => l.status === "new" && Boolean(l.topic) && isUrgent(l.answers ?? {});
+// One badge for a new lead that cannot wait, the same on every list and in To answer now: Late once past the reply target (it is overdue
+// now), else Urgent when they said this week. Never both.
+export const leadFlag = (l: Lead, slaHours: number, now = Date.now()) => (pastReplyTarget(l, now, slaHours) ? "late" : isHotLead(l) ? "urgent" : undefined);
 
 // The one rule for the leads waiting on you (#38). The Overview's headline, To do and Reply to leads button, Leads' To answer now and the
 // salesperson's report all count from it, so they agree. Each lead once: a follow-up due ("follow", exactly followUpDue, so the report and
-// the Follow-ups due filter match), else a new lead ("reply"). Now (red): a follow-up overdue, or a new lead past the reply target or in a
-// hurry; else soon. Now first, then the longest waiting: a new lead since it came in, a follow-up since its day.
-export type LeadTask = { lead: Lead; kind: "reply" | "follow"; urgency: "now" | "soon"; late: boolean };
+// the Follow-ups due filter match), else a new lead ("reply"). Now (red): a follow-up overdue, or a new lead with a flag (leadFlag: past
+// the reply target or in a hurry); else soon. Now first, then the longest waiting: a new lead since it came in, a follow-up since its day.
+export type LeadTask = { lead: Lead; kind: "reply" | "follow"; urgency: "now" | "soon"; flag: ReturnType<typeof leadFlag> };
 export function leadsToAnswer(leads: Lead[], now: number, today: string, slaHours: number): LeadTask[] {
   const since = (t: LeadTask) => (t.kind === "follow" ? Date.parse(`${t.lead.followUpOn}T00:00:00Z`) : t.lead.createdAt);
   return leads
     .flatMap((lead): LeadTask[] => {
       const follow = followUpDue(lead, today);
       if (!follow && lead.status !== "new") return [];
-      const late = pastReplyTarget(lead, now, slaHours);
-      const urgent = late || isHotLead(lead) || (follow && lead.followUpOn! < today);
-      return [{ lead, kind: follow ? "follow" : "reply", urgency: urgent ? "now" : "soon", late }];
+      const flag = leadFlag(lead, slaHours, now);
+      const urgent = flag !== undefined || (follow && lead.followUpOn! < today);
+      return [{ lead, kind: follow ? "follow" : "reply", urgency: urgent ? "now" : "soon", flag }];
     })
     .sort((a, b) => (a.urgency === b.urgency ? since(a) - since(b) : a.urgency === "now" ? -1 : 1));
 }

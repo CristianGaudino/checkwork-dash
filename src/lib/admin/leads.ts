@@ -1,8 +1,8 @@
 import { LEAD_SOURCES, LEAD_STATUSES, LEAD_TYPES, type Claim, type Lead, type LeadStatus, type LeadType } from "./collections";
 import { TOPIC_IDS, type TopicId } from "@/lib/leads/contact-topics";
-import { followUpDue, isHotLead, pastReplyTarget } from "./follow-ups";
+import { followUpDue, leadFlag, pastReplyTarget } from "./follow-ups";
 import { intlDigits } from "@/lib/phone";
-export { followUpDue, forPerson, isHotLead, isOpenLead, leadsToAnswer, type LeadTask } from "./follow-ups";
+export { followUpDue, forPerson, isHotLead, isOpenLead, leadFlag, leadsToAnswer, type LeadTask } from "./follow-ups";
 
 // A warranty message from the website is aftersales work, not a sale: it is listed in Aftersales as a request, and left out of Leads, its
 // counts, the overview and the reports. A person's own page and their data requests still show everything.
@@ -62,10 +62,6 @@ export function urgentFirst(leads: Lead[], slaHours: number, now = Date.now()): 
   const pinned = (l: Lead) => leadFlag(l, slaHours, now) !== undefined;
   return [...leads.filter(pinned), ...leads.filter((l) => !pinned(l))];
 }
-
-// One badge for a new lead that cannot wait, the same on every list: Late once past the reply target (it is overdue now), else Urgent when
-// they said this week. Never both.
-export const leadFlag = (l: Lead, slaHours: number, now = Date.now()) => (pastReplyTarget(l, now, slaHours) ? "late" : isHotLead(l) ? "urgent" : undefined);
 
 // How to answer a lead, from how they got in touch: the way they asked for on the form, WhatsApp for a WhatsApp lead, an email when they
 // asked for one or left no number to dial, else a call (a phone lead, a message). Nothing when they cannot be reached.

@@ -1,4 +1,4 @@
-import { bounds, countChange } from "@/lib/reports/monthly";
+import { bounds } from "@/lib/reports/monthly";
 import { alertsStore, salesStore } from "@/lib/admin/collections";
 import { addDays, dublinDay } from "@/lib/admin/format";
 import { visitorFigures } from "@/lib/admin/visitor-figures";
@@ -7,7 +7,7 @@ import type { Range } from "@/lib/admin/analytics";
 import { AreaChart, BarList } from "@/components/admin/charts";
 import { MoreDetail } from "@/components/admin/MoreDetail";
 import { DataTable, PageHeader, Panel, Segmented, StatCard, StatGrid } from "@/components/admin/kit";
-import { RANGES, buildAnalytics, changeText, parseRange } from "@/lib/admin/analytics";
+import { RANGES, buildAnalytics, changeText, changeTone, parseRange } from "@/lib/admin/analytics";
 import { fmtNum, fmtPct, plural, threeLetter } from "@/lib/admin/format";
 import { leadsStore } from "@/lib/admin/collections";
 import { adminCars } from "@/lib/admin/stock-admin";
@@ -22,8 +22,6 @@ import { VisitSources } from "@/components/admin/VisitSources";
 import { sourceTiles, visitWindows } from "@/lib/admin/visit-sources";
 import { realVisitSources } from "@/lib/admin/visit-sources-load";
 
-// Green or red only for a change big enough to compare (countChange): "Too few to compare" stays plain.
-const countTone = (now: number, before: number) => (countChange(now, before).kind === "few" || now === before ? undefined : now >= before ? ("good" as const) : ("bad" as const));
 
 export const metadata = { title: "Analytics" };
 
@@ -60,10 +58,10 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ r
       </p>
 
       <StatGrid>
-        <StatCard label="Visitors" value={fmtNum(a.totals.visitors)} hint={changeText(a.totals.visitors, a.previous.visitors)} tone={countTone(a.totals.visitors, a.previous.visitors)} />
-        <StatCard label="Leads" value={fmtNum(a.totals.leads)} hint={changeText(a.totals.leads, a.previous.leads)} tone={countTone(a.totals.leads, a.previous.leads)} />
+        <StatCard label="Visitors" value={fmtNum(a.totals.visitors)} hint={changeText(a.totals.visitors, a.previous.visitors)} tone={changeTone(a.totals.visitors, a.previous.visitors)} />
+        <StatCard label="Leads" value={fmtNum(a.totals.leads)} hint={changeText(a.totals.leads, a.previous.leads)} tone={changeTone(a.totals.leads, a.previous.leads)} />
         <StatCard label="Cars sold" value={fmtNum(sold)} hint={whole ? "Sales you recorded" : "Your own sales"} />
-        <StatCard label="Visitors who got in touch" value={fmtPct(a.totals.conversion)} hint={changeText(a.totals.conversion, convBefore, true)} tone={a.totals.conversion >= convBefore ? "good" : "bad"} />
+        <StatCard label="Visitors who got in touch" value={fmtPct(a.totals.conversion)} hint={changeText(a.totals.conversion, convBefore, true)} tone={changeTone(a.totals.conversion, convBefore, true)} />
       </StatGrid>
 
       <Panel plain title="Where visits come from" text={`Last ${range} days, compared with the ${range} before`}>
@@ -95,7 +93,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ r
       {/* Worth a look now and then, not every day: folded so the page stays short. */}
       <MoreDetail>
         <p className="text-body">
-          {fmtNum(a.totals.pageviews)} pages viewed, <span className={{ good: "text-ok", bad: "text-bad", none: "" }[countTone(a.totals.pageviews, a.previous.pageviews) ?? "none"]}>{changeText(a.totals.pageviews, a.previous.pageviews).toLowerCase()}</span>.
+          {fmtNum(a.totals.pageviews)} pages viewed, <span className={{ good: "text-ok", bad: "text-bad", none: "" }[changeTone(a.totals.pageviews, a.previous.pageviews) ?? "none"]}>{changeText(a.totals.pageviews, a.previous.pageviews).toLowerCase()}</span>.
         </p>
         <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
           <Panel title="Where in Ireland" quiet>

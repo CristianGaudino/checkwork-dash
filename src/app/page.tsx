@@ -91,8 +91,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
     switch (a.key) {
       case "reply":
         return [
-          ...o.reply.slice(0, EACH).map(({ lead: l, urgency, late }) => (
-            <Task key={`reply-${l.id}`} urgency={urgency} icon={<InboxIcon />} title={`Reply to ${l.name}`} detail={[about(l), `came in ${fmtAgo(l.createdAt)}${late ? ", past your reply time" : ""}`].filter(Boolean).join(" · ")} action={<><ReachButton lead={l} /><OpenLeadButton id={l.id} name={l.name} /></>} />
+          ...o.reply.slice(0, EACH).map(({ lead: l, urgency, flag }) => (
+            <Task key={`reply-${l.id}`} urgency={urgency} icon={<InboxIcon />} title={`Reply to ${l.name}`} detail={[about(l), `came in ${fmtAgo(l.createdAt)}${flag === "late" ? ", past your reply time" : ""}`].filter(Boolean).join(" · ")} action={<><ReachButton lead={l} /><OpenLeadButton id={l.id} name={l.name} /></>} />
           )),
           ...rest(a.key, o.reply.length, "new lead to answer", "new leads to answer", a.href, a.urgency),
         ];

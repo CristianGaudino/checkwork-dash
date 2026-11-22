@@ -7,7 +7,7 @@ import { AlertIcon, CalendarIcon, CheckIcon, InboxIcon } from "@/components/stoc
 import { can, currentMember } from "@/lib/permissions";
 import { LEAD_SOURCES, LEAD_STATUSES, LEAD_STATUS_LABELS, LEAD_TYPE_LABELS, getSettings, leadsStore, type Lead } from "@/lib/admin/collections";
 import { dublinDay, fmtAgo, fmtDate } from "@/lib/admin/format";
-import { SALES_LEAD_TYPES, countByStatus, filterLeads, followUpDue, forPerson, isHotLead, isOpenLead, isSalesLead, leadFlag, leadsToAnswer, parseLeadFilter, urgentFirst, type LeadTask } from "@/lib/admin/leads";
+import { SALES_LEAD_TYPES, countByStatus, filterLeads, followUpDue, forPerson, isOpenLead, isSalesLead, leadFlag, leadsToAnswer, parseLeadFilter, urgentFirst, type LeadTask } from "@/lib/admin/leads";
 import { TOPICS, leadTags } from "@/lib/leads/contact-topics";
 import { LeadKind, LeadTags, leadChips } from "@/components/admin/LeadKind";
 import { enabledModules } from "@/lib/modules";
@@ -42,6 +42,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
   const all = everyLead.filter(isSalesLead);
   const counts = countByStatus(all);
   const today = dublinDay();
+  const at = now(); // one clock for the badges, the pinning and To answer now, so they agree
   const due = all.filter((l) => followUpDue(l, today)).length;
   // New leads waiting past the reply target, counted for the filter.
   const late = filterLeads(all, { q: "", late: true }, today, leadSlaHours).length;
@@ -90,7 +91,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
       // A new lead waiting past the reply target says so, filled: it is the one to answer now. The badges may wrap, each whole, so the
       // row's Next step fits a laptop card and a phone has no sideways scroll.
       cell: (l) => {
-        const flag = leadFlag(l, leadSlaHours);
+        const flag = leadFlag(l, leadSlaHours, at);
         return (
         <span className="flex flex-col items-start gap-1">
           <span className="inline-flex flex-wrap items-center gap-1.5">
@@ -118,7 +119,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
   ];
   const ordered = sortRows(filterLeads(all, f, today, leadSlaHours), columns, sp, { key: "when", dir: "desc" });
   // Unless a column was chosen, the urgent new ones come first.
-  const sorted = sp.sort ? ordered.rows : urgentFirst(ordered.rows, leadSlaHours);
+  const sorted = sp.sort ? ordered.rows : urgentFirst(ordered.rows, leadSlaHours, at);
   const sort = ordered.sort;
   const paged = pageOf(sorted, sp);
   const rows = paged.rows;
@@ -145,10 +146,10 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
   // looking for something else.
   const filtered = Boolean(f.status || f.type || f.topic || f.q || f.due || f.late || f.source || (sp.page && sp.page !== "1"));
   const me = await currentMember();
-  const mine = sp.mine === "1" && Boolean(me.name);
-  const why = ({ lead: l, kind, late }: LeadTask) =>
-    kind === "follow" ? (l.followUpOn! < today ? `Follow-up was due ${fmtDate(`${l.followUpOn}T12:00:00Z`)}` : "Follow up today") : late ? `Came in ${fmtAgo(l.createdAt)}, past your reply time` : isHotLead(l) ? `In a hurry: ${leadTags(l.topic!, l.answers ?? {}).join(", ")}` : `New, came in ${fmtAgo(l.createdAt)}`;
-  const every = leadsToAnswer(f.with ? filterLeads(all, { q: "", with: f.with }) : all, now(), today, leadSlaHours);
+  const mine = sp.mine === "1" && Boolean(me.name) && !f.with; // Who has it wins: its pill hides Only mine
+  const why = ({ lead: l, kind, flag }: LeadTask) =>
+    kind === "follow" ? (l.followUpOn! < today ? `Follow-up was due ${fmtDate(`${l.followUpOn}T12:00:00Z`)}` : "Follow up today") : flag === "late" ? `Came in ${fmtAgo(l.createdAt)}, past your reply time` : flag === "urgent" ? `In a hurry: ${leadTags(l.topic!, l.answers ?? {}).join(", ")}` : `New, came in ${fmtAgo(l.createdAt)}`;
+  const every = leadsToAnswer(f.with ? filterLeads(all, { q: "", with: f.with }) : all, at, today, leadSlaHours);
   const todo = (mine ? forPerson(every, me.name) : every).map((t) => ({ ...t, why: why(t) }));
   const SHOWN = 8;
   // The footer's links keep whose leads these are: new ones by Who has it, follow-ups by Who has it or Only mine (only their own).
