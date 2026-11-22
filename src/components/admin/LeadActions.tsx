@@ -21,7 +21,7 @@ export function CallButton({ phone, name, quiet = false }: { phone: string; name
 }
 
 // The way to answer them (replyVia: how they got in touch), one button.
-export function ReachButton({ lead }: { lead: Pick<Lead, "name" | "phone" | "email" | "answers" | "source"> }) {
+export function ReachButton({ lead }: { lead: Pick<Lead, "name" | "phone" | "email" | "answers" | "source" | "whatsappOptIn"> }) {
   const via = replyVia(lead);
   if (via === "whatsapp")
     return (

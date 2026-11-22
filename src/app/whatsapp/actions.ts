@@ -70,7 +70,8 @@ export async function stopWhatsAppAction(leadId: string) {
   await requireModule("whatsapp");
   const lead = await leadsStore.get(String(leadId));
   if (!lead?.whatsappOptIn) return;
-  if (!(await leadsStore.update(lead.id, (l) => ({ ...l, whatsappOptIn: undefined })))) return; // erased meanwhile: never written back
+  // false, not unset: the lead then says WhatsApp updates are off, and offers no WhatsApp button.
+  if (!(await leadsStore.update(lead.id, (l) => ({ ...l, whatsappOptIn: false })))) return; // erased meanwhile: never written back
   await logActivity("leads", "Stopped WhatsApp updates to the buyer", { kind: "lead", id: lead.id }); // never the buyer
   revalidatePath(`/leads/${lead.id}`);
 }

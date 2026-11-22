@@ -59,6 +59,11 @@ export function countByStatus(leads: Lead[]): Record<LeadStatus, number> {
   return out;
 }
 
+// The status tabs' counts under the search and filters chosen, all but the status itself, so each tab counts what it would list (#85).
+export function statusCounts(leads: Lead[], f: LeadFilter, today = "", slaHours = 24, now = Date.now()): Record<LeadStatus, number> {
+  return countByStatus([...filterLeads(leads, { ...f, status: undefined }, today, slaHours, now), ...filterLeads(leads, { ...f, status: "spam" }, today, slaHours, now)]);
+}
+
 // The ones To answer now shows red (answerNow: late, urgent or a follow-up overdue) first, the rest keep their order.
 export function urgentFirst(leads: Lead[], now: number, today: string, slaHours: number): Lead[] {
   const pinned = (l: Lead) => answerNow(l, now, today, slaHours);
@@ -68,10 +73,10 @@ export function urgentFirst(leads: Lead[], now: number, today: string, slaHours:
 // How to answer a lead, from how they got in touch: the way they asked for on the form, WhatsApp for a WhatsApp lead, an email when they
 // asked for one or left no number to dial, else a call (a phone lead, a message). Nothing when they cannot be reached.
 export type ReplyVia = "call" | "whatsapp" | "email";
-export function replyVia(l: Pick<Lead, "source" | "phone" | "email" | "answers">): ReplyVia | undefined {
+export function replyVia(l: Pick<Lead, "source" | "phone" | "email" | "answers" | "whatsappOptIn">): ReplyVia | undefined {
   const via = l.answers?.contactVia ?? (l.source === "WhatsApp" ? "whatsapp" : undefined);
   const dial = Boolean(l.phone && intlDigits(l.phone));
-  if (via === "whatsapp" && dial) return "whatsapp";
+  if (via === "whatsapp" && dial && l.whatsappOptIn !== false) return "whatsapp"; // false: WhatsApp was stopped on the lead
   if (l.email && (via === "email" || !dial)) return "email";
   return dial ? "call" : undefined;
 }

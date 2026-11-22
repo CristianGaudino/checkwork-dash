@@ -232,7 +232,7 @@ with no D1). The actor is the signed-in person (`currentMember`), or a named one
   each lead once, as a follow-up due, else as a new lead. The Overview's headline, its To do and its Reply to leads button, Leads' To
   answer now and a salesperson's report all count from it, so they agree. The Leads table pins the ones it marks red (`answerNow`: late,
   urgent, or a follow-up overdue) to its top, by the same rule. To do shows its top 8 rows, then See all. Only mine (To do,
-  and Leads' To answer now, where Reply to leads takes it) keeps the leads and test drives given to you or to nobody yet, so a new
+  and Leads' To answer now, where Reply to leads takes it and it reads Mine and unassigned) keeps the leads and test drives given to you or to nobody yet, so a new
   website lead never drops out of sight; follow-ups only your own, as in your report (`forPerson`). Stock, reviews and the like are
   nobody's and stay. It is on by default for Sales on the Overview. The bell counts something else on purpose: notices not yet read, of what came in, not the work still to do.
 
