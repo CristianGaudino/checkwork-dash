@@ -39,7 +39,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           today={today}
           submit={was ? "Save the sale" : isSold(car) ? "Record sale" : "Mark sold"}
           team={team.map((t) => t.name)}
-          leads={leads.filter((l) => isAsked(l.carSlug, car.id) && l.status !== "lost").sort((a, b) => b.createdAt - a.createdAt).map((l) => ({ id: l.id, label: `${l.name}, ${LEAD_TYPE_LABELS[l.type].toLowerCase()}, ${fmtDate(l.createdAt)}` }))}
+          leads={leads.filter((l) => isAsked(l.carSlug, car.id) && l.status !== "lost" && l.status !== "spam").sort((a, b) => b.createdAt - a.createdAt).map((l) => ({ id: l.id, label: `${l.name}, ${LEAD_TYPE_LABELS[l.type].toLowerCase()}, ${fmtDate(l.createdAt)}` }))}
           customers={[...customers].sort((a, b) => a.name.localeCompare(b.name, "en-IE")).map((c) => ({ id: c.id, label: c.phone ? `${c.name}, ${c.phone}` : c.name }))}
           defaults={was ?? { priceEur: car.priceEur, soldOn: car.soldAt ?? today, salesperson: held?.salesperson ?? (team.some((t) => t.name === me.name) ? me.name : undefined), customerId: held?.customerId }}
         />

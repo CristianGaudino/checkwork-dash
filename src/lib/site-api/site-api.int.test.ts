@@ -268,6 +268,28 @@ describe("a lead the website could not email", () => {
   });
 });
 
+describe("a spam lead the website could not email (#56)", () => {
+  it("sends the dealer no email and is filed as spam; a real one in its place is emailed", async () => {
+    const sent = vi.fn(async () => ({}));
+    const e = env as Record<string, unknown>;
+    e.EMAIL = { send: sent };
+    await patchDealer(B, "Test Motors", { leadEmail: "sales@test-motors.example.ie" });
+    try {
+      const spam = lead({ message: "We sell backlinks and guest posts for your website: https://linkfarm.example.top" });
+      const res = await send(keyB, body(spam, { emailed: false }));
+      expect(res.status).toBe(201);
+      expect(sent).not.toHaveBeenCalled();
+      const { id } = await res.json();
+      expect((await runAsDealer(B, () => leadsStore.get(`real-${id}`)))?.status).toBe("spam");
+      expect((await send(keyB, body(lead(), { emailed: false }))).status).toBe(201);
+      expect(sent).toHaveBeenCalledTimes(1);
+    } finally {
+      delete e.EMAIL;
+      await patchDealer(B, "Test Motors", null);
+    }
+  });
+});
+
 describe("car photos on the website", () => {
   const SECRET = "test-site-photo-secret";
   const STATIC = { src: "/stock/4710001/1.webp", width: 1600, height: 1067 };

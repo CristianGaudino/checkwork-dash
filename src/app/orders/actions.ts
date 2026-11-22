@@ -58,7 +58,8 @@ export async function placeOrderAction(_prev: FormState, data: FormData): Promis
   if (d.depositEur && !d.depositMethod) return { errors: { depositMethod: "Choose how the deposit was paid" } };
   const who = await buyerOf(d, "Order");
   if ("errors" in who) return who;
-  const lead = d.leadId ? await leadsStore.get(d.leadId) : undefined;
+  const asked = d.leadId ? await leadsStore.get(d.leadId) : undefined;
+  const lead = asked?.status === "spam" ? undefined : asked; // spam is no buyer, even posted by hand (#56)
   const id = newId("order");
   const o: Order = {
     id,

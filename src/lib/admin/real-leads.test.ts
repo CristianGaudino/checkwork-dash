@@ -74,15 +74,15 @@ describe("mirrorLead", () => {
 describe("the spam check on arrival (#56)", () => {
   const pitch = "We offer cheap backlinks and guest posts for your website: https://linkfarm.top";
   it("files clear spam as spam, an unsure one as possible spam, and a real one as it is", () => {
-    expect(mirrorOf(row({ message: pitch })).lead).toMatchObject({ status: "spam", statusBefore: "new" });
-    expect(mirrorOf(row({ message: "Photos: https://imgur.com/a/x1" })).lead).toMatchObject({ status: "new", maybeSpam: true });
-    expect(mirrorOf(row({ message: "Is it still for sale?" })).lead).not.toHaveProperty("maybeSpam");
-    expect(mirrorOf(row({ message: "This one? https://www.dealer.ie/cars/a3" }), true, true, 0, undefined, "https://www.dealer.ie").lead).not.toHaveProperty("maybeSpam");
+    expect(mirrorOf(row({ message: pitch }), true, true, 0, undefined, "spam").lead).toMatchObject({ status: "spam", statusBefore: "new" });
+    expect(mirrorOf(row({}), true, true, 0, undefined, "maybe").lead).toMatchObject({ status: "new", maybeSpam: true });
+    expect(mirrorOf(row({})).lead).toMatchObject({ status: "new" });
+    expect(mirrorOf(row({})).lead).not.toHaveProperty("maybeSpam");
   });
   it("keeps spam, and nothing more: no booking, no customer, no notice", async () => {
     const notices = (await noticesStore.list()).length;
     const customers = (await customersStore.list()).length;
-    await mirrorLead(row({ id: "spam-1", type: "test_drive", message: pitch, carSlug: "spam-car-1", details: { driveDate: "2030-01-16", driveTime: "10:00" } }));
+    await mirrorLead(row({ id: "spam-1", type: "test_drive", message: pitch, carSlug: "spam-car-1", details: { driveDate: "2030-01-16", driveTime: "10:00" } }), true, 0, undefined, "spam");
     expect((await leadsStore.get("real-spam-1"))?.status).toBe("spam");
     expect(await drivesStore.get("real-spam-1")).toBeUndefined();
     expect((await noticesStore.list()).length).toBe(notices);

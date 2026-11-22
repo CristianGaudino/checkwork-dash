@@ -10,8 +10,7 @@ import { noticeOfLead, notify } from "./notifications";
 import { MINUTE } from "@/lib/time";
 import { alertStaffOnWhatsApp } from "@/lib/whatsapp/alerts";
 import { hasModule } from "@/lib/modules";
-import { spamCheck } from "@/lib/leads/spam";
-import { dealerProfile } from "@/lib/tenancy/current";
+import type { SpamVerdict } from "@/lib/leads/spam";
 
 // What visitors send reaches the dealer's admin as records. The lead pipeline (consent, bot check, retention) stays the one way in:
 // after a lead is stored, this copies it into the admin's own collections so it can be worked (status, notes, who has it). The copies
@@ -45,9 +44,9 @@ export type Mirror = { lead?: Lead; drive?: TestDrive; alert?: StockAlert };
 // emailed is false when the email to the dealer failed: the lead says so, as its first note, so the team replies from here.
 // `photos`: how many photos came with it on the dealer's website (the site API sends the count only; the photos stay with the website).
 // `journey`: the visit note the website sent with it (src/lib/leads/journey.ts), kept on the lead so it goes with it (purge, erasure, export).
-// `ownSite`: the dealer's website, so a link to their own car is no sign of spam. The spam check (#56) files clear spam as spam, and marks
-// a lead it is unsure of as possible spam, left new for a person to decide.
-export function mirrorOf(row: LeadRow, emailed = true, service = true, photos = 0, journey?: Journey, ownSite?: string): Mirror {
+// `spam`: the spam check's verdict (spamCheck, run once by the site API, #56): clear spam is filed as spam, and a lead it is unsure of is
+// marked possible spam, left new for a person to decide.
+export function mirrorOf(row: LeadRow, emailed = true, service = true, photos = 0, journey?: Journey, spam?: SpamVerdict): Mirror {
   const id = `real-${row.id}`;
   const at = row.consentAt.getTime();
   if (row.type === "alert") {
@@ -56,7 +55,6 @@ export function mirrorOf(row: LeadRow, emailed = true, service = true, photos = 
     return { alert: { id, email: row.email ?? "", kind, criteria: row.carTitle ?? "Any new arrival", active: true, createdAt: at } };
   }
   const drive = row.type === "test_drive" && row.carSlug && row.carTitle ? { id, name: row.name, email: row.email ?? "", phone: row.phone ?? "", carSlug: row.carSlug, carTitle: row.carTitle, startsAt: dublinMs(String(row.details.driveDate), String(row.details.driveTime)), status: "requested" as const, notes: row.message ?? "", createdAt: at } : undefined;
-  const spam = spamCheck({ name: row.name, message: row.message ?? "" }, ownSite);
   const lead: Lead = {
     id,
     type: row.type === "trade_in" && row.details.intent === "sell" ? "sell" : row.type === "general" ? pageType(row.sourcePath, row.details.topic, service) : LEAD_TYPE[row.type],
@@ -85,8 +83,8 @@ export function mirrorOf(row: LeadRow, emailed = true, service = true, photos = 
 }
 
 // Best effort: the lead is already stored, so a failure here must never turn into a failed form.
-export async function mirrorLead(row: LeadRow, emailed = true, photos = 0, journey?: Journey): Promise<void> {
-  const m = mirrorOf(row, emailed, await hasModule("service"), photos, journey, (await dealerProfile()).siteUrl);
+export async function mirrorLead(row: LeadRow, emailed = true, photos = 0, journey?: Journey, spam?: SpamVerdict): Promise<void> {
+  const m = mirrorOf(row, emailed, await hasModule("service"), photos, journey, spam);
   if (m.alert) await alertsStore.put(m.alert);
   if (m.lead) await leadsStore.put(m.lead);
   // Spam is kept, on the Spam tab, and nothing more: no booking, no customer, no bell and no WhatsApp alert (#56).

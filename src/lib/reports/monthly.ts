@@ -64,7 +64,7 @@ export function summarise(data: ReportData, from: string, to: string, now: numbe
     return f === undefined ? undefined : Math.max(0, Math.round((f - l.createdAt) / 60_000));
   };
   const waits = (inHours: boolean) => open.filter((x) => x.open === inHours).map((x) => wait(x.l)).filter((n): n is number => n !== undefined);
-  const none = leads.filter((l) => l.createdAt + DAY <= now && !((wait(l) ?? Infinity) <= 24 * 60)).length;
+  const none = leads.filter((l) => l.status !== "closed" && l.createdAt + DAY <= now && !((wait(l) ?? Infinity) <= 24 * 60)).length; // a closed lead needs no reply
 
   const live = data.cars.filter(forSale);
   const ages = live.filter((c) => c.listedAt).map((c) => daysSince(c.listedAt!, now));

@@ -307,7 +307,7 @@ export async function recordSaleAction(carId: string, _prev: FormState, data: Fo
   const depositEur = held?.depositEur ?? was?.depositEur;
   // The lead it came from (one on this car, still open or already won) is marked won with it.
   const lead = d.leadId ? await leadsStore.get(d.leadId) : undefined;
-  const leadId = lead && isAsked(lead.carSlug, car.id) && lead.status !== "lost" ? lead.id : undefined;
+  const leadId = lead && isAsked(lead.carSlug, car.id) && lead.status !== "lost" && lead.status !== "spam" ? lead.id : undefined; // spam is no buyer (#56)
   if (lead && leadId && lead.status !== "won") {
     await leadsStore.update(lead.id, (l) => ({ ...l, status: "won", followUpOn: undefined, closedReason: undefined, statusBefore: undefined, notes: [...l.notes, { at: Date.now(), text: "Bought the car." }] }));
     await logActivity("leads", "Marked the lead won, with the sale", { kind: "lead", id: lead.id });
