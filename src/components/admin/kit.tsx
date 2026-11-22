@@ -54,7 +54,8 @@ export function Panel({ title, text, count, action, children, className = "", qu
               {text && <p className="text-meta text-text-2">{text}</p>}
             </div>
           )}
-          {action}
+          {/* A 44px box centred on the title line: tap targets reach past it, shorter actions sit on it, the header stays one line tall. */}
+          {action && <div className="-my-2.5 flex min-h-11 items-center">{action}</div>}
         </div>
       )}
       {children}
@@ -97,15 +98,17 @@ export function StatCard({ label, value, hint, tone, href, className = "" }: { l
       {/* Sized from the tile's own width (a container query), so tiles side by side show their figures at the same size, and a
           half-width tile on a 360px phone still fits €117,565 on one line. A year's sales (€5,864,950) take a smaller share. Anything
           longer still wraps, never spills. */}
-      <p className={`font-display font-semibold leading-[1.1] tracking-[-0.02em] tabular-nums [overflow-wrap:anywhere] ${figureSize(value)}`}>
-        <Tween value={value} />
-      </p>
+      <div className="@container min-w-0">
+        <p className={`font-display font-semibold leading-[1.1] tracking-[-0.02em] tabular-nums [overflow-wrap:anywhere] ${figureSize(value)}`}>
+          <Tween value={value} />
+        </p>
+      </div>
       {hint && <p className={`text-meta ${tone === "good" ? "text-ok" : tone === "bad" ? "text-bad" : tone === "warn" ? "text-warn" : "text-text-2"}`}>{hint}</p>}
     </>
   );
-  // @container: the figure is sized from the tile. Label, figure and hint are rows of the grid around it (subgrid), so tiles side by side keep
-  // their figures level when one label wraps, with no blank line when none does.
-  const frame = `${card} @container row-span-3 grid min-w-0 grid-rows-subgrid gap-1 p-4 ${className}`;
+  // Label, figure and hint are rows of the grid around it (subgrid), so tiles side by side keep their figures level when one label wraps,
+  // with no blank line when none does. The container query sits on the figure's wrapper: on the frame it would switch the subgrid off.
+  const frame = `${card} row-span-3 grid min-w-0 grid-rows-subgrid gap-1 p-4 ${className}`;
   return href ? (
     <Link href={href} className={`${frame} transition-colors hover:border-control ${press}`}>
       {body}
@@ -292,7 +295,7 @@ export const tapArea = "relative inline-block after:absolute after:left-1/2 afte
 // Too many for a small phone (Reports' four at 320px), it scrolls sideways as a tab row does, with the fade.
 export function Segmented({ items, label }: { items: { label: string; href: string; active: boolean }[]; label: string }) {
   return (
-    <TabRow current={items.find((i) => i.active)?.href ?? ""} aria-label={label} className="scrollbar-none inline-flex max-w-full overflow-x-auto rounded-control border border-hairline bg-card p-1">
+    <TabRow current={items.find((i) => i.active)?.href ?? ""} aria-label={label} className="scrollbar-none inline-flex max-w-full sm:self-start overflow-x-auto rounded-control border border-hairline bg-card p-1">
       {items.map((i) => (
         <Link key={i.label} href={i.href} aria-current={i.active ? "page" : undefined} className={`inline-flex min-h-11 shrink-0 items-center justify-center whitespace-nowrap rounded-[calc(var(--radius-control)-4px)] px-4 text-meta max-sm:flex-1 max-sm:px-3 font-medium ${i.active ? "bg-accent text-white" : "text-text-2 hover:text-text"} ${press}`}>
           {i.label}
