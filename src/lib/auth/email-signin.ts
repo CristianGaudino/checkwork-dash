@@ -62,7 +62,7 @@ export async function sendSignIn({ email, browserHash, next }: { email: string; 
   }
   const person = await ensureStaff(email, now);
   const token = random();
-  const link: Attempt = { ...base, id: `${id}-link`, kind: "link", email, tokenHmac: await hmac(`link|${token}`) };
+  const link: Attempt = { ...base, id: `${id}-link`, kind: "link", email, browserHash: null, tokenHmac: await hmac(`link|${token}`) };
   // The caps are the write: the link row goes in only under them, and only then is anything sent. Over a cap, nothing is sent or ended.
   if (!(await reserveLink(link, now, 15 * MIN, EMAILS_PER_15_MIN, EMAILS_PER_DAY))) {
     await addAttempt(base);

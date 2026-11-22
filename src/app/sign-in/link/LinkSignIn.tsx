@@ -39,9 +39,13 @@ export function LinkSignIn({ next }: { next: string }) {
 
   const use = async () => {
     setLimited(false);
-    const r = token.current ? await signInWithLink(token.current, next) : { expired: true as const };
-    if ("expired" in r) setView({ kind: "expired" });
-    else setLimited(true); // rate: the token stays in memory and the button works again. Success redirects
+    try {
+      const r = token.current ? await signInWithLink(token.current, next) : { expired: true as const };
+      if ("expired" in r) setView({ kind: "expired" });
+      else setLimited(true); // rate: the token stays in memory and the button works again. Success redirects
+    } catch {
+      setLimited(true); // a dropped request or a Worker error: same, the token is kept and the button works again
+    }
   };
 
   if (view.kind === "ready")

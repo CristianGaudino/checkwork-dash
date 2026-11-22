@@ -506,7 +506,7 @@ code, before a session starts, the check reads `code_locked_until` and `code_fai
 hours from the rows; if any of them says locked or off, the match is refused as a wrong code. A correct guess after the 15th wrong one
 never signs in.
 
-**Spending someone's emails.** Anyone can use up a person's 10 emails a day by asking for codes for their address. That denies them email
+**Spending someone's emails.** Anyone who knows an address can use up its emails for the day (3 in 15 minutes, 10 a day) by asking for codes for it. The person still gets each email, with its working link, and a passkey is the way in that this cannot touch. That denies them email
 sign-in for the rest of the day, except the last link they were sent, which an over-limit request does not end, and only for that link's
 15 minutes: after that they have no working email sign-in until the next day. Their passkey still works. Open question 2 is the lasting answer.
 
