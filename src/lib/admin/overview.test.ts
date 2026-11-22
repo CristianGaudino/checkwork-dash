@@ -95,7 +95,7 @@ describe("overview", () => {
     const o = overview({ rules: DEMO_PROFILE.rules, listingSite: "DoneDeal", leads, drives, reviews: [], now, mine: "Ciara" });
     expect(o.answer.map((t) => t.lead.id)).toEqual(["a", "b", "d"]);
     expect(o.toConfirm.map((d) => d.id)).toEqual(["x", "y"]);
-    // Leads' To answer now with Only mine (the button's link) counts the same leads.
+    // Leads' To answer now with Mine and unassigned (the button's link) counts the same leads.
     expect(forPerson(leadsToAnswer(leads, now, "2026-11-10", 24), "Ciara").length).toBe(o.answer.length);
     expect(o.attention.find((a) => a.key === "follow")?.href).toBe("/leads?need=due&with=Ciara");
     expect(o.due.length).toBe(personalReport({ name: "Ciara", sales: [], leads, period: 3, now }).totals.followUpsDue);
