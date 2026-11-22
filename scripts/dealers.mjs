@@ -51,6 +51,12 @@ export function target(argv, options = {}, cfg = readWrangler(), environ = proce
   return { values, positionals, env, config, args: [values.remote ? "--remote" : "--local", `--env=${env === "production" ? "production" : ""}`] };
 }
 
+// The phases of a deploy from its flags: everything by default, the build alone (--build-only), or all but the build (--built).
+export function deployPhases(values) {
+  if (values["build-only"] && values.built) throw new Error("--build-only and --built cannot go together");
+  return { build: !values.built, ship: !values["build-only"] };
+}
+
 // Said before a script touches a database, e.g. "production: checkwork-directory". `binding` is DIRECTORY or DB_<DEALER>.
 export function databaseName(t, binding) {
   const name = t.config.d1_databases?.find((d) => d.binding === binding)?.database_name;

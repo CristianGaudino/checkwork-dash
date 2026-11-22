@@ -2,7 +2,8 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { assertDemo, dealerBindings, readWrangler, target } from "../../scripts/dealers.mjs";
+import { assertDemo, dealerBindings, deployPhases, readWrangler, target } from "../../scripts/dealers.mjs";
+import { assertLive } from "../../scripts/live-version.mjs";
 
 // The two environments (wrangler.jsonc): dev is the top level and the default, production only with --env production.
 const cfg = readWrangler();
@@ -103,5 +104,30 @@ describe("wrangler.jsonc keeps dev and production apart", () => {
       expect(cmd.includes("production"), name).toBe(name.endsWith(":prod"));
       expect(/\bwrangler\b.*--remote/.test(cmd), `${name} runs wrangler on a real database without the scripts' guard`).toBe(false);
     }
+  });
+});
+
+describe("a deploy's phases", () => {
+  it("builds and ships by default, and splits with --build-only and --built", () => {
+    const phases = (argv: string[]) => deployPhases(target(["--remote", ...argv], { "build-only": { type: "boolean" }, built: { type: "boolean" } }, cfg, {} as NodeJS.ProcessEnv, []).values);
+    expect(phases([])).toEqual({ build: true, ship: true });
+    expect(phases(["--build-only"])).toEqual({ build: true, ship: false });
+    expect(phases(["--built", "--env", "production"])).toEqual({ build: false, ship: true });
+    expect(() => phases(["--build-only", "--built"])).toThrow(/cannot go together/);
+    expect(() => target(["--remote", "--built"], {}, cfg, {} as NodeJS.ProcessEnv, [])).toThrow(); // other scripts refuse it
+  });
+});
+
+describe("the live version check", () => {
+  const view = (tag?: string) => () => ({ annotations: tag === undefined ? undefined : { "workers/tag": tag } });
+  const one = { versions: [{ version_id: "v1", percentage: 100 }] };
+  it("passes for one version at 100% tagged with the commit", () => {
+    expect(assertLive(one, view("abc"), "abc")).toBe("v1");
+  });
+  it("fails loudly on a split, another tag, a missing tag or an unknown shape", () => {
+    expect(() => assertLive({ versions: [{ version_id: "v1", percentage: 50 }, { version_id: "v2", percentage: 50 }] }, view("abc"), "abc")).toThrow(/100%/);
+    expect(() => assertLive(one, view("old"), "abc")).toThrow(/not abc/);
+    expect(() => assertLive(one, view(), "abc")).toThrow(/no workers\/tag/);
+    expect(() => assertLive({}, view("abc"), "abc")).toThrow(/no versions/);
   });
 });

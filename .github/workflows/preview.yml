@@ -1,0 +1,26 @@
+name: Preview (dev)
+
+# Dev is the preview environment: pick a branch (or commit) in the Run workflow menu and it deploys to dev.dash.checkwork.ie, with lint and
+# the unit tests first, and migrates dev's databases (additive only, as always). Nothing starts it by itself, and it never touches
+# production. The next merge to main puts main back on dev.
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'The branch, tag or commit to try on dev'
+        required: true
+        default: main
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  preview:
+    # Not from another branch picked in the Run workflow menu: it would run that branch's copy of this file with the secrets
+    if: github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment: dev
+      ref: ${{ inputs.ref }}
+    secrets: inherit
