@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "78b30ecf-6b31-4f49-b5c9-3f609405866f",
+  "id": "9f50f18d-72c1-45db-b1c9-aea059158955",
   "prevId": "3429800c-55e9-4afd-9840-0427b3850d33",
   "tables": {
     "dealers": {
@@ -437,6 +437,35 @@
             "token_hmac"
           ],
           "isUnique": true
+        },
+        "sign_in_attempts_created_idx": {
+          "name": "sign_in_attempts_created_idx",
+          "columns": [
+            "created_at"
+          ],
+          "isUnique": false
+        },
+        "sign_in_attempts_browser_idx": {
+          "name": "sign_in_attempts_browser_idx",
+          "columns": [
+            "browser_hash"
+          ],
+          "isUnique": false
+        },
+        "sign_in_attempts_email_idx": {
+          "name": "sign_in_attempts_email_idx",
+          "columns": [
+            "email",
+            "created_at"
+          ],
+          "isUnique": false
+        },
+        "sign_in_attempts_staff_idx": {
+          "name": "sign_in_attempts_staff_idx",
+          "columns": [
+            "staff_id"
+          ],
+          "isUnique": false
         }
       },
       "foreignKeys": {

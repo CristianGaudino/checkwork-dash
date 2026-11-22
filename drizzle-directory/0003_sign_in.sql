@@ -44,6 +44,10 @@ CREATE TABLE `sign_in_attempts` (
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `sign_in_attempts_token_hmac_unique` ON `sign_in_attempts` (`token_hmac`);--> statement-breakpoint
+CREATE INDEX `sign_in_attempts_created_idx` ON `sign_in_attempts` (`created_at`);--> statement-breakpoint
+CREATE INDEX `sign_in_attempts_browser_idx` ON `sign_in_attempts` (`browser_hash`);--> statement-breakpoint
+CREATE INDEX `sign_in_attempts_email_idx` ON `sign_in_attempts` (`email`,`created_at`);--> statement-breakpoint
+CREATE INDEX `sign_in_attempts_staff_idx` ON `sign_in_attempts` (`staff_id`);--> statement-breakpoint
 CREATE TABLE `staff` (
 	`id` text PRIMARY KEY NOT NULL,
 	`email` text NOT NULL,

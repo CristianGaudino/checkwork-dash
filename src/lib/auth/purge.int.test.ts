@@ -57,6 +57,15 @@ describe("purgeSignIn", () => {
     expect(await purgeSignIn(db as never, NOW)).toEqual({ attempts: 0, sessions: 0, passkeys: 0, staff: 0 }); // done once
   });
 
+  it("stops at the night's cap and carries on the next night", async () => {
+    await db.insert(signInAttempts).values([1, 2, 3, 4, 5].map((i) => attempt(`old-${i}`, ATTEMPT_KEEP_MS + i * 60_000)));
+    const limits = { chunk: 2, chunks: 2 };
+    expect((await purgeSignIn(db as never, NOW, limits)).attempts).toBe(4);
+    expect(await ids(signInAttempts)).toHaveLength(1);
+    expect((await purgeSignIn(db as never, NOW, limits)).attempts).toBe(1);
+    expect(await ids(signInAttempts)).toEqual([]);
+  });
+
   it("keeps someone whose only dealer is paused: they are still on its team", async () => {
     await db.insert(members).values({ dealerId: "test-motors", email: "solo@example.com", role: "Sales" });
     await db.update(dealers).set({ status: "paused" }).where(eq(dealers.id, "test-motors"));

@@ -1,7 +1,7 @@
 # Our own sign-in (#10)
 
-Design and security review, for the owner to approve before any code. It replaces Cloudflare Access with sign-in of our own: passkeys
-first, an emailed code and link as the fallback, invite only. Status: approved by the owner on 2026-11-22 (`docs/decisions.md`); being built step by step (section 9).
+Design and security review. It replaces Cloudflare Access with sign-in of our own: passkeys first, an emailed code and link as the
+fallback, invite only. Status: approved by the owner on 2026-11-22 (`docs/decisions.md`), built in the steps of section 9.
 Revised after an independent security review (second round).
 
 What is fixed (owner): our own code, never Clerk, Auth0 or a similar service; invite only, never a sign-up page; passkeys first, email as

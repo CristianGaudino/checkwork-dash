@@ -103,17 +103,26 @@ export const sessions = sqliteTable(
 
 // Pending challenges, codes and links, each single use. A code row is written for every request, with no email and no code when the email is
 // unknown, over a limit or locked; the per-email counts come from the rows that have an email.
-export const signInAttempts = sqliteTable("sign_in_attempts", {
-  id: text().primaryKey(),
-  kind: text().$type<"passkey-sign-in" | "passkey-register" | "passkey-confirm" | "code" | "confirm-code" | "link">().notNull(),
-  email: text(), // code, link and confirm-code rows for a known email only
-  staffId: text("staff_id").references(() => staff.id), // registration and confirmation
-  challenge: text(), // passkeys, base64url
-  codeHmac: text("code_hmac"),
-  tokenHmac: text("token_hmac").unique(),
-  browserHash: text("browser_hash"), // the attempt cookie's hash
-  tries: integer().notNull().default(0),
-  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
-  expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
-  usedAt: integer("used_at", { mode: "timestamp_ms" }),
-});
+export const signInAttempts = sqliteTable(
+  "sign_in_attempts",
+  {
+    id: text().primaryKey(),
+    kind: text().$type<"passkey-sign-in" | "passkey-register" | "passkey-confirm" | "code" | "confirm-code" | "link">().notNull(),
+    email: text(), // code, link and confirm-code rows for a known email only
+    staffId: text("staff_id").references(() => staff.id), // registration and confirmation
+    challenge: text(), // passkeys, base64url
+    codeHmac: text("code_hmac"),
+    tokenHmac: text("token_hmac").unique(),
+    browserHash: text("browser_hash"), // the attempt cookie's hash
+    tries: integer().notNull().default(0),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+    expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
+    usedAt: integer("used_at", { mode: "timestamp_ms" }),
+  },
+  (t) => [
+    index("sign_in_attempts_created_idx").on(t.createdAt), // the nightly purge
+    index("sign_in_attempts_browser_idx").on(t.browserHash), // a code is found by its attempt cookie
+    index("sign_in_attempts_email_idx").on(t.email, t.createdAt), // the per-email counts
+    index("sign_in_attempts_staff_idx").on(t.staffId),
+  ],
+);
