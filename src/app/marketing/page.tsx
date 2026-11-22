@@ -2,6 +2,7 @@ import { Badge, EmptyState, Notice, PageHeader, Panel, StatCard, StatGrid, Summa
 import { PlusIcon, TrashIcon } from "@/components/stock/icons";
 import { DAY } from "@/lib/time";
 import { ActButton } from "@/components/admin/ActButton";
+import { RowMenu } from "@/components/admin/RowMenu";
 import { sendDuePosts } from "@/lib/admin/scheduler";
 import { adsStore, mediaStore, newslettersStore, postsStore, subscribersStore, type SocialPost } from "@/lib/admin/collections";
 import { LibraryUpload } from "@/components/admin/MediaUpload";
@@ -101,6 +102,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
   const since = today() - 30 * DAY;
   // What really went out: a post made ready for the phone (a story, TikTok) may never have been posted, so it is not counted.
   const recent = posts.filter((p) => p.status === "posted" && !prepared(p) && (p.postedAt ?? p.createdAt) >= since);
+  const seen = recent.reduce((n, p) => n + (p.reach ?? 0), 0);
+  const clicks = recent.reduce((n, p) => n + (p.clicks ?? 0), 0);
+  const adLeads = ads.filter((a) => (a.startedAt ?? a.createdAt) >= since).reduce((n, a) => n + a.leads, 0);
   const sentLetters = pageOf([...letters].sort((a, b) => b.createdAt - a.createdAt), sp);
 
   return (
@@ -148,7 +152,10 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
                           action={
                             <>
                               <PostNow p={item.p} />
-                              <ActButton act={deletePostAction.bind(null, item.p.id)} confirm={{ title: "Delete this post?", text: "This cannot be undone.", yes: "Delete" }} label={`Delete the ${postName(item.p)}${item.p.carTitle ? `, ${item.p.carTitle}` : ""}`} className={rowDanger}><TrashIcon className="shrink-0 size-4" />Delete</ActButton>
+                              {/* Delete is rare: in More, so the row is not a red button beside every task. It still asks first. */}
+                              <RowMenu label={`More for the ${postName(item.p)}${item.p.carTitle ? `, ${item.p.carTitle}` : ""}`}>
+                                <ActButton act={deletePostAction.bind(null, item.p.id)} confirm={{ title: "Delete this post?", text: "This cannot be undone.", yes: "Delete" }} label={`Delete the ${postName(item.p)}${item.p.carTitle ? `, ${item.p.carTitle}` : ""}`} className={rowButton}><TrashIcon className="shrink-0 size-4" />Delete</ActButton>
+                              </RowMenu>
                             </>
                           }
                         />
@@ -162,7 +169,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
                           action={
                             <>
                               <ActButton act={startAdAction.bind(null, item.a.id)} confirm={{ title: "Start this ad?", text: `It runs on ${AD_PLATFORM_LABELS[item.a.platform]} with a budget of ${fmtEur(item.a.budgetEur)}.`, yes: "Start ad", safe: true }} label={`Start ad: ${AD_PLATFORM_LABELS[item.a.platform]} ad, ${item.a.carTitle}`} className={rowButtonStrong}>Start ad</ActButton>
-                              <ActButton act={deleteAdAction.bind(null, item.a.id)} confirm={{ title: "Delete this ad?", text: "This cannot be undone.", yes: "Delete" }} label={`Delete the ${AD_PLATFORM_LABELS[item.a.platform]} ad, ${item.a.carTitle}`} className={rowDanger}><TrashIcon className="shrink-0 size-4" />Delete</ActButton>
+                              <RowMenu label={`More for the ${AD_PLATFORM_LABELS[item.a.platform]} ad, ${item.a.carTitle}`}>
+                                <ActButton act={deleteAdAction.bind(null, item.a.id)} confirm={{ title: "Delete this ad?", text: "This cannot be undone.", yes: "Delete" }} label={`Delete the ${AD_PLATFORM_LABELS[item.a.platform]} ad, ${item.a.carTitle}`} className={rowButton}><TrashIcon className="shrink-0 size-4" />Delete</ActButton>
+                              </RowMenu>
                             </>
                           }
                         />
@@ -197,17 +206,24 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
             </div>
           )}
 
-          {/* How the posts did, after what needs doing: the few numbers a dealer asks about, each a link to the posts behind it. */}
-          <StatGrid>
-            <StatCard label="Posted in the last 30 days" value={fmtNum(recent.length)} />
-            <StatCard label="People who saw them" value={fmtNum(recent.reduce((n, p) => n + (p.reach ?? 0), 0))} />
-            <StatCard label="Clicks to your site" value={fmtNum(recent.reduce((n, p) => n + (p.clicks ?? 0), 0))} />
-            <StatCard label="Leads from ads" value={fmtNum(ads.filter((a) => (a.startedAt ?? a.createdAt) >= since).reduce((n, a) => n + a.leads, 0))} hint="From ads started in the last 30 days" />
-          </StatGrid>
+          {/* How the posts did, after what needs doing: the few numbers a dealer asks about. Four tiles on a laptop; on a phone one line,
+              so the list is not pushed a screen down. */}
+          <p className="text-meta text-text-2 sm:hidden">
+            Last 30 days: {fmtNum(recent.length)} posted, {fmtNum(seen)} saw them, {fmtNum(clicks)} clicks, {plural(adLeads, "lead")} from ads
+          </p>
+          <div className="max-sm:hidden">
+            <StatGrid>
+              <StatCard label="Posted in the last 30 days" value={fmtNum(recent.length)} />
+              <StatCard label="People who saw them" value={fmtNum(seen)} />
+              <StatCard label="Clicks to your site" value={fmtNum(clicks)} />
+              <StatCard label="Leads from ads" value={fmtNum(adLeads)} hint="From ads started in the last 30 days" />
+            </StatGrid>
+          </div>
 
           <TableToolbar filters={filters} />
-          {/* What went out and how it did. Drafts and scheduled posts are in Waiting on you, unless the filter asks for them. */}
-          <Panel title="Posts and ads">
+          {/* What went out and how it did. Drafts and scheduled posts are in Waiting on you, unless the filter asks for them. No title: the
+              tab above already says Posts and ads. */}
+          <Panel>
             {paged.total === 0 ? (
               <EmptyState
                 title={sp.show || sp.status ? "Nothing matches" : "Nothing posted yet"}
@@ -215,7 +231,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
                 action={sp.show || sp.status ? undefined : <Link href="/marketing/new" className={adminButton}><PlusIcon className="shrink-0 size-4" />New post</Link>}
               />
             ) : (
-              <ul className="-mx-5 flex flex-col divide-y divide-hairline">
+              <ul aria-label="Posts and ads" className="-mx-5 flex flex-col divide-y divide-hairline">
                 {paged.rows.map((item) =>
                   item.kind === "post" ? (
                     <li key={item.p.id} className="flex flex-wrap items-center gap-3 px-5 py-3">
@@ -394,11 +410,11 @@ function Calendar({ posts, ads, week }: { posts: Awaited<ReturnType<typeof posts
 const prepared = (p: Pick<SocialPost, "network" | "format">) => PUBLISH_MODE[p.network][p.format ?? "post"] === "prepare";
 function PostNow({ p }: { p: SocialPost }) {
   const ready = prepared(p);
-  const verb = ready ? "Get it ready" : "Post now";
+  const verb = ready ? "Finish post" : "Post now";
   return (
     <ActButton
       act={publishPostAction.bind(null, p.id)}
-      confirm={ready ? { title: "Get it ready now?", text: `It is made ready here and posted on ${p.network} from your phone.`, yes: verb, safe: true } : { title: "Post this now?", text: `It goes out on ${p.network} at once.`, yes: verb, safe: true }}
+      confirm={ready ? { title: "Finish this post?", text: `It is made ready here and posted on ${p.network} from your phone.`, yes: verb, safe: true } : { title: "Post this now?", text: `It goes out on ${p.network} at once.`, yes: verb, safe: true }}
       label={`${verb}: ${postName(p)}${p.carTitle ? `, ${p.carTitle}` : ""}`}
       className={rowButtonStrong}
     >
