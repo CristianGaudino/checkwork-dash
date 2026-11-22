@@ -1,6 +1,6 @@
 import "server-only";
 import { currentDealer } from "@/lib/tenancy/current";
-import { savedNames } from "@/lib/dealer-secrets";
+import { savedNames, secretsKeyReady } from "@/lib/dealer-secrets";
 
 
 // Every outside service the site can use, in one list. A service is "connected" when all its settings are present. Nothing here holds a
@@ -14,7 +14,7 @@ export type Integration = {
   purpose: string;
   env: readonly string[];
   // The settings in `env` that are the dealer's own (their accounts), by name with the label Settings shows. The owner pastes them in Settings
-  // (src/lib/dealer-secrets.ts), saved sealed in the dealer's store, and `secretFor` reads theirs before the app-wide variable. The rest of
+  // (src/lib/dealer-secrets.ts), saved sealed in the dealer's store, and `secretFor` reads only theirs (never an app-wide variable). The rest of
   // `env` is ours (our provider account, our app secret): always the Worker secret. The AI key, lead email, the Places key and the
   // registration lookup are wholly ours, billed through usage (docs/dealer-admin.md).
   perDealer?: Readonly<Record<string, string>>;
@@ -57,7 +57,8 @@ const present = (name: string) => Boolean(process.env[name]);
 
 // What a service still lacks for the current dealer: a setting that is the dealer's own counts only when they saved it (never from an app-wide variable); the rest are ours, from the Worker secrets.
 export async function missingEnv(i: Integration) {
-  const mine = i.perDealer ? await savedNames() : new Set<string>();
+  // Saved keys count only while they can be opened (the sealing key is set); otherwise secretFor gives nothing and so must this.
+  const mine = i.perDealer && secretsKeyReady() ? await savedNames() : new Set<string>();
   return i.env.filter((n) => !(i.perDealer?.[n] ? mine.has(n) : present(n)));
 }
 export const isConnected = async (id: IntegrationId) => {

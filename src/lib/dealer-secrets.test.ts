@@ -78,6 +78,14 @@ describe("a dealer's own keys", () => {
       spy.mockRestore();
     });
   });
+  it("do not count as connected while they cannot be opened (no sealing key)", async () => {
+    await at("test-motors", async () => {
+      await saveSecret("DONEDEAL_API_KEY", "k");
+      expect(await isConnected("donedeal")).toBe(true);
+      vi.stubEnv("DEALER_SECRETS_KEY", "");
+      expect(await isConnected("donedeal")).toBe(false);
+    });
+  });
   it("count as connected, without the app-wide variables", async () => {
     await at("test-motors", async () => {
       expect(await isConnected("whatsapp")).toBe(false);

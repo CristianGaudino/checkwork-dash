@@ -225,7 +225,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
 
           {section === "services" && (
             <Panel title="Connected services">
-              <p className="-mt-2 max-w-measure text-meta text-text-2">We connect these for you.</p>
+              <p className="-mt-2 max-w-measure text-meta text-text-2">{keysOwner ? "Add your own accounts below. We connect the rest for you." : "We connect these for you."}</p>
               <DataTable
                 bare
                 rows={services}
@@ -233,9 +233,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
                 columns={[
                   { key: "name", header: "Service", cell: (i) => <span className="flex flex-col"><span className="inline-flex items-center gap-1.5 font-medium"><BrandIcon name={i.name} />{i.name}</span><span className="text-meta text-text-2 md:hidden">{i.purpose}</span></span> },
                   { key: "purpose", header: "What it does", hide: "md", cell: (i) => i.purpose, className: "max-w-[20rem]" },
-                  // A dealer never sees setting names: we connect a service for them (the names are in .env.example and docs/new-site-checklist.md).
-                  // One not connected yet offers the way to get it, in the column a phone shows, instead of a warning.
-                  { key: "status", header: "Status", cell: (i) => (usable(i.id) ? <Badge tone="good">Connected</Badge> : <Link href={ASK_CHANGE} className={rowButton}>Ask us to connect</Link>) },
+                  // A dealer never sees setting names. One not connected yet offers the way to get it, in the column a phone shows, instead of a warning:
+                  // the owner's own accounts are added in Your accounts below, the rest we connect.
+                  { key: "status", header: "Status", cell: (i) => (usable(i.id) ? <Badge tone="good">Connected</Badge> : keysOwner && i.perDealer ? <span className="text-meta text-text-2">Add it below</span> : <Link href={ASK_CHANGE} className={rowButton}>Ask us to connect</Link>) },
                   { key: "account", header: "Account", hide: "sm", cell: (i) => (mode(i.id) === "off" ? null : <span className="break-words text-meta text-text-2">{mode(i.id) === "simulated" ? i.demoAccount : "Nothing to do"}</span>) },
                 ]}
               />
