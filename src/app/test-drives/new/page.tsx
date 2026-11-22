@@ -5,6 +5,7 @@ import { carCards } from "@/lib/admin/car-cards";
 import { drivesStore, getSettings, leadsStore } from "@/lib/admin/collections";
 import { slotData } from "@/lib/admin/drives";
 import { adminCars } from "@/lib/admin/stock-admin";
+import { askedCar } from "@/lib/leads/journey";
 import { currentMember } from "@/lib/permissions";
 import { forSale } from "@/lib/stock/types";
 
@@ -19,7 +20,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
   return (
     <>
       <PageHeader title="Book a test drive" back={{ href: "/test-drives", label: "Test drives" }} />
-      <BookDriveForm cars={carCards(onSale)} team={settings.team.map((t) => t.name)} me={me.name} slots={{ ...slotData(drives, hours), windowMin: settings.driveSlotMinutes }} initialCar={sp.car ?? lead?.carSlug ?? ""} person={lead && { leadId: lead.id, name: lead.name, phone: lead.phone, email: lead.email }} />
+      <BookDriveForm cars={carCards(onSale)} team={settings.team.map((t) => t.name)} me={me.name} slots={{ ...slotData(drives, hours), windowMin: settings.driveSlotMinutes }} initialCar={sp.car ?? askedCar(cars, lead?.carSlug)?.slug ?? lead?.carSlug ?? ""} person={lead && { leadId: lead.id, name: lead.name, phone: lead.phone, email: lead.email }} />
     </>
   );
 }

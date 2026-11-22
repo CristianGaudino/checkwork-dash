@@ -109,3 +109,39 @@ describe("what goes to the AI provider", () => {
     for (const t of ["Ring 087-12-34567", "Mob 087-1-234567", "01.23.45678"]) expect(noContacts(t)).toContain("[phone]");
   });
 });
+
+describe("the demo's Prepare me", () => {
+  const brief = (o: Partial<FactsOf["leadBrief"]> = {}): FactsOf["leadBrief"] => ({
+    dealer: "Checkwork Motors", kind: "Enquiry", type: "enquiry", tags: [], message: "Is it still there?", car: "2021 Toyota RAV4", carForSale: true,
+    visit: { from: "Google", minutes: 14, cars: [{ name: "2021 Toyota RAV4", views: 3, askedAbout: true }, { name: "2020 Kia Sportage", views: 1 }], pattern: "Mostly SUVs, €20k to €30k, automatic", searches: [["SUV", "€20k to €30k"]], tools: ["Tried the finance calculator: €320 a month", "Started a trade-in"] },
+    closest: [{ name: "2020 Kia Sportage 1.6", price: "€24,950" }, { name: "2019 Hyundai Tucson", price: "€22,500" }],
+    ...o,
+  });
+
+  it("writes 3 or 4 lines: what they want, the cars to have ready, an opening line and, when used, the tools", () => {
+    const t = mockText("leadBrief", brief());
+    expect(t.split("\n")).toHaveLength(4);
+    expect(t).toContain("They mostly looked at SUVs, €20k to €30k, automatic and asked about the 2021 Toyota RAV4.");
+    expect(t).toContain("Have ready: the 2021 Toyota RAV4, the 2020 Kia Sportage 1.6 (€24,950), the 2019 Hyundai Tucson (€22,500).");
+    expect(t).toContain('Open with: "');
+    expect(t).toContain("finance calculator at €320 a month and started a trade-in");
+    expect(mockText("leadBrief", brief({ visit: { ...brief().visit, tools: [] } })).split("\n")).toHaveLength(3);
+    expect(t).toBe(mockText("leadBrief", brief()));
+    expect(t).not.toMatch(/[—–]/);
+  });
+
+  it("says when the car is no longer for sale, and never names a car the facts do not hold", () => {
+    const t = mockText("leadBrief", brief({ carForSale: false, closest: [] }));
+    expect(t).toContain("The 2021 Toyota RAV4 is no longer for sale.");
+    expect(t).toContain("Nothing close is in stock right now");
+    expect(t).not.toMatch(/Hyundai|Sportage 1\.6/);
+  });
+
+  it("with no car and no pattern, says they got in touch, and how long they looked when it is known", () => {
+    const bare = (minutes: number) => mockText("leadBrief", brief({ kind: "General message", car: undefined, carForSale: undefined, visit: { ...brief().visit, minutes, cars: [], pattern: undefined } }));
+    expect(bare(9).split("\n")[0]).toBe("They got in touch after 9 minutes on the site.");
+    expect(bare(1).split("\n")[0]).toBe("They got in touch after 1 minute on the site.");
+    expect(bare(0).split("\n")[0]).toBe("They got in touch through the site.");
+    expect(bare(9)).not.toMatch(/message message|after 0/);
+  });
+});

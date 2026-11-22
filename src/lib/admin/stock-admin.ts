@@ -6,7 +6,7 @@ import { hasD1 } from "@/lib/tenancy/current";
 import { memoryCars, refreshMemoryStock } from "@/lib/stock";
 import type { Car } from "@/lib/stock/types";
 import { devFixtureCars } from "@/lib/dev-data";
-import { reservationsStore, salesStore } from "./collections";
+import { leadsStore, reservationsStore, salesStore } from "./collections";
 import { carSlug, nextCarId } from "./stock-admin-pure";
 import { dropCarPhotos } from "./car-photos";
 
@@ -29,10 +29,12 @@ export async function adminCars(): Promise<Car[]> {
   return rows.map((r) => r.data as Car);
 }
 
-// The id for a new car: above every id still in use, by a car or by a record that names one (a sale, a deposit), so none is given twice.
+// The id for a new car: above every id still in use, by a car or by a record that names one (a sale, a deposit, a lead and its visit note,
+// which find their car by id), so none is given twice.
 export async function freeCarId(): Promise<string> {
-  const [cars, sales, deposits] = await Promise.all([adminCars(), salesStore.list(), reservationsStore.list()]);
-  return nextCarId([...cars, ...sales.map((s) => ({ id: s.carId ?? s.id })), ...deposits.map((r) => ({ id: r.carId }))]);
+  const [cars, sales, deposits, leads] = await Promise.all([adminCars(), salesStore.list(), reservationsStore.list(), leadsStore.list()]);
+  const named = leads.flatMap((l) => [l.carSlug?.split("-").at(-1) ?? "", ...(l.journey?.cars.map((c) => c.id) ?? [])]).map((id) => ({ id }));
+  return nextCarId([...cars, ...sales.map((s) => ({ id: s.carId ?? s.id })), ...deposits.map((r) => ({ id: r.carId })), ...named]);
 }
 
 export async function adminCar(id: string): Promise<Car | undefined> {

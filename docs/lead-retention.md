@@ -9,7 +9,7 @@ Leads are personal data. Deleting old leads is automatic (see "Automatic purge")
 
 Leads are kept for **12 months** from when they were sent, then deleted. The period is the constant `LEAD_RETENTION_MONTHS` in `src/lib/leads/constants.ts`, and the `/privacy` page (added in 03-10) states it. The dealer must confirm the period. If it changes, change the constant, `/privacy` and this page together.
 
-The dashboard's copies go on the same day, and so does every test drive, including one staff booked on the dashboard (a phone booking holds the same name and contact).
+The dashboard's copies go on the same day (with the visit note a website may send with a lead, `docs/site-api.md`, which is kept on the copy), and so does every test drive, including one staff booked on the dashboard (a phone booking holds the same name and contact).
 
 ## Sale records
 
@@ -40,6 +40,8 @@ Check the rows are theirs. If any is a trade-in with photos, delete the photos f
 ```sql
 DELETE FROM leads WHERE id IN ('<id>', '<id>');
 ```
+
+The dashboard's Data requests page (Settings and help) finds and erases a person's rows here and the dashboard's copies. A lead's visit note is kept on its copy, so it is in the export and goes with it.
 
 Phone numbers are stored as typed, so try the common spellings (with and without spaces, with `+353`). Delete the dealer's copies of the lead emails too, and reply to say it is done.
 

@@ -2,6 +2,7 @@ import "server-only";
 import { DETAIL_LABELS } from "@/lib/leads/schema";
 import { ANSWER_KEYS, readable } from "@/lib/leads/contact-topics";
 import type { LeadRow } from "@/lib/leads/store";
+import type { Journey } from "@/lib/leads/journey";
 import { clashes } from "./drives";
 import { ALERT_KINDS, alertsStore, getSettings, customersStore, drivesStore, leadsStore, type AlertKind, type Customer, type Lead, type LeadType, type StockAlert, type TestDrive } from "./collections";
 import { dublinMs } from "./format";
@@ -41,7 +42,8 @@ async function customerId(row: LeadRow): Promise<string> {
 export type Mirror = { lead?: Lead; drive?: TestDrive; alert?: StockAlert };
 // emailed is false when the email to the dealer failed: the lead says so, as its first note, so the team replies from here.
 // `photos`: how many photos came with it on the dealer's website (the site API sends the count only; the photos stay with the website).
-export function mirrorOf(row: LeadRow, emailed = true, service = true, photos = 0): Mirror {
+// `journey`: the visit note the website sent with it (src/lib/leads/journey.ts), kept on the lead so it goes with it (purge, erasure, export).
+export function mirrorOf(row: LeadRow, emailed = true, service = true, photos = 0, journey?: Journey): Mirror {
   const id = `real-${row.id}`;
   const at = row.consentAt.getTime();
   if (row.type === "alert") {
@@ -65,6 +67,7 @@ export function mirrorOf(row: LeadRow, emailed = true, service = true, photos = 
     ...(typeof row.details.reg === "string" && { reg: row.details.reg }),
     ...(typeof row.details.topic === "string" && { topic: row.details.topic, answers: Object.fromEntries(ANSWER_KEYS.filter((k) => typeof row.details[k] === "string").map((k) => [k, String(row.details[k])])) }),
     ...(row.details.whatsappOptIn === "yes" && row.phone && { whatsappOptIn: true }), // the schema takes only "yes"; WhatsApp needs a number
+    ...(journey && { journey }),
     notes: [
       ...(emailed ? [] : [{ at, text: "The email about this lead didn't reach you. Reply from here." }]),
       ...(photos > 0 ? [{ at, text: `Sent with ${photos === 1 ? "1 photo" : `${photos} photos`}, kept by your website.` }] : []),
@@ -75,8 +78,8 @@ export function mirrorOf(row: LeadRow, emailed = true, service = true, photos = 
 }
 
 // Best effort: the lead is already stored, so a failure here must never turn into a failed form.
-export async function mirrorLead(row: LeadRow, emailed = true, photos = 0): Promise<void> {
-  const m = mirrorOf(row, emailed, await hasModule("service"), photos);
+export async function mirrorLead(row: LeadRow, emailed = true, photos = 0, journey?: Journey): Promise<void> {
+  const m = mirrorOf(row, emailed, await hasModule("service"), photos, journey);
   if (m.alert) await alertsStore.put(m.alert);
   if (m.lead) await leadsStore.put(m.lead);
   if (m.drive) {

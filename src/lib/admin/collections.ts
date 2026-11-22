@@ -15,7 +15,9 @@ import { regPeriods } from "@/lib/leads/reg-periods";
 import type { Car } from "@/lib/stock/types";
 import { roleCan, type Role } from "@/lib/permission-rules";
 import type { PrepLine } from "./prep";
-import { carTitleOf, livePicks, person, rng } from "./seed-data";
+import type { Journey } from "@/lib/leads/journey";
+import { CHANNEL_LABELS } from "@/lib/visit-rules";
+import { carTitleOf, demoJourney, livePicks, person, rng } from "./seed-data";
 import { BILLING_DEFAULT, type BillingSettings } from "@/lib/billing/rules";
 import type { BillingDetails } from "@/lib/billing/bills-rules";
 
@@ -66,6 +68,7 @@ export type Lead = {
   topic?: string; // a contact form's guided topic (src/lib/leads/contact-topics.ts) and the tap answers, shown as tags
   answers?: Record<string, string>;
   whatsappOptIn?: boolean; // the buyer ticked the box on the form: they may be messaged on WhatsApp (#178)
+  journey?: Journey; // a website lead: what they did on the site this visit, when they chose to send it (#34, src/lib/leads/journey.ts)
   assignedTo?: string;
   followUpOn?: string; // YYYY-MM-DD, the Irish day to get back to them; cleared once the lead is won or lost
   lostReason?: LostReason; // only on a lost lead
@@ -186,9 +189,15 @@ const GUIDED_LEADS = (now: number): Lead[] => [
   { id: "lead-4001", type: "service", status: "new", name: "Declan Moore", email: "declan.moore@example.com", phone: "+353 86 000 4001", source: "Website", message: "The engine light came on this morning.", topic: "service", answers: { serviceNeed: "warning-light", urgency: "this-week", contactVia: "call", contactWhen: "morning" }, notes: [], createdAt: now - 6 * HOUR },
   { id: "lead-4002", type: "general", status: "contacted", name: "Sorcha Daly", email: "sorcha.daly@example.com", phone: "+353 85 000 4002", source: "Website", message: "", topic: "finance", answers: { contactVia: "email" }, assignedTo: "Niamh Kavanagh", notes: [{ at: now - 26 * HOUR, text: "Sent the finance options." }], createdAt: now - 28 * HOUR },
 ];
+// The first few website leads with a car, and the guided buying message, came with a visit note (#34), so the lead page shows This visit.
+const JOURNEY_CHANNELS = [CHANNEL_LABELS.google, CHANNEL_LABELS.facebook, CHANNEL_LABELS.direct];
+function withJourneys(leads: Lead[]): Lead[] {
+  const picked = new Set(leads.filter((l) => l.source === "Website" && l.carSlug).slice(0, 3).map((l) => l.id).concat("lead-4000"));
+  return leads.map((l, i) => (picked.has(l.id) ? { ...l, channel: l.channel ?? JOURNEY_CHANNELS[i % 3], journey: demoJourney(i + 1, l.carSlug) } : l));
+}
 function seedLeadsWithEdges(): Lead[] {
   const now = Date.now();
-  return [...seedLeads(), ...EDGE_LEADS(now), ...STORY_LEADS(now), ...PAST_LEADS(now), ...GUIDED_LEADS(now)];
+  return withJourneys([...seedLeads(), ...EDGE_LEADS(now), ...STORY_LEADS(now), ...PAST_LEADS(now), ...GUIDED_LEADS(now)]);
 }
 export const leadsStore = defineCollection<Lead>("leads", seedLeadsWithEdges);
 // The seeded leads, for the notifications' own seed (notifications.ts), so the bell tells of the same requests.

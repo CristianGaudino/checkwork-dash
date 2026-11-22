@@ -1,5 +1,6 @@
 import demoCars from "@/lib/stock/demo-cars.json";
 import type { Car } from "@/lib/stock/types";
+import { carBand, type Journey } from "@/lib/leads/journey";
 
 // Made-up records for the dealer admin. Everything here is invented: names, emails (example.com is reserved for this),
 // numbers and figures. Times are relative to "now" when a collection is first read, so the demo always looks current.
@@ -37,3 +38,33 @@ export function person(r: ReturnType<typeof rng>) {
 
 export const carTitleOf = (c: Car) => `${c.year} ${c.make} ${c.model}`;
 export const livePicks = (r: ReturnType<typeof rng>) => r.pick(live);
+
+// A visit note as a dealer's website sends it (#34), for a few of the demo's website leads: the car they asked about opened a few times, a few
+// like it, the searches that led there and a tool or two. `askedSlug`: the lead's car; none for a message sent from the contact page.
+export function demoJourney(seed: number, askedSlug?: string): Journey {
+  const r = rng(seed);
+  const asked = live.find((c) => c.slug === askedSlug);
+  const base = asked ?? r.pick(live);
+  const like = live.filter((c) => c.id !== base.id && c.bodySlug === base.bodySlug);
+  const seen = [...new Set(Array.from({ length: Math.min(3, like.length) }, () => r.pick(like)))];
+  const band = carBand(base);
+  return {
+    v: 1,
+    minutes: r.int(4, 26),
+    cars: [
+      ...(asked ? [{ id: asked.id, views: r.int(2, 5) }] : []),
+      ...seen.map((c) => ({ id: c.id, views: r.int(1, 2) })),
+      ...(seed % 2 === 1 ? [{ id: "999999", views: 1 }] : []), // a car sold and gone from the stock since
+    ],
+    searches: [
+      { ...(base.bodySlug && { body: base.bodySlug }), ...(band && { priceBand: band }), ...(base.gearbox && { gearbox: base.gearbox }) },
+      ...(seed % 3 !== 0 ? [{ make: base.makeSlug }] : []),
+    ],
+    tools: {
+      ...(seed % 2 === 1 && { finance: { monthlyEur: 50 * Math.round((base.priceEur / 60) / 50) } }),
+      ...(seed % 3 === 0 && { tradeIn: true }),
+      saved: r.int(0, 3),
+      ...(seed % 2 === 0 && { compared: 2 }),
+    },
+  };
+}

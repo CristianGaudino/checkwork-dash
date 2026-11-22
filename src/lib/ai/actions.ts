@@ -16,6 +16,7 @@ const request = z.discriminatedUnion("task", [
   z.object({ task: z.literal("carDescription"), fields: z.record(z.string().max(60), z.string().max(4000)) }),
   z.object({ task: z.literal("leadReply"), leadId: z.string().max(80) }),
   z.object({ task: z.literal("reviewReply"), reviewId: z.string().max(80) }),
+  z.object({ task: z.literal("leadBrief"), leadId: z.string().max(80) }),
 ]);
 
 // Called by the writing buttons. Order matters: the module (a dealer without AI gets nothing), then the monthly cap (past it the text is

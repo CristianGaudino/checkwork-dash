@@ -4,6 +4,7 @@ import { drivesStore, leadsStore, reservationsStore, reviewsStore, type Lead, ty
 import { dublinDay, fmtDateTime, fmtEur } from "@/lib/admin/format";
 import { adminCar, adminCars, updateCar } from "@/lib/admin/stock-admin";
 import { droppedPrice } from "@/lib/admin/stock-admin-pure";
+import { askedCar } from "@/lib/leads/journey";
 import { carEditSummary } from "@/lib/admin/activity-text";
 import { postReviewReply } from "@/lib/admin/publishers";
 import { carTitleOf } from "@/lib/admin/seed-data";
@@ -140,7 +141,7 @@ export async function tap(me: string, msgId: string, button: ButtonId): Promise<
 
   // Never tell a buyer a car is there to see when it has sold since the alert.
   if (lead?.carSlug && (button === "available" || button === "saturday")) {
-    const car = (await adminCars()).find((c) => c.slug === lead.carSlug);
+    const car = askedCar(await adminCars(), lead.carSlug); // by its id: an edit gives the car a new slug
     if (car && isSold(car)) return void (await say(me, { leadId: lead.id, href: `/leads/${lead.id}`, text: `That car is sold, so I did not tell ${first}. Call them on ${lead.phone || "the number on the lead"}.` }));
   }
   const act = ACTS[button === "confirm" ? "confirm-test-drive" : button];
