@@ -228,7 +228,7 @@ export function DataTable<T>({ columns, rows, rowKey, empty, bare = false, linkR
 export type SummaryTab = { label: string; href: string; active: boolean; count?: number | string; hint?: string };
 export function SummaryTabs({ items, label = "Filter" }: { items: SummaryTab[]; label?: string }) {
   return (
-    <TabRow current={items.find((i) => i.active)?.href ?? ""} aria-label={label} className="scrollbar-none -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:grid sm:grid-cols-[repeat(auto-fit,minmax(8rem,1fr))] sm:overflow-visible sm:px-0">
+    <TabRow current={items.find((i) => i.active)?.href ?? ""} aria-label={label} className="scrollbar-none -mx-4 -my-1 flex gap-2 overflow-x-auto px-4 py-1 sm:mx-0 sm:grid sm:grid-cols-[repeat(auto-fit,minmax(8rem,1fr))] sm:overflow-visible sm:px-0">
       {items.map((i) => (
         <Link
           key={i.label}

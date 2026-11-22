@@ -24,11 +24,11 @@ test.describe("on a 390px phone", () => {
     await page.goto("/marketing");
     const row = page.getByRole("navigation", { name: "Marketing" });
     const last = row.getByRole("link", { name: /^Newsletters/ });
-    const fade = () => row.evaluate((n) => [getComputedStyle(n).getPropertyValue("--fade-l").trim(), getComputedStyle(n).getPropertyValue("--fade-r").trim()]);
-    expect(await row.evaluate((n) => getComputedStyle(n).maskImage)).toContain("gradient");
-    await expect.poll(fade).toEqual(["0px", "2rem"]); // at the start: more to the right only
+    // Which edges fade, read from the mask (set once the page has loaded): "#000 2rem," is a left fade, "100% - 2rem" a right one.
+    const fade = () => row.evaluate((n) => { const m = n.style.maskImage; return [/2rem,/.test(m), m.includes("- 2rem")]; });
+    await expect.poll(fade).toEqual([false, true]); // at the start: more to the right only
     await row.evaluate((n) => n.scrollTo({ left: n.scrollWidth }));
-    await expect.poll(fade).toEqual(["2rem", "0px"]); // at the end: more to the left only
+    await expect.poll(fade).toEqual([true, false]); // at the end: more to the left only
     const [r, l] = [(await row.boundingBox())!, (await last.boundingBox())!];
     expect(l.x + l.width).toBeLessThanOrEqual(r.x + r.width + 1); // the last tab wholly in view
     await last.click();
@@ -62,7 +62,7 @@ test("from 640px a row of summary tabs that fits has no mask, so nothing clips a
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto("/leads");
   const row = page.getByRole("navigation", { name: "Lead status" });
-  await expect.poll(() => row.evaluate((n) => getComputedStyle(n).getPropertyValue("--fade-r").trim())).toBe("0px"); // measured
+  await page.waitForLoadState("networkidle"); // hydrated: the row has measured itself
   expect(await row.evaluate((n) => getComputedStyle(n).maskImage)).toBe("none");
 });
 
@@ -79,3 +79,33 @@ test("on a 1280x800 laptop with every group open, Overview and Leads stay in vie
   const icon = (label: string) => side.getByRole("link", { name: label, exact: true }).locator("svg").evaluate((s) => s.innerHTML);
   expect(await icon("Switch dealer")).not.toBe(await icon("Overview"));
 });
+
+test("on a very short wide window the whole sidebar scrolls: nothing overlaps its foot, and every place can be reached", async ({ page, context }) => {
+  await page.setViewportSize({ width: 1280, height: 420 });
+  const [name, value] = openGroupsCookie(["Customers", "Results", "Settings and help"]).split(";")[0].split("=");
+  await context.addCookies([{ name, value, url: BASE }]);
+  await page.goto("/");
+  const side = sideMenu(page);
+  const foot = page.locator("aside").getByRole("button", { name: "Collapse the menu" });
+  const [nav, btn] = [(await side.boundingBox())!, (await foot.boundingBox())!];
+  expect(nav.y + nav.height).toBeLessThanOrEqual(btn.y + 1); // the groups end above the foot, not over it
+  for (const link of await side.getByRole("link").all()) {
+    await link.scrollIntoViewIfNeeded();
+    await expect(link).toBeInViewport({ ratio: 1 });
+  }
+  await foot.scrollIntoViewIfNeeded();
+  await expect(foot).toBeInViewport({ ratio: 1 });
+});
+
+// The focus ring (2px, 2px out) of a row's first tab fits inside the row's scroll box, so it is never cut off.
+for (const [width, path, label] of [[390, "/leads", "Lead status"], [390, "/settings", "Settings"], [1280, "/settings", "Settings"]] as const) {
+  test(`at ${width}px the first tab's focus ring on ${path} is not clipped by its row`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 800 });
+    await page.goto(path);
+    const row = page.getByRole("navigation", { name: label, exact: true });
+    const [r, t] = [(await row.boundingBox())!, (await row.getByRole("link").first().boundingBox())!];
+    expect(t.x - 4).toBeGreaterThanOrEqual(r.x - 0.5);
+    expect(t.y - 4).toBeGreaterThanOrEqual(r.y - 0.5);
+    expect(t.y + t.height + 4).toBeLessThanOrEqual(r.y + r.height + 0.5);
+  });
+}

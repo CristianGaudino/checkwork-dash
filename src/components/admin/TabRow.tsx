@@ -20,8 +20,6 @@ export function TabRow({ current, children, className = "", ...rest }: { current
       const [l, r] = [nav.scrollLeft > 1 ? "2rem" : "0px", end > 1 ? "2rem" : "0px"];
       // The mask only while there is more: with none it would clip the focus ring on a row that does not scroll (640px up).
       nav.style.maskImage = l === "0px" && r === "0px" ? "" : `linear-gradient(to right, transparent, #000 ${l}, #000 calc(100% - ${r}), transparent)`;
-      nav.style.setProperty("--fade-l", l);
-      nav.style.setProperty("--fade-r", r);
     };
     fade();
     nav.addEventListener("scroll", fade, { passive: true });

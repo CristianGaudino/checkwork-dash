@@ -86,7 +86,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
       <PageHeader title="Settings" text={edit ? "How your site and dashboard work for you and your team." : undefined} />
       {edit ? (
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[16rem_minmax(0,1fr)] lg:items-start">
-        <TabRow current={section} aria-label="Settings" className="scrollbar-none -mx-4 flex gap-1 overflow-x-auto px-4 sm:mx-0 sm:px-0 lg:sticky lg:top-24 lg:flex-col">
+        <TabRow current={section} aria-label="Settings" className="scrollbar-none -mx-4 -my-1 flex gap-1 overflow-x-auto px-4 py-1 sm:-mx-1 sm:px-1 lg:sticky lg:top-24 lg:flex-col lg:overflow-visible">
           {sections.map(([k, label, line]) => (
             <Link
               key={k}
