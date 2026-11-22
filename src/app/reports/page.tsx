@@ -2,7 +2,8 @@ import { dealerProfile } from "@/lib/tenancy/current";
 import { AreaChart, BarList } from "@/components/admin/charts";
 import { ChevronDownIcon } from "@/components/stock/icons";
 import { MoreDetail } from "@/components/admin/MoreDetail";
-import { DataTable, PageHeader, Panel, Segmented, StatCard, StatGrid } from "@/components/admin/kit";
+import { DataTable, PageHeader, Panel, StatCard, StatGrid } from "@/components/admin/kit";
+import { ReportViews } from "./views";
 import { getSettings, leadsStore, prepStore, salesStore } from "@/lib/admin/collections";
 import { isSalesLead } from "@/lib/admin/leads";
 import { carCosts } from "@/lib/admin/costs";
@@ -22,9 +23,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ p
   if (!(await can("reports"))) return <NotForRole title="Reports" permission="reports" />;
   const asked = Number((await searchParams).period);
   const period: Period = (PERIODS as readonly number[]).includes(asked) ? (asked as Period) : 12;
-  const tabs = (
-    <Segmented label="Period" items={PERIODS.map((p) => ({ label: `${p} months`, href: p === 12 ? "/reports" : `/reports?period=${p}`, active: p === period }))} />
-  );
+  const tabs = <ReportViews period={period} />;
   if (!(await can("margins"))) return <Personal period={period} tabs={tabs} />;
 
   const [sales, cars, leads, costs, prep, { team }, { rules }] = await Promise.all([salesStore.list(), adminCars(), (await leadsStore.list()).filter(isSalesLead), carCosts(), prepStore.list(), getSettings(), dealerProfile()]);
@@ -123,7 +122,7 @@ async function Personal({ period, tabs }: { period: Period; tabs: React.ReactNod
   const r = personalReport({ name: me.name, sales, leads, period, now: now() });
   return (
     <>
-      <PageHeader title="Your report" text={`${me.name}, the last ${period} months, this month included.`} />
+      <PageHeader title="Reports" text={`Your own figures, ${me.name}, the last ${period} months, this month included.`} />
       {tabs}
       <StatGrid>
         <StatCard label="Cars sold" value={fmtNum(r.totals.sold)} />

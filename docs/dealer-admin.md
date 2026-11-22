@@ -238,7 +238,7 @@ visitors sign up). Each list, its actions and its export answer only with its mo
 
 - **A customer's page** (`/customers/[id]`): how to reach them, what they bought with the warranty on each (in cover or not),
   their deposits and warranty claims, and the leads and test drives that carry their email or phone.
-- **Warranty claims** (`claimsStore`, Aftersales in the menu): opened on a purchase, from the customer's page or from a warranty lead
+- **Warranty claims** (`claimsStore`, `/aftersales`, Warranty claims in the menu): opened on a purchase, from the customer's page or from a warranty lead
   (the buyer is found by the lead's email or phone). In cover or not is worked out from the sale's day and cover, never typed. Open,
   Booked in, Approved, Declined, Repaired, Closed, with notes. What the repair cost the dealer is for the margins roles, and counts in the
   car's cost (`src/lib/admin/costs.ts`), so margins and the reports' profit include it.
@@ -264,7 +264,7 @@ visitors sign up). Each list, its actions and its export answer only with its mo
 
 - **Reports** (`/reports`, figures in `src/lib/admin/reports.ts`): the last 3, 6 or 12 months by month. Owners, managers and
   finance see sales, profit (sale price less cost and prep), days to sell, each salesperson, which lead sources win, stock by age and prep
-  spend by kind. A salesperson sees "Your report": their cars sold, leads, leads won and follow-ups due. Counts only, no money, nobody else.
+  spend by kind. A salesperson sees their own Reports: cars sold, leads, leads won and follow-ups due. Counts only, no money, nobody else.
 - **Prep costs** (`prepStore`, kinds in `src/lib/admin/prep.ts`): lines on a car's dashboard page (Valet, Tyres, NCT, Service, Repairs,
   Bodywork, Transport, Other), folded away until used. Margins permission only. A car's whole cost is its cost price plus its prep
   (`src/lib/admin/costs.ts`), and every margin uses it.
@@ -388,7 +388,7 @@ their bytes and kept in the private bucket under `help/`, or as a data URL with 
 ## Monthly report and the owner API
 
 - **Analytics** (`/analytics`, the Site analytics module): on the demo, generated sample figures (`src/lib/admin/analytics.ts`). On a real site, the site's own anonymous counts (`src/lib/admin/visitor-figures.ts`): visits by channel and the website leads each brought, searches with no cars to show by make, price bands and filters used, calculator use against finance applications, and active alerts per car. A visit's channel (Google, Facebook, DoneDeal, a tagged link's `utm_source` and so on, `src/lib/visit-rules.ts`) is worked out on its first page and kept in the tab's sessionStorage for that visit only, so a lead form can send it: the lead shows "Website, from Facebook", and the dealer's email shows "Came from". No cookie, no visitor id, and what a buyer types in the search box is never stored, only a make from the fixed list. Where visits come from (`src/components/admin/VisitSources.tsx`, the maths in `src/lib/admin/visit-sources.ts`) shows one tile per channel with visits, the change ("Up 6%", or "Too few to compare" under 5; the panel names the period), leads and leads per 100 visits, the channel and the group with the most leads marked: the four busiest channels on the Overview, the groups (Search, Social, Listing sites, Email, Typed in, Other) opening into their networks on Analytics and in the monthly report. Paid and organic are not split: the site does not count a paid visit yet.
-- **Monthly report** (`/monthly-report`): last month by default, any of the twelve before it from the picker. Each section shows only for the modules on (Leads and Stock always, Visitors with Site analytics: sample figures on the demo, the site's own visit counts on a real site, Sales, Reviews). Each figure says how it compares with the month before, or "Too few to compare" under 5. Sales value and profit show only to staff with the margins permission. As on Reports, staff without it (Sales) see their own leads and sales only, with no stock, visitors or reviews. One "What to do" line comes from fixed rules. "Print or save as PDF" uses the browser's print, with the menu left out.
+- **Monthly report** (`/monthly-report`, the Monthly view of Reports; in the menu as Reports for a dealer without the Margins module): last month by default, any of the twelve before it from the picker. Each section shows only for the modules on (Leads and Stock always, Visitors with Site analytics: sample figures on the demo, the site's own visit counts on a real site, Sales, Reviews). Each figure says how it compares with the month before, or "Too few to compare" under 5. Sales value and profit show only to staff with the margins permission. As on Reports, staff without it (Sales) see their own leads and sales only, with no stock, visitors or reviews. One "What to do" line comes from fixed rules. "Print or save as PDF" uses the browser's print, with the menu left out.
 - **Email**: `/api/reports/monthly` (CRON_KEY, scheduled `0 7 1 * *` in `worker.mjs` and `wrangler.jsonc`) emails last month's summary to the owners and managers: counts only. On the demo it goes to the lead inbox like the follow-up digest.
 - **Owner API** and the anonymous feature counters: see `docs/owner-api.md`. The figures for the report and the API are one module, `src/lib/reports/monthly.ts`.
 

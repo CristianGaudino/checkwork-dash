@@ -141,7 +141,7 @@ export function NotificationsForm({ settings, emailConnected }: { settings: Deal
         <legend className="mb-1 text-meta font-semibold">Emails</legend>
         {NOTES.map(([k, label]) => (
           <label key={k} className="flex min-h-11 items-center gap-3">
-            <input type="checkbox" name={k} defaultChecked={settings.notifications[k]} className="size-5 accent-accent" />
+            <input type="checkbox" name={k} defaultChecked={settings.notifications[k]} className="size-5 shrink-0 accent-accent" />
             {label}
           </label>
         ))}

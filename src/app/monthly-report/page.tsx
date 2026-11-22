@@ -20,6 +20,7 @@ import { forSale } from "@/lib/stock/types";
 import { PrintButton } from "./PrintButton";
 import { VisitSources } from "@/components/admin/VisitSources";
 import { NotForRole } from "@/components/admin/NotForRole";
+import { ReportViews } from "@/app/reports/views";
 
 export const metadata = { title: "Monthly report" };
 
@@ -83,6 +84,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
             <PrintButton />
           </>
         } />
+      {/* A view of Reports: its other views, for a dealer who has Reports (the Margins module). */}
+      {hasMargins && <div className="no-print"><ReportViews /></div>}
 
       <Panel title="What to do" action={whole && s.stock.oldStock > 0 ? <Link href="/stock?view=old" className={rowButton}>See the old stock</Link> : undefined}>
         <p className="text-body">{advice(s, oldDays)}</p>

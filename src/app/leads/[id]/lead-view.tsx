@@ -78,7 +78,7 @@ export async function LeadView({ id }: { id: string }) {
           </span>
         }
         // A warranty request is aftersales work: it is listed there, so the way back is there.
-        back={lead.type === "warranty" && (await hasModule("service")) ? { href: "/aftersales?view=requests", label: "Aftersales" } : { href: "/leads", label: "Leads" }}
+        back={lead.type === "warranty" && (await hasModule("service")) ? { href: "/aftersales?view=requests", label: "Warranty claims" } : { href: "/leads", label: "Leads" }}
       />
       {/* The top answers what a call starts with: what they asked, how to reach them, and what happens next. */}
       <Panel>

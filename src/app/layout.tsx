@@ -9,7 +9,7 @@ import { AdminShell } from "@/components/admin/AdminShell";
 import { DealerGate } from "@/components/admin/DealerChooser";
 import { DashboardBeacon } from "@/components/admin/DashboardBeacon";
 import { ServiceWorker } from "@/components/admin/ServiceWorker";
-import { DEALER_NAV, DENSITY_COOKIE, NAV_COOKIE, RAIL_COOKIE, parseOpenGroups } from "@/lib/admin/nav";
+import { DEALER_NAV, DENSITY_COOKIE, NAV_COOKIE, RAIL_COOKIE, menuItems, parseOpenGroups } from "@/lib/admin/nav";
 import { THEME_SCRIPT } from "@/lib/demo";
 import { DealerFactsProvider } from "@/components/DealerFacts";
 import { factsOf } from "@/lib/tenancy/profile";
@@ -75,9 +75,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const [{ role }, source, jar, modules] = await Promise.all([currentMember(), stockSource(), cookies(), enabledModules()]);
   // A screen that needs a permission is left out of the menu, and the page itself refuses (notFound) without it. So is one for stock kept
   // here, for a dealer whose stock is on DoneDeal, and one of a module the dealer does not have (#173; the proxy refuses its pages).
-  const nav = DEALER_NAV.filter((i) => (!i.permission || roleCan(role, i.permission)) && !(i.ours && source === "donedeal") && pathAllowed(i.href, modules) && (!i.module || [i.module].flat().some((m) => modules.has(m))));
   // Someone at several dealers switches between them from the menu.
-  if (access.choices.length > 1) nav.push({ href: "/dealers", label: "Switch dealer", icon: "home", group: "Settings and help" });
+  const nav = menuItems(DEALER_NAV.filter((i) => (!i.permission || roleCan(role, i.permission)) && !(i.ours && source === "donedeal") && pathAllowed(i.href, modules) && (!i.module || [i.module].flat().some((m) => modules.has(m)))), access.choices.length);
   const { dealer } = access;
   // A plan without the dashboard (#173) has no page here: every one is the not found screen, with the demo bar still there to choose
   // again. A module's own pages are its folder's layout's (PlanGate).
