@@ -27,7 +27,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   if (!held) {
     return (
       <>
-        <PageHeader title="Reserve" text={`${carName(car)}, ${priceLabel(car)}. It shows as Reserved on the website until the day you choose.`} back={back} />
+        <PageHeader title="Reserve" text={`${carName(car)}, ${priceLabel(car)}`} back={back} />
         <Panel>
           <ReserveForm carId={car.id} today={today} latest={addMonths(today, 3)} team={team.map((t) => t.name)} me={team.some((t) => t.name === me.name) ? me.name : undefined} customers={[...customers].sort((a, b) => a.name.localeCompare(b.name, "en-IE")).map((c) => ({ id: c.id, label: c.phone ? `${c.name}, ${c.phone}` : c.name }))} />
         </Panel>

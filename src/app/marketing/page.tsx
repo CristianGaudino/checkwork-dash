@@ -56,7 +56,7 @@ const today = () => Date.now(); // lint: a page may not call Date.now directly
 
 // What each tab is for, in a line.
 const TAB_TEXT: Record<string, string> = {
-  posts: "What went out, how it did, and what is waiting. Pick a car and the post is written for you.",
+  posts: "What went out, how it did and what is waiting.",
   calendar: "What goes out each day of the week.",
   media: "Your own photos and videos, ready to use in a post.",
   newsletters: "An email with your newest cars, sent to the people who signed up for it on your site.",

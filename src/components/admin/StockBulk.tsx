@@ -113,7 +113,6 @@ export function StockBulk({ canDelete }: { canDelete: boolean }) {
 
   return (
     <>
-      {count === 0 && <p className="text-meta text-text-2 max-sm:hidden">Tick cars in the list to drop their price, mark them sold or delete them together.</p>}
       <form id={FORM} onSubmit={(e) => (e.preventDefault(), amountOk && setAsking(true))} hidden={count === 0} className="z-30 sm:sticky sm:top-2 flex flex-col gap-3 rounded-card border border-accent bg-card p-4 shadow-lift lg:top-[5.5rem]">
       <div className="flex flex-wrap items-center gap-2">
         <p aria-live="polite" className="mr-auto flex min-w-0 flex-col">

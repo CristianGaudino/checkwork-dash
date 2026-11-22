@@ -12,7 +12,7 @@ import { carFields } from "@/lib/admin/car-fields";
 import { listingHref } from "@/lib/stock-source-rules";
 import { listing } from "@/lib/stock-source";
 import { dealerProfile } from "@/lib/tenancy/current";
-import { CheckIcon, PencilIcon, ReceiptIcon, TrashIcon } from "@/components/stock/icons";
+import { CheckIcon, PencilIcon, ReceiptIcon, TagIcon, TrashIcon } from "@/components/stock/icons";
 import { costsStore, heldFor, prepStore, reservationsStore, salesStore } from "@/lib/admin/collections";
 import { RETURN_WINDOW_DAYS, withinReturnWindow } from "@/lib/admin/deposits";
 import { fmtDate, fmtEur, fmtNum } from "@/lib/admin/format";
@@ -81,7 +81,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
   const actions = [
     (await hasModule("social")) && <PostToSocial key="post" car={car} className={quiet} />,
     <ViewOnSite key="view" car={car} shown={conditionShown(await enabledModules(), car.condition)} className={quiet} />,
-    deposits && !synced && !sold && (held || forSale(car)) && <Link key="reserve" href={`/stock/${id}/reserve`} className={quiet}>{held ? "See the deposit" : "Reserve with a deposit"}</Link>,
+    deposits && !synced && !sold && (held || forSale(car)) && <Link key="reserve" href={`/stock/${id}/reserve`} className={quiet}><TagIcon className="shrink-0 size-4" />{held ? "See the deposit" : "Reserve"}</Link>,
     // A sold car too, while it is still on the site as Sold; one sold long ago is off it already.
     !synced && (!sold || onPublicSite({ soldAt: car.soldAt }, rules.soldVisibleDays)) && <ListingButton key="listing" car={car} className={quiet} />,
     synced && sold && !sale && !car.takenDownAt && <a key="dd" href={listingHref(car, listingUrl)} {...NEW_TAB} className={quiet}>Edit on {listingSite}<span className="sr-only"> (opens in a new tab)</span></a>,

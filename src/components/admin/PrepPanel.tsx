@@ -2,11 +2,12 @@
 
 import { useKeptForm } from "@/components/admin/useKeptForm";
 import { Select } from "@/components/Select";
-import { Field, Panel, adminButton, adminInput, rowDanger } from "@/components/admin/kit";
+import { Field, Panel, adminButton, adminInput, rowButton, rowDanger } from "@/components/admin/kit";
 import { ActButton } from "@/components/admin/ActButton";
 import { addPrepAction, removePrepAction, type PrepFormState } from "@/app/stock/actions";
 import { PREP_KINDS, type PrepLine } from "@/lib/admin/prep";
 import { fmtEur } from "@/lib/admin/format";
+import { PlusIcon } from "@/components/stock/icons";
 
 // Prep costs on a car: a short list and its total, with adding a line folded away until it is wanted, so a dealer who does not track
 // prep sees one quiet line. Margins permission only (the page and the server both check).
@@ -37,7 +38,7 @@ export function PrepPanel({ carId, lines }: { carId: string; lines: PrepLine[] }
         </ul>
       )}
       <details className="group" open={Object.keys(e).length > 0}>
-        <summary className="inline-flex min-h-11 cursor-pointer items-center text-meta font-medium text-accent-text underline">Add a prep cost</summary>
+        <summary className={`${rowButton} w-fit cursor-pointer list-none [&::-webkit-details-marker]:hidden`}><PlusIcon className="size-4" />Add a prep cost</summary>
         {/* Keyed on the last line added, so the boxes clear for the next one. */}
         <form key={state?.added ?? 0} {...action} className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-[10rem_8rem_minmax(0,1fr)_auto] sm:items-start" noValidate>
           <Field label="For" error={e.kind}>
