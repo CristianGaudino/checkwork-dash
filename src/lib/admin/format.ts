@@ -23,7 +23,7 @@ const DAY_STYLES = {
 } as const;
 
 // Some engines write September "Sept" beside "Oct": every short month is three letters.
-export const threeLetter = (s: string) => s.replace("Sept", "Sep");
+export const threeLetter = (s: string) => s.replace(/\bSept\b/, "Sep"); // a whole word: never the "Sept" in "September" (#40)
 export const fmtDate = (t: number | string) => threeLetter(date.format(new Date(t)));
 export const fmtTime = (t: number) => time.format(t);
 export const fmtDay = (iso: string, style: keyof typeof DAY_STYLES = "long") => threeLetter(DAY_STYLES[style].format(new Date(`${iso}T12:00:00Z`)));
