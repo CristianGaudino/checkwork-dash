@@ -3,27 +3,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
 vi.mock("react", async (orig) => ({ ...(await orig<typeof import("react")>()), cache: <T,>(fn: T) => fn }));
-// The role the directory gives the signed-in person (realRole), per test: a job has none, so the actions need it set here.
-const who = vi.hoisted(() => ({ role: "Owner" as string | null }));
-vi.mock("@/lib/permissions", async (orig) => ({ ...(await orig<typeof import("@/lib/permissions")>()), realRole: async () => who.role }));
 
 const KEY = Buffer.alloc(32, 9).toString("base64");
 const OTHER_KEY = Buffer.alloc(32, 1).toString("base64");
 const { seal, unseal, saveSecret, removeSecret, secretFor, savedNames } = await import("./dealer-secrets");
 const { runAsDealer } = await import("@/lib/tenancy/current");
 const { isConnected } = await import("./integrations");
-const { saveKeysAction, removeKeysAction } = await import("@/app/settings/actions");
-const { listActivity } = await import("@/lib/admin/activity");
 
 const TOKEN = "EAAB-super-secret-token-123";
-const form = (o: Record<string, string>) => Object.entries(o).reduce((f, [k, v]) => (f.set(k, v), f), new FormData());
-const META = { META_PAGE_ID: "111", META_PAGE_ACCESS_TOKEN: TOKEN, META_INSTAGRAM_ID: "222" };
 const at = <T,>(id: string, fn: () => Promise<T>) => runAsDealer(id, fn);
 
 beforeEach(() => {
   vi.stubEnv("DEALER_SECRETS_KEY", KEY);
   vi.stubEnv("APP_ENV", "production");
-  who.role = "Owner";
 });
 afterEach(async () => {
   vi.unstubAllEnvs();
@@ -98,61 +90,11 @@ describe("a dealer's own keys", () => {
   });
 });
 
-describe("saving from Settings", () => {
-  it("an owner connects, replaces and removes a service; the activity names it and holds no value", async () => {
-    await at("test-motors", async () => {
-      expect(await saveKeysAction("social", undefined, form(META))).toEqual({ saved: true });
-      expect([...(await savedNames())].sort()).toEqual(Object.keys(META).sort());
-      expect(await secretFor("META_PAGE_ACCESS_TOKEN")).toBe(TOKEN);
-      expect(await saveKeysAction("social", undefined, form(META))).toEqual({ saved: true });
-      expect(await removeKeysAction("social")).toBeUndefined();
-      expect((await savedNames()).size).toBe(0);
-      const log = (await listActivity({ area: "settings" }, 1, 20)).rows.map((r) => r.summary);
-      expect(log).toEqual(expect.arrayContaining(["Connected Facebook and Instagram posting", "Replaced Facebook and Instagram posting", "Removed the keys for Facebook and Instagram posting"]));
-      expect(JSON.stringify(log)).not.toContain(TOKEN);
-    });
-  });
-  it("is refused for anyone but an owner, and on the demo dealer, and changes nothing", async () => {
-    who.role = "Manager";
-    await at("test-motors", async () => {
-      expect((await saveKeysAction("social", undefined, form(META)))?.errors?.form).toBe("Only an owner can change this");
-      expect(await removeKeysAction("social")).toEqual({ error: "Only an owner can change this" });
-      expect((await savedNames()).size).toBe(0);
-    });
-    who.role = "Owner";
-    await at("checkwork-motors", async () => {
-      expect((await saveKeysAction("social", undefined, form(META)))?.errors?.form).toBe("The demo never needs keys");
-      expect((await savedNames()).size).toBe(0);
-    });
-  });
-  it("is refused for no role (Sales, Finance, no person), save and remove, and the demo cannot remove either", async () => {
-    for (const role of [null, "Sales", "Finance"]) {
-      who.role = role;
-      await at("test-motors", async () => {
-        expect((await saveKeysAction("social", undefined, form(META)))?.errors?.form).toBe("Only an owner can change this");
-        expect(await removeKeysAction("social")).toEqual({ error: "Only an owner can change this" });
-        expect((await savedNames()).size).toBe(0);
-      });
-    }
-    who.role = "Owner";
-    await at("test-motors", () => saveKeysAction("social", undefined, form(META)));
-    await at("checkwork-motors", async () => expect(await removeKeysAction("social")).toEqual({ error: "The demo never needs keys" }));
-    await at("test-motors", async () => expect((await savedNames()).size).toBe(3));
-  });
-  it("is refused with a plain message when DEALER_SECRETS_KEY is not set, for a service that is ours, and for an empty box", async () => {
-    await at("test-motors", async () => {
-      vi.stubEnv("DEALER_SECRETS_KEY", "");
-      expect((await saveKeysAction("social", undefined, form(META)))?.errors?.form).toMatch(/cannot be saved yet/);
-      vi.stubEnv("DEALER_SECRETS_KEY", KEY);
-      expect((await saveKeysAction("ai", undefined, form({ ANTHROPIC_API_KEY: "x" })))?.errors?.form).toBe("Not found");
-      expect((await saveKeysAction("social", undefined, form({ ...META, META_PAGE_ID: " " })))?.errors?.form).toBe("Fill in every box");
-      expect((await savedNames()).size).toBe(0);
-    });
-  });
+describe("logging", () => {
   it("never logs a value", async () => {
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
     await at("test-motors", async () => {
-      await saveKeysAction("social", undefined, form(META));
+      await saveSecret("META_PAGE_ACCESS_TOKEN", TOKEN);
       vi.stubEnv("DEALER_SECRETS_KEY", OTHER_KEY); // cannot open it now: logs the name only
       await secretFor("META_PAGE_ACCESS_TOKEN");
     });

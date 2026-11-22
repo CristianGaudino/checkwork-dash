@@ -1,6 +1,6 @@
 # Owner API
 
-Read only, for the owner's own program (#62): how each dealer uses the app. One app serves every dealer, so every figure is for the dealer named in the call. Counts only, never personal data (no names, phones, emails, registrations or IPs). Built for #174.
+For the owner's own program (#62): how each dealer uses the app, and, since #80, the dealers' outside-service keys. One app serves every dealer, so every figure is for the dealer named in the call. Counts only, never personal data (no names, phones, emails, registrations or IPs). Built for #174.
 
 ## Set up (once)
 
@@ -18,6 +18,20 @@ Send `Authorization: Bearer <OWNER_API_TOKEN>`. No token or a wrong one: `404`, 
 - `GET /api/owner/v1/modules?dealer=<id>`: the modules on and the monthly plan price (`planEur`: the tier and its add-ons, before VAT)
 
 `dealer` is required: an id from `/dealers`. Missing or malformed: `400`; no such dealer: `404`. The figures are worked out inside that dealer's own store. `from` and `to` are Irish days, inclusive; the default is the last 30 days. More than a year, or a bad day: `400`. Answers are cached for an hour per dealer and range (`Cache-Control: private, max-age=3600`, and in the Worker).
+
+## Dealer service keys (#80)
+
+Checkwork sets and removes each dealer's outside-service keys (Facebook, ads, WhatsApp and so on); the dealer never does. Settings only shows whether each is connected. The same bearer token; no token or a wrong one: `404`. A key is sealed on the Worker (needs the Worker secret `DEALER_SECRETS_KEY`) and is never shown again once saved: no answer carries a value, and the log and activity history name only the dealer, service and outcome ("Connected ...", "Replaced ...", "Removed the keys for ..." by Checkwork).
+
+- `GET /api/owner/v1/dealers/{dealerId}/keys`: `{"version": 1, "services": [{"id", "connected", "names"}]}` for each per-dealer service. Names only.
+- `PUT /api/owner/v1/dealers/{dealerId}/keys/{service}`: a JSON object with exactly that service's names (the `names` above, from `perDealer` in `src/lib/integrations.ts`), each a non-empty string up to 4000 characters. `204` saved (replaces any keys it had). `400` wrong names or values, or the demo dealer; `404` no such dealer or service; `503` `DEALER_SECRETS_KEY` is not set.
+- `DELETE /api/owner/v1/dealers/{dealerId}/keys/{service}`: removes them. `204`.
+
+```sh
+curl -H "Authorization: Bearer $OWNER_API_TOKEN" https://www.dash.checkwork.ie/api/owner/v1/dealers/test-motors/keys
+curl -X PUT -H "Authorization: Bearer $OWNER_API_TOKEN" -H "Content-Type: application/json"   -d '{"META_PAGE_ID":"111","META_PAGE_ACCESS_TOKEN":"...","META_INSTAGRAM_ID":"222"}'   https://www.dash.checkwork.ie/api/owner/v1/dealers/test-motors/keys/social
+curl -X DELETE -H "Authorization: Bearer $OWNER_API_TOKEN" https://www.dash.checkwork.ie/api/owner/v1/dealers/test-motors/keys/social
+```
 
 ## Shape of `summary` (version 1)
 

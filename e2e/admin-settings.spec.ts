@@ -39,10 +39,10 @@ test("the sections are one at a time; services say what is connected and how to 
   await page.getByRole("navigation", { name: "Settings" }).getByRole("link", { name: "Connected services", exact: true }).click();
   await expect(page).toHaveURL(/section=services/);
   const social = page.getByRole("row", { name: /Facebook and Instagram posting/ });
-  // The three outward services are simulated on the demo, so they read as connected; lead email shows its true state, and the way to get it.
+  // The three outward services are simulated on the demo, so they read as connected; lead email shows its true state.
   await expect(social).toContainText("Connected");
   await expect(social).toContainText("@checkworkmotors");
-  await expect(page.getByRole("row", { name: /Lead email/ }).getByRole("link", { name: "Ask us to connect" })).toBeVisible();
+  await expect(page.getByRole("row", { name: /Lead email/ })).toContainText("Not connected");
   // The website keys are for a web developer: folded until asked for.
   await expect(page.getByRole("region", { name: "Website connection" })).toBeHidden();
   await page.getByText("For your web developer").click();
