@@ -37,8 +37,11 @@ test("an unknown lead is a 404, and bad filters are ignored", async ({ page }) =
 });
 
 test("the list opens with what to answer now, and a lead moves on a step from its row, with Undo", async ({ page, context }) => {
-  await page.setViewportSize({ width: 1280, height: 900 }); // on a phone the row keeps one button (Call); the step is on the lead
+  // A 1280 laptop less a 17px Windows scrollbar. On a phone the row keeps one button (Call); the step is on the lead.
+  await page.setViewportSize({ width: 1263, height: 900 });
   await page.goto("/leads");
+  // The table fits: the flexible columns give way, never the row's buttons.
+  expect(await page.locator("table").evaluate((t) => t.parentElement!.scrollWidth - t.parentElement!.clientWidth)).toBeLessThanOrEqual(0);
   const todo = page.getByRole("region", { name: /^To answer now/ });
   const first = todo.getByRole("listitem").first();
   await expect(first.getByRole("link", { name: /^(Call|Email|WhatsApp)/ })).toBeVisible();

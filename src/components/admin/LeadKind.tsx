@@ -34,9 +34,9 @@ export function LeadKind({ type, topic }: { type: LeadType; topic?: string }) {
 export function LeadTags({ tags }: { tags: string[] }) {
   if (tags.length === 0) return null;
   return (
-    <span className="flex flex-wrap gap-1">
+    <span className="flex min-w-0 flex-wrap gap-1">
       {tags.map((t) => (
-        <span key={t} className="inline-flex h-6 items-center whitespace-nowrap rounded-full bg-hairline px-2 text-meta text-text-2">
+        <span key={t} title={t} className="inline-block h-6 max-w-full truncate rounded-full bg-hairline px-2 text-meta leading-6 text-text-2">
           {t}
         </span>
       ))}

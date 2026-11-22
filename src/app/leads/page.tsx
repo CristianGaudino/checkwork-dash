@@ -57,7 +57,10 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
           </Link>
           <KindSource l={l} className="sm:hidden" />
           {l.carTitle && <span className="truncate text-meta font-medium text-text sm:hidden">{l.carTitle}</span>}
-          <LeadTags tags={leadChips(l.type, l.topic, l.answers).slice(0, 1)} />
+          {/* No width of its own (w-0), so a long answer is cut short rather than widen the column. */}
+          <span className="w-0 min-w-full">
+            <LeadTags tags={leadChips(l.type, l.topic, l.answers).slice(0, 1)} />
+          </span>
         </span>
       ),
       className: "max-w-[11rem] sm:max-w-[14rem]",
@@ -74,7 +77,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
           <span title={l.carTitle ?? l.message} className="line-clamp-2">{l.carTitle ? <span className="font-medium">{l.carTitle}</span> : l.message.trim() ? <span className="text-text-2">&ldquo;{l.message.split("\n")[0]}&rdquo;</span> : null}</span>
         </span>
       ),
-      className: "min-w-[11rem] max-w-[20rem]",
+      className: "max-w-[20rem]",
       hide: "sm",
     },
     {
