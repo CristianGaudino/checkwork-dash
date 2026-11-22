@@ -130,7 +130,7 @@ function Agenda({ drives, gone, empty = "Nothing booked.", withDay = false }: { 
               {isOpenDrive(d) && gone.has(d.carSlug) && <Badge tone="warn">No longer for sale</Badge>}
             </span>
             <span className="text-meta text-text-2">
-              {d.carTitle} · {d.assignedTo ?? "Nobody yet"}
+              {d.carTitle} · {d.assignedTo ?? "Not assigned"}
             </span>
           </span>
           {/* Call them, then the next step, one press each. */}
@@ -242,7 +242,7 @@ function List({ drives, sp, team, gone }: { drives: TestDrive[]; sp: Params; tea
       ),
     },
     { key: "car", header: "Car", sort: (d) => d.carTitle, cell: (d) => <span className="line-clamp-2 max-w-[16rem]">{d.carTitle}</span>, hide: "md" },
-    { key: "with", header: "Taking them out", sort: (d) => d.assignedTo, cell: (d) => d.assignedTo ?? <span className="text-text-2">Nobody yet</span>, hide: "lg" },
+    { key: "with", header: "Taking them out", sort: (d) => d.assignedTo, cell: (d) => d.assignedTo ?? <span className="text-text-2">Not assigned</span>, hide: "lg" },
     { key: "status", header: "Status", sort: (d) => DRIVE_STATUSES.indexOf(d.status), nowrap: true, cell: (d) => <DriveStatusBadge status={d.status} /> },
   ];
   const { rows: sorted, sort } = sortRows(rows, columns, sp, { key: "when", dir: "desc" });
@@ -250,7 +250,7 @@ function List({ drives, sp, team, gone }: { drives: TestDrive[]; sp: Params; tea
   const filters: FilterGroup[] = [
     { name: "when", label: "When", any: "Any time", options: [["ahead", "Coming up"], ["past", "Past"]] },
     { name: "status", label: "Status", any: "Any status", options: DRIVE_STATUSES.map((s) => [s, DRIVE_STATUS_LABELS[s]] as const) },
-    { name: "with", label: "Taking them out", any: "Anyone", options: [["none", "Nobody yet"], ...team.map((t) => [t, t] as const)] },
+    { name: "with", label: "Taking them out", any: "Anyone", options: [["none", "Not assigned"], ...team.map((t) => [t, t] as const)] },
     { name: "car", label: "Car", any: "Any car", options: [["gone", "No longer for sale"]] },
   ];
   return (
