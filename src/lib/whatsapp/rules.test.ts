@@ -36,6 +36,7 @@ describe("templates by module", () => {
     expect(list.find((e) => e.id === "slow-stock")).toMatchObject({ label: "A car 60 days in stock", on: true });
     for (const e of list) expect(`${e.label} ${e.does}`).not.toContain("{");
     expect(list.map((e) => e.on)).toEqual([true, true, ...Array(EVENT_IDS.length - 2).fill(false)]);
+    expect(eventList(some("dashboard,reviews"), 60).slice(0, 3).map((e) => e.id)).toEqual(["enquiry", "slow-stock", "review"]);
   });
   it("every button of every template has a label, and no text has a dash", () => {
     for (const e of EVENT_IDS) for (const b of EVENTS[e].buttons) expect(BUTTON_LABELS[b]).toBeTruthy();

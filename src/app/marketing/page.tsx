@@ -209,7 +209,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
           {/* How the posts did, after what needs doing: the few numbers a dealer asks about. Four tiles on a laptop; on a phone one line,
               so the list is not pushed a screen down. */}
           <p className="text-meta text-text-2 sm:hidden">
-            Last 30 days: {fmtNum(recent.length)} posted, {fmtNum(seen)} saw them, {fmtNum(clicks)} clicks, {plural(adLeads, "lead")} from ads
+            Last 30 days: {fmtNum(recent.length)} posted, {fmtNum(seen)} saw them, {plural(clicks, "click")}, {plural(adLeads, "lead")} from ads
           </p>
           <div className="max-sm:hidden">
             <StatGrid>
