@@ -479,7 +479,7 @@ POSTs too. Only the Origin check tells them apart.
 
 | Limit | Where | Value |
 |---|---|---|
-| Sign-in requests per IP | New `SIGN_IN_LIMITER` rate limit binding (namespace 2005 dev, 1005 production), keyed by an HMAC of the IP | 30 a minute: every sign-in step, and every challenge row written for someone signed out |
+| Sign-in requests per IP | New `SIGN_IN_LIMITER` rate limit binding (namespace 4005 dev, 3005 production), keyed by an HMAC of the IP | 30 a minute: every sign-in step, and every challenge row written for someone signed out |
 | Emails per address | D1: the `link` and `confirm-code` rows with that email (every email we send writes exactly one) | 3 in 15 minutes, 10 a day. Over either, nothing is sent and nothing is ended |
 | Tries per code | D1, on the code's row | 5, then the code is dead |
 | Wrong codes per email | D1: the `tries` on the email's code rows from the last 24 hours, less one for each that was used, whichever code they were made on | 15, then the email is **locked** for 24 hours (`staff.code_locked_until`) |

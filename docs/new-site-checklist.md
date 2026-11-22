@@ -71,6 +71,7 @@ demo uses the built-in writer (`src/lib/ai/mock.ts`), and a real site shows AI w
 ### Infrastructure names
 - `wrangler.jsonc`: `name`, the self-reference service, `routes`, the R2 bucket, the D1 database name and id
   (`npx wrangler d1 create <name> --jurisdiction eu`). The sending address is `LEAD_FROM_EMAIL` in `site.ts`, on an onboarded domain.
+- Rate limit `namespace_id`s in `wrangler.jsonc` are account-wide: Workers in one Cloudflare account that share an id share a counter. Give the new site ids no other Worker uses (the list is in the comment above `ratelimits`, and `src/lib/ratelimit-namespaces.test.ts` fails on a repeat).
 - `package.json` `name`, the `site=` line in `.github/workflows/ci.yml`, and the `env` block in `.github/workflows/deploy.yml`.
 
 ### Repo and board
