@@ -39,7 +39,8 @@ permissions, each checked on the server in every page and action that needs it (
   in the admin store (`car-costs`), never in the public car data.
 - **Team:** add people, change roles, remove people. A manager cannot add, change or remove an owner, or make anyone one. A team with an
   owner always keeps one, and the last person cannot be removed.
-- **Business settings:** targets, lead emails, notifications, marketing voice and the demo reset. Others see them read only.
+- **Business settings:** timings, lead emails, notifications, marketing voice and the demo reset. Others see only Notifications, for their
+  own devices.
 
 - **Activity history** (`/activity`): every change made in the dashboard, newest first, with who made it, filtered by area,
   person and period. Changes only, never page views. See below.
@@ -65,7 +66,7 @@ What differs between dealers beyond their records is in their profile (#5): one 
   since images load from here only). The name is the directory's `name` column. Owners and managers change the name, website, phone,
   email, address and hours in Settings, Your business (`saveBusinessAction`, in the activity history); it merges into the profile, never
   over what is ours.
-- **Ours to set** (shown read only in Settings, Your plan): `modules` (the plan), `stock` (`source` "checkwork" or "donedeal",
+- **Ours to set** (shown read only in Billing: the plan, and "What we set for you"): `modules` (the plan), `stock` (`source` "checkwork" or "donedeal",
   `listingSite`, `listingUrl`), `rules` (`oldStockDays`, `slowDropEur`, `soldVisibleDays`, `saleNudgeDays`), `placeId` (Google reviews)
   and `leadEmail` (where leads go when Settings has no address). How to set them: `docs/new-dealer.md`.
 - **Defaults:** a dealer with nothing set has the dashboard alone, stock kept here, the usual rules, no website and no logo (the menu

@@ -79,6 +79,7 @@ test("a test drive booking, a price alert and a claim on a car bought here each 
 test("Settings makes a website key, shows it once, and revokes it", async ({ page }) => {
   const name = who("Site");
   await page.goto("/settings?section=services");
+  await page.getByText("For your web developer").click();
   const panel = page.getByRole("region", { name: "Website connection" });
   await panel.getByRole("textbox", { name: "Name" }).fill(name);
   await panel.getByRole("button", { name: "Make a key" }).click();
@@ -88,6 +89,7 @@ test("Settings makes a website key, shows it once, and revokes it", async ({ pag
   await expect(row).toContainText("Not yet");
   await page.reload();
   await expect(page.getByRole("textbox", { name: "New website key" })).toHaveCount(0); // shown once
+  await page.getByText("For your web developer").click(); // folded again after the reload
   await row.getByRole("button", { name: "Revoke" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Revoke" }).click();
   await expect(row).toContainText("Revoked");
