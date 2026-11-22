@@ -28,7 +28,12 @@ describe("publishers", () => {
     expect(await real(() => postReviewReply(review, "Thanks"))).toEqual({ ok: false, reason: "not-connected" });
   });
   it("say not-installed with keys until the real adapter is written, and never ok", async () => {
-    for (const k of ["META_PAGE_ID", "META_PAGE_ACCESS_TOKEN", "META_INSTAGRAM_ID"]) vi.stubEnv(k, "x");
+    vi.stubEnv("DEALER_SECRETS_KEY", Buffer.alloc(32, 3).toString("base64"));
+    const { saveSecrets, removeSecret } = await import("@/lib/dealer-secrets");
+    const names = ["META_PAGE_ID", "META_PAGE_ACCESS_TOKEN", "META_INSTAGRAM_ID"];
+    expect(await real(() => publishPost(post))).toEqual({ ok: false, reason: "not-connected" }); // app-wide variables alone never connect a dealer
+    await real(() => saveSecrets(Object.fromEntries(names.map((n) => [n, "x"]))));
     expect(await real(() => publishPost(post))).toEqual({ ok: false, reason: "not-installed" });
+    await real(() => Promise.all(names.map(removeSecret)));
   });
 });
