@@ -52,6 +52,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const openLeads = theirLeads.filter((l) => (l.type === "warranty" ? service && openRequests.has(l.id) : isOpenLead(l)));
   const openClaims = service ? theirClaims.filter((k) => claimOpen(k.status)) : [];
   const openOrders = ordersOn ? theirOrders.filter((o) => orderOpen(o.status)) : [];
+  const pastOrders = theirOrders.filter((o) => !openOrders.includes(o)); // an open one is under Open for them, not twice
   const held = synced ? [] : deposits.filter((r) => r.status === "held");
   const openCount = openDrives.length + openLeads.length + openClaims.length + openOrders.length + held.length;
 
@@ -125,10 +126,10 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
                 </ul>
               )}
           </Panel>
-          {ordersOn && theirOrders.length > 0 && (
+          {ordersOn && pastOrders.length > 0 && (
             <Panel title="Factory orders">
               <ul className={list}>
-                {theirOrders.map((o) => (
+                {pastOrders.map((o) => (
                   <li key={o.id} className={item}>
                     <Link href={`/orders/${o.id}`} className="flex min-w-0 flex-col">
                       <span className="font-medium underline-offset-2 hover:underline">{o.regPeriod} {o.make} {o.model}</span>

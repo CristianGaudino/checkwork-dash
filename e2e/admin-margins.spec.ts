@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { as } from "./open";
+import { as, notForRole } from "./open";
 import { sideLink } from "./admin-menu";
 
 // Margins and cost prices are behind a permission that comes with the role. In this run the demo bar is on, so its role (a cookie) is
@@ -10,7 +10,7 @@ test("without the permission there is no Margins screen, no margin column or sta
   await page.goto("/");
   await expect(await sideLink(page, "Margins")).toHaveCount(0);
   await expect(page.getByText("Expected margin")).toHaveCount(0);
-  expect((await page.request.get("/margins")).status()).toBe(404);
+  await notForRole(page, "/margins", "Expected margin on stock");
   await page.goto("/stock");
   await expect(page.getByRole("columnheader", { name: "Margin" })).toHaveCount(0);
   await page.goto("/stock/new");

@@ -23,11 +23,12 @@ export type SourceGroup = SourceFigures & { id: string; channels: SourceTile[]; 
 // Leads per 100 visits, to one decimal; none without visits (a lead whose visit was counted the period before).
 export const ratePer100 = (leads: number, visits: number) => (visits ? Math.round((leads / visits) * 1000) / 10 : null);
 
-// The change in short ("Up 6%"): the panel above names the period. Under five either side it is too few to compare, as in the monthly
-// report. `trend` colours it: none when too few or it rounds to no change.
+// The change in short ("Up 6%"): the panel above names the period. Under five either side it is too few to compare, and on a base under
+// ten it gives the count before ("Up from 6"), as in the monthly report. `trend` colours it: none when too few or it rounds to no change.
 function figures(label: string, visits: number, before: number, leads: number): SourceFigures {
   const pct = visits < TOO_FEW || before < TOO_FEW ? null : Math.round(((visits - before) / before) * 100);
-  const change = pct === null ? "Too few to compare" : pct === 0 ? "No change" : `${pct > 0 ? "Up" : "Down"} ${Math.abs(pct)}%`;
+  const small = before < 2 * TOO_FEW;
+  const change = pct === null ? "Too few to compare" : pct === 0 ? "No change" : `${pct > 0 ? "Up" : "Down"} ${small ? `from ${before}` : `${Math.abs(pct)}%`}`;
   return { label, visits, before, leads, rate: ratePer100(leads, visits), change, trend: !pct ? null : pct > 0 ? "up" : "down" };
 }
 

@@ -20,9 +20,9 @@ export const metadata = { title: "Reviews" };
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ filter?: string; notice?: string; page?: string; per?: string }> }) {
   const sp = await searchParams;
-  const filter = parseReviewFilter(sp.filter);
   const notice = sp.notice ? NOTICES[sp.notice] : undefined;
   const [all, { name }] = await Promise.all([reviewsStore.list(), currentDealer()]);
+  const filter = parseReviewFilter(sp.filter, all);
   const s = ratingSummary(all);
   // The ones waiting for a reply first, a low rating first among them, newest first within each: the work is at the top of every view.
   const rank = (r: AdminReview) => (r.reply ? 2 : r.rating <= 3 ? 0 : 1);

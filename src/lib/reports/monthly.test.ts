@@ -83,6 +83,11 @@ describe("compare, median and advice", () => {
     expect(compare(5, 10)).toBe("Down 50% on the month before");
     expect(compare(10, 10)).toBe("The same as the month before");
   });
+  it("gives the count before, not a percentage, on a small base", () => {
+    expect(compare(56, 6)).toBe("Up from 6 the month before");
+    expect(compare(5, 9)).toBe("Down from 9 the month before");
+    expect(compare(7, 7)).toBe("The same as the month before");
+  });
   it("takes the middle", () => {
     expect([median([]), median([5]), median([1, 9, 3]), median([1, 2, 3, 10])]).toEqual([null, 5, 3, 3]);
   });

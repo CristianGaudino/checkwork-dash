@@ -88,10 +88,12 @@ export function summarise(data: ReportData, from: string, to: string, now: numbe
   };
 }
 
-// A change on the month before, in words. Under five either month there is too little to say a percentage means anything.
+// A change on the month before, in words. Under five either month there is too little to say a percentage means anything. On a base
+// under ten a percentage swings wildly (6 to 56 is "Up 833%"), so it gives the count before instead.
 export const TOO_FEW = 5;
 export function compare(now: number, before: number): string {
   if (now < TOO_FEW || before < TOO_FEW) return "Too few to compare";
+  if (before < 2 * TOO_FEW && now !== before) return `${now > before ? "Up" : "Down"} from ${before} the month before`;
   const pct = Math.round(((now - before) / before) * 100);
   return pct === 0 ? "The same as the month before" : `${pct > 0 ? "Up" : "Down"} ${Math.abs(pct)}% on the month before`;
 }

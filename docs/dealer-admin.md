@@ -35,8 +35,10 @@ permissions, each checked on the server in every page and action that needs it (
 | Sales | No | Their own, counts only | No | No | No | No | No |
 
 - **Margins:** a Margins screen, a margin column on the stock list, a Stock margin stat on the overview and a cost price box on the car
-  form. Without it none of those are in the page, and the Margins page and the cost field answer as if they were not there. Costs are kept
-  in the admin store (`car-costs`), never in the public car data.
+  form. Without it none of those are in the page, and the cost field answers as if it were not there. Costs are kept in the admin store
+  (`car-costs`), never in the public car data.
+- **A page the role cannot open** (Margins, Reports, Activity, Data requests, Billing) says so and who it is for, worded from these rules
+  (`whoCan`, `NotForRole`), with the way back to the overview. The page returns it before reading anything, so nothing of it shows.
 - **Team:** add people, change roles, remove people. A manager cannot add, change or remove an owner, or make anyone one. A team with an
   owner always keeps one, and the last person cannot be removed.
 - **Business settings:** timings, lead emails, notifications, marketing voice and the demo reset. Others see only Notifications, for their

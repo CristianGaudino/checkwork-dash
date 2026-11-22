@@ -45,6 +45,7 @@ describe("sourceTiles", () => {
     expect(byChannel("bing")).toMatchObject({ change: "No change", trend: null });
     expect(byChannel("instagram")).toMatchObject({ change: "Too few to compare", trend: null });
     expect(sourceTiles([{ channel: "google", visits: 5, leads: 0 }], [{ channel: "google", visits: 4 }])[0].change).toBe("Too few to compare");
+    expect(sourceTiles([{ channel: "google", visits: 58, leads: 0 }], [{ channel: "google", visits: 6 }])[0]).toMatchObject({ change: "Up from 6", trend: "up" }); // never "Up 867%"
     expect(sourceTiles([{ channel: "google", visits: 772, leads: 0 }], [{ channel: "google", visits: 770 }])[0]).toMatchObject({ change: "No change", trend: null }); // rounds to 0%
   });
   it("marks the channel with the most leads as best, the better rate breaking a tie, and none when there are no leads", () => {
