@@ -34,23 +34,39 @@ test("the sections are one at a time; services say what is connected and how to 
   await page.goto("/settings");
   await expect(page.getByRole("main").getByRole("textbox", { name: "Name", exact: true })).toHaveValue("Checkwork Motors"); // the business details, not the menu
   await expect(page.getByRole("region", { name: "Team" })).toHaveCount(0); // one section at a time
+  await expect(page.getByRole("region", { name: "Your plan" })).toHaveCount(0); // in Billing now, with a link
+  await expect(page.getByRole("main").getByRole("link", { name: "Billing", exact: true })).toHaveAttribute("href", "/billing");
   await page.getByRole("navigation", { name: "Settings" }).getByRole("link", { name: "Connected services", exact: true }).click();
   await expect(page).toHaveURL(/section=services/);
   const social = page.getByRole("row", { name: /Facebook and Instagram posting/ });
-  // The three outward services are simulated on the demo, so they read as connected; lead email shows its true state.
+  // The three outward services are simulated on the demo, so they read as connected; lead email shows its true state, and the way to get it.
   await expect(social).toContainText("Connected");
   await expect(social).toContainText("@checkworkmotors");
-  await expect(page.getByRole("row", { name: /Lead email/ })).toContainText("Ask us to connect it");
+  await expect(page.getByRole("row", { name: /Lead email/ }).getByRole("link", { name: "Ask us to connect" })).toBeVisible();
+  // The website keys are for a web developer: folded until asked for.
+  await expect(page.getByRole("region", { name: "Website connection" })).toBeHidden();
+  await page.getByText("For your web developer").click();
+  await expect(page.getByRole("region", { name: "Website connection" })).toBeVisible();
 });
 
-test("without the settings permission every section is read only: values as text, nothing to save", async ({ page, context }) => {
+test("on a phone the tab row opens scrolled to the open section", async ({ page }) => {
+  await page.goto("/settings?section=services");
+  await expect(page.getByRole("navigation", { name: "Settings" }).getByRole("link", { name: "Connected services", exact: true })).toBeInViewport({ ratio: 1 });
+});
+
+test("the plan's rules we set are in Billing", async ({ page }) => {
+  await page.goto("/billing");
+  await expect(page.getByRole("region", { name: "What we set for you" })).toContainText("Old stock after");
+});
+
+test("without the settings permission only Notifications for their own device show: nothing else to see or save", async ({ page, context }) => {
   await as(context, "Sales");
-  for (const section of ["", "?section=team", "?section=emails", "?section=marketing", "?section=services"]) {
+  for (const section of ["", "?section=targets", "?section=team", "?section=emails", "?section=marketing", "?section=services", "?section=demo"]) {
     await page.goto(`/settings${section}`);
     await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
-    await expect(page.getByRole("main").getByRole("button", { name: /^(Save|Add|Send a test email|Start again)$/ })).toHaveCount(0);
+    await expect(page.getByRole("region", { name: "Notifications on this device" })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Settings" })).toHaveCount(0);
+    await expect(page.getByRole("main").getByRole("region")).toHaveCount(1);
     await expect(page.getByRole("main").getByRole("textbox")).toHaveCount(0);
   }
-  await page.goto("/settings?section=targets");
-  await expect(page.getByText(/^\d+ hours$/)).toBeVisible(); // the reply target, as text (another test may have changed it)
 });

@@ -25,7 +25,7 @@ test("Test Motors shows its own name and its plan's smaller menu, and the demo b
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Not in your plan");
   // The role is the directory's (an owner here), not the cookie's Sales; the demo bar has the theme only.
   await page.goto("/settings");
-  await expect(page.getByText("Only an owner or manager can change these settings.")).toHaveCount(0);
+  await expect(page.getByRole("navigation", { name: "Settings" })).toBeVisible(); // all of Settings, not only the notifications Sales sees
   const bar = page.locator("[data-demo-bar]");
   await expect(bar.getByRole("combobox", { name: "Role" })).toHaveCount(0);
   await expect(bar.getByRole("button", { name: /^Plan/ })).toHaveCount(0);

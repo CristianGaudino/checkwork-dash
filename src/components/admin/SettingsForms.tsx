@@ -12,7 +12,7 @@ import { CheckIcon } from "@/components/stock/icons";
 
 const ROLE_OPTIONS = ROLES.map((r) => [r, r] as const);
 
-// Each settings panel is its own small form that saves on its own and says so. The server checks every value again.
+// Each settings panel is its own small form that saves on its own and says so; where a section has two, each Save says what it saves. The server checks every value again.
 type Action = (prev: SettingsState, data: FormData) => Promise<SettingsState>;
 
 function useSave(action: Action) {
@@ -20,12 +20,13 @@ function useSave(action: Action) {
   return { state, run, pending, errors: state?.errors ?? {} };
 }
 
-// The form's button. `add` for a form that adds something (a person), so the button says what it does.
-function Save({ pending, saved, add = false }: { pending: boolean; saved?: boolean; add?: boolean }) {
+// The form's button. `add` for a form that adds something (a person), so the button says what it does. `label` names what it saves where a
+// section has two forms, so nobody saves one and loses the other's edits.
+function Save({ pending, saved, add = false, label = "Save" }: { pending: boolean; saved?: boolean; add?: boolean; label?: string }) {
   return (
     <div className="flex items-center gap-4">
       <button type="submit" disabled={pending} className={adminButton}>
-        {pending ? (add ? "Adding" : "Saving") : add ? "Add" : "Save"}
+        {pending ? (add ? "Adding" : "Saving") : add ? "Add" : label}
       </button>
       {/* Says it is done and that it works at once, so nobody saves twice to be sure. */}
       {saved && !pending && (
@@ -72,8 +73,9 @@ export function BusinessForm({ name, profile }: { name: string; profile: Pick<De
       <fieldset className="flex flex-col gap-2">
         <legend className="mb-1 text-meta font-semibold">Opening hours</legend>
         {profile.hours.map((h, i) => (
-          <div key={h.day} className="grid grid-cols-[6rem_minmax(0,1fr)_minmax(0,1fr)] items-start gap-2">
-            <span className="flex h-11 items-center text-body">{h.day}</span>
+          // On a phone the day sits above its two times, so each time has the room to show in full.
+          <div key={h.day} className="grid grid-cols-2 items-start gap-x-2 gap-y-1 sm:grid-cols-[6rem_minmax(0,1fr)_minmax(0,1fr)] sm:gap-y-2">
+            <span className="col-span-2 flex items-center text-body sm:col-span-1 sm:h-11">{h.day}</span>
             <Field label={`${h.day} opens`} error={f.errors[`opens${i}`]} className="[&>span:first-child]:sr-only">
               <input name={`opens${i}`} type="time" defaultValue={h.opens ?? ""} className={adminInput} />
             </Field>
@@ -83,7 +85,7 @@ export function BusinessForm({ name, profile }: { name: string; profile: Pick<De
           </div>
         ))}
       </fieldset>
-      <Save pending={f.pending} saved={f.state?.saved} />
+      <Save pending={f.pending} saved={f.state?.saved} label="Save details" />
     </form>
   );
 }
@@ -115,7 +117,7 @@ export function LeadEmailsForm({ settings, fallback }: { settings: DealerSetting
           <textarea name="leadEmails" rows={3} defaultValue={settings.leadEmails.join(String.fromCharCode(10))} className={`${adminInput} h-auto py-2`} />
         </Field>
         {settings.leadEmails.length === 0 && <p className="text-meta text-text-2">{fallback ? "Using the site's own address." : "No address is set, so new leads cannot be sent yet."}</p>}
-        <Save pending={f.pending} saved={f.state?.saved} />
+        <Save pending={f.pending} saved={f.state?.saved} label="Save addresses" />
       </form>
       <form {...t.run} className="flex items-center gap-4">
         <button type="submit" disabled={t.pending} className={adminButtonQuiet}>
@@ -146,7 +148,7 @@ export function NotificationsForm({ settings, emailConnected }: { settings: Deal
       </fieldset>
       {!emailConnected && <p className="text-meta text-text-2">Email is not set up yet. Ask us in Help and we will connect it.</p>}
       {f.errors.notifications && !f.pending && <p role="alert" className="text-meta text-destructive">{f.errors.notifications}</p>}
-      <Save pending={f.pending} saved={f.state?.saved} />
+      <Save pending={f.pending} saved={f.state?.saved} label="Save reminder" />
     </form>
   );
 }
@@ -166,7 +168,7 @@ export function MarketingForm({ settings }: { settings: DealerSettings }) {
           <input name="signOff" defaultValue={settings.marketing.signOff} className={adminInput} />
         </Field>
       </div>
-      <Save pending={f.pending} saved={f.state?.saved} />
+      <Save pending={f.pending} saved={f.state?.saved} label="Save post wording" />
     </form>
   );
 }
