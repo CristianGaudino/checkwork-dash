@@ -2,12 +2,12 @@ import { sourceText } from "@/lib/visit-rules";
 import Link from "next/link";
 import { LeadStatusBadge } from "@/components/admin/badges";
 import { Avatar, Badge, DataTable, EmptyState, PageHeader, Panel, SummaryTabs, TableFooter, TableToolbar, Task, TaskList, choicePill, pageOf, sortRows, type Column, type FilterGroup } from "@/components/admin/kit";
-import { CloseLeadMenu, NextStatusButton, ReachButton } from "@/components/admin/LeadActions";
+import { LeadMenu, NextStatusButton, ReachButton, SpamButton } from "@/components/admin/LeadActions";
 import { AlertIcon, CalendarIcon, CheckIcon, InboxIcon } from "@/components/stock/icons";
 import { can, currentMember } from "@/lib/permissions";
 import { LEAD_SOURCES, LEAD_STATUSES, LEAD_STATUS_LABELS, LEAD_TYPE_LABELS, getSettings, leadsStore, type Lead } from "@/lib/admin/collections";
 import { dublinDay, fmtAgo, fmtDate } from "@/lib/admin/format";
-import { SALES_LEAD_TYPES, countByStatus, filterLeads, followUpDue, forPerson, isOpenLead, isSalesLead, leadFlag, leadsToAnswer, parseLeadFilter, urgentFirst, type LeadTask } from "@/lib/admin/leads";
+import { SALES_LEAD_TYPES, countByStatus, filterLeads, followUpDue, forPerson, isOpenLead, isSalesLead, leadFlag, leadsToAnswer, parseLeadFilter, possibleSpam, urgentFirst, type LeadTask } from "@/lib/admin/leads";
 import { TOPICS, leadTags } from "@/lib/leads/contact-topics";
 import { LeadKind, LeadTags, leadChips } from "@/components/admin/LeadKind";
 import { enabledModules } from "@/lib/modules";
@@ -31,7 +31,7 @@ function KindSource({ l, className = "" }: { l: Lead; className?: string }) {
 }
 
 // What each status means, in a few words under it.
-const STATUS_HINTS = { new: "Not answered yet", contacted: "Answered", appointment: "Coming in", won: "Bought", lost: "Did not buy", closed: "No sale, nothing to do" } as const;
+const STATUS_HINTS = { new: "Not answered yet", contacted: "Answered", appointment: "Coming in", won: "Bought", lost: "Did not buy", closed: "No longer active", spam: "Not a real enquiry" } as const;
 
 type Params = { mine?: string; status?: string; type?: string; topic?: string; q?: string; due?: string; late?: string; need?: string; with?: string; source?: string; sort?: string; dir?: string; page?: string; per?: string };
 
@@ -98,6 +98,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
             <LeadStatusBadge status={l.status} type={l.type} />
             {/* One badge for a lead that cannot wait (leadFlag). These and overdue follow-ups sit at the top of the list: urgentFirst pins them. */}
             {flag === "late" ? <Badge tone="bad" strong>Late</Badge> : flag === "urgent" && <Badge tone="warn">Urgent</Badge>}
+            {possibleSpam(l) && <Badge tone="warn">Possible spam</Badge>}
           </span>
           {/* The follow-up, when there is one, under the status: one place to look for what to do next. Overdue is red, today amber. */}
           {l.followUpOn && isOpenLead(l) && (
@@ -116,7 +117,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
     { key: "when", header: "Received", sort: (l) => l.createdAt, cell: (l) => <span className={l.status === "new" ? "font-medium" : "text-text-2"}>{fmtAgo(l.createdAt)}</span>, align: "right", nowrap: true, hide: "sm" }, // on a phone it is in the Who column
     // The two things done most from the list: reach them the way they asked, and move it on a step. Above the row's link.
     // Two fixed slots, so the buttons line up from row to row whichever are there.
-    { key: "act", header: "Next step", quietHeader: true, hide: "lg", nowrap: true, cell: (l) => <span className="relative z-10 grid grid-cols-[7.5rem_12.5rem] gap-2"><span>{isOpenLead(l) && <ReachButton lead={l} />}</span><span><NextStatusButton lead={l} /></span></span> },
+    { key: "act", header: "Next step", quietHeader: true, hide: "lg", nowrap: true, cell: (l) => <span className="relative z-10 grid grid-cols-[7.5rem_12.5rem] gap-2"><span>{isOpenLead(l) && <ReachButton lead={l} />}</span><span>{l.status === "spam" ? <SpamButton lead={l} to="no" /> : <NextStatusButton lead={l} />}</span></span> },
   ];
   const ordered = sortRows(filterLeads(all, f, today, leadSlaHours, at), columns, sp, { key: "when", dir: "desc" });
   // Unless a column was chosen, the ones To answer now shows red come first, by its rule (answerNow).
@@ -195,6 +196,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
                         {l.carTitle && <span className="text-text">{l.carTitle}</span>}
                       </span>
                       <span className={urgency === "now" ? "font-medium text-bad" : undefined}>{why}</span>
+                      {possibleSpam(l) && <span className="flex"><Badge tone="warn">Possible spam</Badge></span>}
                     </span>
                   }
                   action={
@@ -203,7 +205,14 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
                       <span className="contents max-sm:hidden">
                         <NextStatusButton lead={l} />
                       </span>
-                      <CloseLeadMenu lead={l} />
+                      {/* Possible spam: the person decides in one press, so a real customer is never hidden (#56). */}
+                      {possibleSpam(l) && (
+                        <>
+                          <SpamButton lead={l} to="yes" />
+                          <SpamButton lead={l} to="no" />
+                        </>
+                      )}
+                      <LeadMenu lead={l} spam={!possibleSpam(l)} />
                     </>
                   }
                 />

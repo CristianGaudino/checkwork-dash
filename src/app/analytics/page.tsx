@@ -37,7 +37,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ r
   const whole = roleCan(me.role, "margins");
   const sales = whole ? allSales : allSales.filter((s) => s.salesperson === me.name);
   const cars = all.filter(forSale).map((c) => ({ slug: c.slug, title: carName(c) }));
-  const a = buildAnalytics({ range, cars, leadTimes: leads.filter(counted).map((l) => l.createdAt) }); // a closed enquiry is no lead (#55)
+  const a = buildAnalytics({ range, cars, leadTimes: leads.filter(counted).map((l) => l.createdAt) }); // spam is no lead (#56)
   const convBefore = a.previous.visitors ? (a.previous.leads / a.previous.visitors) * 100 : 0;
   const top = a.funnel[0].count;
   // Cars sold is the sales recorded in the period (as Reports counts them), never a generated figure; the funnel ends on the same number.
@@ -119,7 +119,7 @@ async function RealAnalytics({ range }: { range: Range }) {
   const [start] = bounds(from, to);
   // The window before is read at the same time; this period's counts are passed in, so nothing is read twice.
   const [{ features }, everyLead, alerts, before] = await Promise.all([countsBetween(from, to), leadsStore.list(), alertsStore.list(), countsBetween(w.beforeFrom, w.beforeTo)]);
-  const leads = everyLead.filter(counted); // a closed enquiry (spam, a duplicate) is no lead here either (#55)
+  const leads = everyLead.filter(counted); // spam is no lead here either (#56)
   const f = visitorFigures({ counts: features, leads: leads.filter((l) => l.createdAt >= start), alerts });
   const src = await realVisitSources(range, now, leads, features, before.features);
 

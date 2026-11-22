@@ -309,7 +309,7 @@ export async function recordSaleAction(carId: string, _prev: FormState, data: Fo
   const lead = d.leadId ? await leadsStore.get(d.leadId) : undefined;
   const leadId = lead && isAsked(lead.carSlug, car.id) && lead.status !== "lost" ? lead.id : undefined;
   if (lead && leadId && lead.status !== "won") {
-    await leadsStore.update(lead.id, (l) => ({ ...l, status: "won", followUpOn: undefined, closedReason: undefined, notes: [...l.notes, { at: Date.now(), text: "Bought the car." }] }));
+    await leadsStore.update(lead.id, (l) => ({ ...l, status: "won", followUpOn: undefined, closedReason: undefined, statusBefore: undefined, notes: [...l.notes, { at: Date.now(), text: "Bought the car." }] }));
     await logActivity("leads", "Marked the lead won, with the sale", { kind: "lead", id: lead.id });
   }
   await salesStore.put({

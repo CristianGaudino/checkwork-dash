@@ -49,7 +49,7 @@ export type Summary = {
 // `dealer`: the dealer's opening hours (in or out of hours) and rules (old stock), from their profile.
 export function summarise(data: ReportData, from: string, to: string, now: number, dealer: Pick<DealerProfile, "hours" | "rules">, opts: { money?: boolean } = {}): Summary {
   const [a, b] = bounds(from, to);
-  const leads = data.leads.filter((l) => counted(l) && l.createdAt >= a && l.createdAt < b); // a closed enquiry is no lead to answer or count
+  const leads = data.leads.filter((l) => counted(l) && l.createdAt >= a && l.createdAt < b); // spam is no lead (#56)
   const open = leads.map((l) => ({ l, ...openingAt(l.createdAt, dealer.hours) }));
   const byWeekday = [0, 0, 0, 0, 0, 0, 0];
   for (const x of open) byWeekday[x.weekday]++;

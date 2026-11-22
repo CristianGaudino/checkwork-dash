@@ -32,10 +32,11 @@ const storyCustomer = (id: string) => seedCustomers().find((c) => c.id === id)!;
 // Access, and what visitors send is copied in from the leads table (real-leads.ts), so these hold real personal data too.
 
 // ---- Leads ----
-// closed: an enquiry that needs no more work and was no sale (spam, a duplicate), set from More with a CLOSE_REASONS reason (#55).
-export const LEAD_STATUSES = ["new", "contacted", "appointment", "won", "lost", "closed"] as const;
+// closed: no longer active, and no sale won or lost, set from More with a CLOSE_REASONS reason (#55). It leaves the to-do lists only.
+// spam: not a real enquiry (#56), marked by staff or by the spam check on arrival (src/lib/leads/spam.ts). It leaves every list and figure.
+export const LEAD_STATUSES = ["new", "contacted", "appointment", "won", "lost", "closed", "spam"] as const;
 export type LeadStatus = (typeof LEAD_STATUSES)[number];
-export const LEAD_STATUS_LABELS: Record<LeadStatus, string> = { new: "New", contacted: "Contacted", appointment: "Appointment set", won: "Won", lost: "Lost", closed: "Closed" };
+export const LEAD_STATUS_LABELS: Record<LeadStatus, string> = { new: "New", contacted: "Contacted", appointment: "Appointment set", won: "Won", lost: "Lost", closed: "Closed", spam: "Spam" };
 // warranty and service: a message sent from the Warranty or Service page (the website sends both as a general message; real-leads.ts
 // tells them apart by the page).
 export const LEAD_TYPES = ["enquiry", "test-drive", "finance", "trade-in", "sell", "find-a-car", "order", "warranty", "service", "general"] as const;
@@ -51,11 +52,13 @@ export const LEAD_TYPE_LABELS: Record<LeadType, string> = { enquiry: "Car enquir
 // Why a lead was lost, so the reports can say where sales go. A fixed list, so they can be counted.
 export const LOST_REASONS = ["Bought elsewhere", "Price", "Finance declined", "Stopped replying", "Car sold to someone else", "Other"] as const;
 export type LostReason = (typeof LOST_REASONS)[number];
-// Why an enquiry was closed: it leaves every to-do and is no sale, won or lost, in the reports. A fixed list, no free text.
-export const CLOSE_REASONS = ["No reply needed", "Spam", "Duplicate", "Wrong number"] as const;
+// Why an enquiry was closed: it leaves the to-do lists and is no sale, won or lost, in the reports. A fixed list, no free text.
+export const CLOSE_REASONS = ["No reply needed", "Not interested", "Duplicate", "Wrong number"] as const;
 export type CloseReason = (typeof CLOSE_REASONS)[number];
 // A warranty request is never closed this way: its Lost already reads Closed.
 export const canClose = (l: Pick<Lead, "type">) => l.type !== "warranty";
+// Where Reopen and Not spam put a lead back: the status it had before (old records without one go back to New).
+export const statusBack = (l: Pick<Lead, "statusBefore">): LeadStatus => l.statusBefore ?? "new";
 export const LEAD_SOURCES = ["Website", "WhatsApp", "Phone", "Facebook", "Google"] as const;
 
 export type Lead = {
@@ -79,6 +82,8 @@ export type Lead = {
   followUpOn?: string; // YYYY-MM-DD, the Irish day to get back to them; cleared once the lead is won or lost
   lostReason?: LostReason; // only on a lost lead
   closedReason?: CloseReason; // only on a closed lead
+  statusBefore?: LeadStatus; // on a closed or spam lead: the status Reopen or Not spam puts back
+  maybeSpam?: true; // the spam check was unsure on arrival: "Possible spam" while it is new, with Spam and Not spam (#56)
   // `auto`: written by the site (a buyer's WhatsApp answer, a call-back reminder), not a reply to the buyer, so the reports skip it.
   notes: { at: number; text: string; auto?: true }[];
   createdAt: number;

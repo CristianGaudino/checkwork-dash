@@ -12,7 +12,7 @@ import { counted } from "@/lib/admin/reports";
 // sample, or the site's own counts. The Analytics page works out the same from what it already loads.
 export async function visitSources(range: Range, leads: Lead[], now = Date.now()) {
   if (await simulating()) {
-    const a = buildAnalytics({ range, cars: [], now, leadTimes: leads.filter(counted).map((l) => l.createdAt) }); // a closed enquiry is no lead (#55)
+    const a = buildAnalytics({ range, cars: [], now, leadTimes: leads.filter(counted).map((l) => l.createdAt) }); // spam is no lead (#56)
     return { now: a.channels, before: a.previous.channels };
   }
   return realVisitSources(range, now, leads);
@@ -25,6 +25,6 @@ export async function realVisitSources(range: Range, now: number, leads: Lead[],
   const [start] = bounds(w.from, w.to);
   const read = (from: string, to: string) => countsBetween(from, to).then((x) => x.features);
   const [c, pc] = await Promise.all([counts ?? read(w.from, w.to), before ?? read(w.beforeFrom, w.beforeTo)]);
-  const f = visitorFigures({ counts: c, leads: leads.filter((l) => counted(l) && l.createdAt >= start), alerts: [] }); // a closed enquiry is no lead (#55)
+  const f = visitorFigures({ counts: c, leads: leads.filter((l) => counted(l) && l.createdAt >= start), alerts: [] }); // spam is no lead (#56)
   return { now: f.channels, before: visitorFigures({ counts: pc, leads: [], alerts: [] }).channels, unknownLeads: f.unknownLeads };
 }

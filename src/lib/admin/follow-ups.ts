@@ -2,9 +2,11 @@ import type { Lead } from "./collections";
 import { HOUR } from "@/lib/time";
 import { isUrgent } from "@/lib/leads/contact-topics";
 
-// A follow-up is due on its day and after, while the lead is still open. Won, lost and closed leads have none. Type imports only, so the
+// A follow-up is due on its day and after, while the lead is still open. Won, lost, closed and spam leads have none. Type imports only, so the
 // overview and its tests can use it without the record store.
-export const isOpenLead = (l: Pick<Lead, "status">) => l.status !== "won" && l.status !== "lost" && l.status !== "closed";
+export const isOpenLead = (l: Pick<Lead, "status">) => l.status !== "won" && l.status !== "lost" && l.status !== "closed" && l.status !== "spam";
+// The spam check was unsure of it on arrival (#56): "Possible spam", with Spam and Not spam, while nobody has answered it yet.
+export const possibleSpam = (l: Pick<Lead, "status" | "maybeSpam">) => Boolean(l.maybeSpam) && l.status === "new";
 // A new lead nobody has answered within the dealer's reply target (settings.leadSlaHours).
 export const pastReplyTarget = (l: Pick<Lead, "status" | "createdAt">, now: number, slaHours: number) => l.status === "new" && now - l.createdAt > slaHours * HOUR;
 export const followUpDue = (l: Pick<Lead, "status" | "followUpOn">, today: string) => Boolean(l.followUpOn && isOpenLead(l) && l.followUpOn <= today);

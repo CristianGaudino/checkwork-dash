@@ -2,16 +2,16 @@ import { LEAD_SOURCES, LEAD_STATUSES, LEAD_TYPES, type Claim, type Lead, type Le
 import { TOPIC_IDS, type TopicId } from "@/lib/leads/contact-topics";
 import { answerNow, followUpDue, pastReplyTarget } from "./follow-ups";
 import { intlDigits } from "@/lib/phone";
-export { answerNow, followUpDue, forPerson, isHotLead, isOpenLead, leadFlag, leadsToAnswer, type LeadTask } from "./follow-ups";
+export { answerNow, followUpDue, forPerson, isHotLead, isOpenLead, leadFlag, leadsToAnswer, possibleSpam, type LeadTask } from "./follow-ups";
 
 // A warranty message from the website is aftersales work, not a sale: it is listed in Aftersales as a request, and left out of Leads, its
 // counts, the overview and the reports. A person's own page and their data requests still show everything.
 export const isSalesLead = (l: Pick<Lead, "type">) => l.type !== "warranty";
 export const SALES_LEAD_TYPES = LEAD_TYPES.filter((t) => t !== "warranty");
-// The warranty requests still to deal with: no claim opened from them yet, and not set aside (lost). Newest first.
+// The warranty requests still to deal with: no claim opened from them yet, and not set aside (lost) or spam. Newest first.
 export const openWarrantyRequests = (leads: Lead[], claims: Pick<Claim, "leadId">[]) => {
   const claimed = new Set(claims.map((c) => c.leadId));
-  return leads.filter((l) => l.type === "warranty" && l.status !== "lost" && !claimed.has(l.id)).sort((a, b) => b.createdAt - a.createdAt);
+  return leads.filter((l) => l.type === "warranty" && l.status !== "lost" && l.status !== "spam" && !claimed.has(l.id)).sort((a, b) => b.createdAt - a.createdAt);
 };
 
 // The leads list's filters. Each one comes from the URL, so anything that is not a known value is ignored, never trusted.
@@ -42,7 +42,7 @@ export function filterLeads(leads: Lead[], f: LeadFilter, today = "", slaHours =
   return leads
     .filter((l) => !f.due || followUpDue(l, today))
     .filter((l) => !f.late || pastReplyTarget(l, now, slaHours))
-    .filter((l) => !f.status || l.status === f.status)
+    .filter((l) => (f.status ? l.status === f.status : l.status !== "spam")) // spam only on its own tab (#56)
     .filter((l) => !f.type || l.type === f.type)
     .filter((l) => !f.topic || l.topic === f.topic)
     .filter((l) => !f.with || (f.with === "none" ? !l.assignedTo : l.assignedTo === f.with))

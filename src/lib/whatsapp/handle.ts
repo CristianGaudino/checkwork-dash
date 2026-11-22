@@ -41,8 +41,8 @@ const ACTS: Partial<Record<ButtonId | "confirm-test-drive", Act>> = {
 const LINK_FIRST = "Link your number below to act from here.";
 const MODULE_OFF = "That part of your plan is off, so I did nothing.";
 
-const RANK: Record<LeadStatus, number> = { new: 0, contacted: 1, appointment: 2, won: 3, lost: 3, closed: 3 };
-// A move only goes forward, and never reopens a lead that is won, lost or closed.
+const RANK: Record<LeadStatus, number> = { new: 0, contacted: 1, appointment: 2, won: 3, lost: 3, closed: 3, spam: 3 };
+// A move only goes forward, and never reopens a lead that is won, lost, closed or spam.
 const moved = (from: LeadStatus, to?: LeadStatus): LeadStatus => (to && RANK[from] < 3 && (to === "lost" || RANK[to] > RANK[from]) ? to : from);
 
 async function say(to: string, m: Partial<Msg> & { text: string }, at = Date.now()) {

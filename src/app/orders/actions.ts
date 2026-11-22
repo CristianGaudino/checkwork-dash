@@ -79,7 +79,7 @@ export async function placeOrderAction(_prev: FormState, data: FormData): Promis
   };
   await ordersStore.put(o);
   if (lead && lead.status !== "won") {
-    await leadsStore.update(lead.id, (l) => ({ ...l, status: "won", followUpOn: undefined, closedReason: undefined, notes: [...l.notes, { at: Date.now(), text: "Placed a factory order." }] }));
+    await leadsStore.update(lead.id, (l) => ({ ...l, status: "won", followUpOn: undefined, closedReason: undefined, statusBefore: undefined, notes: [...l.notes, { at: Date.now(), text: "Placed a factory order." }] }));
     await logActivity("leads", "Marked the lead won, with a factory order", { kind: "lead", id: lead.id });
   }
   await logActivity("stock", `Placed a factory order: ${title(o)}${o.depositEur ? `, ${fmtEur(o.depositEur)} deposit` : ""}`);

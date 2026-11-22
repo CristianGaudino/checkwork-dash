@@ -23,8 +23,9 @@ export function monthsOf(period: Period, today: string): string[] {
 export const monthLabel = (month: string) => threeLetter(MONTH.format(new Date(`${month}-01T12:00:00Z`)));
 const leadMonth = (l: Lead) => dublinDay(l.createdAt).slice(0, 7);
 const rate = (won: number, of: number) => (of ? Math.round((won / of) * 100) : 0);
-// A closed enquiry (spam, a duplicate) was no sale, won or lost: left out of every lead figure, so it never lowers a win rate (#55).
-export const counted = (l: Pick<Lead, "status">) => l.status !== "closed";
+// Spam is no lead at all (#56): left out of every lead figure, chart and report. A closed lead still counts: a real lead that did not
+// buy, so it is in a win rate's leads, and never in the lost reasons (only lost leads are).
+export const counted = (l: Pick<Lead, "status">) => l.status !== "spam";
 
 export type MonthRow = { month: string; sold: number; value: number; profit: number; costed: number };
 export type PersonRow = { name: string; sold: number; value: number; profit: number; costed: number; leads: number; won: number; winRate: number };

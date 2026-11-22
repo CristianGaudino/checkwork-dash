@@ -5,7 +5,7 @@ import { z } from "zod";
 import { logActivity } from "@/lib/admin/activity";
 import { addDays, dublinDay, fmtDate, isIsoDay } from "@/lib/admin/format";
 import { isOpenLead } from "@/lib/admin/leads";
-import { CLOSE_REASONS, LEAD_STATUSES, LOST_REASONS, canClose, getSettings, leadStatusLabel, leadStatusSteps, leadsStore } from "@/lib/admin/collections";
+import { CLOSE_REASONS, LEAD_STATUSES, LOST_REASONS, canClose, getSettings, leadStatusLabel, leadStatusSteps, leadsStore, statusBack, type Lead } from "@/lib/admin/collections";
 import { appendNote } from "@/lib/admin/notes";
 import { leadLine, notify } from "@/lib/admin/notifications";
 import { currentMember } from "@/lib/permissions";
@@ -22,14 +22,15 @@ const closeReason = z.enum(CLOSE_REASONS);
 
 // One tap, one change. Anything that is not a known status is dropped by the check.
 // `on` and `reason`: what Undo puts back with the status it had (a follow-up day, why it was lost), since moving on cleared them.
-// Closed is not a step: it comes from More, needs a reason from CLOSE_REASONS (sent as `reason`), and leaves the to-do lists and reports.
+// Closed is not a step: it comes from More, only on an open lead, needs a reason from CLOSE_REASONS (sent as `reason`), and keeps the
+// status it had (statusBefore) for Reopen. Spam has its own action (setSpamAction).
 export async function setStatusAction(id: string, data: FormData) {
   await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
   const parsed = status.safeParse(data.get("status"));
   const lead = await leadsStore.get(id);
   if (!parsed.success || !lead) return;
   if (movedSince(data, lead.status)) return { error: STALE_STATUS }; // first: a second press from an old page is refused, not "done"
-  if (lead.status === parsed.data) return;
+  if (lead.status === parsed.data || parsed.data === "spam" || (parsed.data === "closed" && !isOpenLead(lead))) return;
   if (parsed.data !== "new" && !leadStatusSteps(lead.type).includes(parsed.data) && !(parsed.data === "closed" && canClose(lead))) return; // a warranty request is never won, even posted by hand
   const on = String(data.get("on") ?? "");
   const why = reason.safeParse(data.get("reason"));
@@ -41,9 +42,32 @@ export async function setStatusAction(id: string, data: FormData) {
   const lostReason = parsed.data === "lost" ? (lead.lostReason ?? (why.success ? why.data : undefined)) : undefined;
   // Written only if nobody moved it between the read and the write (the update runs again on a clash).
   let moved = false;
-  if (!(await leadsStore.update(id, (l) => ((moved = l.status === lead.status) ? { ...l, status: parsed.data, followUpOn, lostReason, closedReason } : l)))) return;
+  if (!(await leadsStore.update(id, (l) => ((moved = l.status === lead.status) ? { ...l, status: parsed.data, followUpOn, lostReason, closedReason, statusBefore: parsed.data === "closed" ? lead.status : undefined } : l)))) return;
   if (!moved) return { error: STALE_STATUS };
   await logActivity("leads", `Moved the lead from ${leadStatusLabel(lead.type, lead.status)} to ${leadStatusLabel(lead.type, parsed.data)}${closedReason ? `: ${closedReason}` : ""}`, ref(id));
+  revalidatePath("/leads");
+  revalidatePath(`/leads/${id}`);
+  revalidatePath(`/aftersales/requests/${id}`);
+}
+
+// Spam (#56): "yes" marks an open lead spam, keeping its status for Not spam; "no" puts a spam lead back (statusBefore) and clears Possible
+// spam; "maybe" is Undo of Not spam on a possible one, so it shows Possible spam again. `from`: the status the page showed, as above.
+const spamChoice = z.enum(["yes", "no", "maybe"]);
+export async function setSpamAction(id: string, data: FormData) {
+  await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
+  const parsed = spamChoice.safeParse(data.get("spam"));
+  const lead = await leadsStore.get(id);
+  if (!parsed.success || !lead) return;
+  if (movedSince(data, lead.status)) return { error: STALE_STATUS };
+  const isSpam = lead.status === "spam";
+  if (parsed.data === "yes" ? isSpam || !isOpenLead(lead) : !isSpam && Boolean(lead.maybeSpam) === (parsed.data === "maybe")) return;
+  const flag = parsed.data === "maybe" ? (true as const) : undefined;
+  let moved = false;
+  const write = (l: Lead): Lead =>
+    parsed.data === "yes" ? { ...l, status: "spam", statusBefore: l.status, maybeSpam: undefined } : isSpam ? { ...l, status: statusBack(l), statusBefore: undefined, maybeSpam: flag } : { ...l, maybeSpam: flag };
+  if (!(await leadsStore.update(id, (l) => ((moved = l.status === lead.status) ? write(l) : l)))) return;
+  if (!moved) return { error: STALE_STATUS };
+  await logActivity("leads", parsed.data === "yes" ? "Marked the lead as spam" : parsed.data === "no" ? "Marked the lead not spam" : "Marked the lead as possible spam", ref(id));
   revalidatePath("/leads");
   revalidatePath(`/leads/${id}`);
   revalidatePath(`/aftersales/requests/${id}`);

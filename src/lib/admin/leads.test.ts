@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 import type { Lead } from "./collections";
-import { SALES_LEAD_TYPES, countByStatus, filterLeads, isOpenLead, isSalesLead, leadFlag, leadMain, leadsToAnswer, openWarrantyRequests, parseLeadFilter, replyVia, urgentFirst } from "./leads";
+import { SALES_LEAD_TYPES, countByStatus, filterLeads, isOpenLead, isSalesLead, leadFlag, leadMain, leadsToAnswer, possibleSpam, openWarrantyRequests, parseLeadFilter, replyVia, urgentFirst } from "./leads";
 
 const lead = (id: string, o: Partial<Lead> = {}): Lead => ({ id, type: "enquiry", status: "new", name: id, email: `${id}@example.com`, phone: "", message: "", source: "Website", notes: [], createdAt: Number(id.replace(/\D/g, "")) || 0, ...o });
 
@@ -28,7 +28,7 @@ describe("lead filters", () => {
     expect(parseLeadFilter({ due: "1", late: "1" })).toMatchObject({ due: true, late: undefined });
   });
   it("counts every status, including those with none", () => {
-    expect(countByStatus([lead("a1"), lead("a2", { status: "lost" })])).toEqual({ new: 1, contacted: 0, appointment: 0, won: 0, lost: 1, closed: 0 });
+    expect(countByStatus([lead("a1"), lead("a2", { status: "lost" })])).toEqual({ new: 1, contacted: 0, appointment: 0, won: 0, lost: 1, closed: 0, spam: 0 });
   });
 });
 
@@ -97,5 +97,18 @@ describe("a closed lead (#55)", () => {
     expect(leadsToAnswer([lead("c1", { status: "closed" }), lead("c2", { status: "closed", followUpOn: "2026-11-01" })], 0, "2026-11-10", 24)).toEqual([]);
     expect(countByStatus([lead("c1", { status: "closed" })]).closed).toBe(1);
     expect(parseLeadFilter({ status: "closed" }).status).toBe("closed");
+  });
+});
+
+describe("spam (#56)", () => {
+  const leads = [lead("s1", { status: "spam", statusBefore: "new" }), lead("s2", { maybeSpam: true }), lead("s3")];
+  it("is only on its own tab, never open, never to answer; a possible one stays to answer, flagged", () => {
+    expect(filterLeads(leads, { q: "" }).map((l) => l.id)).toEqual(["s3", "s2"]);
+    expect(filterLeads(leads, { status: "spam", q: "" }).map((l) => l.id)).toEqual(["s1"]);
+    expect(isOpenLead({ status: "spam" })).toBe(false);
+    expect(leadsToAnswer(leads, 0, "2026-11-10", 24).map((t) => t.lead.id)).toEqual(["s2", "s3"]); // the longest waiting first
+    expect(leads.map(possibleSpam)).toEqual([false, true, false]);
+    expect(possibleSpam(lead("s4", { maybeSpam: true, status: "contacted" }))).toBe(false); // answered: a person has decided
+    expect(openWarrantyRequests([lead("w1", { type: "warranty", status: "spam" })], [])).toEqual([]);
   });
 });

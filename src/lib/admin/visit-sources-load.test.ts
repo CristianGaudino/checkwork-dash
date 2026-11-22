@@ -28,10 +28,10 @@ describe("realVisitSources", () => {
     expect(countsBetween.mock.calls.map((c) => c[0]).sort()).toEqual(["2026-01-30", "2026-03-01"]);
     expect(r.now.find((c) => c.channel === "google")?.visits).toBe(40);
   });
-  it("leaves a closed enquiry out of a channel's leads (#55)", async () => {
+  it("leaves spam out of a channel's leads (#56)", async () => {
     const { CHANNEL_LABELS } = await import("@/lib/visit-rules");
     const lead = (status: string) => ({ type: "enquiry", source: "Website", channel: CHANNEL_LABELS.google, status, createdAt: now - 3_600_000 }) as unknown as import("./collections").Lead;
-    const r = await realVisitSources(30, now, [lead("new"), lead("closed")], { "visit:google": 12 }, {});
+    const r = await realVisitSources(30, now, [lead("new"), lead("spam")], { "visit:google": 12 }, {});
     expect(r.now.find((c) => c.channel === "google")?.leads).toBe(1);
   });
 });

@@ -197,10 +197,19 @@ with no D1). The actor is the signed-in person (`currentMember`), or a named one
 - **More on a sale:** the warranty (12 months included, or 24 or 36 with extended cover), a trade-in (its reg and allowance; Stock then
   offers to add it, starting the car form from the reg), and the lead it came from (one on that car, marked won).
 - **A lost lead** asks why, from a fixed list, and Reports shows "Why leads were lost".
-- **Close a lead** (#55): an enquiry that needs no more work and was no sale (No reply needed, Spam, Duplicate, Wrong number) is closed
-  from More, on the lead and on each To answer now row, with Undo. Status `closed` with `closedReason`: not open, so it leaves every
-  to-do and follow-up; left out of every lead figure in Reports and the monthly report (`counted`), never a lost or won sale. It keeps
-  its own status tab on Leads, and the lead says why and has Reopen (back to New).
+- **Close a lead** (#55): a lead no longer active (No reply needed, Not interested, Duplicate, Wrong number) is closed from More, on
+  the lead and on each To answer now row, with Undo. Status `closed` with `closedReason`, and `statusBefore`, the status it had: not
+  open, so it leaves To answer now, the follow-ups and To do. It is still a lead in every count, chart and report (a lead that did not
+  buy, so it is in a win rate's leads), and never a lost or won sale (only lost leads have lost reasons). It has its own status tab,
+  and the lead says why and has Reopen, back to the status it had (New for a record without one).
+- **Spam** (#56): status `spam`, with `statusBefore`. Staff mark it from More (the lead and To answer now rows), with Undo; it leaves
+  every to-do, count, chart and report (`counted` in `src/lib/admin/reports.ts`) and the Leads list, except its own Spam tab, where Not
+  spam puts it back. Leads are checked as they arrive (`spamCheck`, `src/lib/leads/spam.ts`, run by `mirrorOf` for every lead the site
+  API brings in, the only way in): rules only, no outside service, nothing logged. Clear spam (a pitch word with a link, two pitch
+  words, forum link markup, a web address for a name, three or more links) is filed as spam, with no booking, customer, bell notice or
+  WhatsApp alert. When unsure (one pitch word, or one link to a site that is not a car site or the dealer's own) the lead stays new
+  with `maybeSpam`: "Possible spam" on the list and To answer now, with Spam and Not spam. Careful by design: a name in any language,
+  a short or empty message, no phone or a link to a car never count against a lead.
 - **Test drives** still to happen can move to another time, by the same rules as a new booking.
 - **A follow-up** (`followUpOn` on a lead): Tomorrow, In 3 days, Next week or a day, on the lead. Cleared when the lead is won or lost.
   Overview counts the ones due (today and overdue); the leads list filters by them. The morning email (Settings, Notifications, off by
