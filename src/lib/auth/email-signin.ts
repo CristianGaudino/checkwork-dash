@@ -71,7 +71,6 @@ export async function sendSignIn({ email, browserHash, next }: { email: string; 
   const off = await codesOff(person, now);
   const code = sixDigits();
   await addAttempt(off ? base : { ...base, email, codeHmac: await hmac(`code|${id}|${code}`) });
-  await endAllButNewest(email, now); // parallel requests leave one live code and link
   const url = linkUrl(token, next);
   await sendSignInMail({
     to: email,
@@ -80,6 +79,8 @@ export async function sendSignIn({ email, browserHash, next }: { email: string; 
       ? `Codes are paused for your address after wrong tries. Use this link to sign in.\n\n${url}\n\n${footer()}`
       : `Your code is ${code.slice(0, 3)} ${code.slice(3)}\n\nOr open this link to sign in: ${url}\n\n${footer()}`,
   });
+  // After the send, so a failed send leaves the earlier code usable (they stay valid until their own expiry meanwhile); parallel requests then leave one live code and link.
+  await endAllButNewest(email, now);
   return off ? "link-only" : "sent";
 }
 

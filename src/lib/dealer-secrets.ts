@@ -48,7 +48,10 @@ const store = defineCollection<Sealed>("secrets", () => []);
 
 // Which names the current dealer has saved (no decrypting). Read once per page render; a save reads it fresh (savedNamesNow).
 export const savedNamesNow = async () => new Set((await store.list()).map((d) => d.id));
-export const savedNames = cache(savedNamesNow);
+// Cached per request and per dealer: the dealer id is the cache key, so a loop over dealers never gets the first one's names.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- the argument is the cache key
+const savedFor = cache((_dealerId: string) => savedNamesNow());
+export const savedNames = async () => savedFor((await currentDealer()).id);
 
 // Every value is sealed before any is written, so a failed seal leaves the old keys whole; the write is one all-or-nothing batch.
 export async function saveSecrets(values: Record<string, string>) {

@@ -109,6 +109,7 @@ describe("/api/site/unsubscribe", () => {
     const link = await unsubscribeLink(A, "newsletter", s.id);
     env.SITE_LIMITER = { limit: async () => ({ success: false }) };
     expect((await post(link)).status).toBe(429);
+    expect((await get(link)).status).toBe(200); // viewing is not limited: mail scanners share addresses
     delete env.SITE_LIMITER;
     vi.stubEnv("UNSUBSCRIBE_SECRET", "");
     expect((await post(link)).status).toBe(404);

@@ -10,7 +10,11 @@ vi.mock("@opennextjs/cloudflare", async () => {
 // The outbox is for a run with no directory bound, which this is not: a stand-in that keeps what would be sent.
 vi.mock("./mail", () => {
   const box: { to: string; subject: string; text: string }[] = [];
-  return { outbox: () => box, sendSignInMail: async (x: (typeof box)[number]) => void box.push(x) };
+  return { outbox: () => box, sendSignInMail: async (x: (typeof box)[number]) => {
+      if (process.env.E2E_FAKE_BACKENDS !== "1") throw new Error("send failed"); // like the real one with no way to send
+      box.push(x);
+    },
+  };
 });
 const { drizzle, truncateIn } = await import("@/test/sqlite-d1");
 const { eq } = await import("drizzle-orm");

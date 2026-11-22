@@ -147,6 +147,15 @@ export function emailCases(store: Store, { s, a, m, sessions, dir }: Lib) {
       expect((await s.checkCode(hash("b3"), codeOf(third), NOW + 4)).ok).toBe(true);
     });
 
+    it("keeps the earlier code usable when the new email fails to send", async () => {
+      await ask(AOIFE, "b1", NOW);
+      const first = lastMail(AOIFE);
+      vi.stubEnv("E2E_FAKE_BACKENDS", ""); // no way to send: the send throws
+      await expect(ask(AOIFE, "b2", NOW + 1)).rejects.toThrow();
+      vi.stubEnv("E2E_FAKE_BACKENDS", "1");
+      expect((await s.checkCode(hash("b1"), codeOf(first), NOW + 2)).ok).toBe(true);
+    });
+
     it("locks an address at 15 wrong codes across three codes, and it still gets a working link, counted in the caps", async () => {
       for (let i = 0; i < 3; i++) {
         await ask(AOIFE, `b${i}`, NOW + i * 16 * MIN);

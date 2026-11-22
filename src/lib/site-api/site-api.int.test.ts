@@ -19,7 +19,7 @@ const { storeCarPhoto } = await import("@/lib/admin/car-photos");
 const { makeSiteKey, revokeSiteKey, dealerOfSiteKey, siteKeysOf, patchDealer } = await import("@/lib/tenancy/directory");
 const { runAsDealer, dealerProfile } = await import("@/lib/tenancy/current");
 const { driveDays, driveTimes } = await import("@/lib/leads/constants");
-const { dublinMs } = await import("@/lib/admin/format");
+const { addDays, dublinMs } = await import("@/lib/admin/format");
 const { leadsStore, costsStore, drivesStore, settingsStore, getSettings } = await import("@/lib/admin/collections");
 const { saveCar, updateCar } = await import("@/lib/admin/stock-admin");
 const { leads } = await import("@/lib/db/schema");
@@ -266,6 +266,16 @@ describe("GET /api/site/v1/drives/taken", () => {
     } finally {
       await runAsDealer(A, async () => settingsStore.put({ ...(await getSettings()), driveSlotMinutes: 60 } as never));
     }
+  });
+
+  it("puts the slots a late booking blocks on the next day, and an early one's on the day before", async () => {
+    await runAsDealer(A, async () => {
+      await drivesStore.put(drive({ carSlug: "audi-a3-2019-9300003", startsAt: dublinMs(day, "23:30") }));
+      await drivesStore.put(drive({ carSlug: "audi-a3-2019-9300004", startsAt: dublinMs(day, "00:00") }));
+    });
+    const list = async (id: string) => ((await (await get(keyA, `carId=${id}`)).json()) as { times: string[] }).times;
+    expect(await list("9300003")).toEqual([`${day} 23:00`, `${day} 23:30`, `${addDays(day, 1)} 00:00`]);
+    expect(await list("9300004")).toEqual([`${addDays(day, -1)} 23:30`, `${day} 00:00`, `${day} 00:30`]);
   });
 
   it("gives an empty list for a car with nothing booked, 400 for a malformed car id, and 401 with no key", async () => {

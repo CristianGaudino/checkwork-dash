@@ -29,7 +29,7 @@ async function open(url: URL): Promise<Found | null> {
 }
 const exists = (f: Found): Promise<unknown> => (f.kind === "newsletter" ? subscribersStore.get(f.id) : alertsStore.get(f.id));
 
-// 60 a minute per visitor address, SITE_LIMITER's own limit (its keys here start "unsub:", so never meet a website key's count). No binding (next dev, the E2E run): no limit.
+// The change (POST) only, since GET checks the signature before any read, changes nothing, and mail scanners open many links from one address: 60 a minute per visitor address, SITE_LIMITER's own limit (its keys here start "unsub:", so never meet a website key's count). No binding (next dev, the E2E run): no limit.
 async function limited(req: Request) {
   const limiter = getBindings().SITE_LIMITER;
   return Boolean(limiter) && !(await limiter!.limit({ key: `unsub:${req.headers.get("cf-connecting-ip") ?? "unknown"}` })).success;
@@ -41,7 +41,6 @@ const error500 = () => {
 };
 
 export async function showUnsubscribe(req: Request): Promise<Response> {
-  if (await limited(req)) return page(429, "Please try again in a minute", "");
   try {
     const f = await open(new URL(req.url));
     if (!f || !(await f.run(() => exists(f)))) return invalid();
