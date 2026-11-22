@@ -30,7 +30,7 @@ test("a follow-up set on a lead shows on the lead and in the list's Follow-ups d
 test("in the DoneDeal version a sold car's sale is asked for and recorded with a customer on file", async ({ page, context }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await context.addCookies([{ name: "checkwork-demo-stock", value: "donedeal", url: BASE }]);
-  await page.goto("/");
+  await page.goto("/?todo=all"); // every row: the sales to record may be below the top few
   await expect(page.getByRole("list", { name: "To do" }).getByRole("link", { name: "Record sale" }).first()).toBeVisible();
   await page.goto("/stock?view=sold");
   const row = page.getByRole("row").filter({ has: page.getByRole("link", { name: "Record sale" }) }).first();

@@ -2,7 +2,9 @@ import type { AdminReview } from "./collections";
 
 export type ReviewFilter = "all" | "unreplied" | "low";
 export const REVIEW_FILTERS: [ReviewFilter, string][] = [["all", "All"], ["unreplied", "Needs a reply"], ["low", "3 stars or fewer"]];
-export const parseReviewFilter = (v: unknown): ReviewFilter => (REVIEW_FILTERS.some(([k]) => k === v) ? (v as ReviewFilter) : "all");
+// With none asked, the page opens on the work: Needs a reply while any review has none, else All.
+export const parseReviewFilter = (v: unknown, reviews: Pick<AdminReview, "reply">[] = []): ReviewFilter =>
+  REVIEW_FILTERS.some(([k]) => k === v) ? (v as ReviewFilter) : reviews.some((r) => !r.reply) ? "unreplied" : "all";
 
 export function filterReviews(reviews: AdminReview[], f: ReviewFilter): AdminReview[] {
   return reviews

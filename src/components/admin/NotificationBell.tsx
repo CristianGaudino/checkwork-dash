@@ -71,7 +71,7 @@ export function NotificationBell() {
                 Mark all as read
               </button>
             )}
-            <button type="button" aria-label="Close the notifications" onClick={() => panel.current?.hidePopover()} className={`inline-flex size-9 items-center justify-center rounded-control text-text-2 hover:text-text ${press}`}>
+            <button type="button" aria-label="Close the notifications" onClick={() => panel.current?.hidePopover()} className={`inline-flex size-11 items-center justify-center rounded-control text-text-2 hover:text-text ${press}`}>
               <CloseIcon className="shrink-0 size-4" />
             </button>
           </span>

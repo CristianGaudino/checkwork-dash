@@ -85,14 +85,27 @@ test("on a tablet the demo bar never covers the tab bar: in the dashboard it sta
 
 test("a dashboard page that is not there keeps the dashboard's menu and leads back to the overview", async ({ page, context }) => {
   await as(context, "Sales");
-  // A page this role cannot open, a deleted record and a mistyped address all answer the same way.
-  for (const path of ["/margins", "/leads/lead-no-such", "/no-such-page"]) {
+  // A deleted record and a mistyped address answer the same way.
+  for (const path of ["/leads/lead-no-such", "/no-such-page"]) {
     const res = await page.goto(path);
     expect(res!.status(), path).toBe(404);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("We couldn't find that page");
     await expect(page.getByRole("navigation", { name: "Dealer dashboard" })).toBeVisible(); // the tab bar on a phone
     await expect(page.getByRole("link", { name: "See all used cars" })).toHaveCount(0); // not the public page
   }
+  await page.getByRole("link", { name: "Back to the overview" }).click();
+  await expect(page).toHaveURL(/\/$/);
+});
+
+test("a page the role cannot open says who it is for, shows nothing of the page, and leads back to the overview", async ({ page, context }) => {
+  await as(context, "Sales");
+  for (const [path, title, who] of [["/margins", "Margins", "owners, managers and finance"], ["/billing", "Billing", "owners and managers"], ["/activity", "Activity", "owners and managers"], ["/data-requests", "Data requests", "owners and managers"]]) {
+    await page.goto(path);
+    await expect(page.getByRole("heading", { level: 1 }), path).toHaveText("Not for your role");
+    await expect(page.getByText(title, { exact: true }), path).toBeVisible();
+    await expect(page.getByText(`This page is for ${who}. Ask an owner to change your role.`), path).toBeVisible();
+  }
+  await expect(page.getByText("Expected margin on stock")).toHaveCount(0); // nothing of Margins itself
   await page.getByRole("link", { name: "Back to the overview" }).click();
   await expect(page).toHaveURL(/\/$/);
 });

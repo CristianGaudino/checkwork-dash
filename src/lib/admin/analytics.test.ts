@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { RANGES, buildAnalytics, change, changeText, parseRange, share } from "./analytics";
+import { RANGES, buildAnalytics, change, changeText, changeTone, parseRange, share } from "./analytics";
 
 const cars = Array.from({ length: 20 }, (_, i) => ({ slug: `car-${i}`, title: `Car ${i}` }));
 const now = new Date("2026-11-10T15:00:00Z").getTime();
@@ -75,6 +75,14 @@ describe("range and change", () => {
     expect(changeText(145, 100)).toBe("Up 45% on the period before");
     expect(changeText(90, 100)).toBe("Down 10% on the period before");
     expect(changeText(12, 0)).toBe("None the period before"); // not "Up 0%"
+    expect(changeText(7, 2)).toBe("Too few to compare"); // not "Up 250%"
+    expect(changeText(58, 6)).toBe("Up from 6 the period before"); // not "Up 866.7%"
+    expect(changeText(120, 120)).toBe("No change on the period before"); // not "Up 0%"
+    expect(changeText(2.04, 2.01, true)).toBe("No change on the period before"); // a rate that rounds to the same figure
+    // The colour follows the words: none for "No change" or too few, up or down otherwise.
+    expect([changeTone(2.04, 2.01, true), changeTone(9001, 9000), changeTone(7, 2), changeTone(0, 0, true)]).toEqual([undefined, undefined, undefined, undefined]);
+    expect([changeTone(58, 6), changeTone(90, 100), changeTone(1.9, 1.3, true)]).toEqual(["good", "bad", "good"]);
+    expect(changeText(5, 9)).toBe("Down from 9 the period before");
     expect(changeText(1.9, 1.3, true)).toBe("Up 0.6 points on the period before");
     expect(changeText(2, 3, true)).toBe("Down 1 point on the period before");
   });

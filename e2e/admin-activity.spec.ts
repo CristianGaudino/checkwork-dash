@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { as } from "./open";
+import { as, notForRole } from "./open";
 import { sideLink } from "./admin-menu";
 
 // The activity history: owners and managers only (the demo bar's role, a cookie), every change, newest first.
@@ -10,7 +10,7 @@ test("sales and finance have no Activity page; owners and managers do", async ({
     await as(context, role);
     await page.goto("/");
     await expect(await sideLink(page, "Activity")).toHaveCount(0);
-    expect((await page.request.get("/activity")).status()).toBe(404);
+    await notForRole(page, "/activity", "Every change made in the dashboard");
   }
   for (const role of ["Manager", "Owner"]) {
     await as(context, role);

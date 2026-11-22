@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { as } from "./open";
+import { as, notForRole } from "./open";
 import { SHOW_PRICING } from "@/lib/billing/rules";
 
 // Last month: the seed always holds its bill (src/lib/billing/bills.ts).
@@ -53,10 +53,10 @@ test("with our prices hidden, the owner still has Billing: the plan and its modu
   expect((await page.request.get(`/billing/${lastMonth}`)).status()).toBe(404);
 });
 
-test("sales has no Billing page", async ({ page, context }) => {
+test("sales has no Billing page: it says who it is for", async ({ page, context }) => {
   await as(context, "Sales");
-  expect((await page.request.get("/billing")).status()).toBe(404);
-  expect((await page.request.get(`/billing/${lastMonth}`)).status()).toBe(404);
+  await notForRole(page, "/billing", "What you pay us each month");
+  expect((await page.request.get(`/billing/${lastMonth}`)).status()).toBe(404); // a bill is hidden for now (SHOW_PRICING)
 });
 
 test("a help request is sent and shows in the list with its page", async ({ page, context }) => {

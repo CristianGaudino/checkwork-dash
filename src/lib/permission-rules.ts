@@ -11,6 +11,9 @@ export const ROLES = ["Owner", "Manager", "Sales", "Finance"] as const;
 export type Role = (typeof ROLES)[number];
 export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = { Owner: PERMISSIONS, Manager: PERMISSIONS, Finance: ["margins", "reports"], Sales: ["reports"] }; // reports: the full one with margins, else their own (src/app/reports)
 export const roleCan = (role: Role | null, p: Permission) => (role ? ROLE_PERMISSIONS[role].includes(p) : false);
+// Who a permission is for, in words, from the rules above: "owners, managers and finance". Said on a page a role cannot open.
+const ROLE_PEOPLE: Record<Role, string> = { Owner: "owners", Manager: "managers", Sales: "sales", Finance: "finance" };
+export const whoCan = (p: Permission) => new Intl.ListFormat("en-IE").format(ROLES.filter((r) => roleCan(r, p)).map((r) => ROLE_PEOPLE[r]));
 
 // The demo has one login, so the demo bar picks the role (a cookie the server reads; it only counts on the demo, src/lib/permissions.ts).
 // The owner by default, so the demo shows every feature.

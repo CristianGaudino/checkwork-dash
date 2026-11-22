@@ -3,6 +3,7 @@ import { HOUR } from "@/lib/time";
 import { TEST_DRIVE, driveTimes } from "@/lib/leads/constants";
 import { DEMO_PROFILE, type Hours } from "@/lib/tenancy/profile";
 import { addDays, addMonths, dublinDateTime, dublinDay, dublinMs } from "./format";
+import { slugId } from "./stock-admin-pure";
 
 // A seeded booking whose time has passed: a confirmed one went ahead, a request moves to the same time the next day. So the demo, opened
 // at any hour, never shows a drive that already happened still waiting to be confirmed.
@@ -32,22 +33,23 @@ export const DRIVE_STATUS_LABELS: Record<DriveStatus, string> = { requested: "Re
 // The desk booking's limits: the form shows them and the server checks the same numbers.
 export const DRIVE_LIMITS = { name: 80, phone: 30, notes: 300 } as const;
 
-// Two bookings for the same car within the slot (an hour by default) of each other clash: one car cannot be out twice.
+// Two bookings for the same car within the slot (an hour by default) of each other clash: one car cannot be out twice. The same car by its
+// id, so a booking made before an edit to the car's make, model or year still counts.
 export function clashes(drives: TestDrive[], carSlug: string, startsAt: number, ignoreId?: string, windowMs = HOUR): TestDrive[] {
-  return drives.filter((d) => d.id !== ignoreId && d.carSlug === carSlug && isOpenDrive(d) && Math.abs(d.startsAt - startsAt) < windowMs);
+  return drives.filter((d) => d.id !== ignoreId && slugId(d.carSlug) === slugId(carSlug) && isOpenDrive(d) && Math.abs(d.startsAt - startsAt) < windowMs);
 }
 
 export const isOpenDrive = (d: Pick<TestDrive, "status">) => d.status === "requested" || d.status === "confirmed";
 
 // What the dashboard's slot picker needs: the open days from today (the desk can book today, the website from tomorrow) to TEST_DRIVE's
-// limit, each car's open bookings in Irish time (but `ignoreId`, the booking being moved), and now. `hours`: the dealer's. Pure, so it is tested.
+// limit, each car's open bookings in Irish time by car id (but `ignoreId`, the booking being moved), and now. `hours`: the dealer's. Pure, so it is tested.
 export function slotData(drives: TestDrive[], hours: Hours, ignoreId?: string, now = Date.now()) {
   const today = dublinDay(now);
   const last = addMonths(today, TEST_DRIVE.monthsAhead);
   const days: string[] = [];
   for (let d = today; d <= last; d = addDays(d, 1)) if (driveTimes(d, hours).length > 0) days.push(d);
   const taken: Record<string, string[]> = {};
-  for (const d of drives) if (d.id !== ignoreId && isOpenDrive(d) && d.startsAt > now - HOUR) (taken[d.carSlug] ??= []).push(dublinDateTime(d.startsAt));
+  for (const d of drives) if (d.id !== ignoreId && isOpenDrive(d) && d.startsAt > now - HOUR) (taken[slugId(d.carSlug)] ??= []).push(dublinDateTime(d.startsAt));
   return { days, taken, now: dublinDateTime(now) };
 }
 
@@ -61,7 +63,7 @@ export const DRIVE_NEXT: Partial<Record<DriveStatus, [DriveStatus, string][]>> =
 export const waitingDrives = (drives: TestDrive[], now = Date.now()) => drives.filter((d) => d.status === "requested" && d.startsAt > now).sort((a, b) => a.startsAt - b.startsAt);
 
 // The List view: a search on name, phone, email or car, then the status, who has it ("none" for nobody), whether it is still to come, and
-// (car=gone) an open booking on a car no longer for sale, from `gone`, the slugs of those cars.
+// (car=gone) an open booking on a car no longer for sale, from `gone`, the ids of those cars.
 export type DriveFilter = { q?: string; status?: string; with?: string; when?: string; car?: string };
 export function filterDrives(drives: TestDrive[], f: DriveFilter, now = Date.now(), gone: Set<string> = new Set()): TestDrive[] {
   const q = (f.q ?? "").trim().toLowerCase().slice(0, 60);
@@ -71,7 +73,7 @@ export function filterDrives(drives: TestDrive[], f: DriveFilter, now = Date.now
       (!f.status || d.status === f.status) &&
       (!f.with || (f.with === "none" ? !d.assignedTo : d.assignedTo === f.with)) &&
       (!f.when || (f.when === "past" ? d.startsAt < now : d.startsAt >= now)) &&
-      (f.car !== "gone" || (isOpenDrive(d) && gone.has(d.carSlug))),
+      (f.car !== "gone" || (isOpenDrive(d) && gone.has(slugId(d.carSlug)))),
   );
 }
 

@@ -1,14 +1,14 @@
-import { notFound } from "next/navigation";
 import { Notice, PageHeader, Panel } from "@/components/admin/kit";
 import { plural } from "@/lib/admin/format";
 import { DataRequest } from "@/components/admin/DataRequest";
 import { can } from "@/lib/permissions";
+import { NotForRole } from "@/components/admin/NotForRole";
 
 export const metadata = { title: "Data requests" };
 
 // A person asks what we hold about them, or for it to be deleted (GDPR articles 15 and 17): owners and managers only.
 export default async function Page({ searchParams }: { searchParams: Promise<{ erased?: string; notice?: string }> }) {
-  if (!(await can("data"))) notFound();
+  if (!(await can("data"))) return <NotForRole title="Data requests" permission="data" />;
   const sp = await searchParams;
   const erased = sp.erased !== undefined && /^\d+$/.test(sp.erased) ? Number(sp.erased) : null;
   return (

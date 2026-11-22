@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { CarStatusBadge } from "@/components/admin/badges";
 import { DataTable, EmptyState, PageHeader, Panel, StatCard, StatGrid, TableFooter, TableToolbar, Task, TaskList, pageOf, rowButton, sortRows, type Column } from "@/components/admin/kit";
 import { PercentIcon } from "@/components/stock/icons";
@@ -13,16 +12,17 @@ import { can } from "@/lib/permissions";
 import { carName, priceLabel } from "@/lib/stock/format";
 import { isSold } from "@/lib/stock/types";
 import type { Car } from "@/lib/stock/types";
+import { NotForRole } from "@/components/admin/NotForRole";
 
 export const metadata = { title: "Margins" };
 
 // `price`: what the car sold for when a sale is recorded, else its advertised price. The margin is worked on it.
 type Row = { car: Car; cost?: number; price: number; salePrice?: number };
 
-// Needs the "margins" permission. Without it the page is not there: a hidden link is never the only protection.
+// Needs the "margins" permission. Without it the page says who it is for and shows nothing else: a hidden link is never the only protection.
 export default async function Page({ searchParams }: { searchParams: Promise<{ q?: string; state?: string; sort?: string; dir?: string; page?: string; per?: string }> }) {
   const sp = await searchParams;
-  if (!(await can("margins"))) notFound();
+  if (!(await can("margins"))) return <NotForRole title="Margins" permission="margins" />;
   const [cars, costs, sales] = await Promise.all([adminCars(), carCosts(), salesStore.list()]);
   const byId = new Map([...costs].map(([id, c]) => [id, c.total]));
   const soldFor = new Map(sales.filter((s) => !s.returnedOn).map((s) => [s.id, s.priceEur]));

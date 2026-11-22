@@ -4,6 +4,7 @@ import { CalendarIcon, CheckIcon, MailIcon, PhoneIcon, WhatsAppIcon } from "@/co
 import { NEW_TAB } from "@/components/ui";
 import { leadStatusLabel, type Lead, type LeadStatus } from "@/lib/admin/collections";
 import { telHref, waHref } from "@/lib/phone";
+import { replyVia } from "@/lib/admin/leads";
 import { setStatusAction } from "@/app/leads/actions";
 
 // A call to them, the row's strong action (tonal), named for a screen reader ("Call Mary Byrne"). Nothing when there is no number to call.
@@ -18,19 +19,17 @@ export function CallButton({ phone, name, quiet = false }: { phone: string; name
   ) : null;
 }
 
-// The way they asked to be reached first (the contact form's "Call me", "WhatsApp", "Email me"), else a call, else an email: one button.
-export function ReachButton({ lead }: { lead: Pick<Lead, "name" | "phone" | "email" | "answers"> }) {
-  const via = lead.answers?.contactVia;
-  const tel = lead.phone ? telHref(lead.phone) : undefined;
-  const wa = lead.phone ? waHref(lead.phone) : undefined;
-  if (via === "whatsapp" && wa)
+// The way to answer them (replyVia: how they got in touch), one button.
+export function ReachButton({ lead }: { lead: Pick<Lead, "name" | "phone" | "email" | "answers" | "source"> }) {
+  const via = replyVia(lead);
+  if (via === "whatsapp")
     return (
-      <a href={wa} {...NEW_TAB} aria-label={`WhatsApp ${lead.name} (opens in a new tab)`} className={rowButtonStrong}>
+      <a href={waHref(lead.phone)!} {...NEW_TAB} aria-label={`WhatsApp ${lead.name} (opens in a new tab)`} className={rowButtonStrong}>
         <WhatsAppIcon className="shrink-0 size-4 text-whatsapp" />
         WhatsApp
       </a>
     );
-  if ((via === "email" || !tel) && lead.email)
+  if (via === "email")
     return (
       <a href={`mailto:${lead.email}`} aria-label={`Email ${lead.name}`} className={rowButtonStrong}>
         <MailIcon className="shrink-0 size-4" />

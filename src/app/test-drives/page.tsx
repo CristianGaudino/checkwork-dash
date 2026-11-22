@@ -10,6 +10,7 @@ import { DRIVE_STATUSES, DRIVE_STATUS_LABELS, drivesStore, getSettings, type Dri
 import { filterDrives, isOpenDrive, waitingDrives } from "@/lib/admin/drives";
 import { addDays, dublinDay, fmtDate, fmtDay, fmtTime, isIsoDay } from "@/lib/admin/format";
 import { adminCars } from "@/lib/admin/stock-admin";
+import { slugId } from "@/lib/admin/stock-admin-pure";
 import { driveTimes } from "@/lib/leads/constants";
 import { forSale } from "@/lib/stock/types";
 import { currentMember } from "@/lib/permissions";
@@ -33,7 +34,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
   const view: View = (VIEWS as readonly string[]).includes(sp.view ?? "") ? (sp.view as View) : "today";
   const mine = sp.mine === "1";
   const [all, cars, me, { team }, { hours }] = await Promise.all([drivesStore.list(), adminCars(), currentMember(), getSettings(), dealerProfile()]);
-  const gone = new Set(cars.filter((c) => !forSale(c)).map((c) => c.slug)); // a booking still open on a car no longer for sale needs a call
+  const gone = new Set(cars.filter((c) => !forSale(c)).map((c) => c.id)); // by id; a booking still open on a car no longer for sale needs a call
   const drives = mine ? all.filter((d) => d.assignedTo === me.name) : all;
   const today = dublinDay();
   const day = sp.day && isIsoDay(sp.day) ? sp.day : today;
@@ -130,7 +131,7 @@ function Agenda({ drives, gone, empty = "Nothing booked.", withDay = false }: { 
                 {d.name}
               </Link>
               <DriveStatusBadge status={d.status} />
-              {isOpenDrive(d) && gone.has(d.carSlug) && <Badge tone="warn">No longer for sale</Badge>}
+              {isOpenDrive(d) && gone.has(slugId(d.carSlug)) && <Badge tone="warn">No longer for sale</Badge>}
             </span>
             <span className="text-meta text-text-2">
               {d.carTitle} · {d.assignedTo ?? "Not assigned"}
@@ -208,7 +209,7 @@ function Week({ day, today, onDay, gone, link, hours }: { day: string; today: st
                   <span className="font-semibold tabular-nums">{fmtTime(x.startsAt)}</span>
                   <span className={`truncate font-medium ${x.status === "cancelled" ? "line-through" : ""}`}>{x.name}</span>
                   <span title={x.carTitle} className="truncate text-text-2">{x.carTitle}</span>
-                  {isOpenDrive(x) && gone.has(x.carSlug) && <span className="text-warn">No longer for sale</span>}
+                  {isOpenDrive(x) && gone.has(slugId(x.carSlug)) && <span className="text-warn">No longer for sale</span>}
                 </Link>
               ))}
             </section>

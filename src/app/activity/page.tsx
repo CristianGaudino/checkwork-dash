@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { Avatar, EmptyState, PageHeader, Segmented, SummaryTabs, TableFooter, type FilterGroup } from "@/components/admin/kit";
 import { AppliedFilters, Filters } from "@/components/admin/TableTools";
 import { card } from "@/components/ui";
@@ -11,6 +10,7 @@ import { addDays, dublinDay, fmtDateTime, fmtDay, fmtNum, fmtTime, dublinMs } fr
 import { adminCars } from "@/lib/admin/stock-admin";
 import { can } from "@/lib/permissions";
 import { DAY } from "@/lib/time";
+import { NotForRole } from "@/components/admin/NotForRole";
 
 export const metadata = { title: "Activity" };
 
@@ -27,7 +27,7 @@ const sinceOf = (key: string, span: number, now = Date.now()) => (key === "today
 
 // Owners and managers only (the "activity" permission). Without it the page is not there: a hidden link is never the only protection.
 export default async function Page({ searchParams }: { searchParams: Promise<Params> }) {
-  if (!(await can("activity"))) notFound();
+  if (!(await can("activity"))) return <NotForRole title="Activity" permission="activity" />;
   const sp = await searchParams;
   const area = (ACTIVITY_AREAS as readonly string[]).includes(sp.area ?? "") ? (sp.area as ActivityArea) : undefined;
   const period = PERIODS.find(([k]) => k === sp.period) ?? PERIODS[3];

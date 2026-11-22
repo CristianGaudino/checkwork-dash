@@ -12,6 +12,7 @@ import { AIWriter } from "@/components/admin/AIWriter";
 import { MediaUpload } from "@/components/admin/MediaUpload";
 import { PostPreview } from "@/components/admin/PostPreview";
 import type { MediaItem } from "@/lib/admin/collections";
+import { slugId } from "@/lib/admin/stock-admin-pure";
 import { press } from "@/components/ui";
 import { SubmitButton } from "@/components/admin/SubmitButton";
 import { BrandIcon } from "@/components/admin/BrandIcon";
@@ -49,7 +50,7 @@ export function PostComposer({ cars, initialSlug, initialFormat = "post", initia
       live = false;
     };
   }, [slug, load]);
-  const car = loaded?.slug === slug ? loaded : undefined;
+  const car = loaded && slug && slugId(loaded.slug) === slugId(slug) ? loaded : undefined; // by id: the car may have been edited since
   const limits = FORMAT_LIMITS[format];
   // A story is a few words over the photo, led by the layout; the other formats start from the car's facts for this network.
   const storyLine = car ? (layout === "price-drop" && car.was ? `Now ${car.price}, was ${car.was}.` : `${car.price}.`) : "";
@@ -59,7 +60,8 @@ export function PostComposer({ cars, initialSlug, initialFormat = "post", initia
   const text = typed ?? suggestion;
   const [chosen, setChosen] = useState<string[] | null>(null);
   // Pictures come from the car's own photos and the dealer's library (the photos of this car first). A reel has no pictures, only its video.
-  const mine = library.filter((m) => m.kind === "image").sort((a, b) => Number(b.carSlug === slug) - Number(a.carSlug === slug));
+  const ofCar = (m: LibraryFile) => Boolean(slug && m.carSlug && slugId(m.carSlug) === slugId(slug)); // by id: an edit gives the car a new slug
+  const mine = library.filter((m) => m.kind === "image").sort((a, b) => Number(ofCar(b)) - Number(ofCar(a)));
   const videos = library.filter((m) => m.kind === "video" && (m.durationSec ?? 0) <= limits.maxSeconds);
   const pool = car ? [...car.photos.map((p) => p.src), ...mine.map((m) => m.src)] : [];
   const photos = !car || !limits.photos[1] ? [] : (chosen ?? [...added, ...car.photos.slice(0, format === "carousel" ? 3 : 1).map((p) => p.src)]).filter((src) => pool.includes(src) || added.includes(src)).slice(0, limits.photos[1]);

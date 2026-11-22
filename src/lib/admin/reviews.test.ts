@@ -22,4 +22,9 @@ describe("reviews", () => {
     expect(parseReviewFilter("bogus")).toBe("all");
     expect(parseReviewFilter("flagged")).toBe("all"); // flags are gone: Google has no way to take them
   });
+  it("opens on Needs a reply while any review has none, and keeps a filter that was asked for", () => {
+    expect(parseReviewFilter(undefined, [{ reply: "Thanks" }, {}])).toBe("unreplied");
+    expect(parseReviewFilter(undefined, [{ reply: "Thanks" }])).toBe("all");
+    expect(parseReviewFilter("all", [{}])).toBe("all");
+  });
 });

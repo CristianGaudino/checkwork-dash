@@ -18,6 +18,12 @@ describe("test drive agenda", () => {
     expect(clashes(list, "car-1", at(10, 13))).toEqual([]);
     expect(clashes(list, "car-1", at(10, 11), "a")).toEqual([]);
   });
+  it("still finds the clash after the car's make, model or year is edited: the booking keeps the old slug, the car's id is the same", () => {
+    const list = [drive("a", at(10, 11), { carSlug: "ford-focus-2018-12" })];
+    expect(clashes(list, "ford-focus-2019-12", at(10, 11)).map((d) => d.id)).toEqual(["a"]);
+    expect(clashes(list, "ford-focus-2018-112", at(10, 11))).toEqual([]); // another car whose id ends the same way
+    expect(slotData(list, DEMO_PROFILE.hours, undefined, at(9, 9)).taken["12"]).toEqual([dublinDateTime(at(10, 11))]);
+  });
   it("accepts only known statuses", () => {
     expect(parseDriveStatus("confirmed")).toBe("confirmed");
     expect(parseDriveStatus("deleted")).toBeUndefined();
@@ -28,7 +34,7 @@ describe("test drive agenda", () => {
     const s = slotData(list, DEMO_PROFILE.hours, "c", now);
     expect(s.now).toBe("2026-11-12 10:00");
     expect(s.days[0]).toBe("2026-11-12");
-    expect(s.taken).toEqual({ "car-1": ["2026-11-13 11:00"] });
+    expect(s.taken).toEqual({ "1": ["2026-11-13 11:00"] }); // by the car's id
   });
   it("the List view searches and filters by status, who has it and when", () => {
     const now = at(11, 12);
@@ -59,7 +65,7 @@ describe("test drive agenda", () => {
   });
   it("car=gone keeps the open bookings on a car no longer for sale", () => {
     const list = [drive("open", at(12, 9)), drive("over", at(12, 10), { status: "completed" }), drive("other", at(12, 11), { carSlug: "car-2" })];
-    expect(filterDrives(list, { car: "gone" }, at(11, 9), new Set(["car-1"])).map((d) => d.id)).toEqual(["open"]);
+    expect(filterDrives(list, { car: "gone" }, at(11, 9), new Set(["1"])).map((d) => d.id)).toEqual(["open"]);
     expect(filterDrives(list, { car: "gone" }, at(11, 9))).toEqual([]);
   });
   it("a seeded booking already past went ahead if confirmed, and a request moves to the same time the next day", () => {

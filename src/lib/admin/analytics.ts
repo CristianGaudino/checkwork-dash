@@ -1,5 +1,6 @@
 import { DAY } from "@/lib/time";
 import { rng } from "./seed-data";
+import { countChange } from "@/lib/reports/monthly";
 import type { Channel } from "@/lib/visit-rules";
 import type { ChannelCount } from "./visit-sources";
 
@@ -45,14 +46,30 @@ function simulateDays(count: number, endMs: number, seed: number): Day[] {
 
 const sum = (days: Day[], k: keyof Omit<Day, "date">) => days.reduce((s, d) => s + d[k], 0);
 export const change = (now: number, before: number) => (before ? ((now - before) / before) * 100 : 0);
-// A change on the period before, in words. A count moves by a share of itself (%). A rate is already a percentage, so it moves by points:
-// 1.3% to 1.9% is "Up 0.6 points", where "Up 46%" would read as a different thing.
-export function changeText(now: number, before: number, rate = false): string {
-  if (!rate && !before) return now ? "None the period before" : "None this period or the one before"; // a share of nothing is no figure
+// A change on the period before, in words. A count moves by a share of itself (%), by countChange's rule (too few, or the count before on
+// a small base). A rate is already a percentage, so it moves by points: 1.3% to 1.9% is "Up 0.6 points", where "Up 46%" would read as a
+// different thing.
+function moved(now: number, before: number, rate: boolean) {
+  if (!rate && !before) return { kind: "none" } as const; // a share of nothing is no figure
+  const c = rate ? undefined : countChange(now, before);
+  if (c && c.kind !== "pct") return c;
   const r = (x: number) => Math.round(x * 10) / 10; // to the 0.1 the figures show, so the change matches them
   const d = rate ? r(now) - r(before) : change(now, before);
   const n = r(Math.abs(d));
-  return `${d >= 0 ? "Up" : "Down"} ${n}${rate ? (n === 1 ? " point" : " points") : "%"} on the period before`;
+  return n === 0 ? ({ kind: "flat" } as const) : ({ kind: "by", up: d > 0, n } as const);
+}
+export function changeText(now: number, before: number, rate = false): string {
+  const m = moved(now, before, rate);
+  if (m.kind === "none") return now ? "None the period before" : "None this period or the one before";
+  if (m.kind === "few") return "Too few to compare";
+  if (m.kind === "from") return `${m.up ? "Up" : "Down"} from ${m.before} the period before`;
+  if (m.kind === "flat") return "No change on the period before";
+  return `${m.up ? "Up" : "Down"} ${m.n}${rate ? (m.n === 1 ? " point" : " points") : "%"} on the period before`;
+}
+// Its colour, from the same figure as the words: none when there is nothing to compare or it reads "No change".
+export function changeTone(now: number, before: number, rate = false): "good" | "bad" | undefined {
+  const m = moved(now, before, rate);
+  return m.kind === "from" || m.kind === "by" ? (m.up ? "good" : "bad") : undefined;
 }
 
 // `leadTimes` are the real times leads arrived (the Leads inbox). When given, each day's leads are counted from them, so this page and the

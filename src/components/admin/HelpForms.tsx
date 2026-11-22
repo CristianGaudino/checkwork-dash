@@ -63,7 +63,8 @@ export function FeedbackForm() {
         <input name="note" maxLength={500} className={adminInput} />
       </Field>
       <div className="flex gap-3">
-        <button type="submit" disabled={!score} className={adminButton}>
+        {/* Quiet: the message form's Send is the page's one filled button. */}
+        <button type="submit" disabled={!score} className={adminButtonQuiet}>
           Send
         </button>
         <button type="submit" name="skip" value="1" className={adminButtonQuiet}>

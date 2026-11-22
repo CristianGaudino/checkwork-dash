@@ -35,8 +35,10 @@ permissions, each checked on the server in every page and action that needs it (
 | Sales | No | Their own, counts only | No | No | No | No | No |
 
 - **Margins:** a Margins screen, a margin column on the stock list, a Stock margin stat on the overview and a cost price box on the car
-  form. Without it none of those are in the page, and the Margins page and the cost field answer as if they were not there. Costs are kept
-  in the admin store (`car-costs`), never in the public car data.
+  form. Without it none of those are in the page, and the cost field answers as if it were not there. Costs are kept in the admin store
+  (`car-costs`), never in the public car data.
+- **A page the role cannot open** (Margins, Reports, Activity, Data requests, Billing) says so and who it is for, worded from these rules
+  (`whoCan`, `NotForRole`), with the way back to the overview. The page returns it before reading anything, so nothing of it shows.
 - **Team:** add people, change roles, remove people. A manager cannot add, change or remove an owner, or make anyone one. A team with an
   owner always keeps one, and the last person cannot be removed.
 - **Business settings:** timings, lead emails, notifications, marketing voice and the demo reset. Others see only Notifications, for their
@@ -199,6 +201,12 @@ with no D1). The actor is the signed-in person (`currentMember`), or a named one
 - **A follow-up** (`followUpOn` on a lead): Tomorrow, In 3 days, Next week or a day, on the lead. Cleared when the lead is won or lost.
   Overview counts the ones due (today and overdue); the leads list filters by them. The morning email (Settings, Notifications, off by
   default) sends each salesperson theirs, and the unassigned ones to owners and managers, at 07:00 UTC (`/api/follow-ups/digest`).
+- **What needs doing is one count** (#38). The leads waiting on you come from one rule, `leadsToAnswer` (`src/lib/admin/follow-ups.ts`):
+  each lead once, as a follow-up due, else as a new lead. The Overview's headline, its To do and its Reply to leads button, Leads' To
+  answer now and a salesperson's report all count from it, so they agree. To do shows its top 8 rows, then See all. Only mine (To do,
+  and Leads' To answer now, where Reply to leads takes it) keeps the leads and test drives given to you or to nobody yet, so a new
+  website lead never drops out of sight; follow-ups only your own, as in your report (`forPerson`). Stock, reviews and the like are
+  nobody's and stay. It is on by default for Sales on the Overview. The bell counts something else on purpose: notices not yet read, of what came in, not the work still to do.
 
 ## Customers and aftersales
 

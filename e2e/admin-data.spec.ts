@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
-import { as } from "./open";
+import { as, notForRole } from "./open";
 import { sideLink } from "./admin-menu";
 import { bookDrive, openDay } from "./days";
 
@@ -11,7 +11,7 @@ test("sales and finance have no data requests and no lead or customer exports; t
     await as(context, role);
     await page.goto("/");
     await expect(await sideLink(page, "Data requests")).toHaveCount(0);
-    expect((await page.request.get("/data-requests")).status()).toBe(404);
+    await notForRole(page, "/data-requests", "For privacy requests");
     expect((await page.request.get("/leads/export")).status()).toBe(404);
     expect((await page.request.get("/customers/export")).status()).toBe(404);
     await page.goto("/leads");

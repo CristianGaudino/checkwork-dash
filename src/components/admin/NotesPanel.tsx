@@ -1,4 +1,4 @@
-import { Field, Panel, adminButton, adminInput } from "@/components/admin/kit";
+import { Field, Panel, adminButtonQuiet, adminInput } from "@/components/admin/kit";
 import { SubmitButton } from "@/components/admin/SubmitButton";
 import { fmtDateTime } from "@/lib/admin/format";
 import { NOTE_MAX } from "@/lib/admin/notes";
@@ -23,7 +23,8 @@ export function NotesPanel({ notes, action, className }: { notes: { at: number; 
         <Field label="Add a note">
           <textarea name="note" rows={3} maxLength={NOTE_MAX} required className={`${adminInput} h-auto py-2`} />
         </Field>
-        <SubmitButton className={`${adminButton} self-start`}>Add note</SubmitButton>
+        {/* Quiet: a note is never the page's main job (#39). */}
+        <SubmitButton className={`${adminButtonQuiet} self-start`}>Add note</SubmitButton>
       </form>
     </Panel>
   );

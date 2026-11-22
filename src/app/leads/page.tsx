@@ -1,24 +1,39 @@
 import { sourceText } from "@/lib/visit-rules";
 import Link from "next/link";
 import { LeadStatusBadge } from "@/components/admin/badges";
-import { Avatar, Badge, DataTable, EmptyState, PageHeader, Panel, SummaryTabs, TableFooter, TableToolbar, Task, TaskList, pageOf, sortRows, type Column, type FilterGroup, type TaskUrgency } from "@/components/admin/kit";
+import { Avatar, Badge, DataTable, EmptyState, PageHeader, Panel, SummaryTabs, TableFooter, TableToolbar, Task, TaskList, choicePill, pageOf, sortRows, type Column, type FilterGroup } from "@/components/admin/kit";
 import { NextStatusButton, ReachButton } from "@/components/admin/LeadActions";
-import { AlertIcon, CalendarIcon, InboxIcon } from "@/components/stock/icons";
-import { can } from "@/lib/permissions";
+import { AlertIcon, CalendarIcon, CheckIcon, InboxIcon } from "@/components/stock/icons";
+import { can, currentMember } from "@/lib/permissions";
 import { LEAD_SOURCES, LEAD_STATUSES, LEAD_STATUS_LABELS, LEAD_TYPE_LABELS, getSettings, leadsStore, type Lead } from "@/lib/admin/collections";
 import { dublinDay, fmtAgo, fmtDate } from "@/lib/admin/format";
-import { SALES_LEAD_TYPES, countByStatus, filterLeads, followUpDue, isHotLead, isOpenLead, isSalesLead, parseLeadFilter, urgentFirst } from "@/lib/admin/leads";
-import { TOPICS, isUrgent, leadTags } from "@/lib/leads/contact-topics";
+import { SALES_LEAD_TYPES, countByStatus, filterLeads, followUpDue, forPerson, isOpenLead, isSalesLead, leadFlag, leadsToAnswer, parseLeadFilter, urgentFirst, type LeadTask } from "@/lib/admin/leads";
+import { TOPICS, leadTags } from "@/lib/leads/contact-topics";
 import { LeadKind, LeadTags, leadChips } from "@/components/admin/LeadKind";
 import { enabledModules } from "@/lib/modules";
 import { BrandIcon } from "@/components/admin/BrandIcon";
 
 export const metadata = { title: "Leads" };
 
+// The time, read once a request (a plain Date.now() in the render trips the purity lint), as on Reports.
+const now = () => Date.now();
+
+// What kind of request it is (a word and an icon) and where it came from, in one line.
+function KindSource({ l, className = "" }: { l: Lead; className?: string }) {
+  return (
+    <span className={`flex flex-wrap items-center gap-x-2 gap-y-0.5 text-meta ${className}`}>
+      <LeadKind type={l.type} topic={l.topic} />
+      <span className="inline-flex min-w-0 items-center gap-1 text-text-2">
+        <BrandIcon name={sourceText(l)} className="size-3.5 shrink-0" /> {sourceText(l)}
+      </span>
+    </span>
+  );
+}
+
 // What each status means, in a few words under it.
 const STATUS_HINTS = { new: "Not answered yet", contacted: "Answered", appointment: "Coming in", won: "Bought", lost: "Did not buy" } as const;
 
-type Params = { status?: string; type?: string; topic?: string; q?: string; due?: string; late?: string; need?: string; with?: string; source?: string; sort?: string; dir?: string; page?: string; per?: string };
+type Params = { mine?: string; status?: string; type?: string; topic?: string; q?: string; due?: string; late?: string; need?: string; with?: string; source?: string; sort?: string; dir?: string; page?: string; per?: string };
 
 export default async function Page({ searchParams }: { searchParams: Promise<Params> }) {
   const sp = await searchParams;
@@ -27,54 +42,62 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
   const all = everyLead.filter(isSalesLead);
   const counts = countByStatus(all);
   const today = dublinDay();
+  const at = now(); // one clock for the badges, the pinning and To answer now, so they agree
   const due = all.filter((l) => followUpDue(l, today)).length;
-  // New leads waiting past the reply target: counted for the filter, and marked Late on their rows.
-  const lateIds = new Set(filterLeads(all, { q: "", late: true }, today, leadSlaHours).map((l) => l.id));
-  const late = lateIds.size;
+  // New leads waiting past the reply target, counted for the filter.
+  const late = filterLeads(all, { q: "", late: true }, today, leadSlaHours, at).length;
   const STATUS_ORDER = Object.fromEntries(LEAD_STATUSES.map((s, i) => [s, i]));
   const columns: Column<Lead>[] = [
     {
       key: "who",
       header: "Who",
       sort: (l) => l.name,
-      // The name is the row's title; under it what kind of request it is (a word and an icon), where it came from, then the form's
-      // answers as chips. On a phone, where the About column is hidden, the car is named here too.
+      // The name is the row's title, and the form's first answer as a chip. On a phone, where the About column is hidden, what it is about
+      // is here too: the kind, where it came from and the car.
       cell: (l) => (
         <span className="flex min-w-0 flex-col gap-1">
           <Link href={`/leads/${l.id}`} className="font-bold text-text [overflow-wrap:anywhere] after:absolute after:inset-0">
             {l.name}
           </Link>
-          <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-meta">
-            <LeadKind type={l.type} topic={l.topic} />
-            <span className="inline-flex min-w-0 items-center gap-1 text-text-2">
-              <BrandIcon name={sourceText(l)} className="size-3.5 shrink-0" /> {sourceText(l)}
-            </span>
-          </span>
+          <KindSource l={l} className="sm:hidden" />
           {l.carTitle && <span className="truncate text-meta font-medium text-text sm:hidden">{l.carTitle}</span>}
-          <LeadTags tags={leadChips(l.type, l.topic, l.answers)} urgent={l.status === "new" && isUrgent(l.answers ?? {})} />
+          {/* No width of its own (w-0), so a long answer is cut short rather than widen the column. */}
+          <span className="w-0 min-w-full">
+            <LeadTags tags={leadChips(l.type, l.topic, l.answers).slice(0, 1)} />
+          </span>
         </span>
       ),
-      className: "max-w-[11rem] sm:max-w-[18rem]",
+      className: "max-w-[11rem] sm:max-w-[14rem]",
     },
-    // The car in full, else the first words of their message, quoted and muted so the two never read alike.
-    { key: "about", header: "About", sort: (l) => l.carTitle, cell: (l) => <span title={l.carTitle ?? l.message} className="line-clamp-2">{l.carTitle ? <span className="font-medium">{l.carTitle}</span> : l.message.trim() ? <span className="text-text-2">&ldquo;{l.message.split("\n")[0]}&rdquo;</span> : null}</span>, className: "max-w-[16rem]", hide: "sm" },
+    // What kind of request and where it came from, then the car in full, else the first words of their message, quoted and muted so the
+    // two never read alike.
+    {
+      key: "about",
+      header: "About",
+      sort: (l) => l.carTitle,
+      cell: (l) => (
+        <span className="flex min-w-0 flex-col gap-1">
+          <KindSource l={l} />
+          <span title={l.carTitle ?? l.message} className="line-clamp-2">{l.carTitle ? <span className="font-medium">{l.carTitle}</span> : l.message.trim() ? <span className="text-text-2">&ldquo;{l.message.split("\n")[0]}&rdquo;</span> : null}</span>
+        </span>
+      ),
+      className: "max-w-[20rem]",
+      hide: "sm",
+    },
     {
       key: "status",
       header: "Status",
       sort: (l) => STATUS_ORDER[l.status],
       // A new lead waiting past the reply target says so, filled: it is the one to answer now. The badges may wrap, each whole, so the
       // row's Next step fits a laptop card and a phone has no sideways scroll.
-      cell: (l) => (
+      cell: (l) => {
+        const flag = leadFlag(l, leadSlaHours, at);
+        return (
         <span className="flex flex-col items-start gap-1">
           <span className="inline-flex flex-wrap items-center gap-1.5">
             <LeadStatusBadge status={l.status} type={l.type} />
-            {/* Why it sits at the top of the list: urgentFirst pins these. */}
-            {isHotLead(l) && <Badge tone="warn">Urgent</Badge>}
-            {lateIds.has(l.id) && (
-              <Badge tone="bad" strong>
-                Late
-              </Badge>
-            )}
+            {/* One badge for a lead that cannot wait (leadFlag). These sit at the top of the list: urgentFirst pins them. */}
+            {flag === "late" ? <Badge tone="bad" strong>Late</Badge> : flag === "urgent" && <Badge tone="warn">Urgent</Badge>}
           </span>
           {/* The follow-up, when there is one, under the status: one place to look for what to do next. Overdue is red, today amber. */}
           {l.followUpOn && isOpenLead(l) && (
@@ -85,16 +108,18 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
           {/* On a phone the Received column is hidden; when it came in sits here, under its status. */}
           <span className={`text-meta sm:hidden ${l.status === "new" ? "font-medium text-text" : "text-text-2"}`}>{fmtAgo(l.createdAt)}</span>
         </span>
-      ),
+        );
+      },
     },
     { key: "owner", header: "Who has it", hide: "2xl", nowrap: true, sort: (l) => l.assignedTo, cell: (l) => (l.assignedTo ? <span className="inline-flex items-center gap-2"><Avatar name={l.assignedTo} />{l.assignedTo.split(" ")[0]}</span> : <span className="text-text-2">Nobody</span>) },
     { key: "when", header: "Received", sort: (l) => l.createdAt, cell: (l) => <span className={l.status === "new" ? "font-medium" : "text-text-2"}>{fmtAgo(l.createdAt)}</span>, align: "right", nowrap: true, hide: "sm" }, // on a phone it is in the Who column
     // The two things done most from the list: reach them the way they asked, and move it on a step. Above the row's link.
-    { key: "act", header: "Next step", quietHeader: true, hide: "lg", nowrap: true, cell: (l) => <span className="relative z-10 flex justify-end gap-2">{isOpenLead(l) && <ReachButton lead={l} />}<NextStatusButton lead={l} /></span> },
+    // Two fixed slots, so the buttons line up from row to row whichever are there.
+    { key: "act", header: "Next step", quietHeader: true, hide: "lg", nowrap: true, cell: (l) => <span className="relative z-10 grid grid-cols-[7.5rem_12.5rem] gap-2"><span>{isOpenLead(l) && <ReachButton lead={l} />}</span><span><NextStatusButton lead={l} /></span></span> },
   ];
-  const ordered = sortRows(filterLeads(all, f, today, leadSlaHours), columns, sp, { key: "when", dir: "desc" });
+  const ordered = sortRows(filterLeads(all, f, today, leadSlaHours, at), columns, sp, { key: "when", dir: "desc" });
   // Unless a column was chosen, the urgent new ones come first.
-  const sorted = sp.sort ? ordered.rows : urgentFirst(ordered.rows);
+  const sorted = sp.sort ? ordered.rows : urgentFirst(ordered.rows, leadSlaHours, at);
   const sort = ordered.sort;
   const paged = pageOf(sorted, sp);
   const rows = paged.rows;
@@ -116,40 +141,51 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
     return `/leads${qs ? `?${qs}` : ""}`;
   };
 
-  // What to answer now, worked down from the top: new leads waiting too long or in a hurry and follow-ups overdue, then the other new
-  // ones and today's follow-ups. On the plain list only: a filter or a search is looking for something else.
-  const filtered = Boolean(f.status || f.type || f.topic || f.q || f.due || f.late || f.with || f.source || (sp.page && sp.page !== "1"));
-  // The longest waiting first, as on the Overview: a new lead since it came in, a follow-up since the day it was due.
-  const waitingSince = (l: Lead) => (l.status === "new" ? l.createdAt : Date.parse(`${l.followUpOn}T00:00:00Z`));
-  const todo = all
-    .flatMap((l): { lead: Lead; why: string; urgency: TaskUrgency }[] => {
-      if (l.status === "new") {
-        const now = lateIds.has(l.id) || isHotLead(l);
-        const why = lateIds.has(l.id) ? `Came in ${fmtAgo(l.createdAt)}, past your reply time` : isHotLead(l) ? `In a hurry: ${leadTags(l.topic!, l.answers ?? {}).join(", ")}` : `New, came in ${fmtAgo(l.createdAt)}`;
-        return [{ lead: l, why, urgency: now ? "now" : "soon" }];
-      }
-      if (!followUpDue(l, today)) return [];
-      const late = l.followUpOn! < today;
-      return [{ lead: l, why: late ? `Follow-up was due ${fmtDate(`${l.followUpOn}T12:00:00Z`)}` : "Follow up today", urgency: late ? "now" : "soon" }];
-    })
-    .sort((a, b) => (a.urgency === b.urgency ? waitingSince(a.lead) - waitingSince(b.lead) : a.urgency === "now" ? -1 : 1));
+  // What to answer now, worked down from the top, by the same rule as the Overview's To do (leadsToAnswer). On the plain list, or one
+  // person's: Only mine (forPerson, as the Overview's, whose Reply to leads opens it so) or Who has it. Any other filter or a search is
+  // looking for something else.
+  const filtered = Boolean(f.status || f.type || f.topic || f.q || f.due || f.late || f.source || (sp.page && sp.page !== "1"));
+  const me = await currentMember();
+  const mine = sp.mine === "1" && Boolean(me.name) && !f.with; // Who has it wins: its pill hides Only mine
+  const why = ({ lead: l, kind, flag }: LeadTask) =>
+    kind === "follow" ? (l.followUpOn! < today ? `Follow-up was due ${fmtDate(`${l.followUpOn}T12:00:00Z`)}` : "Follow up today") : flag === "late" ? `Came in ${fmtAgo(l.createdAt)}, past your reply time` : flag === "urgent" ? `In a hurry: ${leadTags(l.topic!, l.answers ?? {}).join(", ")}` : `New, came in ${fmtAgo(l.createdAt)}`;
+  const every = leadsToAnswer(f.with ? filterLeads(all, { q: "", with: f.with }) : all, at, today, leadSlaHours);
+  const todo = (mine ? forPerson(every, me.name) : every).map((t) => ({ ...t, why: why(t) }));
   const SHOWN = 8;
+  // The footer's links keep whose leads these are: new ones by Who has it, follow-ups by Who has it or Only mine (only their own).
+  const withWho = f.with ? `&with=${encodeURIComponent(f.with)}` : "";
+  const replies = todo.filter((t) => t.kind === "reply").length;
+  const follows = todo.length - replies;
+  const mineParams = new URLSearchParams(Object.entries(sp).filter((e): e is [string, string] => typeof e[1] === "string" && e[0] !== "page" && e[0] !== "mine"));
+  if (!mine) mineParams.set("mine", "1");
+  const mineHref = `/leads${mineParams.size ? `?${mineParams}` : ""}`;
 
   return (
     <>
       <PageHeader title="Leads" text="Everyone who got in touch. Answer the ones at the top first." />
       {!filtered && (
-        <Panel title="To answer now" count={todo.length}>
+        <Panel
+          title="To answer now"
+          count={todo.length}
+          action={
+            me.name && !f.with && (
+              <Link href={mineHref} aria-current={mine ? "true" : undefined} className={choicePill(mine)}>
+                {mine && <CheckIcon className="shrink-0 size-4" />}
+                Only mine
+              </Link>
+            )
+          }
+        >
           {todo.length === 0 ? (
             <p className="text-body text-text-2">All caught up. No new leads and no follow-ups due.</p>
           ) : (
             <TaskList label="Leads to answer now">
-              {todo.slice(0, SHOWN).map(({ lead: l, why, urgency }) => (
+              {todo.slice(0, SHOWN).map(({ lead: l, why, urgency, kind }) => (
                 <Task
                   key={l.id}
                   href={`/leads/${l.id}`}
                   urgency={urgency}
-                  icon={l.status !== "new" ? <CalendarIcon /> : urgency === "now" ? <AlertIcon /> : <InboxIcon />}
+                  icon={kind === "follow" ? <CalendarIcon /> : urgency === "now" ? <AlertIcon /> : <InboxIcon />}
                   title={l.name}
                   detail={
                     <span className="flex flex-col gap-0.5">
@@ -175,8 +211,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
           {todo.length > SHOWN && (
             <p className="flex flex-wrap gap-x-4 text-meta text-text-2">
               {todo.length - SHOWN} more waiting.
-              <Link href="/leads?status=new" className="font-medium text-text underline">New leads ({counts.new})</Link>
-              {due > 0 && <Link href="/leads?need=due" className="font-medium text-text underline">Follow-ups due ({due})</Link>}
+              {replies > 0 && <Link href={`/leads?status=new${withWho}`} className="font-medium text-text underline">New leads ({replies})</Link>}
+              {follows > 0 && <Link href={`/leads?need=due${withWho || (mine ? `&with=${encodeURIComponent(me.name)}` : "")}`} className="font-medium text-text underline">Follow-ups due ({follows})</Link>}
             </p>
           )}
         </Panel>
