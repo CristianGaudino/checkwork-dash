@@ -6,14 +6,16 @@ const ANALYTICS_SCRIPT = "https://static.cloudflareinsights.com";
 const ANALYTICS_REPORT = "https://cloudflareinsights.com";
 // `analytics: false` is the policy of our sign-in pages (docs/sign-in.md, section 3): the same list with the two analytics origins left out, so a
 // beacon the zone injects can never report an address that carries a token. Nothing else differs.
+// The bot check on the sign-in form (docs/sign-in.md, section 3): its script, its calls and its challenge frame, on those pages only.
+const TURNSTILE = "https://challenges.cloudflare.com";
 const csp = (analytics: boolean) => [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline'${dev ? " 'unsafe-eval'" : ""}${analytics ? ` ${ANALYTICS_SCRIPT}` : ""}`,
+  `script-src 'self' 'unsafe-inline'${dev ? " 'unsafe-eval'" : ""}${analytics ? ` ${ANALYTICS_SCRIPT}` : ` ${TURNSTILE}`}`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https://lh3.googleusercontent.com", // lh3: Google review photos
   "font-src 'self' data:",
-  `connect-src 'self'${analytics ? ` ${ANALYTICS_REPORT}` : ""}${dev ? " ws: wss:" : ""}`,
-  `frame-src https://maps.google.com https://www.google.com`, // the Google map on /contact
+  `connect-src 'self'${analytics ? ` ${ANALYTICS_REPORT}` : ` ${TURNSTILE}`}${dev ? " ws: wss:" : ""}`,
+  `frame-src https://maps.google.com https://www.google.com${analytics ? "" : ` ${TURNSTILE}`}`, // the Google map on /contact
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "object-src 'none'",

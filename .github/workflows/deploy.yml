@@ -53,6 +53,8 @@ jobs:
       TARGET: ${{ inputs.environment || 'dev' }}
       REF: ${{ inputs.ref }}
       NEXT_TELEMETRY_DISABLED: 1
+      # Turnstile site key (public, inlined into the browser bundle at build): a repo variable, docs/sign-in.md. Its secret is a Worker secret.
+      NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ vars.TURNSTILE_SITE_KEY }}
       WRANGLER_SEND_METRICS: false
       # The Cloudflare token is set on the deploy step only, not here: npm install scripts, lint and the tests never see it
     steps:

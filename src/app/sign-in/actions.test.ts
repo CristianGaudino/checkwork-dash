@@ -103,6 +103,25 @@ describe("Email me a code", () => {
     expect(set).toEqual([]);
   });
 
+  it("refuses a bad bot check before anything is reserved or sent, and a deployed Worker with no secret", async () => {
+    vi.stubEnv("TURNSTILE_SECRET_KEY", "sec");
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ success: false, "error-codes": ["invalid-input-response"] }))));
+    const bad = { error: "We could not check this request. Reload the page and try again." };
+    expect(await actions.requestCode(undefined, form({ email: "aoife@example.com", "cf-turnstile-response": "tok" }))).toEqual(bad);
+    expect(await actions.requestCode(undefined, form({ email: "aoife@example.com" }))).toEqual(bad);
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ success: true, action: "sign-in" }))));
+    expect(await outcome(() => actions.requestCode(undefined, form({ email: "aoife@example.com", "cf-turnstile-response": "tok" })))).toContain("NEXT_REDIRECT");
+    vi.unstubAllGlobals();
+    set = [];
+    later = [];
+    vi.stubEnv("TURNSTILE_SECRET_KEY", "");
+    vi.stubEnv("E2E_FAKE_BACKENDS", "");
+    vi.stubEnv("NODE_ENV", "production");
+    expect(await actions.requestCode(undefined, form({ email: "aoife@example.com", "cf-turnstile-response": "tok" }))).toEqual({ error: "Sign-in by email is not available right now." });
+    expect(set).toEqual([]);
+    expect(later).toEqual([]);
+  });
+
   it("sends a hostile next to the overview", async () => {
     expect(await outcome(() => actions.requestCode(undefined, form({ email: "aoife@example.com", next: "//evil.example/x" })))).toBe("NEXT_REDIRECT;replace;/sign-in/code;307;");
   });

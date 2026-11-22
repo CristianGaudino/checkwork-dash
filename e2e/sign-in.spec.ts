@@ -8,6 +8,15 @@ const CLOSED = `http://localhost:${Number(process.env.PORT ?? 3000) + 2}`;
 const CLOSED_ACCESS = `http://localhost:${Number(process.env.PORT ?? 3000) + 3}`; // closed, SIGN_IN unset, no Access set up
 const DEAD = { cookie: `__Host-cw_session=${"a".repeat(43)}` }; // the shape of ours, but no session behind it
 
+// Stands in for Cloudflare's Turnstile script (the build has its test site key), so no spec calls Cloudflare. pass: a token arrives at once.
+const stub = (page: import("@playwright/test").Page, pass = true) =>
+  page.route("https://challenges.cloudflare.com/**", (route) =>
+    route.fulfill({
+      contentType: "text/javascript",
+      body: `window.turnstile = { render(el, o) { ${pass} && setTimeout(() => o.callback("e2e-token")); return "w1"; }, reset() {}, remove() {} };`,
+    }),
+  );
+
 test.describe("SIGN_IN unset (the open app, and production today)", () => {
   test("has no sign-in page and no sign-out, and pages are sent no-store", async ({ request, baseURL }) => {
     expect((await request.get("/sign-in", { maxRedirects: 0 })).status()).toBe(404);
@@ -119,6 +128,7 @@ test.describe("SIGN_IN=own on a closed server", () => {
 // The emailed code and link (docs/sign-in.md, section 3), on the closed server. Its mail is the in-memory outbox, read at /sign-in/outbox.
 test.describe("signing in by email on the closed server", () => {
   test.skip(!!process.env.E2E_BASE_URL, "needs the run's own closed server");
+  test.beforeEach(({ page }) => stub(page));
   const mailTo = async (page: import("@playwright/test").Page, to: string) => {
     const get = async () => (await (await page.request.get(`${CLOSED}/sign-in/outbox?to=${encodeURIComponent(to)}`)).json()) as { subject: string; text: string }[];
     await expect.poll(async () => (await get()).length).toBeGreaterThan(0);
@@ -198,5 +208,26 @@ test.describe("signing in by email on the closed server", () => {
     expect((await api.get("/sign-in", { maxRedirects: 0 })).headers()["content-security-policy"]).not.toContain("cloudflareinsights");
     expect((await api.get("/sign-in/outbox", { maxRedirects: 0 })).status()).toBe(200); // the run's mail, in an E2E run only
     await api.dispose();
+  });
+});
+
+// The bot check on the email form (docs/sign-in.md, section 3). The closed server has no secret and fake backends, so the server side skips here: its rules are unit tests.
+test.describe("the bot check on the closed server", () => {
+  test.skip(!!process.env.E2E_BASE_URL, "needs the run's own closed server");
+
+  test("the button waits for the check, then the token goes with the form", async ({ page }) => {
+    await stub(page, true);
+    await page.goto(`${CLOSED}/sign-in`);
+    await page.getByLabel("Email").fill("aoife@example.com");
+    await expect(page.locator('input[name="cf-turnstile-response"]')).toHaveValue("e2e-token");
+    await page.getByRole("button", { name: "Email me a code" }).click();
+    await expect(page).toHaveURL(/\/sign-in\/code/);
+  });
+
+  test("with no token the button stays off", async ({ page }) => {
+    await stub(page, false);
+    await page.goto(`${CLOSED}/sign-in`);
+    await page.getByLabel("Email").fill("aoife@example.com");
+    await expect(page.getByRole("button", { name: "Email me a code" })).toBeDisabled();
   });
 });

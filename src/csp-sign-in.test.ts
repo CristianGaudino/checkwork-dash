@@ -18,11 +18,13 @@ describe("the content policy", () => {
       expect(csp, path).toContain("form-action 'self'");
       expect(csp, path).toContain("default-src 'self'");
       expect(csp, path).not.toContain("cloudflareinsights");
+      for (const d of ["script-src", "connect-src", "frame-src"]) expect(csp.split("; ").find((x) => x.startsWith(d)), `${path} ${d}`).toContain("https://challenges.cloudflare.com");
       expect(effective(path).get("Referrer-Policy"), path).toBe("no-referrer");
     }
   });
   it("elsewhere still allows the analytics origins, and the referrer as before", () => {
     expect(effective("/leads").get("Content-Security-Policy")).toContain("static.cloudflareinsights.com");
+    expect(effective("/leads").get("Content-Security-Policy")).not.toContain("challenges.cloudflare.com");
     expect(effective("/leads").get("Referrer-Policy")).toBe("strict-origin-when-cross-origin");
     expect(effective("/sign-inx").get("Content-Security-Policy")).toContain("cloudflareinsights");
   });
