@@ -23,7 +23,7 @@ describe("buildFacts for Prepare me", () => {
     const seeded = (await leadsStore.list()).find((l) => l.journey && l.carSlug)!;
     const message = `Call me on 087 123 4567 or ${seeded.email}. ${"Long words. ".repeat(80)}`;
     // A make taken from an edited address can be any slug, a phone number too.
-    await leadsStore.put({ ...seeded, id: "lead-brief", message, notes: [{ at: 1, text: "Private note" }], journey: { ...seeded.journey!, searches: [{ make: "0871234567" }, ...seeded.journey!.searches].slice(0, 8) } });
+    await leadsStore.put({ ...seeded, id: "lead-brief", message, notes: [{ at: 1, text: "Private note" }], journey: { ...seeded.journey!, cars: [], searches: [{ make: "0871234567" }, { make: "0871234567" }, { make: "0871234567" }] } });
     const built = await buildFacts({ task: "leadBrief", leadId: "lead-brief" }, "Checkwork Motors", "");
     expect(built?.task).toBe("leadBrief");
     const f = built!.facts as import("./tasks").FactsOf["leadBrief"];
