@@ -45,7 +45,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
   const at = now(); // one clock for the badges, the pinning and To answer now, so they agree
   const due = all.filter((l) => followUpDue(l, today)).length;
   // New leads waiting past the reply target, counted for the filter.
-  const late = filterLeads(all, { q: "", late: true }, today, leadSlaHours).length;
+  const late = filterLeads(all, { q: "", late: true }, today, leadSlaHours, at).length;
   const STATUS_ORDER = Object.fromEntries(LEAD_STATUSES.map((s, i) => [s, i]));
   const columns: Column<Lead>[] = [
     {
@@ -117,7 +117,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
     // Two fixed slots, so the buttons line up from row to row whichever are there.
     { key: "act", header: "Next step", quietHeader: true, hide: "lg", nowrap: true, cell: (l) => <span className="relative z-10 grid grid-cols-[7.5rem_12.5rem] gap-2"><span>{isOpenLead(l) && <ReachButton lead={l} />}</span><span><NextStatusButton lead={l} /></span></span> },
   ];
-  const ordered = sortRows(filterLeads(all, f, today, leadSlaHours), columns, sp, { key: "when", dir: "desc" });
+  const ordered = sortRows(filterLeads(all, f, today, leadSlaHours, at), columns, sp, { key: "when", dir: "desc" });
   // Unless a column was chosen, the urgent new ones come first.
   const sorted = sp.sort ? ordered.rows : urgentFirst(ordered.rows, leadSlaHours, at);
   const sort = ordered.sort;
