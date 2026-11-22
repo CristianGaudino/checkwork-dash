@@ -21,15 +21,15 @@ The `vintage` repo (`~/Developer/vintage`, GitHub `CristianGaudino/vintage`) is 
 ## Working in git
 - Never develop or commit on `main`, ever. Check `git branch --show-current` before the first edit. Branch first (`git switch -c <type>/<name>`), including for planning docs. The only exception was the initial repo setup push.
 - Open every PR against `main`, never against another feature branch (GitHub closes a PR whose base branch is merged and deleted).
-- Open PRs ready for review, not as drafts. CI runs only by hand (Actions minutes): merges deploy, and the deploy runs lint and the tests first, so the local checks below are the gate. Never merge a PR yourself, under any instruction or circumstance: open it and stop. The owner merges.
+- Open PRs ready for review, not as drafts. CI (lint, typecheck, unit tests, migrations check) and E2E run on every PR (the repo is public, so Actions minutes are free), so the local checks below are what you run first, and CI is the second check. A merge deploys dev, and the deploy runs lint and the tests first. Never merge a PR yourself, under any instruction or circumstance: open it and stop. The owner merges.
 - Link the issue in the PR (`Closes #n`) and move it on the project board.
 - Stage named files, not `git add -A`. Never push `.env*`, `test-results/` or `playwright-report/`.
-- GitHub Actions minutes are limited and shared. Push fewer, finished commits.
+- Push finished commits: every push to an open PR reruns CI and E2E.
 
 ## Before opening a PR
 1. Run the ponytail audit (`/ponytail:ponytail-audit`) on what the branch changed: the changed files plus their callers and tests.
 2. Fix what it raises on the same branch. A real trade-off goes in the PR description for the owner to decide.
-3. Run lint, typecheck, unit tests, `bash scripts/check-migrations.sh main` and the E2E suite against a production build. Open the PR only if they pass. Say what the audit found and the E2E result in the PR.
+3. Run lint, typecheck, unit tests, `bash scripts/check-migrations.sh main` and the E2E suite against a production build. Open the PR only if they pass. Say what the audit found and the E2E result in the PR; CI and E2E then run on the PR itself.
 4. Skip steps 1 and 3 for docs-only, workflow-only or copy-only changes, and say so in the PR.
 
 Check by exit code, not by reading output for "error": `npm run lint; echo $?`, `npm test`, `npm run build`. Typecheck with `npx tsc --noEmit`.
@@ -40,7 +40,11 @@ This is not the Next.js in your training data. Read the relevant guide in `node_
 ## Environments and releases
 - Two fully separate environments (`wrangler.jsonc`, README): **dev** (`dev.dash.checkwork.ie`, the top level, the default) and **production** (`www.dash.checkwork.ie`, `env.production`). Each has its own Worker, databases (`checkwork-dev-directory` and `checkwork-dev-dealer-<id>`; `checkwork-directory` and `checkwork-dealer-<id>`), bucket, rate limits, secrets and Access application. Adding a dealer means a database in each.
 - Dev by default, production only with `--env production`: plain `wrangler`, the npm scripts and `scripts/*.mjs` act on dev; production is `--env production` or an npm script ending in `:prod`. Never run a command against production unless the owner asked for that command; try things on dev. A script that touches a database goes through `target()` in `scripts/dealers.mjs`, which enforces this.
-- Every merge to `main` deploys production (`.github/workflows/deploy.yml`, lint and unit tests first); a manual run deploys dev or production, or an older tag or commit to roll back. Actions minutes run out, so `npm run deploy` / `npm run deploy:prod` from a laptop does the same. Move to release-tag deploys, as in vintage, once real dealers use the app.
+- Pull request: CI (`ci.yml`: lint, typecheck, unit tests, `check-migrations.sh`) and E2E (`e2e.yml`: production build, Playwright, no Cloudflare secrets) run on every PR. Merge to `main`: deploys **dev** (`deploy.yml`, lint and unit tests first). Production changes only through a release.
+- Release: Actions, Release, Run workflow (from `main`), pick major, minor or patch (`release.yml`). It tags the tip of `main` (the next `vX.Y.Z` after the latest tag, `v1.0.0` first), publishes a pre-release with generated notes, deploys that tag to production, checks the site answers, then marks the release latest. A failed deploy leaves a pre-release.
+- Roll back: Actions, Deploy, Run workflow, environment production, ref an older tag (`v1.2.3`). Production only deploys a release tag from the Actions tab. To try a branch: Actions, Preview, Run workflow (deploys it to dev).
+- Deploys of one environment never overlap (concurrency group per environment). The Cloudflare secrets are on the deploy step only, never on `npm ci`, lint or the tests. Setting them up: README, "GitHub Actions".
+- By hand, if Actions is unavailable: `npm run deploy` (dev) or `npm run deploy:prod` from a laptop with a logged-in wrangler, which does the same steps (`scripts/deploy.mjs`; production only from a clean checkout whose commit is on `main`).
 
 ## Product rules
 - On-screen text is plain, short and human. No em dashes anywhere on the site. If a label already says it, drop the helper text.

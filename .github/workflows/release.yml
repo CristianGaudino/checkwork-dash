@@ -1,0 +1,87 @@
+name: Release
+
+# Cut by hand when a batch is ready: Actions, Release, Run workflow, then pick major, minor or patch.
+# It works out the next version from the latest v*.*.* tag (the first release is v1.0.0), tags the tip of main and publishes a GitHub
+# pre-release whose notes are the merged pull requests since the last one. It then deploys that tag to production (deploy.yml) and
+# checks the site answers. The release stays a pre-release until the deploy and the check pass, so a failed deploy never leaves a
+# release that says it shipped. To roll back, run Deploy by hand with an older tag.
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: 'major: breaking or a big change, minor: new features, patch: fixes only'
+        required: true
+        type: choice
+        options: [minor, patch, major]
+        default: minor
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    # Only from main: another branch picked in the Run workflow menu would deploy with that branch's copy of deploy.yml
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.next.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Every tag, to find the latest
+          fetch-depth: 0
+          ref: main
+      - name: Work out the next version
+        id: next
+        run: |
+          latest=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n 1)
+          if [ -z "$latest" ]; then
+            next=v1.0.0
+          else
+            IFS=. read -r major minor patch <<< "${latest#v}"
+            case "$BUMP" in
+              major) next="v$((major + 1)).0.0" ;;
+              minor) next="v$major.$((minor + 1)).0" ;;
+              patch) next="v$major.$minor.$((patch + 1))" ;;
+            esac
+          fi
+          echo "Latest: ${latest:-none}, next: $next"
+          echo "version=$next" >> "$GITHUB_OUTPUT"
+        env:
+          BUMP: ${{ inputs.bump }}
+      - name: Publish the pre-release
+        run: gh release create "$VERSION" --repo "$GITHUB_REPOSITORY" --target main --title "$VERSION" --generate-notes --prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.next.outputs.version }}
+
+  deploy:
+    needs: release
+    permissions:
+      contents: read
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment: production
+      ref: ${{ needs.release.outputs.version }}
+    secrets: inherit
+
+  # Only when the deploy and its check have passed: now it is the latest release
+  publish:
+    needs: [release, deploy]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - name: Mark the release as shipped
+        run: gh release edit "$VERSION" --repo "$GITHUB_REPOSITORY" --prerelease=false --latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.release.outputs.version }}

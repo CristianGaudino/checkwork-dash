@@ -1,0 +1,47 @@
+name: CI
+
+# Every pull request: lint, typecheck, unit tests and the migrations check. The E2E suite is e2e.yml. The repo is public, so Actions
+# minutes are free. A merge to main is not checked again here: deploy.yml runs lint and the unit tests before it deploys.
+on:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NEXT_TELEMETRY_DISABLED: 1
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      # The E2E job runs in the Playwright image of the locked version: a bump that leaves the tag behind would only fail there
+      - name: E2E image matches the locked Playwright
+        run: |
+          locked=$(node -p "require('./package-lock.json').packages['node_modules/@playwright/test'].version")
+          image=$(grep -o 'playwright:v[0-9.]*-' .github/workflows/e2e.yml | head -1 | sed 's/playwright:v//; s/-$//')
+          [ "$locked" = "$image" ] || { echo "::error file=.github/workflows/e2e.yml::The image is Playwright $image but package-lock.json has $locked: change the tag"; exit 1; }
+      - name: Lint
+        run: npm run lint
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Unit tests
+        run: npm test
+      # The deploy migrates before the new code is live, so a new migration may only add things. On a pull request the checkout is the
+      # merge with main, so this lists what the pull request adds.
+      - name: Migrations only add
+        run: bash scripts/check-migrations.sh "${BASE:-main}"
+        env:
+          BASE: ${{ github.base_ref }}

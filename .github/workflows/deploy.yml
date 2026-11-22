@@ -1,13 +1,26 @@
 name: Deploy (Cloudflare Workers)
 
-# A merge to main deploys production. A run from the Actions tab deploys dev or production, from main or from an older tag or commit (a
-# roll back). Lint and the unit tests run first. Needs the CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID repo secrets.
-# Actions minutes are often out, so this is not the only way: npm run deploy (dev) or npm run deploy:prod from a laptop does the same
-# steps (scripts/deploy.mjs, README).
+# One workflow deploys both environments (README, "Two environments"):
+# - A merge to main deploys dev (dev.dash.checkwork.ie). Production changes only through a release.
+# - release.yml calls this with environment production and the new tag.
+# - Run by hand from the Actions tab: dev from main or any commit, or production from a release tag (a rollback: pick an older tag).
+# preview.yml also calls it, to try a branch on dev. Lint and the unit tests run first. Needs the CLOUDFLARE_API_TOKEN and
+# CLOUDFLARE_ACCOUNT_ID repo secrets (README, "GitHub Actions"). If Actions is unavailable, npm run deploy / deploy:prod from a laptop
+# does the same steps (scripts/deploy.mjs).
 on:
   push:
     branches: [main]
     paths-ignore: ['**.md']
+  workflow_call:
+    inputs:
+      environment:
+        description: 'dev or production'
+        required: true
+        type: string
+      ref:
+        description: 'The tag, branch or commit to deploy'
+        required: false
+        type: string
   workflow_dispatch:
     inputs:
       environment:
@@ -17,12 +30,13 @@ on:
         type: choice
         options: [dev, production]
       ref:
-        description: 'A tag or commit to deploy (default: the branch it runs from)'
+        description: 'dev: a branch, tag or commit (default main). production: a release tag like v1.0.0 (required)'
         required: false
         type: string
 
+# One deploy to an environment at a time (preview.yml shares dev's group). A queued one waits; a running one is never cancelled.
 concurrency:
-  group: deploy-${{ inputs.environment || 'production' }}
+  group: deploy-${{ inputs.environment || 'dev' }}
   cancel-in-progress: false
 
 permissions:
@@ -30,26 +44,57 @@ permissions:
 
 jobs:
   deploy:
+    # Not from another branch picked in the Run workflow menu: it would run that branch's copy of this file with the Cloudflare secrets
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     env:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      # A push has no inputs: it is dev
+      TARGET: ${{ inputs.environment || 'dev' }}
+      REF: ${{ inputs.ref }}
       NEXT_TELEMETRY_DISABLED: 1
       WRANGLER_SEND_METRICS: false
+      # The Cloudflare token is set on the deploy step only, not here: npm install scripts, lint and the tests never see it
     steps:
+      - name: Check where and what
+        run: |
+          case "$TARGET" in
+            dev) ;;
+            production) printf '%s' "$REF" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$' || { echo "::error::Production deploys a release tag like v1.0.0, not '${REF:-nothing}'"; exit 1; } ;;
+            *) echo "::error::The environment is dev or production, not '$TARGET'"; exit 1 ;;
+          esac
       - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.ref }}
-          fetch-depth: 0 # deploy:prod checks the commit is on main
+          # Every commit and tag: scripts/deploy.mjs checks that a production commit is on main
+          fetch-depth: 0
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      # APP_ENV is not set: the tests fail on a production setting while the finance figures are placeholders (.env.example)
       - run: npm run lint
       - run: npm test
-      # The OpenNext build, the directory and dealer migrations (before the new code is live, so additive only), then the deploy.
-      # A push is production; a manual run is the environment it was given.
-      - name: Deploy ${{ (github.event_name == 'push' || inputs.environment == 'production') && 'production' || 'dev' }}
-        run: npm run ${{ (github.event_name == 'push' || inputs.environment == 'production') && 'deploy:prod' || 'deploy' }}
+      # The OpenNext build, the directory and dealer migrations (before the new code is live, so additive only), then the Worker.
+      # Production refuses a commit that is not on main, or a dirty tree (scripts/deploy.mjs); a release tag on main passes.
+      - name: Deploy ${{ inputs.environment || 'dev' }}
+        run: npm run ${{ inputs.environment == 'production' && 'deploy:prod' || 'deploy' }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      # Behind Access most addresses answer a visitor without a token with a redirect or a 404: what counts is that Cloudflare reaches the
+      # new Worker and it does not fail (a 5xx, or no answer at all). A first deploy of a domain waits for its certificate.
+      - name: Check the site answers
+        run: |
+          host=dev.dash.checkwork.ie
+          [ "$TARGET" = production ] && host=www.dash.checkwork.ie
+          code=000
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "https://$host/api/site/v1/stock" || true)
+            echo "https://$host: $code"
+            case "$code" in [1-4]??) exit 0 ;; esac
+            sleep 10
+          done
+          echo "::error::$host still answers $code after 5 minutes"
+          exit 1
