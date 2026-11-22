@@ -154,3 +154,12 @@ test("Settings makes a website key, shows it once, and revokes it", async ({ pag
   await page.getByRole("dialog").getByRole("button", { name: "Revoke" }).click();
   await expect(row).toContainText("Revoked");
 });
+
+test("a day's visitor counts sent with the website's key are accepted and replaced, and a name off the list is turned away", async ({ request }) => {
+  const day = new Date().toLocaleDateString("en-CA", { timeZone: "Europe/Dublin" });
+  const post = (data: object, key?: string) => request.post("/api/site/v1/counts", { headers: auth(key), data });
+  expect((await post({ day, counts: { "no-results": 4 } }, "cw_site_nope")).status()).toBe(401);
+  expect((await post({ day, counts: { "dash:leads": 4 } })).status()).toBe(400);
+  expect((await post({ day, counts: { "no-results": 4 } })).status()).toBe(204);
+  expect((await post({ day, counts: { "no-results": 6 } })).status()).toBe(204); // replaces, so 6 and not 10
+});
