@@ -1,5 +1,6 @@
 import { DAY } from "@/lib/time";
 import { rng } from "./seed-data";
+import { countChange } from "@/lib/reports/monthly";
 import type { Channel } from "@/lib/visit-rules";
 import type { ChannelCount } from "./visit-sources";
 
@@ -45,13 +46,18 @@ function simulateDays(count: number, endMs: number, seed: number): Day[] {
 
 const sum = (days: Day[], k: keyof Omit<Day, "date">) => days.reduce((s, d) => s + d[k], 0);
 export const change = (now: number, before: number) => (before ? ((now - before) / before) * 100 : 0);
-// A change on the period before, in words. A count moves by a share of itself (%). A rate is already a percentage, so it moves by points:
-// 1.3% to 1.9% is "Up 0.6 points", where "Up 46%" would read as a different thing.
+// A change on the period before, in words. A count moves by a share of itself (%), by countChange's rule (too few, or the count before on
+// a small base). A rate is already a percentage, so it moves by points: 1.3% to 1.9% is "Up 0.6 points", where "Up 46%" would read as a
+// different thing.
 export function changeText(now: number, before: number, rate = false): string {
   if (!rate && !before) return now ? "None the period before" : "None this period or the one before"; // a share of nothing is no figure
+  const c = rate ? undefined : countChange(now, before);
+  if (c?.kind === "few") return "Too few to compare";
+  if (c?.kind === "from") return `${c.up ? "Up" : "Down"} from ${c.before} the period before`;
   const r = (x: number) => Math.round(x * 10) / 10; // to the 0.1 the figures show, so the change matches them
   const d = rate ? r(now) - r(before) : change(now, before);
   const n = r(Math.abs(d));
+  if (n === 0) return "No change on the period before";
   return `${d >= 0 ? "Up" : "Down"} ${n}${rate ? (n === 1 ? " point" : " points") : "%"} on the period before`;
 }
 

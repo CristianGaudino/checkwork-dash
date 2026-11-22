@@ -14,19 +14,31 @@ export function AreaChart({ data, summary, format = fmtNum }: { data: Point[]; s
   const H = 180;
   const max = Math.max(1, ...data.map((d) => d.value));
   const x = (i: number) => (data.length > 1 ? (i / (data.length - 1)) * W : W / 2);
-  const y = (v: number) => H - 8 - (v / max) * (H - 24);
+  const y = (v: number) => H - 8 - (v / max) * (H - 40); // room above the highest point for its label
   const line = data.map((d, i) => `${i ? "L" : "M"}${x(i).toFixed(1)} ${y(d.value).toFixed(1)}`).join(" ");
   const area = data.length ? `${line} L${x(data.length - 1).toFixed(1)} ${H} L${x(0).toFixed(1)} ${H} Z` : "";
   const peak = data.reduce((m, d) => (d.value > m.value ? d : m), data[0] ?? { label: "", value: 0 });
+  // The highest point carries its value, so the line has a scale to read against. Kept inside the box at either end.
+  const at = data.length ? (x(data.indexOf(peak)) / W) * 100 : 50;
   return (
     <figure className="flex flex-col gap-2">
+      <div className="relative">
+      {data.length > 0 && (
+        <>
+          <span aria-hidden="true" className="absolute size-2 -translate-1/2 rounded-full bg-accent" style={{ left: `${at}%`, top: `${(y(peak.value) / H) * 100}%` }} />
+          <span aria-hidden="true" className={`absolute top-0 whitespace-nowrap text-meta font-semibold tabular-nums ${at < 15 ? "" : at > 85 ? "-translate-x-full" : "-translate-x-1/2"}`} style={{ left: `${at}%` }}>
+            {format(peak.value)}
+          </span>
+        </>
+      )}
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label={summary} className="h-44 w-full text-accent-text">
         {[0.25, 0.5, 0.75].map((f) => (
-          <line key={f} x1="0" x2={W} y1={H - 8 - f * (H - 24)} y2={H - 8 - f * (H - 24)} stroke="var(--color-hairline)" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+          <line key={f} x1="0" x2={W} y1={y(f * max)} y2={y(f * max)} stroke="var(--color-hairline)" strokeWidth="1" vectorEffect="non-scaling-stroke" />
         ))}
         <path d={area} fill="currentColor" opacity="0.12" />
         <path d={line} fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
       </svg>
+      </div>
       <figcaption className="flex flex-wrap justify-between gap-x-4 text-meta text-text-2">
         <span>{data[0]?.label}</span>
         <span className="order-last basis-full sm:order-none sm:basis-auto">

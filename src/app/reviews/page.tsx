@@ -4,7 +4,7 @@ import { AITextarea } from "@/components/admin/AIWriter";
 import { reviewsStore, type AdminReview } from "@/lib/admin/collections";
 import { fmtDate, plural } from "@/lib/admin/format";
 import { currentDealer } from "@/lib/tenancy/current";
-import { REVIEW_FILTERS, filterReviews, parseReviewFilter, ratingSummary } from "@/lib/admin/reviews";
+import { REVIEW_FILTERS, filterReviews, parseReviewFilter, ratingSummary, type ReviewFilter } from "@/lib/admin/reviews";
 import { replyAction } from "./actions";
 import { SubmitButton } from "@/components/admin/SubmitButton";
 
@@ -20,9 +20,9 @@ export const metadata = { title: "Reviews" };
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ filter?: string; notice?: string; page?: string; per?: string }> }) {
   const sp = await searchParams;
-  const filter = parseReviewFilter(sp.filter);
   const notice = sp.notice ? NOTICES[sp.notice] : undefined;
   const [all, { name }] = await Promise.all([reviewsStore.list(), currentDealer()]);
+  const filter = parseReviewFilter(sp.filter, all);
   const s = ratingSummary(all);
   // The ones waiting for a reply first, a low rating first among them, newest first within each: the work is at the top of every view.
   const rank = (r: AdminReview) => (r.reply ? 2 : r.rating <= 3 ? 0 : 1);
@@ -67,12 +67,12 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ f
         <>
           {waiting.length > 0 && (
             <Panel title="Needs a reply" count={sorted.filter((r) => !r.reply).length}>
-              <ReviewList rows={waiting} label="Needs a reply" />
+              <ReviewList rows={waiting} label="Needs a reply" filter={filter} />
             </Panel>
           )}
           {replied.length > 0 && (
             <Panel title="Replied" quiet>
-              <ReviewList rows={replied} label="Replied" />
+              <ReviewList rows={replied} label="Replied" filter={filter} />
             </Panel>
           )}
         </>
@@ -84,7 +84,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ f
 
 // Each review with its Reply in place: pressing it opens the box under the review, with Write with AI, and Post reply sends it to Google.
 // A review of 3 stars or fewer with no reply is marked: it is the one to answer first.
-function ReviewList({ rows, label }: { rows: AdminReview[]; label: string }) {
+function ReviewList({ rows, label, filter }: { rows: AdminReview[]; label: string; filter: ReviewFilter }) {
   return (
     <ul aria-label={label} className="-mx-5 flex flex-col divide-y divide-hairline">
       {rows.map((r) => (
@@ -105,6 +105,7 @@ function ReviewList({ rows, label }: { rows: AdminReview[]; label: string }) {
           <details className="group">
             <summary className={`${r.reply ? rowButton : rowButtonStrong} w-fit cursor-pointer list-none [&::-webkit-details-marker]:hidden`} aria-label={`${r.reply ? "Edit reply" : "Reply"} to ${r.author}`}>{r.reply ? "Edit reply" : "Reply"}</summary>
             <form action={replyAction.bind(null, r.id)} className="mt-2 flex max-w-measure flex-col gap-2">
+              <input type="hidden" name="filter" value={filter} />
               <AITextarea id={`reply-${r.id}`} name="reply" label={`Reply to ${r.author}`} rows={3} maxLength={500} defaultValue={r.reply ?? ""} task="reviewReply" request={{ task: "reviewReply", reviewId: r.id }} />
               <SubmitButton className={`${adminButton} self-start`}>{r.reply ? "Update reply" : "Post reply"}</SubmitButton>
             </form>

@@ -17,9 +17,9 @@ import { advice, bounds, compare, fmtWait, monthBefore, monthRange, summarise } 
 import { dealerProfile } from "@/lib/tenancy/current";
 import { carName } from "@/lib/stock/format";
 import { forSale } from "@/lib/stock/types";
-import { notFound } from "next/navigation";
 import { PrintButton } from "./PrintButton";
 import { VisitSources } from "@/components/admin/VisitSources";
+import { NotForRole } from "@/components/admin/NotForRole";
 
 export const metadata = { title: "Monthly report" };
 
@@ -27,7 +27,7 @@ const today = () => Date.now(); // lint: a page may not call Date.now directly
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ month?: string }> }) {
-  if (!(await can("reports"))) notFound();
+  if (!(await can("reports"))) return <NotForRole title="Monthly report" permission="reports" />;
   const now = today();
   const last = monthBefore(dublinDay(now).slice(0, 7));
   // Last month by default; any of the twelve up to it (a month that has not finished is not a report yet).
@@ -78,8 +78,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
       <PageHeader title="Monthly report" text={`${whole ? "" : `${me.name}, `}${monthLabel(month)}, compared with ${monthLabel(prevMonth)}.`} actions={
           // The months before and after, one tap each, as the Marketing calendar moves by week; twelve months back at most.
           <>
-            {earlier && <Link href={`/monthly-report?month=${earlier}`} className={`${adminButtonQuiet} no-print`}>Earlier</Link>}
-            {later && <Link href={`/monthly-report?month=${later}`} className={`${adminButtonQuiet} no-print`}>Later</Link>}
+            {earlier && <Link href={`/monthly-report?month=${earlier}`} className={`${adminButtonQuiet} no-print`}>Previous month</Link>}
+            {later && <Link href={`/monthly-report?month=${later}`} className={`${adminButtonQuiet} no-print`}>Next month</Link>}
             <PrintButton />
           </>
         } />

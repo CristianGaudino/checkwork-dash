@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pageOf, paginate, sortRows, type Column } from "./kit";
+import { figureSize, pageOf, paginate, sortRows, type Column } from "./kit";
 
 describe("paginate", () => {
   const rows = Array.from({ length: 120 }, (_, i) => i);
@@ -40,5 +40,14 @@ describe("sortRows", () => {
     expect(by({ sort: "photo" }).sort).toEqual({ key: "price", dir: "desc" });
     expect(by({ sort: "nope" }).rows.map((r) => r.price)).toEqual([3, 1, undefined]);
     expect(sortRows(rows, cols, {}, { key: "", dir: "asc" }).rows).toEqual(rows);
+  });
+});
+
+describe("a stat tile's figure size", () => {
+  it("keeps figures large, and makes a long word smaller so it never breaks inside", () => {
+    expect(figureSize("€117,565")).toBe("text-[min(2rem,20cqi)]");
+    expect(figureSize("WhatsApp")).toBe("text-[min(2rem,15cqi)]"); // at 20cqi it broke as "WhatsAp / p"
+    expect(figureSize("€5,864,950")).toBe("text-[min(2rem,15cqi)]");
+    expect(figureSize("Bookmarked")).toBe("text-[min(2rem,12cqi)]");
   });
 });

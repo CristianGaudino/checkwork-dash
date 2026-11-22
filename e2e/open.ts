@@ -29,6 +29,14 @@ export async function unfold(scope: Locator): Promise<Locator> {
 export const BASE = process.env.E2E_BASE_URL ?? `http://localhost:${process.env.PORT ?? 3000}`;
 export const as = (context: BrowserContext, role: string) => context.addCookies([{ name: ROLE_COOKIE, value: role, url: BASE }]);
 
+// A page this role cannot open answers with the page that says who it is for (src/components/admin/NotForRole.tsx), and holds none of
+// `secret`: text only the page itself would have.
+export async function notForRole(page: Page, path: string, secret: string) {
+  const html = await (await page.request.get(path)).text();
+  expect(html, path).toContain("Not for your role");
+  expect(html, path).not.toContain(secret);
+}
+
 // A number from text such as "€12,500" or "41 cars", and the prices on a page of stock as numbers.
 export const digits = (s: string | null) => Number((s ?? "").replace(/\D/g, ""));
 export const prices = (page: Page) => page.locator("article [data-price]").allTextContents().then((l) => l.map(digits));

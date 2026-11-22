@@ -182,8 +182,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
               <StatGrid>
                 <StatCard label="Leads this week" value={fmtNum(thisWeek)} hint={`${fmtNum(o.usualWeek)} in a usual week`} tone={thisWeek > o.usualWeek ? "good" : undefined} />
                 <StatCard href="/stock" label="Cars for sale" value={fmtNum(cars.filter(forSale).length)} hint={o.oldStock ? `${o.oldStock} for sale ${rules.oldStockDays} days or more` : undefined} tone={o.oldStock ? "warn" : undefined} />
-                {costs && <StatCard href="/margins" label="Expected margin" value={fmtEur(margin)} />}
-                {mods.has("reviews") && <StatCard href="/reviews" label="Review rating" value={o.reviewCount ? o.averageRating.toFixed(1) : "None"} hint={plural(o.reviewCount, "review")} />}
+                {costs && <StatCard href="/margins" label="Expected margin" value={fmtEur(margin)} className={mods.has("reviews") ? "" : "xl:col-span-full"} />}
+                {/* Of three tiles, the third takes the whole row in the two-column side panel, not alone beside a gap. */}
+                {mods.has("reviews") && <StatCard className={costs ? "" : "xl:col-span-full"} href="/reviews" label="Review rating" value={o.reviewCount ? o.averageRating.toFixed(1) : "None"} hint={plural(o.reviewCount, "review")} />}
               </StatGrid>
             </Panel>
             {/* The busiest channels by name and mark: quicker to read at a glance than Search or Social. Analytics has the groups. */}

@@ -12,7 +12,7 @@ export function DealerChooser({ choices, current }: { choices: Choice[]; current
             <input type="hidden" name="dealer" value={c.id} />
             <button type="submit" aria-current={c.id === current ? "true" : undefined} className={`${adminButtonQuiet} w-full justify-between`}>
               <span>{c.name}</span>
-              {c.id === current && <span className="text-meta font-normal text-text-2">Open now</span>}
+              {c.id === current && <span className="text-meta font-medium">You&apos;re here</span>}
             </button>
           </form>
         </li>

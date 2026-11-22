@@ -84,20 +84,25 @@ export function PanelLink({ href, children }: { href: string; children: React.Re
 
 // With `href` the whole tile is a link to the page behind the number. `tone` colours the hint only when it says something good or to act on.
 // A tile is a number: a chart belongs in its own panel (Analytics).
-export function StatCard({ label, value, hint, tone, href }: { label: string; value: string; hint?: string; tone?: "good" | "bad" | "warn"; href?: string }) {
+// A figure's size from its width. Letters are wider than figures: a word of six or more ("WhatsApp") takes the smaller size and one of
+// nine or more ("Bookmarked") smaller again, so a word fits whole on a phone and never breaks inside.
+export const figureSize = (value: string) =>
+  /\p{L}{9}/u.test(value) ? "text-[min(2rem,12cqi)]" : value.length > 8 || /\p{L}{6}/u.test(value) ? "text-[min(2rem,15cqi)]" : "text-[min(2rem,20cqi)]";
+
+export function StatCard({ label, value, hint, tone, href, className = "" }: { label: string; value: string; hint?: string; tone?: "good" | "bad" | "warn"; href?: string; className?: string }) {
   const body = (
     <>
       <p className="min-h-[2lh] text-meta text-text-2">{label}</p>
       {/* Sized from the tile's own width (a container query), so tiles side by side show their figures at the same size, and a
           half-width tile on a 360px phone still fits €117,565 on one line. A year's sales (€5,864,950) take a smaller share. Anything
           longer still wraps, never spills. */}
-      <p className={`font-display font-semibold leading-[1.1] tracking-[-0.02em] tabular-nums [overflow-wrap:anywhere] ${value.length > 8 ? "text-[min(2rem,15cqi)]" : "text-[min(2rem,20cqi)]"}`}>
+      <p className={`font-display font-semibold leading-[1.1] tracking-[-0.02em] tabular-nums [overflow-wrap:anywhere] ${figureSize(value)}`}>
         <Tween value={value} />
       </p>
       {hint && <p className={`text-meta ${tone === "good" ? "text-ok" : tone === "bad" ? "text-bad" : tone === "warn" ? "text-warn" : "text-text-2"}`}>{hint}</p>}
     </>
   );
-  const frame = `${card} @container flex min-w-0 flex-col gap-1 p-4`; // @container: the figure is sized from the tile
+  const frame = `${card} @container flex min-w-0 flex-col gap-1 p-4 ${className}`; // @container: the figure is sized from the tile
   return href ? (
     <Link href={href} className={`${frame} transition-colors hover:border-control ${press}`}>
       {body}
@@ -118,7 +123,8 @@ export function Meter({ value, max }: { value: number; max: number }) {
 }
 
 export function StatGrid({ children }: { children: React.ReactNode }) {
-  return <div className="grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fit,minmax(11rem,1fr))]">{children}</div>;
+  // Two to a row on a phone, so an odd last tile takes the whole row rather than sit alone beside a gap.
+  return <div className="grid grid-cols-2 gap-3 max-sm:[&>:last-child:nth-child(odd)]:col-span-2 sm:grid-cols-[repeat(auto-fit,minmax(11rem,1fr))]">{children}</div>;
 }
 
 const TONES = { neutral: "bg-hairline text-text", good: "bg-ok-soft text-ok", warn: "bg-warn-soft text-warn", bad: "bg-bad-soft text-bad", info: "bg-info-soft text-info" } as const;
@@ -181,9 +187,9 @@ export function DataTable<T>({ columns, rows, rowKey, empty, bare = false, linkR
   return (
     // Focusable, so a keyboard user can scroll it sideways on a phone.
     <div tabIndex={0} aria-label={label} className={`${frame} overflow-x-auto`}>
-      {/* 18rem at least, so a column is never squeezed to a word a line, and a two-column table (stock, leads, team) still fits a 320px
-          phone. A table whose columns need more scrolls inside its card. */}
-      <table className="w-full min-w-[18rem] border-collapse text-left text-body">
+      {/* 18rem at least, so a column is never squeezed to a word a line, but never wider than its card for that alone: a two-column
+          table (stock, leads, margins) fits a 320px phone. A table whose columns need more scrolls inside its card. */}
+      <table className="w-full min-w-[min(18rem,100%)] border-collapse text-left text-body">
         <thead>
           <tr className="text-meta text-text-2">
             {columns.map((c) => (

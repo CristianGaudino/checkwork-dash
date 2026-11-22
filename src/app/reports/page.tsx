@@ -1,5 +1,4 @@
 import { dealerProfile } from "@/lib/tenancy/current";
-import { notFound } from "next/navigation";
 import { AreaChart, BarList } from "@/components/admin/charts";
 import { ChevronDownIcon } from "@/components/stock/icons";
 import { MoreDetail } from "@/components/admin/MoreDetail";
@@ -11,15 +10,16 @@ import { fmtEur, fmtNum, plural } from "@/lib/admin/format";
 import { PERIODS, fullReport, monthLabel, personalReport, type Period } from "@/lib/admin/reports";
 import { adminCars } from "@/lib/admin/stock-admin";
 import { can, currentMember } from "@/lib/permissions";
+import { NotForRole } from "@/components/admin/NotForRole";
 
 export const metadata = { title: "Reports" };
 
 // Who sees what (owner's decision, 2026-11-11): owners, managers and finance (the margins permission) see the whole dealership's report,
-// profit included. A salesperson sees their own: counts only, no money, nobody else's. Anyone else, no page.
+// profit included. A salesperson sees their own: counts only, no money, nobody else's. Anyone else, a page saying who it is for.
 const now = () => Date.now();
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ period?: string }> }) {
-  if (!(await can("reports"))) notFound();
+  if (!(await can("reports"))) return <NotForRole title="Reports" permission="reports" />;
   const asked = Number((await searchParams).period);
   const period: Period = (PERIODS as readonly number[]).includes(asked) ? (asked as Period) : 12;
   const tabs = (
@@ -42,10 +42,10 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ p
       </p>
       <StatGrid>
         <StatCard label="Cars sold" value={fmtNum(r.totals.sold)} />
-        <StatCard label="Sales" value={fmtEur(r.totals.value)} />
+        {/* Returns are a line under Sales, not a tile of their own: a fifth tile sat alone on its row. */}
+        <StatCard label="Sales" value={fmtEur(r.totals.value)} hint={r.returns.count > 0 ? `Not counting ${plural(r.returns.count, "return")}, ${fmtEur(r.returns.refundEur)} refunded` : undefined} />
         <StatCard label="Profit" value={fmtEur(r.totals.profit)} hint={r.totals.costed < r.totals.sold ? `On ${r.totals.costed} of ${r.totals.sold} cars with their cost entered` : "Less cost, prep and warranty repairs, before VAT"} />
         <StatCard label="Days to sell" value={r.totals.avgDaysToSell === null ? "None" : fmtNum(r.totals.avgDaysToSell)} hint="On average, from listing to sale" />
-        {r.returns.count > 0 && <StatCard label="Returns" value={fmtNum(r.returns.count)} hint={`${fmtEur(r.returns.refundEur)} refunded, not counted in sales`} />}
       </StatGrid>
 
       <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
@@ -58,7 +58,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ p
           {/* The chart is the answer; the figures behind it are one tap away. */}
           <details className="group rounded-control border border-hairline px-3">
             <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between py-2.5 text-body font-medium [&::-webkit-details-marker]:hidden">
-              Each month
+              Show: each month
               <ChevronDownIcon aria-hidden="true" className="size-4 text-text-2 transition-transform group-open:rotate-180" />
             </summary>
             <div className="pb-3">
@@ -71,7 +71,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ p
                   { key: "month", header: "Month", cell: (m) => monthLabel(m.month), nowrap: true },
                   { key: "sold", header: "Cars sold", align: "right", hide: "sm", cell: (m) => fmtNum(m.sold) },
                   { key: "value", header: "Sales", align: "right", cell: (m) => fmtEur(m.value) },
-                  { key: "profit", header: "Profit", align: "right", cell: (m) => (m.costed ? fmtEur(m.profit) : <span className="text-text-2">-</span>) },
+                  { key: "profit", header: "Profit", align: "right", hide: "sm", cell: (m) => (m.costed ? fmtEur(m.profit) : <span className="text-text-2">-</span>) },
                 ]}
               />
             </div>
@@ -94,7 +94,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ p
             { key: "sold", header: "Sold", align: "right", cell: (p) => fmtNum(p.sold) },
             { key: "value", header: "Sales", align: "right", hide: "sm", cell: (p) => fmtEur(p.value) },
             { key: "profit", header: "Profit", align: "right", hide: "md", cell: (p) => (p.costed ? fmtEur(p.profit) : <span className="text-text-2">-</span>) },
-            { key: "won", header: "Leads won", align: "right", cell: (p) => `${p.won} of ${p.leads}` },
+            { key: "won", header: "Leads won", align: "right", hide: "sm", cell: (p) => `${p.won} of ${p.leads}` },
           ]}
         />
       </Panel>
@@ -140,8 +140,7 @@ async function Personal({ period, tabs }: { period: Period; tabs: React.ReactNod
           columns={[
             { key: "month", header: "Month", cell: (m) => monthLabel(m.month), nowrap: true },
             { key: "sold", header: "Cars sold", align: "right", cell: (m) => fmtNum(m.sold) },
-            { key: "leads", header: "Leads", align: "right", cell: (m) => fmtNum(m.leads) },
-            { key: "won", header: "Won", align: "right", cell: (m) => fmtNum(m.won) },
+            { key: "won", header: "Leads won", align: "right", cell: (m) => `${m.won} of ${m.leads}` },
           ]}
         />
       </Panel>

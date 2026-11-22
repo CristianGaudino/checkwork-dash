@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { ActButton } from "@/components/admin/ActButton";
 import { AlertForm, DetailsForm, LimitsForm } from "@/components/admin/BillingForms";
 import { Badge, DataTable, EmptyState, Facts, PageHeader, Panel, Segmented, adminButtonQuiet, rowButton } from "@/components/admin/kit";
@@ -16,6 +15,7 @@ import { billingSettings, monthCounts, monthUsage } from "@/lib/billing/usage";
 import { askModuleAction, removeAlertAction, saveAiModelAction } from "./actions";
 import { dublinDay } from "@/lib/admin/format";
 import { ChevronDownIcon } from "@/components/stock/icons";
+import { NotForRole } from "@/components/admin/NotForRole";
 
 export const metadata = { title: "Billing" };
 
@@ -34,7 +34,7 @@ type Usage = Awaited<ReturnType<typeof monthUsage>>;
 
 // Owners and managers only (the "billing" permission): without it the page is not there, whatever the menu showed.
 export default async function Page({ searchParams }: { searchParams: Promise<{ section?: string }> }) {
-  if (!(await can("billing"))) notFound();
+  if (!(await can("billing"))) return <NotForRole title="Billing" permission="billing" />;
   if (!SHOW_PRICING) return <WithoutPrices />;
   const sp = await searchParams;
   const section = SECTIONS.find(([k]) => k === sp.section)?.[0] ?? "plan";
