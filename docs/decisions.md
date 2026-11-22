@@ -41,10 +41,10 @@ A proposal, not decided. Prices a month before VAT. It keeps the bundle prices a
 Today one repo and site per dealer. Revisit at about 10 live dealers.
 
 ### Own sign-in
-Passkeys first, an emailed link as the fallback (#10). Design and security review before code: `docs/sign-in.md`, pending the owner's
-approval (below).
+Passkeys first, an emailed link as the fallback (#10). Design and security review before code: `docs/sign-in.md`, approved by the owner
+on 2026-11-22 (below).
 
-## Pending the owner's approval: our own sign-in (#10)
+## Approved by the owner, 2026-11-22: our own sign-in (#10)
 
 Proposed in `docs/sign-in.md`. None of it is built until the owner approves; its open questions are in section 11 there. Revised after a second security review.
 
