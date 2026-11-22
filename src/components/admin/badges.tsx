@@ -3,7 +3,7 @@ import type { Car } from "@/lib/stock/types";
 import { carStatus, type CarStatus } from "@/lib/admin/stock-admin-pure";
 import { CLAIM_STATUS_LABELS, DRIVE_STATUS_LABELS, ORDER_STATUS_LABELS, leadStatusLabel, type ClaimStatus, type DriveStatus, type LeadStatus, type LeadType, type OrderStatus } from "@/lib/admin/collections";
 
-const LEAD_TONE: Record<LeadStatus, Tone> = { new: "info", contacted: "neutral", appointment: "warn", won: "good", lost: "bad" };
+const LEAD_TONE: Record<LeadStatus, Tone> = { new: "info", contacted: "neutral", appointment: "warn", won: "good", lost: "bad", closed: "neutral" };
 const DRIVE_TONE: Record<DriveStatus, Tone> = { requested: "warn", confirmed: "info", completed: "good", "no-show": "bad", cancelled: "neutral" };
 
 // `type`: a warranty request reads its own words (leadStatusLabel).

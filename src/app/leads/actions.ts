@@ -5,7 +5,7 @@ import { z } from "zod";
 import { logActivity } from "@/lib/admin/activity";
 import { addDays, dublinDay, fmtDate, isIsoDay } from "@/lib/admin/format";
 import { isOpenLead } from "@/lib/admin/leads";
-import { LEAD_STATUSES, LOST_REASONS, getSettings, leadStatusLabel, leadStatusSteps, leadsStore } from "@/lib/admin/collections";
+import { CLOSE_REASONS, LEAD_STATUSES, LOST_REASONS, canClose, getSettings, leadStatusLabel, leadStatusSteps, leadsStore } from "@/lib/admin/collections";
 import { appendNote } from "@/lib/admin/notes";
 import { leadLine, notify } from "@/lib/admin/notifications";
 import { currentMember } from "@/lib/permissions";
@@ -17,9 +17,12 @@ const ref = (id: string) => ({ kind: "lead" as const, id });
 const status = z.enum(LEAD_STATUSES);
 // Why a lost lead was lost, from the fixed list, so the reports can count it.
 const reason = z.enum(LOST_REASONS);
+// Why an enquiry was closed (#55), from its own fixed list.
+const closeReason = z.enum(CLOSE_REASONS);
 
 // One tap, one change. Anything that is not a known status is dropped by the check.
 // `on` and `reason`: what Undo puts back with the status it had (a follow-up day, why it was lost), since moving on cleared them.
+// Closed is not a step: it comes from More, needs a reason from CLOSE_REASONS (sent as `reason`), and leaves the to-do lists and reports.
 export async function setStatusAction(id: string, data: FormData) {
   await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
   const parsed = status.safeParse(data.get("status"));
@@ -27,17 +30,20 @@ export async function setStatusAction(id: string, data: FormData) {
   if (!parsed.success || !lead) return;
   if (movedSince(data, lead.status)) return { error: STALE_STATUS }; // first: a second press from an old page is refused, not "done"
   if (lead.status === parsed.data) return;
-  if (parsed.data !== "new" && !leadStatusSteps(lead.type).includes(parsed.data)) return; // a warranty request is never won, even posted by hand
+  if (parsed.data !== "new" && !leadStatusSteps(lead.type).includes(parsed.data) && !(parsed.data === "closed" && canClose(lead))) return; // a warranty request is never won, even posted by hand
   const on = String(data.get("on") ?? "");
   const why = reason.safeParse(data.get("reason"));
-  // A won or lost lead needs no follow-up. The reason belongs to a lost lead only: moving it on clears it.
+  const closedWhy = closeReason.safeParse(data.get("reason"));
+  if (parsed.data === "closed" && !closedWhy.success) return;
+  const closedReason = parsed.data === "closed" ? closedWhy.data : undefined;
+  // A won, lost or closed lead needs no follow-up. Each reason belongs to its own status only: moving it on clears it.
   const followUpOn = isOpenLead({ status: parsed.data }) ? (lead.followUpOn ?? (isIsoDay(on) ? on : undefined)) : undefined;
   const lostReason = parsed.data === "lost" ? (lead.lostReason ?? (why.success ? why.data : undefined)) : undefined;
   // Written only if nobody moved it between the read and the write (the update runs again on a clash).
   let moved = false;
-  if (!(await leadsStore.update(id, (l) => ((moved = l.status === lead.status) ? { ...l, status: parsed.data, followUpOn, lostReason } : l)))) return;
+  if (!(await leadsStore.update(id, (l) => ((moved = l.status === lead.status) ? { ...l, status: parsed.data, followUpOn, lostReason, closedReason } : l)))) return;
   if (!moved) return { error: STALE_STATUS };
-  await logActivity("leads", `Moved the lead from ${leadStatusLabel(lead.type, lead.status)} to ${leadStatusLabel(lead.type, parsed.data)}`, ref(id));
+  await logActivity("leads", `Moved the lead from ${leadStatusLabel(lead.type, lead.status)} to ${leadStatusLabel(lead.type, parsed.data)}${closedReason ? `: ${closedReason}` : ""}`, ref(id));
   revalidatePath("/leads");
   revalidatePath(`/leads/${id}`);
   revalidatePath(`/aftersales/requests/${id}`);

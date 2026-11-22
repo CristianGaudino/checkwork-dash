@@ -99,3 +99,12 @@ describe("compare, median and advice", () => {
     expect(advice(base, 120)).toMatch(/^Nothing needs attention/);
   });
 });
+
+describe("a closed enquiry (#55)", () => {
+  it("is no lead in the month: not counted, and never a lead left without a reply", () => {
+    const now = Date.parse("2026-04-10T12:00:00Z");
+    const s = summarise({ ...empty, leads: [lead("2026-03-02T10:00:00Z", { status: "closed", closedReason: "Spam" }), lead("2026-03-03T10:00:00Z")] }, "2026-03-01", "2026-03-31", now, DEMO_PROFILE);
+    expect(s.leads.total).toBe(1);
+    expect(s.replies.none).toBe(1);
+  });
+});

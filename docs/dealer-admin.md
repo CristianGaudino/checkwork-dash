@@ -197,13 +197,18 @@ with no D1). The actor is the signed-in person (`currentMember`), or a named one
 - **More on a sale:** the warranty (12 months included, or 24 or 36 with extended cover), a trade-in (its reg and allowance; Stock then
   offers to add it, starting the car form from the reg), and the lead it came from (one on that car, marked won).
 - **A lost lead** asks why, from a fixed list, and Reports shows "Why leads were lost".
+- **Close a lead** (#55): an enquiry that needs no more work and was no sale (No reply needed, Spam, Duplicate, Wrong number) is closed
+  from More, on the lead and on each To answer now row, with Undo. Status `closed` with `closedReason`: not open, so it leaves every
+  to-do and follow-up; left out of every lead figure in Reports and the monthly report (`counted`), never a lost or won sale. It keeps
+  its own status tab on Leads, and the lead says why and has Reopen (back to New).
 - **Test drives** still to happen can move to another time, by the same rules as a new booking.
 - **A follow-up** (`followUpOn` on a lead): Tomorrow, In 3 days, Next week or a day, on the lead. Cleared when the lead is won or lost.
   Overview counts the ones due (today and overdue); the leads list filters by them. The morning email (Settings, Notifications, off by
   default) sends each salesperson theirs, and the unassigned ones to owners and managers, at 07:00 UTC (`/api/follow-ups/digest`).
 - **What needs doing is one count** (#38). The leads waiting on you come from one rule, `leadsToAnswer` (`src/lib/admin/follow-ups.ts`):
   each lead once, as a follow-up due, else as a new lead. The Overview's headline, its To do and its Reply to leads button, Leads' To
-  answer now and a salesperson's report all count from it, so they agree. To do shows its top 8 rows, then See all. Only mine (To do,
+  answer now and a salesperson's report all count from it, so they agree. The Leads table pins the ones it marks red (`answerNow`: late,
+  urgent, or a follow-up overdue) to its top, by the same rule. To do shows its top 8 rows, then See all. Only mine (To do,
   and Leads' To answer now, where Reply to leads takes it) keeps the leads and test drives given to you or to nobody yet, so a new
   website lead never drops out of sight; follow-ups only your own, as in your report (`forPerson`). Stock, reviews and the like are
   nobody's and stay. It is on by default for Sales on the Overview. The bell counts something else on purpose: notices not yet read, of what came in, not the work still to do.

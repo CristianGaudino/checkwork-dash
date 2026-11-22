@@ -1,8 +1,8 @@
 import { LEAD_SOURCES, LEAD_STATUSES, LEAD_TYPES, type Claim, type Lead, type LeadStatus, type LeadType } from "./collections";
 import { TOPIC_IDS, type TopicId } from "@/lib/leads/contact-topics";
-import { followUpDue, leadFlag, pastReplyTarget } from "./follow-ups";
+import { answerNow, followUpDue, pastReplyTarget } from "./follow-ups";
 import { intlDigits } from "@/lib/phone";
-export { followUpDue, forPerson, isHotLead, isOpenLead, leadFlag, leadsToAnswer, type LeadTask } from "./follow-ups";
+export { answerNow, followUpDue, forPerson, isHotLead, isOpenLead, leadFlag, leadsToAnswer, type LeadTask } from "./follow-ups";
 
 // A warranty message from the website is aftersales work, not a sale: it is listed in Aftersales as a request, and left out of Leads, its
 // counts, the overview and the reports. A person's own page and their data requests still show everything.
@@ -57,9 +57,9 @@ export function countByStatus(leads: Lead[]): Record<LeadStatus, number> {
   return out;
 }
 
-// Late or urgent (leadFlag) first, the rest keep their order.
-export function urgentFirst(leads: Lead[], slaHours: number, now = Date.now()): Lead[] {
-  const pinned = (l: Lead) => leadFlag(l, slaHours, now) !== undefined;
+// The ones To answer now shows red (answerNow: late, urgent or a follow-up overdue) first, the rest keep their order.
+export function urgentFirst(leads: Lead[], now: number, today: string, slaHours: number): Lead[] {
+  const pinned = (l: Lead) => answerNow(l, now, today, slaHours);
   return [...leads.filter(pinned), ...leads.filter((l) => !pinned(l))];
 }
 

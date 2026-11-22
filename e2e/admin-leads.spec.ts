@@ -61,6 +61,35 @@ test("the list opens with what to answer now, and a lead moves on a step from it
   await expect.poll(async () => (await lead.reload(), (await status().textContent())?.trim())).toBe(before);
 });
 
+test("a lead is closed from To answer now, leaves the to-do lists, is no lost sale, and Undo brings it back (#55)", async ({ page, context }) => {
+  await page.setViewportSize({ width: 1263, height: 900 });
+  await page.goto("/leads");
+  const todo = page.getByRole("region", { name: /^To answer now/ });
+  // The last row shown, as the other tests work the first.
+  const href = (await todo.getByRole("listitem").last().locator('a[href^="/leads/lead-"]').first().getAttribute("href"))!;
+  const row = todo.getByRole("listitem").filter({ has: page.locator(`a[href="${href}"]`) });
+  // The Overview's count of leads to answer (its Reply to leads button) and Reports, in a second tab, so the toast's Undo stays on the
+  // first. Other specs move leads meanwhile, so the count is only checked to drop.
+  const other = await context.newPage();
+  const toAnswer = async () => (await other.goto("/?mine=0"), Number(/(\d+) leads? to answer/.exec((await other.getByRole("navigation", { name: "Quick actions" }).getByRole("link", { name: /^Reply to leads/ }).textContent()) ?? "")?.[1] ?? 0));
+  const before = await toAnswer();
+
+  await row.getByRole("button", { name: /^More for / }).click();
+  await row.getByRole("button", { name: /^Close: Spam/ }).click();
+  await expect(page.getByTestId("toast")).toContainText("Closed, spam");
+  await expect(row).toHaveCount(0);
+  await expect.poll(toAnswer).toBeLessThan(before);
+  // The lead says why, and Reports' lost reasons never count it.
+  await other.goto(href);
+  await expect(other.getByText("Closed: Spam. Not counted as a lost sale.")).toBeVisible();
+  await other.goto("/reports");
+  await other.getByText("More detail").click();
+  await expect(other.getByRole("region", { name: "Why leads were lost" })).not.toContainText("Spam");
+
+  await page.getByTestId("toast").getByRole("button", { name: "Undo" }).click();
+  await expect.poll(async () => (await page.reload(), row.count())).toBe(1);
+});
+
 test("Book a test drive on a lead fills in their name and number", async ({ page }) => {
   await page.goto("/leads/lead-4000");
   await page.getByRole("link", { name: "Book a test drive" }).click();

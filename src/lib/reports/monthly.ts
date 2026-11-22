@@ -5,6 +5,7 @@ import type { DealerProfile, Hours } from "@/lib/tenancy/profile";
 import { forSale, isReduced, isSold, type Car } from "@/lib/stock/types";
 import { DAY } from "@/lib/time";
 import { isOldStock } from "@/lib/admin/overview";
+import { counted } from "@/lib/admin/reports";
 
 // The dealer's figures for a range of Irish days, worked out from the records. One module for the monthly report, its email and the owner
 // API (#174, #175), so the three never disagree. Pure, so every figure is tested. Counts only: nothing here holds a name, phone or email.
@@ -48,7 +49,7 @@ export type Summary = {
 // `dealer`: the dealer's opening hours (in or out of hours) and rules (old stock), from their profile.
 export function summarise(data: ReportData, from: string, to: string, now: number, dealer: Pick<DealerProfile, "hours" | "rules">, opts: { money?: boolean } = {}): Summary {
   const [a, b] = bounds(from, to);
-  const leads = data.leads.filter((l) => l.createdAt >= a && l.createdAt < b);
+  const leads = data.leads.filter((l) => counted(l) && l.createdAt >= a && l.createdAt < b); // a closed enquiry is no lead to answer or count
   const open = leads.map((l) => ({ l, ...openingAt(l.createdAt, dealer.hours) }));
   const byWeekday = [0, 0, 0, 0, 0, 0, 0];
   for (const x of open) byWeekday[x.weekday]++;

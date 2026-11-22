@@ -2,7 +2,7 @@ import { sourceText } from "@/lib/visit-rules";
 import Link from "next/link";
 import { LeadStatusBadge } from "@/components/admin/badges";
 import { Avatar, Badge, DataTable, EmptyState, PageHeader, Panel, SummaryTabs, TableFooter, TableToolbar, Task, TaskList, choicePill, pageOf, sortRows, type Column, type FilterGroup } from "@/components/admin/kit";
-import { NextStatusButton, ReachButton } from "@/components/admin/LeadActions";
+import { CloseLeadMenu, NextStatusButton, ReachButton } from "@/components/admin/LeadActions";
 import { AlertIcon, CalendarIcon, CheckIcon, InboxIcon } from "@/components/stock/icons";
 import { can, currentMember } from "@/lib/permissions";
 import { LEAD_SOURCES, LEAD_STATUSES, LEAD_STATUS_LABELS, LEAD_TYPE_LABELS, getSettings, leadsStore, type Lead } from "@/lib/admin/collections";
@@ -31,7 +31,7 @@ function KindSource({ l, className = "" }: { l: Lead; className?: string }) {
 }
 
 // What each status means, in a few words under it.
-const STATUS_HINTS = { new: "Not answered yet", contacted: "Answered", appointment: "Coming in", won: "Bought", lost: "Did not buy" } as const;
+const STATUS_HINTS = { new: "Not answered yet", contacted: "Answered", appointment: "Coming in", won: "Bought", lost: "Did not buy", closed: "No sale, nothing to do" } as const;
 
 type Params = { mine?: string; status?: string; type?: string; topic?: string; q?: string; due?: string; late?: string; need?: string; with?: string; source?: string; sort?: string; dir?: string; page?: string; per?: string };
 
@@ -96,7 +96,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
         <span className="flex flex-col items-start gap-1">
           <span className="inline-flex flex-wrap items-center gap-1.5">
             <LeadStatusBadge status={l.status} type={l.type} />
-            {/* One badge for a lead that cannot wait (leadFlag). These sit at the top of the list: urgentFirst pins them. */}
+            {/* One badge for a lead that cannot wait (leadFlag). These and overdue follow-ups sit at the top of the list: urgentFirst pins them. */}
             {flag === "late" ? <Badge tone="bad" strong>Late</Badge> : flag === "urgent" && <Badge tone="warn">Urgent</Badge>}
           </span>
           {/* The follow-up, when there is one, under the status: one place to look for what to do next. Overdue is red, today amber. */}
@@ -105,6 +105,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
               Follow up {l.followUpOn === today ? "today" : l.followUpOn < today ? "overdue" : fmtDate(`${l.followUpOn}T12:00:00Z`)}
             </span>
           )}
+          {l.status === "closed" && l.closedReason && <span className="text-meta text-text-2">{l.closedReason}</span>}
           {/* On a phone the Received column is hidden; when it came in sits here, under its status. */}
           <span className={`text-meta sm:hidden ${l.status === "new" ? "font-medium text-text" : "text-text-2"}`}>{fmtAgo(l.createdAt)}</span>
         </span>
@@ -118,8 +119,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
     { key: "act", header: "Next step", quietHeader: true, hide: "lg", nowrap: true, cell: (l) => <span className="relative z-10 grid grid-cols-[7.5rem_12.5rem] gap-2"><span>{isOpenLead(l) && <ReachButton lead={l} />}</span><span><NextStatusButton lead={l} /></span></span> },
   ];
   const ordered = sortRows(filterLeads(all, f, today, leadSlaHours, at), columns, sp, { key: "when", dir: "desc" });
-  // Unless a column was chosen, the urgent new ones come first.
-  const sorted = sp.sort ? ordered.rows : urgentFirst(ordered.rows, leadSlaHours, at);
+  // Unless a column was chosen, the ones To answer now shows red come first, by its rule (answerNow).
+  const sorted = sp.sort ? ordered.rows : urgentFirst(ordered.rows, at, today, leadSlaHours);
   const sort = ordered.sort;
   const paged = pageOf(sorted, sp);
   const rows = paged.rows;
@@ -202,6 +203,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
                       <span className="contents max-sm:hidden">
                         <NextStatusButton lead={l} />
                       </span>
+                      <CloseLeadMenu lead={l} />
                     </>
                   }
                 />

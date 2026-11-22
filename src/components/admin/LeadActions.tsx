@@ -1,10 +1,11 @@
 import { ChoiceAct } from "@/components/admin/ActButton";
 import { rowButton, rowButtonStrong } from "@/components/admin/kit";
+import { RowMenu } from "@/components/admin/RowMenu";
 import { CalendarIcon, CheckIcon, MailIcon, PhoneIcon, WhatsAppIcon } from "@/components/stock/icons";
 import { NEW_TAB } from "@/components/ui";
-import { leadStatusLabel, type Lead, type LeadStatus } from "@/lib/admin/collections";
+import { CLOSE_REASONS, canClose, leadStatusLabel, type Lead, type LeadStatus } from "@/lib/admin/collections";
 import { telHref, waHref } from "@/lib/phone";
-import { replyVia } from "@/lib/admin/leads";
+import { isOpenLead, replyVia } from "@/lib/admin/leads";
 import { setStatusAction } from "@/app/leads/actions";
 
 // A call to them, the row's strong action (tonal), named for a screen reader ("Call Mary Byrne"). Nothing when there is no number to call.
@@ -52,5 +53,20 @@ export function NextStatusButton({ lead }: { lead: Pick<Lead, "id" | "name" | "s
       <Icon className="size-4" />
       Mark {label.toLowerCase()}
     </ChoiceAct>
+  );
+}
+
+// Close an enquiry that needs no more work (spam, a duplicate) without calling it a lost sale (#55): a quiet choice under More, never a
+// step, with Undo putting back its status and follow-up day. Only while it is open, and never on a warranty request.
+export function CloseLeadMenu({ lead }: { lead: Pick<Lead, "id" | "name" | "status" | "type" | "followUpOn"> }) {
+  if (!isOpenLead(lead) || !canClose(lead)) return null;
+  return (
+    <RowMenu label={`More for ${lead.name}`}>
+      {CLOSE_REASONS.map((r) => (
+        <ChoiceAct key={r} action={setStatusAction.bind(null, lead.id)} set={{ status: "closed", reason: r, from: lead.status }} back={{ status: lead.status, from: "closed", ...(lead.followUpOn && { on: lead.followUpOn }) }} active={false} done={`${lead.name}: Closed, ${r.toLowerCase()}`} label={`Close: ${r}, ${lead.name}`} className={rowButton}>
+          Close: {r}
+        </ChoiceAct>
+      ))}
+    </RowMenu>
   );
 }

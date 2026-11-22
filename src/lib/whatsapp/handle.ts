@@ -2,6 +2,7 @@ import "server-only";
 import { logActivity } from "@/lib/admin/activity";
 import { drivesStore, leadsStore, reservationsStore, reviewsStore, type Lead, type LeadStatus } from "@/lib/admin/collections";
 import { dublinDay, fmtDateTime, fmtEur } from "@/lib/admin/format";
+import { isOpenLead } from "@/lib/admin/follow-ups";
 import { adminCar, adminCars, updateCar } from "@/lib/admin/stock-admin";
 import { droppedPrice } from "@/lib/admin/stock-admin-pure";
 import { askedCar } from "@/lib/leads/journey";
@@ -40,8 +41,8 @@ const ACTS: Partial<Record<ButtonId | "confirm-test-drive", Act>> = {
 const LINK_FIRST = "Link your number below to act from here.";
 const MODULE_OFF = "That part of your plan is off, so I did nothing.";
 
-const RANK: Record<LeadStatus, number> = { new: 0, contacted: 1, appointment: 2, won: 3, lost: 3 };
-// A move only goes forward, and never reopens a lead that is won or lost.
+const RANK: Record<LeadStatus, number> = { new: 0, contacted: 1, appointment: 2, won: 3, lost: 3, closed: 3 };
+// A move only goes forward, and never reopens a lead that is won, lost or closed.
 const moved = (from: LeadStatus, to?: LeadStatus): LeadStatus => (to && RANK[from] < 3 && (to === "lost" || RANK[to] > RANK[from]) ? to : from);
 
 async function say(to: string, m: Partial<Msg> & { text: string }, at = Date.now()) {
@@ -92,7 +93,7 @@ export async function tap(me: string, msgId: string, button: ButtonId): Promise<
   const lead = msg.leadId ? await leadsStore.get(msg.leadId) : undefined;
   const first = lead ? firstName(lead.name) : "";
 
-  const closed = lead && (lead.status === "won" || lead.status === "lost");
+  const closed = lead && !isOpenLead(lead);
   const all = await copies(msg);
   // These only open a link or ask about a review, so they work on any copy.
   if (button === "review") return void (await say(me, { ref: msg.ref, text: "Type your reply and I will post it on Google.", expects: "review-reply" }));
@@ -200,7 +201,7 @@ export async function typed(me: string, raw: string): Promise<void> {
     const eur = parsePrice(text);
     if (eur === null) return void (await say(me, { text: "I could not read that as a price. Type an amount in euro, like 8,500." }));
     if (!lead) return void (await say(me, { text: "I can't find that request any more." }));
-    if (lead.status === "won" || lead.status === "lost") return void (await say(me, { text: "That lead is closed." }));
+    if (!isOpenLead(lead)) return void (await say(me, { text: "That lead is closed." }));
     if (!reach(lead)) return void (await say(me, { leadId: lead.id, href: `/leads/${lead.id}`, text: callThem(lead) }));
     const by = await toBuyer(lead, me, `Hi ${firstName(lead.name)}, thank you for sending us your car. We can offer you ${fmtEur(eur)} for it, subject to seeing it. Reply here and we will book a time for you to bring it in. ${(await currentDealer()).name}`, "That sounds good. Could I bring it in on Saturday morning?");
     if (!by) return void (await say(me, { leadId: lead.id, href: `/leads/${lead.id}`, text: callThem(lead) }));
@@ -212,7 +213,7 @@ export async function typed(me: string, raw: string): Promise<void> {
   }
   if (q.expects === "time") {
     if (!lead) return void (await say(me, { text: "I can't find that request any more." }));
-    if (lead.status === "won" || lead.status === "lost") return void (await say(me, { text: "That lead is closed." }));
+    if (!isOpenLead(lead)) return void (await say(me, { text: "That lead is closed." }));
     if (!reach(lead)) return void (await say(me, { leadId: lead.id, href: `/leads/${lead.id}`, text: callThem(lead) }));
     const by = await toBuyer(lead, me, `Hi ${firstName(lead.name)}, could we do ${text} instead? Let us know if that suits.`);
     if (!by) return void (await say(me, { leadId: lead.id, href: `/leads/${lead.id}`, text: callThem(lead) }));
