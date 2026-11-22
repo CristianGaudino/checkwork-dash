@@ -1,15 +1,16 @@
 import Link from "next/link";
 import { card } from "@/components/ui";
-import { CarIcon, ChevronDownIcon } from "@/components/stock/icons";
+import { CarIcon } from "@/components/stock/icons";
 import { IfModule } from "@/components/IfModule";
 import { AIBrief } from "./AIWriter";
 import { CarThumb } from "./CarThumb";
+import { VisitFold } from "./VisitFold";
 import { minutesText, readVisit, type Journey } from "@/lib/leads/journey";
 import { isSold, type Car } from "@/lib/stock/types";
 import { CHANNEL_LABELS } from "@/lib/visit-rules";
 
 // "This visit" on a lead (#34): what they did on the dealer's website before they got in touch, when they chose to send it. Folded on a
-// phone under one line that says the most (how long, how many cars, from where), open from 1024px (`open-lg`, globals.css). Only what is
+// phone under one line that says the most (how long, how many cars, from where), open from 1024px (VisitFold). Only what is
 // there: a part with nothing in it is left out. Prepare me at the foot, for the AI brief.
 export function VisitPanel({ lead, stock }: { lead: { id: string; journey: Journey; channel?: string; carSlug?: string; carTitle?: string }; stock: Car[] }) {
   const j = lead.journey;
@@ -18,15 +19,8 @@ export function VisitPanel({ lead, stock }: { lead: { id: string; journey: Journ
   const label = "text-meta text-text-2";
 
   return (
-    <details className={`${card} open-lg group p-5`}>
-      <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 lg:pointer-events-none [&::-webkit-details-marker]:hidden">
-        <span className="flex min-w-0 flex-col gap-0.5">
-          <h2 className="text-section font-semibold">This visit</h2>
-          <span className={label}>{line}</span>
-        </span>
-        <ChevronDownIcon aria-hidden="true" className="size-5 shrink-0 text-text-2 transition-transform group-open:rotate-180 lg:hidden" />
-      </summary>
-      <div className="mt-4 flex flex-col gap-5">
+    <section aria-label="This visit" className={`${card} p-5`}>
+      <VisitFold line={line}>
         {pattern && <p className="text-body font-medium">{pattern}</p>}
         {cars.length > 0 && (
           <section aria-label="Cars they opened" className="flex flex-col gap-2">
@@ -48,7 +42,7 @@ export function VisitPanel({ lead, stock }: { lead: { id: string; journey: Journ
                     <span className="flex flex-wrap items-center gap-x-2 text-meta text-text-2">
                       {v.asked && <span className="font-medium text-accent-text">Asked about</span>}
                       <span>{v.views === 1 ? "Opened once" : `Opened ${v.views} times`}</span>
-                      {v.car && isSold(v.car) && <span>Sold</span>}
+                      {v.car && (isSold(v.car) ? <span>Sold</span> : v.car.reserved && <span>Reserved</span>)}
                     </span>
                   </div>
                 </li>
@@ -80,7 +74,7 @@ export function VisitPanel({ lead, stock }: { lead: { id: string; journey: Journ
             <AIBrief leadId={lead.id} />
           </div>
         </IfModule>
-      </div>
-    </details>
+      </VisitFold>
+    </section>
   );
 }

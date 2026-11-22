@@ -30,10 +30,13 @@ test("a lead sent with its visit shows This visit, folded on a phone, and it fit
   const { id, car, opened } = await sendWithVisit(request, true);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`/leads/${id}`);
-  const fold = page.locator("details").filter({ has: page.getByRole("heading", { name: "This visit" }) });
+  const fold = page.getByRole("region", { name: "This visit" });
   await expect(fold).toContainText(`14 minutes · ${opened} cars · from Google`);
   await expect(fold.getByText("Cars they opened")).toBeHidden();
-  await fold.getByRole("heading", { name: "This visit" }).click();
+  const toggle = fold.getByRole("button", { name: "This visit" });
+  await expect(toggle).toHaveAttribute("aria-expanded", "false");
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-expanded", "true");
   const cars = fold.getByRole("region", { name: "Cars they opened" });
   await expect(cars.getByRole("listitem").first()).toContainText(`${car.year} ${car.make} ${car.model}`);
   await expect(cars.getByRole("listitem").first()).toContainText("Asked about");
@@ -52,8 +55,9 @@ test("Prepare me writes a brief on the demo, open on a desk", async ({ page, req
   const { id, car } = await sendWithVisit(request, true);
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto(`/leads/${id}`);
-  const fold = page.locator("details").filter({ has: page.getByRole("heading", { name: "This visit" }) });
+  const fold = page.getByRole("region", { name: "This visit" });
   await expect(fold.getByText("Cars they opened")).toBeVisible(); // open without a tap
+  await expect(fold.getByRole("button", { name: "This visit" })).toBeHidden(); // and nothing to fold it with
   await fold.getByRole("button", { name: "Prepare me" }).click();
   const brief = fold.getByLabel("Brief");
   await expect(brief).toContainText(`asked about the ${car.year} ${car.make} ${car.model}`);
