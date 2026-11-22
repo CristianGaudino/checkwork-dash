@@ -45,6 +45,16 @@ describe("simulation follows the dealer, never the deploy", () => {
     vi.stubEnv("GOOGLE_PLACES_API_KEY", "");
     expect(await modeOf("reviews")).toBe("off");
   });
+  it("a demo dealer's AI writing is real Claude when the key is set, the mock when not; the other services stay simulated", async () => {
+    const { modeOf } = await import("./integrations");
+    vi.stubEnv("ANTHROPIC_API_KEY", "");
+    expect(await modeOf("ai")).toBe("simulated");
+    vi.stubEnv("ANTHROPIC_API_KEY", "sk-test");
+    expect(await modeOf("ai")).toBe("live");
+    for (const k of [...META, "WHATSAPP_PHONE_NUMBER_ID", "WHATSAPP_ACCESS_TOKEN", "WHATSAPP_APP_SECRET"]) vi.stubEnv(k, "x");
+    expect(await modeOf("social")).toBe("simulated");
+    expect(await modeOf("whatsapp")).toBe("simulated");
+  });
   it("a real dealer never simulates: off without keys, live with them", async () => {
     const { modeOf, simulating } = await import("./integrations");
     const { runAsDealer } = await import("@/lib/tenancy/current");

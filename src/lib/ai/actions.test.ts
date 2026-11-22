@@ -11,7 +11,7 @@ const { adminCars } = await import("@/lib/admin/stock-admin");
 const { forSale } = await import("@/lib/stock/types");
 const { reviewsStore } = await import("@/lib/admin/collections");
 
-const count = async (kind: string) => (await monthCounts()).find((c) => c.service === "ai" && c.kind === kind)?.count ?? 0;
+const count = async (kind: string) => (await monthCounts()).filter((c) => c.service === "ai" && c.kind === kind).reduce((n, c) => n + c.count, 0); // the demo's seeded line and its kept "real-" one
 
 describe("writeWithAI behind the dashboard", () => {
   afterEach(async () => {
