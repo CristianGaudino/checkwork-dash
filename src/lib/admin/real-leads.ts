@@ -41,6 +41,10 @@ async function customerId(row: LeadRow): Promise<string> {
 
 
 export type Mirror = { lead?: Lead; drive?: TestDrive; alert?: StockAlert };
+// A test drive booking or a warranty request is never filed as clear spam on arrival, only as possible spam: a real booking always gets
+// its drive, and a warranty request (listed in Aftersales) is never hidden where nobody looks (#56).
+export const arrivalSpam = (row: Pick<LeadRow, "type" | "sourcePath" | "details">, v: SpamVerdict): SpamVerdict =>
+  v === "spam" && (row.type === "test_drive" || row.sourcePath.startsWith("/warranty") || row.details.topic === "bought") ? "maybe" : v;
 // emailed is false when the email to the dealer failed: the lead says so, as its first note, so the team replies from here.
 // `photos`: how many photos came with it on the dealer's website (the site API sends the count only; the photos stay with the website).
 // `journey`: the visit note the website sent with it (src/lib/leads/journey.ts), kept on the lead so it goes with it (purge, erasure, export).
@@ -55,12 +59,13 @@ export function mirrorOf(row: LeadRow, emailed = true, service = true, photos = 
     return { alert: { id, email: row.email ?? "", kind, criteria: row.carTitle ?? "Any new arrival", active: true, createdAt: at } };
   }
   const drive = row.type === "test_drive" && row.carSlug && row.carTitle ? { id, name: row.name, email: row.email ?? "", phone: row.phone ?? "", carSlug: row.carSlug, carTitle: row.carTitle, startsAt: dublinMs(String(row.details.driveDate), String(row.details.driveTime)), status: "requested" as const, notes: row.message ?? "", createdAt: at } : undefined;
+  const verdict = arrivalSpam(row, spam);
   const lead: Lead = {
     id,
     type: row.type === "trade_in" && row.details.intent === "sell" ? "sell" : row.type === "general" ? pageType(row.sourcePath, row.details.topic, service) : LEAD_TYPE[row.type],
-    status: spam === "spam" ? "spam" : "new",
-    ...(spam === "spam" && { statusBefore: "new" as const }),
-    ...(spam === "maybe" && { maybeSpam: true as const }),
+    status: verdict === "spam" ? "spam" : "new",
+    ...(verdict === "spam" && { statusBefore: "new" as const }),
+    ...(verdict === "maybe" && { maybeSpam: true as const }),
     name: row.name,
     email: row.email ?? "",
     phone: row.phone ?? "",

@@ -53,9 +53,14 @@ test("the spam check: clear spam goes to the Spam tab only; a possible one is fl
   await expect(page.getByText("No leads match")).toBeVisible();
   await page.goto(`/leads?status=spam&q=${encodeURIComponent(spam)}`);
   await expect(page.getByRole("row").filter({ hasText: spam })).toHaveCount(1);
+  // The All tab counts what its list shows: no spam.
+  await page.goto("/leads");
+  const allTab = await page.getByRole("navigation", { name: "Lead status" }).getByRole("link").first().locator("span").nth(1).textContent();
+  const listed = (await page.getByText(/^Showing 1 to /).textContent())!.match(/of ([\d,]+)$/)![1];
+  expect(allTab).toBe(listed);
 
   const maybe = who("Maybe spam");
-  expect((await send(request, lead({ name: maybe, message: "Photos of my car: https://imgur.com/a/x1y2z3" }))).status()).toBe(201);
+  expect((await send(request, lead({ name: maybe, message: "Photos of my car: https://myphotos.example.org/x1y2z3" }))).status()).toBe(201);
   await page.goto(`/leads?q=${encodeURIComponent(maybe)}`);
   const row = page.getByRole("row").filter({ hasText: maybe });
   await expect(row).toContainText("Possible spam");

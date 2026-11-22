@@ -37,12 +37,15 @@ export async function setStatusAction(id: string, data: FormData) {
   const closedWhy = closeReason.safeParse(data.get("reason"));
   if (parsed.data === "closed" && !closedWhy.success) return;
   const closedReason = parsed.data === "closed" ? closedWhy.data : undefined;
+  // Undo of a step on a closed lead sends where Reopen went (`before`), so it keeps going there.
+  const sentBefore = status.safeParse(data.get("before"));
+  const before = sentBefore.success && isOpenLead({ status: sentBefore.data }) ? sentBefore.data : lead.status;
   // A won, lost or closed lead needs no follow-up. Each reason belongs to its own status only: moving it on clears it.
   const followUpOn = isOpenLead({ status: parsed.data }) ? (lead.followUpOn ?? (isIsoDay(on) ? on : undefined)) : undefined;
   const lostReason = parsed.data === "lost" ? (lead.lostReason ?? (why.success ? why.data : undefined)) : undefined;
   // Written only if nobody moved it between the read and the write (the update runs again on a clash).
   let moved = false;
-  if (!(await leadsStore.update(id, (l) => ((moved = l.status === lead.status) ? { ...l, status: parsed.data, followUpOn, lostReason, closedReason, statusBefore: parsed.data === "closed" ? lead.status : undefined } : l)))) return;
+  if (!(await leadsStore.update(id, (l) => ((moved = l.status === lead.status) ? { ...l, status: parsed.data, followUpOn, lostReason, closedReason, statusBefore: parsed.data === "closed" ? before : undefined } : l)))) return;
   if (!moved) return { error: STALE_STATUS };
   await logActivity("leads", `Moved the lead from ${leadStatusLabel(lead.type, lead.status)} to ${leadStatusLabel(lead.type, parsed.data)}${closedReason ? `: ${closedReason}` : ""}`, ref(id));
   revalidatePath("/leads");

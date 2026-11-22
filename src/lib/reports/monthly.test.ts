@@ -103,8 +103,9 @@ describe("compare, median and advice", () => {
 describe("spam (#56)", () => {
   it("is no lead in the month: not counted, and never a lead left without a reply; a closed lead still counts", () => {
     const now = Date.parse("2026-04-10T12:00:00Z");
-    const s = summarise({ ...empty, leads: [lead("2026-03-02T10:00:00Z", { status: "spam" }), lead("2026-03-03T10:00:00Z"), lead("2026-03-04T10:00:00Z", { status: "closed", closedReason: "Duplicate" })] }, "2026-03-01", "2026-03-31", now, DEMO_PROFILE);
-    expect(s.leads.total).toBe(2);
-    expect(s.replies.none).toBe(1); // a closed lead needed no reply
+    const closed = (day: string, closedReason: "Duplicate" | "No reply needed") => lead(`2026-03-${day}T10:00:00Z`, { status: "closed", closedReason });
+    const s = summarise({ ...empty, leads: [lead("2026-03-02T10:00:00Z", { status: "spam" }), lead("2026-03-03T10:00:00Z"), closed("04", "Duplicate"), closed("05", "No reply needed")] }, "2026-03-01", "2026-03-31", now, DEMO_PROFILE);
+    expect(s.leads.total).toBe(3);
+    expect(s.replies.none).toBe(2); // only the one closed as needing no reply is left out
   });
 });

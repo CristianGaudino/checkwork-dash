@@ -55,7 +55,8 @@ export async function LeadView({ id }: { id: string }) {
   // What puts the follow-up back as it was, for Undo: none, or its day (a day that has passed cannot be set again).
   // And the status as it was, with the follow-up day and the lost or closed reason a move clears.
   const reason = lead.lostReason ?? lead.closedReason;
-  const undoStatus = { status: lead.status, ...(lead.followUpOn && { on: lead.followUpOn }), ...(reason && { reason }) };
+  // `before`: where Reopen went, so Undo of a step on a closed lead keeps it.
+  const undoStatus = { status: lead.status, ...(lead.followUpOn && { on: lead.followUpOn }), ...(reason && { reason }), ...(lead.statusBefore && { before: lead.statusBefore }) };
   // The one filled button: the request's own job when it can be done here, else answering them the way they got in touch.
   const modules = await enabledModules();
   const main = leadMain(lead.type, { drive: !drive && isOpenLead(lead) && modules.has("testDrives"), order: modules.has("newCars") && (await stockSource()) !== "donedeal", claim: modules.has("service") });

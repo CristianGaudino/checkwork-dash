@@ -1,7 +1,7 @@
 import "server-only";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { mirrorLead } from "@/lib/admin/real-leads";
+import { arrivalSpam, mirrorLead } from "@/lib/admin/real-leads";
 import { getDb } from "@/lib/db";
 import { leads } from "@/lib/db/schema";
 import { buildLeadEmail } from "@/lib/leads/email";
@@ -138,7 +138,7 @@ export async function receiveLead(text: string): Promise<Answer> {
   }
 
   // The spam check, once, before anything goes out (#56): clear spam sends no email and is filed as spam in the inbox.
-  const spam = spamCheck({ name: row.name, message: row.message ?? "" }, dealer.profile.siteUrl);
+  const spam = arrivalSpam(row, spamCheck({ name: row.name, message: row.message ?? "" }, dealer.profile.siteUrl));
   // The website could not email the dealer: we try, when the dealer has an address. A failure leaves the lead marked in the inbox.
   let told = emailed;
   if (!emailed && spam !== "spam" && (await leadRecipients()).length > 0) {

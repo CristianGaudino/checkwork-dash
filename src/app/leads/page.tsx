@@ -7,7 +7,7 @@ import { AlertIcon, CalendarIcon, CheckIcon, InboxIcon } from "@/components/stoc
 import { can, currentMember } from "@/lib/permissions";
 import { LEAD_SOURCES, LEAD_STATUSES, LEAD_STATUS_LABELS, LEAD_TYPE_LABELS, getSettings, leadsStore, type Lead } from "@/lib/admin/collections";
 import { dublinDay, fmtAgo, fmtDate } from "@/lib/admin/format";
-import { SALES_LEAD_TYPES, countByStatus, filterLeads, followUpDue, forPerson, isOpenLead, isSalesLead, leadFlag, leadsToAnswer, parseLeadFilter, possibleSpam, urgentFirst, type LeadTask } from "@/lib/admin/leads";
+import { SALES_LEAD_TYPES, countByStatus, filterLeads, followUpDue, forPerson, isOpenLead, onLeadsList, leadFlag, leadsToAnswer, parseLeadFilter, possibleSpam, urgentFirst, type LeadTask } from "@/lib/admin/leads";
 import { TOPICS, leadTags } from "@/lib/leads/contact-topics";
 import { LeadKind, LeadTags, leadChips } from "@/components/admin/LeadKind";
 import { enabledModules } from "@/lib/modules";
@@ -39,7 +39,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
   const sp = await searchParams;
   const f = parseLeadFilter(sp);
   const [everyLead, { leadSlaHours, team }, modules] = await Promise.all([leadsStore.list(), getSettings(), enabledModules()]);
-  const all = everyLead.filter(isSalesLead);
+  const all = everyLead.filter(onLeadsList);
   const counts = countByStatus(all);
   const today = dublinDay();
   const at = now(); // one clock for the badges, the pinning and To answer now, so they agree
@@ -230,7 +230,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
       )}
       <SummaryTabs
         label="Lead status"
-        items={[{ label: "All", href: href({ status: undefined }), active: !f.status, count: all.length }, ...LEAD_STATUSES.map((s) => ({ label: LEAD_STATUS_LABELS[s], hint: STATUS_HINTS[s], href: href({ status: s }), active: f.status === s, count: counts[s] }))]}
+        items={[{ label: "All", href: href({ status: undefined }), active: !f.status, count: all.length - counts.spam }, ...LEAD_STATUSES.map((s) => ({ label: LEAD_STATUS_LABELS[s], hint: STATUS_HINTS[s], href: href({ status: s }), active: f.status === s, count: counts[s] }))]}
       />
       <TableToolbar search={{ placeholder: "Search", label: "Search leads" }} filters={filters} />
       <DataTable label="Leads" linkRows rows={rows} rowKey={(l) => l.id} columns={columns} sort={sp.sort ? sort : { key: "", dir: "desc" }} empty={<EmptyState title="No leads match" text="Try another filter or search." />} />

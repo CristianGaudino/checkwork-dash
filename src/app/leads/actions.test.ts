@@ -32,6 +32,11 @@ describe("closing a lead (#55)", () => {
     await setStatusAction(lead.id, form({ status: statusBack(closed), from: "closed" }));
     expect((await leadsStore.get(lead.id))!.status).toBe("appointment");
     expect(statusBack({})).toBe("new"); // a record from before statusBefore
+    // Undo of a step on a closed lead sends where Reopen went, so Reopen still goes there.
+    await setStatusAction(lead.id, form({ status: "closed", reason: "Duplicate" }));
+    await setStatusAction(lead.id, form({ status: "contacted", from: "closed" }));
+    await setStatusAction(lead.id, form({ status: "closed", reason: "Duplicate", from: "contacted", before: "appointment" }));
+    expect((await leadsStore.get(lead.id))!.statusBefore).toBe("appointment");
     const won = await pick((l) => l.status === "won");
     await setStatusAction(won.id, form({ status: "closed", reason: "Duplicate" }));
     expect((await leadsStore.get(won.id))!.status).toBe("won");

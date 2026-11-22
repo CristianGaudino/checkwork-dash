@@ -79,12 +79,18 @@ describe("the spam check on arrival (#56)", () => {
     expect(mirrorOf(row({})).lead).toMatchObject({ status: "new" });
     expect(mirrorOf(row({})).lead).not.toHaveProperty("maybeSpam");
   });
+  it("never files a test drive booking or a warranty request as clear spam, only possible spam", () => {
+    const drive = mirrorOf(row({ type: "test_drive", message: null, details: { driveDate: "2030-01-17", driveTime: "10:00" } }), true, true, 0, undefined, "spam");
+    expect(drive.lead).toMatchObject({ status: "new", maybeSpam: true });
+    expect(drive.drive).toBeDefined();
+    expect(mirrorOf(row({ type: "general", sourcePath: "/warranty" }), true, true, 0, undefined, "spam").lead).toMatchObject({ type: "warranty", status: "new", maybeSpam: true });
+    expect(mirrorOf(row({ type: "general", sourcePath: "/contact", details: { topic: "bought" } }), true, true, 0, undefined, "spam").lead?.status).toBe("new");
+  });
   it("keeps spam, and nothing more: no booking, no customer, no notice", async () => {
     const notices = (await noticesStore.list()).length;
     const customers = (await customersStore.list()).length;
-    await mirrorLead(row({ id: "spam-1", type: "test_drive", message: pitch, carSlug: "spam-car-1", details: { driveDate: "2030-01-16", driveTime: "10:00" } }), true, 0, undefined, "spam");
+    await mirrorLead(row({ id: "spam-1", type: "finance", message: pitch }), true, 0, undefined, "spam");
     expect((await leadsStore.get("real-spam-1"))?.status).toBe("spam");
-    expect(await drivesStore.get("real-spam-1")).toBeUndefined();
     expect((await noticesStore.list()).length).toBe(notices);
     expect((await customersStore.list()).length).toBe(customers);
   });

@@ -7,6 +7,8 @@ export { answerNow, followUpDue, forPerson, isHotLead, isOpenLead, leadFlag, lea
 // A warranty message from the website is aftersales work, not a sale: it is listed in Aftersales as a request, and left out of Leads, its
 // counts, the overview and the reports. A person's own page and their data requests still show everything.
 export const isSalesLead = (l: Pick<Lead, "type">) => l.type !== "warranty";
+// What the Leads list holds: the sales leads, and spam of every kind, a warranty request too, so its Spam tab can put any back (#56).
+export const onLeadsList = (l: Pick<Lead, "type" | "status">) => isSalesLead(l) || l.status === "spam";
 export const SALES_LEAD_TYPES = LEAD_TYPES.filter((t) => t !== "warranty");
 // The warranty requests still to deal with: no claim opened from them yet, and not set aside (lost) or spam. Newest first.
 export const openWarrantyRequests = (leads: Lead[], claims: Pick<Claim, "leadId">[]) => {

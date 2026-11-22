@@ -3,7 +3,7 @@ import { logActivity } from "@/lib/admin/activity";
 import { LEAD_STATUS_LABELS, LEAD_TYPE_LABELS, getSettings, leadsStore } from "@/lib/admin/collections";
 import { csvResponse, toCsv } from "@/lib/admin/csv";
 import { dublinDateTime, dublinDay } from "@/lib/admin/format";
-import { filterLeads, isSalesLead, parseLeadFilter } from "@/lib/admin/leads";
+import { filterLeads, onLeadsList, parseLeadFilter } from "@/lib/admin/leads";
 import { can, DEMO_ROLE_REFUSED, realCan } from "@/lib/permissions";
 import { hasModule } from "@/lib/modules";
 
@@ -14,7 +14,7 @@ export async function GET(req: Request) {
   if (!(await hasModule("dashboard"))) return new Response(null, { status: 404 }); // as every page answers without the dashboard (src/app/layout.tsx)
   const sp = Object.fromEntries(new URL(req.url).searchParams);
   const today = dublinDay();
-  const rows = filterLeads((await leadsStore.list()).filter(isSalesLead), parseLeadFilter(sp), today, (await getSettings()).leadSlaHours);
+  const rows = filterLeads((await leadsStore.list()).filter(onLeadsList), parseLeadFilter(sp), today, (await getSettings()).leadSlaHours);
   await logActivity("leads", `Exported the leads list (${rows.length === 1 ? "1 lead" : `${rows.length} leads`})`);
   return csvResponse(
     "leads",

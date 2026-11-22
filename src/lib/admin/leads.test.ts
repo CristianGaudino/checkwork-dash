@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 import type { Lead } from "./collections";
-import { SALES_LEAD_TYPES, countByStatus, filterLeads, isOpenLead, isSalesLead, leadFlag, leadMain, leadsToAnswer, possibleSpam, openWarrantyRequests, parseLeadFilter, replyVia, urgentFirst } from "./leads";
+import { SALES_LEAD_TYPES, countByStatus, filterLeads, isOpenLead, isSalesLead, leadFlag, leadMain, leadsToAnswer, onLeadsList, possibleSpam, openWarrantyRequests, parseLeadFilter, replyVia, urgentFirst } from "./leads";
 
 const lead = (id: string, o: Partial<Lead> = {}): Lead => ({ id, type: "enquiry", status: "new", name: id, email: `${id}@example.com`, phone: "", message: "", source: "Website", notes: [], createdAt: Number(id.replace(/\D/g, "")) || 0, ...o });
 
@@ -110,5 +110,9 @@ describe("spam (#56)", () => {
     expect(leads.map(possibleSpam)).toEqual([false, true, false]);
     expect(possibleSpam(lead("s4", { maybeSpam: true, status: "contacted" }))).toBe(false); // answered: a person has decided
     expect(openWarrantyRequests([lead("w1", { type: "warranty", status: "spam" })], [])).toEqual([]);
+    // Leads lists spam of every kind, so a warranty request marked spam can be put back from its Spam tab.
+    const listed = [lead("w2", { type: "warranty", status: "spam" }), lead("w3", { type: "warranty" }), lead("e1", { status: "spam" })].filter(onLeadsList);
+    expect(listed.map((l) => l.id)).toEqual(["w2", "e1"]);
+    expect(filterLeads(listed, { status: "spam", q: "" }).map((l) => l.id)).toEqual(["w2", "e1"]);
   });
 });
