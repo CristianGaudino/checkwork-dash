@@ -69,6 +69,10 @@ and by "Confirm it's you"). Otherwise the page first asks **Confirm it's you**:
 
 Success sets `verified_at` and starts no new session. So a session left open on a desk cannot quietly add a passkey for someone else.
 
+A sign-in itself also sets `verified_at`, so someone who signs in with a code relayed through a fake page (section 8, phishing) can add a
+passkey of their own in the next 10 minutes. What catches that is the "A passkey was added" email and the passkey list the person is
+pointed to after "Sign out everywhere".
+
 From then on, "Sign in with a passkey" is one tap and Face ID: no email typed. On a browser that offers it, the Email field also offers the
 passkey as an autofill suggestion.
 
@@ -176,15 +180,19 @@ The challenge is kept server side (section 6, `sign_in_attempts`), not in a cook
 **Autofill (conditional mediation).** The sign-in page also starts a request with `mediation: "conditional"`, so the Email field
 (`autocomplete="username webauthn"`) offers passkeys where the browser supports it. Three rules:
 - Its challenge lives 5 minutes, so while the page is visible the page aborts and restarts it with a fresh challenge every 4 minutes.
+  Timers stop in a hidden tab, so on `visibilitychange` back to visible it also restarts the request if it is older than 4 minutes.
 - Before "Sign in with a passkey" starts its own request, the page aborts the conditional one (`AbortController`). A browser allows one
   request at a time.
 - Every challenge row written for someone signed out counts in `SIGN_IN_LIMITER` (section 5), so a script cannot fill the table.
 
 **Tidying the person's passkey manager** (WebAuthn L3 §5.1.10, signal methods), each call wrapped in a check that the browser has it:
-- When the server answers that a credential is unknown (a removed passkey, or a person deleted), the page calls
-  `PublicKeyCredential.signalUnknownCredential({ rpId, credentialId })`, so the manager can hide it.
-- After a passkey is removed in Settings, Your sign-in, the page calls `PublicKeyCredential.signalAllAcceptedCredentials({ rpId, userId,
-  allAcceptedCredentialIds })` with the ones left.
+- Only when no `passkeys` row exists for the credential id (a removed passkey, or a person deleted), the server says so and the page
+  calls `PublicKeyCredential.signalUnknownCredential({ rpId, credentialId })`, so the manager can hide it. A passkey we hold that is
+  refused for any other reason (a bad signature, the counter, a person at no active dealer whose rows are not yet purged) never triggers
+  it: §5.1.10.2 is for credentials the site does not recognise, and §5.1.10.3 warns that a manager may remove a passkey for good.
+- After every passkey sign-in, and after a passkey is removed in Settings, Your sign-in, the page calls
+  `PublicKeyCredential.signalAllAcceptedCredentials({ rpId, userId, allAcceptedCredentialIds })` with the person's current list, which the
+  server returns (§5.1.10.3).
 
 ### Reading the binary parts
 
@@ -207,8 +215,10 @@ Registration (WebAuthn, "Registering a New Credential"), every one or it fails:
 4. `attestationObject` decodes (CBOR, nothing left over). `fmt` is either:
    - `none` with an empty `attStmt`; or
    - `packed` with no `x5c` (self attestation): `attStmt.alg` equals the new credential's `alg`, and `attStmt.sig` verifies with the new
-     credential's own public key over `authenticatorData` followed by SHA-256 of `clientDataJSON`. WebAuthn L3 lets self attestation
-     through even when the site asked for `"none"` (the client replaces only attestation that could identify the authenticator).
+     credential's own public key over `authenticatorData` followed by SHA-256 of `clientDataJSON`. When the site asks for `"none"`, the
+     client keeps self attestation only when the AAGUID is all zeros, `fmt` is `packed` and there is no `x5c`, and replaces anything else
+     with `none` (WebAuthn L3 §5.1.3, step 22). Whether self attestation is acceptable is the site's choice (§7.1, step 24): we accept
+     it, because it tells us no more and no less than `none` does.
 
    Anything else is refused.
 5. `authenticatorData` reads as above; `rpIdHash` equals SHA-256 of our RP id.
@@ -261,7 +271,8 @@ It can be done with WebCrypto (in Workers) and a small reader in our code, as We
 | The two ceremonies, "Confirm it's you" and their checks | about 130 lines |
 
 About 340 lines plus tests. WebCrypto does the cryptography (Ed25519, ECDSA P-256 with SHA-256, RSASSA-PKCS1-v1_5 with SHA-256); we only
-parse and compare.
+parse and compare. Importing an Ed25519 key as a JWK (`kty: "OKP"`, `crv: "Ed25519"`) is not yet confirmed in workerd: build step 2 checks
+the import and one verify in `wrangler dev`, and drops -8 from `pubKeyCredParams` if it fails.
 
 The library people use is `@simplewebauthn/server` (14.1.0): 870 kB unpacked and ten dependencies (`@peculiar/x509`, five `@peculiar/asn1-*`
 packages, `@hexagon/base64`, `@levischuck/tiny-cbor`, `reflect-metadata`). Nearly all of that is for attestation formats and certificate
@@ -294,7 +305,7 @@ One email carries both. The code is for the device that asked; the link is for w
 | | Code | Link |
 |---|---|---|
 | What it is | 6 digits | 32 random bytes, base64url |
-| Its own row | yes (`kind` `code`) | yes (`kind` `link`) |
+| Its own row | yes (`kind` `code`) | yes (`kind` `link`); every sign-in email writes exactly one, which is what the email caps count |
 | Stored | `HMAC-SHA-256(SIGN_IN_SECRET, "code|" + row id + "|" + code)` | `HMAC-SHA-256(SIGN_IN_SECRET, "link|" + token)` |
 | Works | Once, 15 minutes, 5 tries, only in the browser that asked (a `__Host-cw_attempt` cookie, HttpOnly, SameSite=Strict, 15 minutes) | Once, 15 minutes, on any device |
 | Bound to | the email it was sent to, checked again at use: still at an active dealer | the same |
@@ -309,7 +320,8 @@ One email carries both. The code is for the device that asked; the link is for w
   is dead. Then the HMAC of what was typed is compared with `code_hmac` in constant time (`crypto.subtle.timingSafeEqual` in Workers,
   `node:crypto` in tests). A match marks the row used (`UPDATE ... SET used_at = :now WHERE id = :id AND used_at IS NULL RETURNING`), so
   two posts at once cannot both sign in.
-- **Single use, and a new code:** a new request for the same email ends that email's earlier code and link.
+- **Single use, and a new code:** a new email to the same address ends that address's earlier code and link. A request that sends
+  nothing (over a limit) ends nothing, so the last link the person was sent stays valid.
 - **The link and the code are separate rows.** Using one does not end the other. So a mail scanner that runs the page's script and clicks
   "Sign in" spends only the link: the code still works where the person asked for it. (Such a scanner would get a session of its own, which
   it never uses; the person gets the "a device signed in" email, section 1.)
@@ -320,16 +332,29 @@ One email carries both. The code is for the device that asked; the link is for w
 ### The link page (`/sign-in/link`)
 
 - **A GET only shows a page.** Its script reads `#t`, clears it at once with `history.replaceState` (so it is not left in the address bar
-  or history), then posts the token to a read-only server action that answers with the email partly masked, or "This link has expired".
-- **The page names who it signs in:** "Sign in as c…@g…?" and a "Sign in" button. Only the button's POST uses the token. This stops a
-  login CSRF, where someone sends a person their own link so the person works signed in as them.
+  or history), keeps the token in memory (so a failed request can be tried again), then posts it to a read-only server action. That
+  action changes nothing, counts in `SIGN_IN_LIMITER`, and answers with the email partly masked, or "This link has expired" for a used or
+  expired link and for anyone no longer on a team.
+- **The page names who it signs in:** "Sign in as ci…a@gmail.com?" (the first two letters and the last of the name, and the whole domain)
+  and a "Sign in" button. Only the button's POST uses the token. Only someone holding the link sees this, so showing that much costs
+  little, and it lets a person spot an address that is not theirs. This stops a login CSRF, where someone sends a person their own link
+  so the person works signed in as them.
 - **The fragment never reaches a request.** Browsers never send `#...` to a server, so it is in no request log. A `Referer` never carries
   a fragment either (the Referrer Policy spec strips it), and the page sends `Referrer-Policy: no-referrer` anyway. One trap: a redirect
-  carries the fragment over to its new address, so `/sign-in/link` must never redirect (it is public, so the proxy has no reason to).
+  carries the fragment over to its new address, so `/sign-in/link` must never redirect. That includes the rule that sends a signed-in
+  person on to `next` (section 4): it does not apply here, or `#t` would land on a dashboard page whose CSP allows the beacon. A
+  signed-in person sees the same page, and using the link replaces their session.
+- **In `both` mode** (section 7) Access is still in front. Someone opening the link in a browser with no Access session is redirected to
+  Cloudflare Access's login page and back, and the fragment travels with both redirects. It is never sent to a server, but it is in the
+  address of Access's own page while it is open. We accept that for the weeks of `both`: Access is Cloudflare's, which we already trust
+  with sign-in then, and the person spends the token a minute later. Our own team uses codes during the dev trial.
 - **No analytics on `/sign-in/*`.** Our CSP allows `static.cloudflareinsights.com`, and the zone's Web Analytics can inject its beacon,
-  which reports the page address. Every `/sign-in/*` response gets a second, stricter `Content-Security-Policy` header with no
-  `cloudflareinsights` in `script-src` or `connect-src`. Browsers enforce every CSP header they get, so the beacon cannot load or report
-  there whatever the dashboard setting. These pages load nothing from another site.
+  which reports the page address. `/sign-in/:path*` gets its own `Content-Security-Policy`, built in `next.config.ts` from the same list
+  as the main one with the two analytics origins left out, so `frame-ancestors 'none'`, `form-action 'self'` and the rest stay. It must be
+  the whole policy: in `headers()`, when two rules set the same key on a path, the last one wins and replaces the first
+  (`node_modules/next/dist/docs/01-app/03-api-reference/05-config/01-next-config-js/headers.md`, "Header Overriding Behavior"), so the
+  sign-in rule comes after the general one. A test pins that `/sign-in/link` sends `frame-ancestors 'none'` and no `cloudflareinsights`.
+  These pages load nothing from another site.
 
 ### Phones
 
@@ -350,8 +375,11 @@ value, sets the `__Host-cw_attempt` cookie, and answers. Everything that depends
 1. Look the email up in the directory.
 2. On a team, not over its limits and not locked: write the code row and the link row (and the `staff` row if this is their first time),
    and send the email.
-3. Otherwise (unknown, over a limit, locked): write a code row with no email and no code, so the code page still dies after 5 tries and
-   behaves exactly as for a known email. Locked emails get the link-only email instead (section 5).
+3. On a team, not over its limits, but locked or with codes off (section 5): write the link row with the email (so it counts towards the
+   3 in 15 minutes and 10 a day like any other email), and send the link-only email. Its first line says why there is no code: "Codes
+   are paused for your address after wrong tries. Use this link to sign in." So a lookalike email asking for a code stands out.
+4. In every case but 2, also write a code row with no email and no code, so the code page still dies after 5 tries and behaves exactly
+   as for a known email. Unknown or over a limit: that row is all, and nothing is sent or ended.
 
 So a known and an unknown email answer in the same time, with the same cookie. `after()` needs the platform's `waitUntil` to finish its
 work after the response (Next docs, `node_modules/next/dist/docs/01-app/03-api-reference/04-functions/after.md`); OpenNext on Workers
@@ -398,14 +426,20 @@ staff address.
 - **The proxy** only checks that the cookie is there; Next's docs say the proxy should make only such optimistic checks and not read a
   database (`node_modules/next/dist/docs/01-app/02-guides/authentication.md`, "Optimistic checks with Proxy"). A page load with no cookie
   goes to `/sign-in?next=<path>`. A POST with no cookie (a server action) gets a 404, never a redirect. The proxy also passes the page's
-  path and query to the server in a request header, so layouts can build `next`.
+  path and query to the server in a request header (`x-cw-path`), set with `headers.set` so it overwrites any copy the client sent,
+  never appends to it, so layouts can build `next`.
+- **`/sign-in/*` and `/sign-out` are outside the proxy matcher**, as `api/` is today, so the 404 above never meets the signed-out sign-in
+  actions. They check the mode themselves: in `access` they answer 404, in `both` they verify the Access token as the proxy does, in
+  `own` they are open.
+- **`next`** is one rule, in one function, used everywhere: it must start with a single `/` (not `//`), contain no `\`, and its path must
+  match the app's path regex (letters, digits, `-`, `_`, `/` and `.`); the query is parsed and written out again with `URLSearchParams`;
+  anything else becomes `/`. The same rule serves the notification links and `safeFrom`.
 - **A cookie that is there but dead** (ended, idle, past 7 days) passes the proxy. Layouts and pages then `redirect('/sign-in?next=...')`
-  in place of today's 404. `next` is only ever a path on this site, the same rule as the notification links and `safeFrom`.
+  in place of today's 404.
 - **A server action with no live session** answers 404 (`notFound()`, as today), never a redirect: the caller is script, not a person on a
   page.
-- **The sign-in page** treats only a live session as signed in, so there is no loop. A page cannot delete a cookie while it renders, so
-  when the cookie is dead the page posts a small server action as it loads that deletes `__Host-cw_session`, only if its session is
-  already gone.
+- **The sign-in page** treats only a live session as signed in, so there is no loop. A dead cookie is left alone: it only ever leads to
+  the sign-in page, and the next sign-in overwrites it.
 
 ### Sign out
 
@@ -435,31 +469,47 @@ POSTs too. Only the Origin check tells them apart.
 
 | Limit | Where | Value |
 |---|---|---|
-| Sign-in requests per IP | New `SIGN_IN_LIMITER` rate limit binding (namespace 2005 dev, 1005 production), keyed by an HMAC of the IP | 10 a minute: every sign-in step, and every challenge row written for someone signed out |
-| Emails per address | D1, counted from `sign_in_attempts` | 3 in 15 minutes, 10 a day |
+| Sign-in requests per IP | New `SIGN_IN_LIMITER` rate limit binding (namespace 2005 dev, 1005 production), keyed by an HMAC of the IP | 30 a minute: every sign-in step, and every challenge row written for someone signed out |
+| Emails per address | D1: the `link` and `confirm-code` rows with that email (every email we send writes exactly one) | 3 in 15 minutes, 10 a day. Over either, nothing is sent and nothing is ended |
 | Tries per code | D1, on the code's row | 5, then the code is dead |
 | Wrong codes per email | D1: the `tries` on the email's code rows from the last 24 hours, less one for each that was used, whichever code they were made on | 15, then the email is **locked** for 24 hours (`staff.code_locked_until`) |
 | Wrong codes in a row | D1, `staff.code_failures`, back to 0 at any sign-in | 100, then codes are off for that person until they sign in by link or passkey |
 
 What "locked" and "codes off" do:
 - No code is accepted for that email, and its live codes end at once (the step that counts the 15th wrong try ends them).
-- "Email me a code" still answers as usual (section 3), and sends an email with **only the link**: the link cannot be guessed, so it is safe
-  to keep, and the person is never shut out by someone else's guessing.
+- "Email me a code" still answers as usual (section 3), and sends an email with **only the link**, which says that codes are paused. The
+  link cannot be guessed, so it is safe to keep, and the person is not shut out by someone else's guessing. That email is counted
+  and capped like any other (3 in 15 minutes, 10 a day), so the lock cannot be used to flood a mailbox.
 - At the lock, one warning email: "Someone tried to sign in to Checkwork as you. If it was not you, tell your manager."
 - A lock never blocks a passkey. Passkey sign-in needs no email.
 
 The binding's period can only be 10 or 60 seconds, and Cloudflare counts it per location, so it is a brake on bursts, not an exact limit.
 Anything longer is counted in D1.
 
+Why 30 a minute, counting every step: a dealership signs in on one Wi-Fi address, and phones on mobile data share addresses (carrier
+NAT). A passkey sign-in is 2 or 3 requests (the autofill challenge, the button's challenge, the check), so 10 a minute would stop a
+fourth person arriving in the same minute; 30 lets about ten through. Counting only the costly steps would have been the other choice,
+but every step writes or reads D1, and one rule is easier to reason about. Guessing is bounded per email in D1, not by this limit.
+
+**The lock is exact.** The 15th wrong try is counted in `after()`, so a few tries already in flight are still compared. So on a matching
+code, before a session starts, the check reads `code_locked_until` and `code_failures` and counts the email's wrong tries in the last 24
+hours from the rows; if any of them says locked or off, the match is refused as a wrong code. A correct guess after the 15th wrong one
+never signs in.
+
+**Spending someone's emails.** Anyone can use up a person's 10 emails a day by asking for codes for their address. That denies them email
+sign-in for the rest of the day, except the last link they were sent, which an over-limit request does not end. Their passkey still
+works. Open question 2 is the lasting answer.
+
 **Guessing a code.** The 6-digit code has a million values.
 - Per day: at most 15 wrong tries per email, whichever code they were made on, so about 1 in 67,000 a day.
-- NIST SP 800-63B ("Rate Limiting (Throttling)") limits consecutive failed attempts on one account to no more than 100. Ours stop at 100
-  in a row: against someone who never signs in, an attacker gets 100 guesses in all, 1 in 10,000.
+- NIST SP 800-63B-4 §3.2.2 ("Rate Limiting (Throttling)") limits consecutive failed attempts using a specific authenticator to no more
+  than 100. Ours stop at 100 in a row: against someone who never signs in, an attacker gets 100 guesses in all, 1 in 10,000.
 - Against someone who signs in every day (which resets the run, as NIST's rule allows), the daily cap is the bound: a year of trying every
   day is at most 5,475 guesses, about 1 in 183. Every guess needs a code emailed to the real person, who gets a warning email each day it
   locks. That is the honest worst case. Requiring passkeys (open question 2) removes it for whoever it covers.
-- NIST does not count email as an authenticator at all (SP 800-63B, out-of-band: email does not prove possession of a device). Our
-  emailed code and link are account recovery by mailbox, and we take NIST's throttling number for them, not its blessing.
+- NIST does not accept email as an authenticator: SP 800-63B-4 §3.1.3.1 says "Email SHALL NOT be used for out-of-band
+  authentication". Our emailed code and link are account recovery by mailbox, and we take NIST's throttling number for them, not its
+  blessing.
 - The link cannot be guessed (256 bits).
 
 **Never saying whether an email exists:** the same page, the same words ("If that email is on a team, we have sent a code to it"), the
@@ -486,7 +536,7 @@ for every sign-in by email (section 1).
 | `staff` | `id` (the user handle, 32 random bytes base64url, primary key), `email` (unique, lower case), `code_failures`, `code_locked_until`, `created_at` | One row per person, made the first time they ask for a code or sign in. `members` stays keyed by email |
 | `passkeys` | `id` (credential id, base64url, primary key), `staff_id`, `public_key` (COSE bytes), `alg`, `sign_count`, `backup_eligible`, `backed_up`, `transports`, `label`, `created_at`, `last_used_at` | Index on `staff_id`. At most 10 per person |
 | `sessions` | `id_hash` (hex SHA-256 of the cookie value, primary key), `staff_id`, `method` (`passkey` or `email`), `label` (device kind), `created_at`, `last_seen_at`, `verified_at`, `expires_at` | Index on `staff_id` |
-| `sign_in_attempts` | `id`, `kind` (`passkey-sign-in`, `passkey-register`, `passkey-confirm`, `code`, `confirm-code`, `link`), `email` (code and link rows for a known email only), `staff_id` (registration and confirmation), `challenge` (passkeys), `code_hmac`, `token_hmac` (unique), `browser_hash` (the attempt cookie's hash), `tries`, `created_at`, `expires_at`, `used_at` | A code row is written for every request, with no email and no code when the email is unknown, over a limit or locked; the counts in section 5 come from the rows that have an email |
+| `sign_in_attempts` | `id`, `kind` (`passkey-sign-in`, `passkey-register`, `passkey-confirm`, `code`, `confirm-code`, `link`), `email` (code, link and confirm-code rows for a known email only; the link-only email writes its link row with the email too), `staff_id` (registration and confirmation), `challenge` (passkeys), `code_hmac`, `token_hmac` (unique), `browser_hash` (the attempt cookie's hash), `tries`, `created_at`, `expires_at`, `used_at` | A code row is written for every request, with no email and no code when the email is unknown, over a limit or locked; the counts in section 5 come from the rows that have an email |
 
 No IP addresses and no user agents are stored: only the device kind ("iPhone").
 
@@ -591,13 +641,14 @@ The rate limit namespaces are config in `wrangler.jsonc`, in a PR, not a dashboa
 
 | Threat | Answer | What is left |
 |---|---|---|
-| Phishing (a fake sign-in page) | A passkey only signs for our real origin; the browser puts the origin in what it signs and we check it. A fake site gets nothing it can use | The emailed code can be relayed in real time by a fake site that started its own sign-in. The email says where to type it, and every sign-in by email is emailed to the person. Open question 2 can close this for people with a passkey |
+| Phishing (a fake sign-in page) | A passkey only signs for our real origin; the browser puts the origin in what it signs and we check it. A fake site gets nothing it can use | The emailed code can be relayed in real time by a fake site that started its own sign-in. That session is confirmed at sign-in, so it can add a passkey within 10 minutes; the "A passkey was added" email and the passkey review after "Sign out everywhere" are what catch it. The email says where to type the code, and every sign-in by email is emailed to the person. Open question 2 can close this for people with a passkey |
 | Stolen session cookie | HttpOnly (no script reads it), Secure, `__Host-`, 12 hours idle and 7 days at most, ended by sign out everywhere or by removal from the team | Someone with the cookie is the person until one of those happens. No binding to the device (a user agent is easy to copy, so it would add little) |
 | Stolen phone | The passkey needs the phone's Face ID or passcode. Sign out everywhere (or "Sign out on all devices" from an owner or manager) ends its session and its notifications | An unlocked phone with the app open is signed in until then. Email on the phone can get a code |
 | A passkey added by someone else | Adding one needs a confirmation within 10 minutes, scoped to the session's own person, and emails the person. Sign out everywhere points them at their passkey list | A passkey survives sign out everywhere until the person removes it |
 | Email account takeover | Codes and links need the mailbox; the lockout email, the sign-in emails and the activity log entries show changes | Whoever holds the mailbox can sign in by email. Open question 2 |
 | An insider at dealer A reaching dealer B | Sign-in says only who someone is. Which dealer is the directory's, checked on every request and action (`dealerAccess`, `requireStaff`); a cookie, form or header naming dealer B opens nothing. Unchanged by this work, and `e2e/dealers.spec.ts` keeps proving it | Dealer A's owner can sign one of their people out, which also signs that person out at dealer B (sessions are per person). They sign in again; it is written in both dealers' activity |
 | Brute force | Codes: 5 tries each, 15 wrong in a day per email whichever code, 100 in a row, 3 emails in 15 minutes and 10 a day, per-IP limits. Links: 256 bits. Passkeys: nothing to guess | About 1 in 183 over a year of daily attempts on one person who signs in daily (section 5). Rate limit bindings count per location, so a spread-out attack gets a little more; the D1 counts are exact |
+| Spending a person's emails | 10 a day per address; an over-limit request ends nothing, so their last link stays valid | Someone can use up a person's 10 emails a day; their passkey still works. Open question 2 |
 | Telling known emails from unknown | Every per-email step runs after the answer; the same cookie, page and tries for all | None known. The step 4 tests compare known and unknown |
 | Replay | Challenges, codes and links are single use, marked used in the same statement that checks them, and expire (5 and 15 minutes). The passkey's signature covers our challenge and origin. The counter catches a cloned hardware key | Synced passkeys send no counter, so cloning one is not detectable; that is the platform's (Apple's, Google's) to protect |
 | CSRF and login CSRF | Server actions: Next's Origin check, plus our own where Next lets a missing Origin through (section 4). No GET changes state. The link page names the email it signs in | None known |
@@ -614,9 +665,9 @@ Each step is one PR, ready for review, with the house checks (`docs`-only steps 
 | # | PR | Tests |
 |---|---|---|
 | 1 | **Tables.** The four directory tables and their migration; the in-memory copies; `purge-sign-in` in the nightly job | Integration test on SQLite with the real migrations (`*.int.test.ts`); purge deletes only what is due; `bash scripts/check-migrations.sh main` |
-| 2 | **The WebAuthn verifier.** `src/lib/auth/cbor.ts` and `webauthn.ts`: CBOR, COSE to JWK, DER to raw, `packed` self attestation, both ceremonies and the confirmation | RFC 8949 Appendix A vectors. CBOR: a length past the end, 8-byte lengths, duplicate map keys, nesting past the limit, tags and floats refused. ES256 DER: r or s of 31 bytes, and of 33 with a leading 0x00, both accepted; non-minimal DER and trailing bytes refused. Authenticator data: ED with extensions after the key accepted, ED set with nothing after it refused, extra bytes with ED clear refused. `packed` self attestation accepted, with a wrong `alg` or a bad signature refused, with `x5c` refused. Keys: `kty` not matching `alg`, a short EC coordinate, a 1024-bit RSA key. A missing user handle in a sign-in, and a confirmation with another person's passkey. The counter: written only where `sign_count < new`, and two sign-ins with the same count, one refused. One failing test per check in section 2; recorded fixtures (Chrome's virtual authenticator, an iPhone, an Android phone, Windows Hello for RS256, a security key for Ed25519 and `credProtect`); a test authenticator made with `node:crypto` for the negative cases |
-| 3 | **Sessions and the switch.** `src/lib/auth/session.ts`; `SIGN_IN` modes in `staffIdentity()` and `src/proxy.ts`; `sameOrigin`; the `/sign-out` route; the redirect to sign-in with `next`; the dealer cookie to `__Host-` | Each mode against each of: no cookie, a good one, an idle one, an expired one, an ended one, a mismatched Access email in `both`; an unset and an unknown `SIGN_IN` act as `access`; the open shortcut still refused with a directory bound; the cookie's attributes; a dead cookie redirects a page and 404s an action; `next` refuses another site; `/sign-out` refuses a missing and a foreign Origin and sends `Clear-Site-Data` |
-| 4 | **Email code and link.** The request, code and link screens; the stricter CSP on `/sign-in/*`; HMACs; the limits and lockout; the emails; the attempt cookie; an outbox in memory for the E2E run (only with `E2E_FAKE_BACKENDS=1` and no directory bound, like the in-memory directory) | Same answer, cookie and work in front of the answer for known, unknown, locked and limited emails; 5 tries on an unknown email's page; tries spent before comparing, under two posts at once; a code HMAC from one row refused on another; expiry; the caps; 15 wrong across three codes locks; 100 in a row turns codes off and a sign-in resets it; a locked email still gets a working link; the link does not spend the code; the link page clears the fragment and shows the masked email; sign-in actions refuse a missing Origin; the log lines hold no email (a test watches `console`) |
+| 2 | **The WebAuthn verifier.** `src/lib/auth/cbor.ts` and `webauthn.ts`: CBOR, COSE to JWK, DER to raw, `packed` self attestation, both ceremonies and the confirmation | RFC 8949 Appendix A vectors. CBOR: a length past the end, 8-byte lengths, duplicate map keys, nesting past the limit, tags and floats refused. ES256 DER: r or s of 31 bytes, and of 33 with a leading 0x00, both accepted; non-minimal DER and trailing bytes refused. Authenticator data: ED with extensions after the key accepted, ED set with nothing after it refused, extra bytes with ED clear refused. `packed` self attestation accepted, with a wrong `alg` or a bad signature refused, with `x5c` refused. Keys: `kty` not matching `alg`, a short EC coordinate, a 1024-bit RSA key. A missing user handle in a sign-in, and a confirmation with another person's passkey. The counter: written only where `sign_count < new`, and two sign-ins with the same count, one refused. One failing test per check in section 2; recorded fixtures (Chrome's virtual authenticator, an iPhone, an Android phone, Windows Hello for RS256, a security key for Ed25519 and `credProtect`); a test authenticator made with `node:crypto` for the negative cases; once in `wrangler dev`, an Ed25519 JWK import and verify in workerd |
+| 3 | **Sessions and the switch.** `src/lib/auth/session.ts`; `SIGN_IN` modes in `staffIdentity()` and `src/proxy.ts`; `sameOrigin`; the `/sign-out` route; the redirect to sign-in with `next`; the dealer cookie to `__Host-` | Each mode against each of: no cookie, a good one, an idle one, an expired one, an ended one, a mismatched Access email in `both`; an unset and an unknown `SIGN_IN` act as `access`; the open shortcut still refused with a directory bound; the cookie's attributes; a dead cookie redirects a page and 404s an action; `next` refuses `//`, `\`, another site and a client-sent `x-cw-path`; `/sign-out` refuses a missing and a foreign Origin and sends `Clear-Site-Data` |
+| 4 | **Email code and link.** The request, code and link screens; the stricter CSP on `/sign-in/*`; HMACs; the limits and lockout; the emails; the attempt cookie; an outbox in memory for the E2E run (only with `E2E_FAKE_BACKENDS=1` and no directory bound, like the in-memory directory) | Same answer, cookie and work in front of the answer for known, unknown, locked and limited emails; 5 tries on an unknown email's page; tries spent before comparing, under two posts at once; a code HMAC from one row refused on another; expiry; the caps; 15 wrong across three codes locks; 100 in a row turns codes off and a sign-in resets it; a locked email still gets a working link, counted in the caps, and nothing past them; an over-limit request ends no earlier link; a matching code after the 15th wrong try is refused; the link does not spend the code; `/sign-in/link` sends `frame-ancestors 'none'` and no `cloudflareinsights`, and never redirects, signed in or not; the link page clears the fragment and shows the masked email; sign-in actions refuse a missing Origin; the log lines hold no email (a test watches `console`) |
 | 5 | **Passkeys in the app.** "Sign in with a passkey" with autofill (renewal and abort); "Sign in faster next time"; Settings, Your sign-in (passkeys, devices, sign out everywhere, the passkey review prompt); "Confirm it's you"; the signal calls; the email when a passkey is added | E2E with Playwright's CDP virtual authenticator (`WebAuthn.enable`, then `WebAuthn.addVirtualAuthenticator` with `protocol: "ctap2"`, `transport: "internal"`, `hasResidentKey`, `hasUserVerification`, `isUserVerified`, `automaticPresenceSimulation`): add a passkey after an email sign-in, sign out, sign in with it, remove it; adding one after 10 minutes asks for confirmation. A manual check on a real iPhone (the browser and the home screen app) and Android phone |
 | 6 | **The team.** The invitation email; removal ends sessions (and passkeys when at no dealer), only for `role === null` and only after `details()` succeeds; "Sign out on all devices" with the owner and manager rule; sign out everywhere turns notifications off; activity entries | `src/lib/admin/team.test.ts` grows: a role change ends no session; a removal whose `details()` throws keeps sessions, passkeys and the staff row; a manager cannot sign out an owner. E2E: someone removed is signed out at their next click |
 | 7 | **Dev cut-over** (section 7, steps 2 to 5): `SIGN_IN` to `both`, then `own` | The E2E suite and the week of checks |
@@ -637,6 +688,10 @@ shortcut off. That switch can only close the app, never open it. The virtual aut
 | A dealer's only owner loses their mailbox | Nobody at the dealer can fix it, so we do: we confirm who they are out of band (a call to the dealer's known phone number, and someone else at the dealer who knows them), then add the new address as an owner with a script, and remove the old one. This is the one place a social engineering attack would aim: someone posing as the owner to get an account. So it is never done on an email or a call that came in alone, and the old address is told by email |
 | We need to look at a dealer's account to help | We add ourselves as an explicit member of that dealer, with a role, through the same script, and remove ourselves when done. Both show in the dealer's Activity. There is no feature to act as another person, and none is planned |
 | Anything we change by script | The script writes an Activity line at that dealer, naming us ("Checkwork support added Conor Byrne as Owner"), like the app's own changes |
+
+If the directory database or `SIGN_IN_SECRET` leaks, a script ends every session (deletes every `sessions` row) and the owner rotates
+`SIGN_IN_SECRET`, which ends every pending code and link. Everyone then signs in again; passkeys stay, since a public key is not a secret.
+We tell the dealers what leaked and when.
 
 The scripts go through `target()` in `scripts/dealers.mjs`, dev by default, production only with `--env production`.
 
