@@ -63,6 +63,8 @@ describe("what the gate covers", () => {
     expect(gated("/api/site/v1/leads")).toBe(false);
     expect(gated("/api/site/v1/stock")).toBe(false);
     expect(gated("/api/owner/v1/summary")).toBe(false);
+    // The public unsubscribe (#70) is under /api/site: never through the proxy, so no Access token, no sign-in redirect and no x-cw-path.
+    expect(gated("/api/site/unsubscribe")).toBe(false);
     expect(gated("/leads")).toBe(true);
     expect(gated("/settings")).toBe(true);
   });

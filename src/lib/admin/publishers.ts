@@ -23,10 +23,11 @@ export async function startAd(ad: Ad): Promise<SendResult> {
   return run("ads");
 }
 
-// Every newsletter and stock alert email carries its own unsubscribe link and headers: unsubscribeParts (src/lib/unsubscribe.ts) for that
-// subscriber or alert, with UNSUBSCRIBE_SECRET and the dealer's website address (their profile). Never send one without them.
+// Every newsletter and stock alert email carries its own unsubscribe link in the body and the List-Unsubscribe headers: unsubscribeParts
+// (src/lib/unsubscribe.ts) for that subscriber or alert, signed with UNSUBSCRIBE_SECRET. The link is on this app, never the dealer's website:
+// it opens /api/site/unsubscribe, public with no sign-in, and turns the subscription off in the dealer's own store. Never send one without them.
 export async function sendNewsletter(n: Newsletter): Promise<SendResult> {
-  void n;
+  void n; // for the adapter: per subscriber, `await unsubscribeParts(dealerId, "newsletter", subscriber.id)` gives the link and the headers
   return run("newsletter");
 }
 
