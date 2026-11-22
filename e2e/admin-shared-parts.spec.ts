@@ -1,5 +1,5 @@
 import { expect, test, type Locator } from "@playwright/test";
-import { NAV_COOKIE, openGroupsCookie } from "../src/lib/admin/nav";
+import { NAV_COOKIE, RAIL_COOKIE, openGroupsCookie } from "../src/lib/admin/nav";
 import { BASE } from "./open";
 import { sideMenu } from "./admin-menu";
 
@@ -59,11 +59,14 @@ test.describe("on a 390px phone", () => {
 });
 
 test("from 640px a row of summary tabs that fits has no mask, so nothing clips a tab's focus ring", async ({ page }) => {
+  // On a phone the row overflows and the mask is set, which proves it has measured itself; widened, it fits and the mask goes.
+  await page.setViewportSize({ width: 390, height: 800 });
+  await page.goto("/marketing");
+  const row = page.getByRole("navigation", { name: "Marketing" });
+  const mask = () => row.evaluate((n) => getComputedStyle(n).maskImage);
+  await expect.poll(mask).toContain("gradient");
   await page.setViewportSize({ width: 1280, height: 800 });
-  await page.goto("/leads");
-  const row = page.getByRole("navigation", { name: "Lead status" });
-  await page.waitForLoadState("networkidle"); // hydrated: the row has measured itself
-  expect(await row.evaluate((n) => getComputedStyle(n).maskImage)).toBe("none");
+  await expect.poll(mask).toBe("none");
 });
 
 test("on a 1280x800 laptop with every group open, Overview and Leads stay in view and only the groups scroll", async ({ page, context }) => {
@@ -109,3 +112,16 @@ for (const [width, path, label] of [[390, "/leads", "Lead status"], [390, "/sett
     expect(t.y + t.height + 4).toBeLessThanOrEqual(r.y + r.height + 0.5);
   });
 }
+
+test("in the collapsed rail a group's place can be reached: in view at 1280x800, by scrolling at 1280x420", async ({ page, context }) => {
+  await context.addCookies([{ name: RAIL_COOKIE, value: "1", url: BASE }]);
+  for (const height of [800, 420]) {
+    await page.setViewportSize({ width: 1280, height });
+    await page.goto("/");
+    const orders = sideMenu(page).getByRole("link", { name: "Orders", exact: true });
+    await orders.scrollIntoViewIfNeeded();
+    await expect(orders).toBeInViewport({ ratio: 1 });
+    await orders.click();
+    await expect(page).toHaveURL(/\/orders$/);
+  }
+});

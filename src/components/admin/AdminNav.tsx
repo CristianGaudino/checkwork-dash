@@ -65,7 +65,7 @@ export function AdminNav({ items, label, openGroups, rail = false }: { items: Na
                 <NavLink key={it.href} item={it} on={current(it)} iconOnly />
               ))}
             </div>
-            <div className="flex min-h-24 flex-1 flex-col items-center gap-0.5 overflow-y-auto overscroll-contain pb-4 contain-size">
+            <div className="flex min-h-24 flex-1 flex-col items-center gap-0.5 self-stretch overflow-y-auto overscroll-contain pb-4 contain-size">
               {groups.map((g) => (
                 <div key={g.name} className="mt-2 flex flex-col items-center gap-0.5 border-t border-hairline pt-2">
                   {g.items.map((it) => (
