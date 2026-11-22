@@ -438,7 +438,7 @@ Scripts that post the Email form can fill an inbox or burn an address's send cap
   puzzle unless Cloudflare is unsure) and action `sign-in`. The button waits for the token, which works once, so a refused send asks for a fresh one.
 - **Server:** `requestCode` checks the token with `siteverify` (secret, token and the visitor's IP, 5 second limit) after the origin, the per-IP
   limit and the address check, and before the attempt cookie is set or anything is reserved or sent. A bad, missing, reused, over-long or
-  other-form token, or no answer from Cloudflare, is refused with "We could not check this request. Reload the page and try again." The log
+  other-form token, a token from another host than this environment's `APP_URL`, or no answer from Cloudflare, is refused with "We could not check this request. Reload the page and try again." The log
   line is the step and `bot-check`, never the token, the address or the IP.
 - **Policy:** the sign-in pages' content policy allows `https://challenges.cloudflare.com` in `script-src`, `connect-src` and `frame-src`, and
   no other page does (`next.config.ts`).
@@ -449,8 +449,9 @@ Scripts that post the Email form can fill an inbox or burn an address's send cap
 - **Setup, per environment:** Cloudflare dashboard, Turnstile, Add widget, hostnames `www.dash.checkwork.ie` and `dev.dash.checkwork.ie`
   (one widget serves both), Managed. The site key (public) is the GitHub repo variable `TURNSTILE_SITE_KEY`, used as
   `NEXT_PUBLIC_TURNSTILE_SITE_KEY` by `deploy.yml` at build. The secret key is the Worker secret `TURNSTILE_SECRET_KEY`
-  (`npx wrangler secret put TURNSTILE_SECRET_KEY`, and again with `--env production`). Cloudflare's test keys always pass: site
-  `1x00000000000000000000BB`, secret `1x0000000000000000000000000000000AA`.
+  (`npx wrangler secret put TURNSTILE_SECRET_KEY`, and again with `--env production`). Cloudflare's test keys (site
+  `1x00000000000000000000BB`, secret `1x0000000000000000000000000000000AA`) are for local builds and the E2E run only: never set the test
+  secret on a deployed Worker, since its answer does not name this host and every send would be refused.
 
 ### Each request, and a dead cookie
 
