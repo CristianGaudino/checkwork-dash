@@ -2,13 +2,14 @@
 
 import { useKeptForm } from "@/components/admin/useKeptForm";
 import { Select } from "@/components/Select";
-import { startTransition, useActionState, useState } from "react";
+import { startTransition, useActionState, useEffect, useState } from "react";
 import { Field, adminButton, adminButtonQuiet, adminInput } from "@/components/admin/kit";
 import { addTeamAction, setRoleAction, saveBusinessAction, saveLeadEmailsAction, saveMarketingAction, sendTestEmailAction, saveNotificationsAction, saveTargetsAction, makeSiteKeyAction, type SettingsState, type SiteKeyState } from "@/app/settings/actions";
 import type { DealerSettings, TeamMember } from "@/lib/admin/collections";
 import { ROLES } from "@/lib/permission-rules";
 import type { DealerProfile } from "@/lib/tenancy/profile";
 import { CheckIcon } from "@/components/stock/icons";
+import { ConfirmDialog } from "@/components/admin/ActButton";
 
 const ROLE_OPTIONS = ROLES.map((r) => [r, r] as const);
 
@@ -17,6 +18,10 @@ type Action = (prev: SettingsState, data: FormData) => Promise<SettingsState>;
 
 function useSave(action: Action) {
   const [state, run, pending] = useKeptForm<SettingsState>(action, undefined);
+  // A refused save brings its first error into view: the Save button can sit far below the field (the email above the opening hours).
+  useEffect(() => {
+    if (state?.errors) run.ref.current?.querySelector('[role="alert"]')?.scrollIntoView({ block: "center" });
+  }, [state, run.ref]);
   return { state, run, pending, errors: state?.errors ?? {} };
 }
 
@@ -176,15 +181,18 @@ export function MarketingForm({ settings }: { settings: DealerSettings }) {
 // `owner`: the signed-in person is an owner, so Owner is a role they may give.
 export function AddTeamForm({ owner }: { owner: boolean }) {
   const f = useSave(addTeamAction);
+  // The answer the person has since edited past: its errors go (an email "already on the team" may not be any more), until the next Add.
+  const [seen, setSeen] = useState<SettingsState>();
+  const errors = f.state === seen ? {} : f.errors;
   return (
-    <form {...f.run} className="grid grid-cols-1 gap-4 sm:grid-cols-4 sm:items-start" noValidate>
-      <Field label="Name" error={f.errors.name}>
+    <form {...f.run} onChange={() => setSeen(f.state)} className="grid grid-cols-1 gap-4 sm:grid-cols-4 sm:items-start" noValidate>
+      <Field label="Name" error={errors.name}>
         <input name="name" className={adminInput} autoComplete="off" />
       </Field>
-      <Field label="Email" error={f.errors.email}>
+      <Field label="Email" error={errors.email}>
         <input name="email" type="email" className={adminInput} autoComplete="off" />
       </Field>
-      <Field label="Role" error={f.errors.role}>
+      <Field label="Role" error={errors.role}>
         <Select name="role" defaultValue="Sales" options={owner ? ROLE_OPTIONS : ROLE_OPTIONS.filter(([r]) => r !== "Owner")} />
       </Field>
       <div className="sm:pt-6">
@@ -195,28 +203,37 @@ export function AddTeamForm({ owner }: { owner: boolean }) {
 }
 
 // One person's role, saved as soon as it is picked, by an owner or manager (the server checks again). A refused change shows why and puts
-// the picker back to the role they still have.
+// the picker back to the role they still have. A change to or from Owner asks first: an owner can change everything.
 export function RoleForm({ member, owner }: { member: TeamMember; owner: boolean }) {
   // No form here (it saves as soon as a role is picked), so the plain hook.
   const [state, run, pending] = useActionState<SettingsState, FormData>(setRoleAction.bind(null, member.id), undefined);
   const f = { state, run, pending, errors: state?.errors ?? {} };
   const [picked, setPicked] = useState<string>(member.role);
   const shown = f.state?.errors && !f.pending ? member.role : picked;
+  const [asking, setAsking] = useState<string | null>(null);
+  const save = (role: string) => {
+    setPicked(role);
+    const data = new FormData();
+    data.set("role", role);
+    startTransition(() => f.run(data));
+  };
   return (
     <div className="flex flex-col items-end gap-1">
       <div className="w-36">
         <Select
           label={`Role for ${member.name}`}
           value={shown}
-          onChange={(role) => {
-            setPicked(role);
-            const data = new FormData();
-            data.set("role", role);
-            startTransition(() => f.run(data));
-          }}
+          onChange={(role) => (role !== member.role && (role === "Owner" || member.role === "Owner") ? setAsking(role) : save(role))}
           options={owner ? ROLE_OPTIONS : ROLE_OPTIONS.filter(([r]) => r !== "Owner")}
         />
       </div>
+      {asking && (
+        <ConfirmDialog
+          confirm={asking === "Owner" ? { title: `Make ${member.name} an Owner?`, text: "Owners can change everything, including the team and other owners.", yes: "Make Owner" } : { title: `Change ${member.name} from Owner to ${asking}?`, text: `They will see only what ${asking} can see.`, yes: "Change role" }}
+          onYes={() => save(asking)}
+          onClose={() => setAsking(null)}
+        />
+      )}
       {f.errors.role && !f.pending && (
         <p role="alert" className="max-w-48 text-right text-meta text-destructive">
           {f.errors.role}
