@@ -84,6 +84,8 @@ const quiet = <R,>(q: PromiseLike<R>, op: string): Promise<R> =>
   Promise.resolve(q).catch(() => {
     throw new Error(`directory ${op} failed`);
   });
+// The memory copy, the D1 handle and the quiet rethrow, for our sign-in's tables in the directory (src/lib/auth/session.ts).
+export { mem as memoryDirectory, db as directoryDb, quiet as quietDirectory };
 // What is stored, over the made-up demo business (every module, its facts) for a demo dealer and over the plain defaults for any other.
 const withProfile = (r: Row): Dealer => ({ ...r, profile: parseProfile(r.profile, r.demo ? DEMO_PROFILE : undefined) });
 const toDealer = (r: typeof dealers.$inferSelect): Dealer => withProfile({ ...r, createdAt: r.createdAt.getTime() });

@@ -5,9 +5,17 @@ import { defineConfig, devices } from "@playwright/test";
 const baseURL = process.env.E2E_BASE_URL ?? `http://localhost:${process.env.PORT ?? 3000}`;
 
 // SITE_PHOTO_SECRET empty: the run has none, whatever a local .env sets (the Settings warning is tested), and an empty value counts as unset.
-const SERVER_ENV = { E2E_FAKE_BACKENDS: "1", UNSUBSCRIBE_SECRET: "e2e-unsubscribe-secret", OWNER_API_TOKEN: "e2e-owner-token", SITE_PHOTO_SECRET: "" };
+// SIGN_IN empty, whatever the shell has: Access alone, as production today, except on the closed server below.
+const SERVER_ENV = { E2E_FAKE_BACKENDS: "1", SIGN_IN: "", UNSUBSCRIBE_SECRET: "e2e-unsubscribe-secret", OWNER_API_TOKEN: "e2e-owner-token", SITE_PHOTO_SECRET: "" };
 const PUSH_PORT = Number(process.env.PORT ?? 3000) + 1;
 const PUSH_URL = `http://localhost:${PUSH_PORT}`;
+// A third server of the same build, closed (docs/sign-in.md, section 9): E2E_SIGN_IN=1 turns the open shortcut off (it can only close the
+// app, never open it) and SIGN_IN=own puts our sign-in in front, for e2e/sign-in.spec.ts. Its APP_URL is its own, for the Origin checks.
+const SIGN_IN_PORT = Number(process.env.PORT ?? 3000) + 2;
+const SIGN_IN_URL = `http://localhost:${SIGN_IN_PORT}`;
+// And a fourth, closed the same way with SIGN_IN unset (Access alone, as production today), to pin that nothing of our sign-in is reachable
+// there. No Access is set up, so every page is a 404: it is ready once a static file answers.
+const ACCESS_PORT = SIGN_IN_PORT + 1;
 function vapidForRun() {
   const jwk = generateKeyPairSync("ec", { namedCurve: "P-256" }).privateKey.export({ format: "jwk" });
   const raw = Buffer.concat([Buffer.from([4]), Buffer.from(jwk.x!, "base64url"), Buffer.from(jwk.y!, "base64url")]);
@@ -36,5 +44,7 @@ export default defineConfig({
     : [
         { command: "npm start", url: baseURL, reuseExistingServer: false, env: { ...SERVER_ENV } },
         { command: "npm start", url: PUSH_URL, reuseExistingServer: false, env: { ...SERVER_ENV, PORT: String(PUSH_PORT), ...vapidForRun() } },
+        { command: "npm start", url: `${SIGN_IN_URL}/sign-in`, reuseExistingServer: false, env: { ...SERVER_ENV, PORT: String(SIGN_IN_PORT), E2E_SIGN_IN: "1", SIGN_IN: "own", APP_URL: SIGN_IN_URL } },
+        { command: "npm start", url: `http://localhost:${ACCESS_PORT}/icon.svg`, reuseExistingServer: false, env: { ...SERVER_ENV, PORT: String(ACCESS_PORT), E2E_SIGN_IN: "1" } },
       ],
 });

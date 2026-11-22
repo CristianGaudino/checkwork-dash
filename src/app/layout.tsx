@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import { cookies } from "next/headers";
+import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { NavProgress } from "@/components/NavProgress";
 import { Toaster } from "@/components/Toaster";
@@ -20,7 +21,7 @@ import { stockSource } from "@/lib/stock-source";
 import { enabledModules } from "@/lib/modules";
 import { modulesValue, pathAllowed } from "@/lib/modules-rules";
 import { dealerAccess } from "@/lib/tenancy/membership";
-import { staffIdentity } from "@/lib/staff";
+import { pageGate, staffIdentity } from "@/lib/staff";
 import "./globals.css";
 
 const signedInEmail = async () => {
@@ -58,7 +59,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // Which dealer this is, from the directory (src/lib/tenancy). With none open, the page is the chooser or "No access" and nothing else: no
   // menu, no page. Every store refuses without a dealer too, and every action (requireStaff), so this is not the only lock.
   const access = await dealerAccess();
-  if (access.state !== "ok")
+  // A page the proxy gives no path (the sign-in pages, the proxy's own 404) is drawn bare, with its own content. A signed-out page load under our
+  // sign-in has already gone to sign in (dealerAccess).
+  const gate = await pageGate();
+  // Signed out anywhere else (a POST with a dead session, which is never redirected): not there, as the proxy answers. "No access" below
+  // is only for someone signed in who is at no dealer.
+  if (gate === "frame" && access.state === "signed-out") notFound();
+  if (gate === "bare" || access.state !== "ok")
     return (
       <html lang="en-IE" className={`${sora.variable} ${inter.variable}`} suppressHydrationWarning>
         <head>
@@ -66,7 +73,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           {appHead}
         </head>
         <body className="flex min-h-dvh flex-col">
-          <DealerGate choices={access.state === "choose" ? access.choices : undefined} email={access.state === "no-access" ? await signedInEmail() : undefined} />
+          {gate === "bare" ? children : <DealerGate choices={access.state === "choose" ? access.choices : undefined} email={access.state === "no-access" ? await signedInEmail() : undefined} />}
         </body>
       </html>
     );

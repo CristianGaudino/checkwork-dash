@@ -434,10 +434,12 @@ staff address.
   goes to `/sign-in?next=<path>`. A POST with no cookie (a server action) gets a 404, never a redirect. The proxy also passes the page's
   path and query to the server in a request header (`x-cw-path`), set with `headers.set` so it overwrites any copy the client sent,
   never appends to it, so layouts can build `next`.
-- **`/sign-in`, everything under it, and `/sign-out` are outside the proxy matcher** (`/sign-in` itself too, or a signed-out visit would
-  redirect to `/sign-in?next=...` over and over), as `api/` is today, so the 404 above never meets the signed-out sign-in
-  actions. They check the mode themselves: in `access` they answer 404, in `both` they verify the Access token as the proxy does, in
-  `own` they are open.
+- **`/sign-in`, everything under it, and `/sign-out`:** the proxy runs there too, but never sends them to sign in (or a signed-out visit
+  would redirect to `/sign-in?next=...` over and over) and never gives them a path: it strips any `x-cw-path` the browser sent, so every
+  request that reaches the app carries a path header only the proxy wrote (its 404 rewrite strips it too). In `access` and `both` the
+  proxy gates them by the Access token like any page; in `own` it lets them through with no session, so the 404 above never meets the
+  signed-out sign-in actions. They also check the mode themselves: in `access` they answer 404, in `both` they verify the Access token,
+  in `own` they are open.
 - **`next`** is one rule, in one function, used everywhere: it must start with a single `/` (not `//`), contain no `\`, and its path must
   match the app's path regex (letters, digits, `-`, `_`, `/` and `.`); the query is parsed and written out again with `URLSearchParams`;
   anything else becomes `/`. The notification links use the same rule. `safeFrom` (help requests' `from`) shares the path check but keeps
