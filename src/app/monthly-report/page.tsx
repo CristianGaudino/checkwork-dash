@@ -79,8 +79,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
       <PageHeader title="Monthly report" text={`${whole ? "" : `${me.name}, `}${monthLabel(month)}, compared with ${monthLabel(prevMonth)}.`} actions={
           // The months before and after, one tap each, as the Marketing calendar moves by week; twelve months back at most.
           <>
-            {earlier && <Link href={`/monthly-report?month=${earlier}`} className={`${adminButtonQuiet} no-print`}>Previous month</Link>}
-            {later && <Link href={`/monthly-report?month=${later}`} className={`${adminButtonQuiet} no-print`}>Next month</Link>}
+            {/* Both always there, the one with no month to go to disabled, so neither moves under a second click. */}
+            {earlier ? <Link href={`/monthly-report?month=${earlier}`} className={`${adminButtonQuiet} no-print`}>Previous month</Link> : <button type="button" disabled className={`${adminButtonQuiet} no-print disabled:opacity-50`}>Previous month</button>}
+            {later ? <Link href={`/monthly-report?month=${later}`} className={`${adminButtonQuiet} no-print`}>Next month</Link> : <button type="button" disabled className={`${adminButtonQuiet} no-print disabled:opacity-50`}>Next month</button>}
             <PrintButton />
           </>
         } />
@@ -181,7 +182,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
             <h2 className="text-heading font-semibold">Reviews</h2>
             <StatGrid>
               <StatCard label="New reviews" value={fmtNum(s.reviews.count)} hint={compare(s.reviews.count, p.reviews.count)} />
-              <StatCard label="Average rating" value={s.reviews.average === null ? "None" : `${s.reviews.average.toFixed(1)} average`} hint={plural(s.reviews.count, "review")} />
+              <StatCard label="Average rating" value={s.reviews.average === null ? "None" : s.reviews.average.toFixed(1)} hint={`From ${plural(s.reviews.count, "review")}`} />
             </StatGrid>
           </section>
         )}
