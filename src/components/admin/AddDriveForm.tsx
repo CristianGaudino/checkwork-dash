@@ -14,9 +14,10 @@ import { SlotPicker } from "@/components/admin/SlotPicker";
 import { addDriveAction, moveDriveAction, type DriveFormState } from "@/app/test-drives/actions";
 import type { CarCard } from "@/lib/admin/car-cards";
 import { DRIVE_LIMITS } from "@/lib/admin/drives";
+import { slugId } from "@/lib/admin/stock-admin-pure";
 import { firstOpen } from "@/lib/admin/slots";
 
-// What the slot picker is given (slotData on the server) and the length of a slot from Settings.
+// What the slot picker is given (slotData on the server, `taken` by car id) and the length of a slot from Settings.
 export type Slots = { days: string[]; taken: Record<string, string[]>; now: string; windowMin: number };
 
 const STEPS = ["Choose a car", "Choose a time", "Who is driving"]; // worded as the post wizard's steps
@@ -44,7 +45,7 @@ export function BookDriveForm({ cars, team, me, slots, initialCar, person }: { c
   const [car, setCar] = useState(start);
   // The picker opens on the car's first free time, never on a day with nothing left (#238).
   const { hours } = useDealerFacts();
-  const firstFor = (slug: string) => firstOpen(slots.days, slots.taken[slug] ?? [], slots.windowMin, slots.now, (d) => driveTimes(d, hours)) ?? { date: slots.days[0] ?? "", time: "" };
+  const firstFor = (slug: string) => firstOpen(slots.days, slots.taken[slugId(slug)] ?? [], slots.windowMin, slots.now, (d) => driveTimes(d, hours)) ?? { date: slots.days[0] ?? "", time: "" };
   const [when, setWhen] = useState(() => firstFor(start));
 
   const heading = useStepHeading(step);
@@ -71,7 +72,7 @@ export function BookDriveForm({ cars, team, me, slots, initialCar, person }: { c
 
       <section hidden={step !== 1} className="flex flex-col gap-4">
         {picked && <p className="text-body text-text-2">{picked.title}</p>}
-        <SlotPicker key={car} days={slots.days} taken={slots.taken[car] ?? []} windowMin={slots.windowMin} now={slots.now} date={when.date} time={when.time} onChange={(date, time) => setWhen({ date, time })} errors={{ date: e.date, time: e.time }} />
+        <SlotPicker key={car} days={slots.days} taken={slots.taken[slugId(car)] ?? []} windowMin={slots.windowMin} now={slots.now} date={when.date} time={when.time} onChange={(date, time) => setWhen({ date, time })} errors={{ date: e.date, time: e.time }} />
       </section>
 
       <section hidden={step !== 2} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -129,7 +130,7 @@ export function MoveDriveForm({ id, carSlug, slots }: { id: string; carSlug: str
   }, undefined);
   return (
     <form {...action} noValidate className="flex flex-col gap-4">
-      <SlotPicker days={slots.days} taken={slots.taken[carSlug] ?? []} windowMin={slots.windowMin} now={slots.now} date={when.date} time={when.time} onChange={(date, time) => setWhen({ date, time })} errors={state?.errors} />
+      <SlotPicker days={slots.days} taken={slots.taken[slugId(carSlug)] ?? []} windowMin={slots.windowMin} now={slots.now} date={when.date} time={when.time} onChange={(date, time) => setWhen({ date, time })} errors={state?.errors} />
       <button type="submit" disabled={pending || !when.time} className={`${when.time ? adminButton : adminButtonQuiet} self-start disabled:opacity-50`}>
         {pending ? "Moving" : "Move"}
       </button>

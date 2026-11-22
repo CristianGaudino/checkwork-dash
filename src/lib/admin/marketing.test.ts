@@ -61,7 +61,7 @@ describe("simulated figures", () => {
 
 describe("worthPosting", () => {
   const now = Date.parse("2026-11-11T12:00:00Z");
-  const c = (slug: string, o: Partial<Car>) => ({ ...car, id: slug, slug, ...o }) as Car;
+  const c = (slug: string, o: Partial<Car>) => ({ ...car, id: slug.split("-").at(-1)!, slug, ...o }) as Car; // the slug ends in the id
   it("suggests new cars first, then reduced ones, never one posted lately or sold, at most three", () => {
     const cars = [
       c("old-plain", { listedAt: "2026-09-01" }),
@@ -71,7 +71,7 @@ describe("worthPosting", () => {
       c("new-posted", { listedAt: "2026-11-10" }),
       c("new-sold", { listedAt: "2026-11-10", soldAt: "2026-11-11" }),
     ];
-    const ideas = worthPosting(cars, [{ carSlug: "new-posted", createdAt: now - 3_600_000 }], now);
+    const ideas = worthPosting(cars, [{ carSlug: "old-name-posted", createdAt: now - 3_600_000 }], now);
     expect(ideas.map((i) => [i.car.slug, i.reason])).toEqual([["new-b", "New this week"], ["new-a", "New this week"], ["reduced", "Price dropped"]]);
     expect(worthPosting([...cars, c("new-c", { listedAt: "2026-11-09" })], [], now)).toHaveLength(3);
   });

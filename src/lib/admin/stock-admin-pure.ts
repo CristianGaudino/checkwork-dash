@@ -23,6 +23,9 @@ export const listedOn = (was: Pick<Car, "listing" | "listedAt"> | undefined, liv
 
 // Slug is make, model, year and id, the same recipe as the feed (D-08). Keeping the id in it keeps every slug unique.
 export const carSlug = (c: Pick<Car, "make" | "model" | "year" | "id">) => `${slugify(c.make)}-${slugify(c.model)}-${c.year}-${c.id}`;
+// The car id at the end of a slug. A record that keeps a slug (a lead, a booking, a post) finds its car by this: editing the make, model or
+// year gives the car a new slug, and the record keeps the old one.
+export const slugId = (slug: string) => slug.split("-").at(-1) ?? "";
 
 // Where a car stands, the same on every page and in the export: off the website first (draft, hidden), then sold, reserved or for sale.
 export const CAR_STATUSES = ["Draft", "Hidden", "Sold", "Reserved", "For sale"] as const;

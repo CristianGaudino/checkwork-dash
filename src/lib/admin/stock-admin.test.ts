@@ -19,4 +19,11 @@ describe("freeCarId", () => {
     await leadsStore.put({ ...seeded, id: "lead-viewed-car", journey: { v: 1, minutes: 3, cars: [{ id: String(above + 9), views: 1 }], searches: [], tools: {} } });
     expect(Number(await freeCarId())).toBe(above + 10);
   });
+  it("never hands out an id a test drive still names", async () => {
+    const { freeCarId } = await import("./stock-admin");
+    const { drivesStore } = await import("./collections");
+    const above = Number(await freeCarId());
+    await drivesStore.put({ ...(await drivesStore.list())[0], id: "drive-deleted-car", carSlug: `ford-focus-2019-${above + 5}` });
+    expect(Number(await freeCarId())).toBe(above + 6);
+  });
 });

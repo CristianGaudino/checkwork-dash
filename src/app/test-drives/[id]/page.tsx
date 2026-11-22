@@ -10,6 +10,7 @@ import { drivesStore, getSettings } from "@/lib/admin/collections";
 import { DRIVE_NEXT, isOpenDrive, slotData } from "@/lib/admin/drives";
 import { dublinDay, fmtDateTime, fmtDay, fmtTime } from "@/lib/admin/format";
 import { adminCars } from "@/lib/admin/stock-admin";
+import { askedCar } from "@/lib/leads/journey";
 import { telHref } from "@/lib/phone";
 import { forSale } from "@/lib/stock/types";
 import { assignDriveAction } from "../actions";
@@ -25,7 +26,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const d = await drivesStore.get(id);
   if (!d) notFound();
   const [cars, drives, settings, { hours }] = await Promise.all([adminCars(), drivesStore.list(), getSettings(), dealerProfile()]);
-  const car = cars.find((c) => c.slug === d.carSlug);
+  const car = askedCar(cars, d.carSlug); // by its id: an edit to the make, model or year gives the car a new slug
   const open = isOpenDrive(d);
   const team = settings.team.map((t) => t.name);
   return (
