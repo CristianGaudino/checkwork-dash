@@ -28,6 +28,28 @@ export function StockPick({ id, name }: { id: string; name: string }) {
 
 const boxes = () => [...document.querySelectorAll<HTMLInputElement>(`input[form="${FORM}"][name="ids"]`)];
 
+// On a phone the tick boxes are out of the rows until Select is pressed (<html data-picking>, the pick column's `hide`); Done puts them
+// away again, unticked. From 640px the boxes are always there, and this button is not.
+export function StockPickToggle() {
+  const [on, setOn] = useState(false);
+  useEffect(() => {
+    document.documentElement.toggleAttribute("data-picking", on);
+    return () => document.documentElement.removeAttribute("data-picking");
+  }, [on]);
+  const toggle = () => {
+    if (on) {
+      for (const b of boxes()) b.checked = false;
+      document.dispatchEvent(new Event("change")); // StockBulk recounts, and its bar goes
+    }
+    setOn(!on);
+  };
+  return (
+    <button type="button" onClick={toggle} className={`${rowButton} sm:hidden`}>
+      {on ? "Done" : "Select"}
+    </button>
+  );
+}
+
 export function StockBulk({ canDelete }: { canDelete: boolean }) {
   const router = useRouter();
   const [picked, setPicked] = useState<string[]>([]);

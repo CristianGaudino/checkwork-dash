@@ -44,18 +44,19 @@ export const daysInStock = (listedAt: string) => {
 };
 
 // What needs doing about a car, in words: off the website, too few photos, in stock too long. Nothing for a sold car.
-function carWarnings(car: Car, oldDays: number): string[] {
+function carWarnings(car: Car, oldDays: number, photos: boolean): string[] {
   if (isSold(car)) return [];
   const out: string[] = [];
   if (car.listing === "hidden") out.push("Hidden from the website");
-  if (car.photos.length < FEW_PHOTOS) out.push(car.photos.length === 0 ? "No photos" : `Only ${car.photos.length} ${car.photos.length === 1 ? "photo" : "photos"}`);
+  if (photos && car.photos.length < FEW_PHOTOS) out.push(car.photos.length === 0 ? "No photos" : `Only ${car.photos.length} ${car.photos.length === 1 ? "photo" : "photos"}`);
   if (forSale(car) && car.listedAt && daysSince(car.listedAt) >= oldDays) out.push(`In stock ${daysSince(car.listedAt)} days`);
   return out;
 }
 
 // The car's status, and a warning badge for each thing that needs doing. `status`: leave the status out where every row has the same one.
-export async function CarFlags({ car, status = true }: { car: Car; status?: boolean }) {
-  const warnings = carWarnings(car, (await dealerProfile()).rules.oldStockDays);
+// `photos`: leave out the photo warning where To do already counts it (the stock list, but for its Need photos view).
+export async function CarFlags({ car, status = true, photos = true }: { car: Car; status?: boolean; photos?: boolean }) {
+  const warnings = carWarnings(car, (await dealerProfile()).rules.oldStockDays, photos);
   const showStatus = status || car.listing === "draft" || Boolean(car.reserved) || isSold(car);
   if (!showStatus && warnings.length === 0) return null;
   return (
