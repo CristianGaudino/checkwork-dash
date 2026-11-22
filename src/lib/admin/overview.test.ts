@@ -56,6 +56,7 @@ describe("overview", () => {
       { ...lead("hot", 2 * HOUR), topic: "buying", answers: { timing: "this-week" } },
       lead("late", 30 * HOUR),
       { ...lead("new-due", 2 * HOUR), followUpOn: today }, // new, with a follow-up due: once, as a follow-up
+      { ...lead("late-due", 30 * HOUR), followUpOn: today }, // red for being a late new lead, though its follow-up is only due today
       { ...lead("overdue", 5 * DAY, "contacted"), followUpOn: "2026-11-08" },
       { ...lead("today", 5 * DAY, "contacted"), followUpOn: today },
       { ...lead("later", 5 * DAY, "contacted"), followUpOn: "2026-11-12" },
@@ -67,6 +68,7 @@ describe("overview", () => {
     expect(t.map((x) => [x.lead.id, x.kind, x.urgency])).toEqual([
       ["overdue", "follow", "now"],
       ["late", "reply", "now"],
+      ["late-due", "follow", "now"],
       ["hot", "reply", "now"],
       ["new-due", "follow", "soon"],
       ["today", "follow", "soon"],
@@ -74,8 +76,8 @@ describe("overview", () => {
     ]);
     // The Overview's two lead to-dos add up to the same count.
     const o = overview({ rules: DEMO_PROFILE.rules, listingSite: "DoneDeal", leads, drives: [], reviews: [], now, slaHours: 24 });
-    expect(o.answer.length).toBe(6);
-    expect(o.attention.filter((a) => a.key === "reply" || a.key === "follow").reduce((n, a) => n + a.count, 0)).toBe(6);
+    expect(o.answer.length).toBe(7);
+    expect(o.attention.filter((a) => a.key === "reply" || a.key === "follow").reduce((n, a) => n + a.count, 0)).toBe(7);
   });
   it("Only mine keeps what is given to that person or to nobody yet, and agrees with their report's follow-ups and with Leads", () => {
     const leads = [

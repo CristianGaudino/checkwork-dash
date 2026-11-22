@@ -99,7 +99,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
       case "follow":
         return [
           ...o.due.slice(0, EACH).map(({ lead: l, urgency }) => {
-            const late = urgency === "now"; // overdue (leadsToAnswer), the same colour as on Leads
+            const late = l.followUpOn! < today; // the words by the date, as on Leads; the colour is the rule's (urgency), which is also red for a late new lead
             return (
               <Task key={`follow-${l.id}`} urgency={urgency} icon={<PhoneIcon />} title={`Follow up with ${l.name}`} detail={[late ? `Was due ${fmtDay(l.followUpOn!, "dayMonth")}` : "Due today", about(l)].filter(Boolean).join(" · ")} action={<><CallButton phone={l.phone} name={l.name} /><Link href={`/leads/${l.id}`} aria-label={`Open ${l.name}'s lead`} className={rowButton}>Open</Link></>} />
             );

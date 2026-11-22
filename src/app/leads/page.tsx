@@ -145,7 +145,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
           title="To answer now"
           count={todo.length}
           action={
-            me.name && (
+            me.name && !f.with && (
               <Link href={mineHref} aria-current={mine ? "true" : undefined} className={choicePill(mine)}>
                 {mine && <CheckIcon className="shrink-0 size-4" />}
                 Only mine
