@@ -61,7 +61,12 @@ function Phone({ label, title, status, msgs, mine, small = false, onTap, onSend,
   const [text, setText] = useState("");
   useEffect(() => {
     const box = end.current?.parentElement;
-    if (box) box.scrollTop = box.scrollHeight;
+    const toEnd = () => box && (box.scrollTop = box.scrollHeight);
+    toEnd();
+    // Folded away (a closed details has no size, so the scroll above did nothing): scroll again when it opens.
+    const fold = box?.closest("details");
+    fold?.addEventListener("toggle", toEnd);
+    return () => fold?.removeEventListener("toggle", toEnd);
   }, [msgs.length]);
   return (
     <section aria-label={label} className="flex w-full flex-col overflow-hidden rounded-[2rem] border-[6px] border-ink bg-ink shadow-lift ring-1 ring-hairline">
