@@ -88,12 +88,12 @@ export function summarise(data: ReportData, from: string, to: string, now: numbe
   };
 }
 
-// A change on the month before, in words. Under five either month there is too little to say a percentage means anything.
+// A change on the month (or `period`) before, in words. Under five either side there is too little to say a percentage means anything.
 export const TOO_FEW = 5;
-export function compare(now: number, before: number): string {
+export function compare(now: number, before: number, period = "month"): string {
   if (now < TOO_FEW || before < TOO_FEW) return "Too few to compare";
   const pct = Math.round(((now - before) / before) * 100);
-  return pct === 0 ? "The same as the month before" : `${pct > 0 ? "Up" : "Down"} ${Math.abs(pct)}% on the month before`;
+  return pct === 0 ? `The same as the ${period} before` : `${pct > 0 ? "Up" : "Down"} ${Math.abs(pct)}% on the ${period} before`;
 }
 
 // One plain line on what to do, from fixed rules: the first that applies.

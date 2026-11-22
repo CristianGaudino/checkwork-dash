@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { NOT_KNOWN, visitorFigures } from "./visitor-figures";
+import { visitorFigures } from "./visitor-figures";
 
 describe("visitorFigures", () => {
   const f = visitorFigures({
@@ -23,12 +23,13 @@ describe("visitorFigures", () => {
 
   it("adds the visits up by channel, with the website leads each brought, and keeps leads with no channel", () => {
     expect(f.totals).toEqual({ visits: 100, leads: 4, conversion: 4 });
-    expect(f.sources).toEqual([
-      { name: "Google", visits: 60, leads: 1 },
-      { name: "Facebook", visits: 30, leads: 2 },
-      { name: "Typed in or bookmarked", visits: 10, leads: 0 },
-      { name: NOT_KNOWN, visits: 0, leads: 1 },
+    expect(f.channels.filter((c) => c.visits || c.leads)).toEqual([
+      { channel: "google", visits: 60, leads: 1 },
+      { channel: "facebook", visits: 30, leads: 2 },
+      { channel: "direct", visits: 10, leads: 0 },
     ]);
+    expect(f.channels).toHaveLength(10);
+    expect(f.unknownLeads).toBe(1);
   });
 
   it("names the makes searched with no results, the filters and the price bands", () => {
