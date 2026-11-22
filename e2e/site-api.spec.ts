@@ -172,3 +172,13 @@ test("the taken times for a car come from its open bookings, as times only, and 
   expect((await request.get("/api/site/v1/drives/taken?carId=x", { headers: auth() })).status()).toBe(400);
   expect((await request.get(`/api/site/v1/drives/taken?carId=${carId}`)).status()).toBe(401);
 });
+
+test("a day's visitor counts sent with the website's key are accepted and replaced, and a bad count or date is turned away", async ({ request }) => {
+  const day = new Date().toLocaleDateString("en-CA", { timeZone: "Europe/Dublin" });
+  const post = (data: object, key?: string) => request.post("/api/site/v1/counts", { headers: auth(key), data });
+  expect((await post({ day, counts: { "no-results": 4 } }, "cw_site_nope")).status()).toBe(401);
+  expect((await post({ day, counts: { "no-results": "x" } })).status()).toBe(400);
+  expect((await post({ day: "2026-13-45", counts: {} })).status()).toBe(400);
+  expect((await post({ day, counts: { "no-results": 4 } })).status()).toBe(204);
+  expect((await post({ day, counts: { "no-results": 6 } })).status()).toBe(204);
+});
