@@ -172,8 +172,8 @@ describe("the log", () => {
     const lines: string[] = [];
     for (const m of ["log", "warn", "error", "info"] as const) vi.spyOn(console, m).mockImplementation((...args: unknown[]) => void lines.push(args.map(String).join(" ")));
     const secrets: string[] = ["aoife@example.com", "ciara@example.com", "nobody@example.com", "203.0.113.7", "iPhone"];
-    // a lock (10 wrong across two codes, the warning email), a code sign-in, a link sign-in, an unknown address, a bad origin
-    for (let i = 0; i < 2; i++) {
+    // a lock (15 wrong across three codes, the warning email), a code sign-in, a link sign-in, an unknown address, a bad origin
+    for (let i = 0; i < 3; i++) {
       await outcome(() => actions.requestCode(undefined, form({ email: "aoife@example.com" })));
       await flush();
       secrets.push(codeOf("aoife@example.com"), tokenOf("aoife@example.com"), jar.get("__Host-cw_attempt")!);
@@ -181,6 +181,7 @@ describe("the log", () => {
         await actions.submitCode(undefined, form({ code: "000000" === codeOf("aoife@example.com") ? "111111" : "000000" }));
         await flush();
       }
+      // a new request is only allowed 3 in 15 minutes, which is exactly this loop
     }
     expect(mails("aoife@example.com").some((m) => m.subject.startsWith("Someone tried"))).toBe(true);
     await outcome(() => actions.requestCode(undefined, form({ email: "ciara@example.com" })));

@@ -6,7 +6,7 @@ import { members, passkeys, sessions, signInAttempts, staff } from "../db/direct
 // Retention for our own sign-in (docs/sign-in.md, section 6), the nightly job's one directory step (worker.mjs, purge-sign-in). Counts
 // only, never a row. Relative imports only: wrangler bundles this outside Next's "@/" alias.
 const HOUR_MS = 3_600_000;
-export const ATTEMPT_KEEP_MS = HOUR_MS; // the hourly email count needs an hour; the lock lives on staff
+export const ATTEMPT_KEEP_MS = 24 * HOUR_MS; // the daily wrong-code count needs a day; the lock lives on staff
 export const SESSION_IDLE_MS = 12 * HOUR_MS;
 // Bounded work a night: at most `chunks` deletes of `chunk` rows per table; whatever is left goes the next night.
 export const PURGE_LIMITS = { chunk: 5000, chunks: 20 };

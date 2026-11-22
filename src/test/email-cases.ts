@@ -156,49 +156,46 @@ export function emailCases(store: Store, { s, a, m, sessions, dir }: Lib) {
       expect((await s.checkCode(hash("b1"), codeOf(first), NOW + 2)).ok).toBe(true);
     });
 
-    it("locks an address for 15 minutes at 10 wrong codes across two codes, gives it a working link counted in the caps, and frees it after", async () => {
-      for (let i = 0; i < 2; i++) {
-        await ask(AOIFE, `b${i}`, NOW + i * MIN);
-        for (let j = 0; j < 5; j++) await wrong(AOIFE, `b${i}`, NOW + i * MIN + j);
+    it("locks an address at 15 wrong codes across three codes, and it still gets a working link, counted in the caps", async () => {
+      for (let i = 0; i < 3; i++) {
+        await ask(AOIFE, `b${i}`, NOW + i * 16 * MIN);
+        for (let j = 0; j < 5; j++) await wrong(AOIFE, `b${i}`, NOW + i * 16 * MIN + j);
       }
-      const until = (await person(AOIFE))!.codeLockedUntil!.getTime();
-      expect(until).toBeGreaterThan(NOW + 15 * MIN);
-      expect(until).toBeLessThanOrEqual(NOW + 20 * MIN); // minutes, never a day
+      expect((await person(AOIFE))!.codeLockedUntil!.getTime()).toBeGreaterThan(NOW + 24 * 60 * MIN);
       expect(mails(AOIFE).at(-1)!.text).toContain("Someone tried to sign in to Checkwork as you"); // one warning, at the lock
-      const t = NOW + 2 * MIN;
+      const t = NOW + 3 * 16 * MIN;
       expect(await ask(AOIFE, "b9", t)).toBe("link-only");
       const x = lastMail(AOIFE);
       expect(x.text).toContain("Codes are paused for your address");
       expect(x.text).not.toContain("Your code is");
       expect(await s.checkCode(hash("b9"), "123456", t)).toEqual({ ok: false }); // that browser's code row has no code
       expect(await s.spendLink(tokenOf(x), t)).toMatchObject({ email: AOIFE });
-      expect(await ask(AOIFE, "b9", t + 1)).toBe("limited"); // counted in the caps: 3 in 15 minutes
-      expect(mails(AOIFE).filter((y) => y.subject === "Your Checkwork sign-in code")).toHaveLength(3);
-      // the lock and the wrong tries both age out: a new code works again
-      const later = NOW + 40 * MIN;
-      expect(await ask(AOIFE, "b8", later)).toBe("sent");
-      expect((await s.checkCode(hash("b8"), codeOf(lastMail(AOIFE)), later)).ok).toBe(true);
+      // counted in the caps: 3 in 15 minutes, nothing past them
+      expect(await ask(AOIFE, "b9", t + 1)).toBe("link-only");
+      expect(await ask(AOIFE, "b9", t + 2)).toBe("link-only");
+      expect(await ask(AOIFE, "b9", t + 3)).toBe("limited"); // 3 in 15 minutes, and nothing past them
+      expect(mails(AOIFE).filter((y) => y.subject === "Your Checkwork sign-in code")).toHaveLength(3 + 3);
     });
 
     it("sends the lock warning once", async () => {
-      for (let i = 0; i < 2; i++) {
-        await ask(AOIFE, `b${i}`, NOW + i * MIN);
-        for (let j = 0; j < 5; j++) await wrong(AOIFE, `b${i}`, NOW + i * MIN + j);
+      for (let i = 0; i < 3; i++) {
+        await ask(AOIFE, `b${i}`, NOW + i * 16 * MIN);
+        for (let j = 0; j < 5; j++) await wrong(AOIFE, `b${i}`, NOW + i * 16 * MIN + j);
       }
-      await s.countWrong(AOIFE, NOW + 5 * MIN);
+      await s.countWrong(AOIFE, NOW + 60 * MIN);
       expect(mails(AOIFE).filter((y) => y.subject.startsWith("Someone tried"))).toHaveLength(1);
     });
 
-    it("refuses a matching code after the 10th wrong try, even before the lock is written", async () => {
-      const old = (id: string, tries: number): Attempts.Attempt => ({ id, kind: "code", email: AOIFE, staffId: null, challenge: null, codeHmac: null, tokenHmac: null, browserHash: null, tries, createdAt: new Date(NOW - 5 * MIN), expiresAt: new Date(NOW - 1), usedAt: null });
-      for (const [prior, ok] of [[9, true], [10, false]] as const) {
+    it("refuses a matching code after the 15th wrong try, even before the lock is written", async () => {
+      const old = (id: string, tries: number): Attempts.Attempt => ({ id, kind: "code", email: AOIFE, staffId: null, challenge: null, codeHmac: null, tokenHmac: null, browserHash: null, tries, createdAt: new Date(NOW - 60 * MIN), expiresAt: new Date(NOW - 30 * MIN), usedAt: null });
+      for (const [prior, ok] of [[14, true], [15, false]] as const) {
         await store.reset();
         await ask(AOIFE, "b1", NOW);
         const live = (await store.attempts()).find((r) => r.kind === "code")!;
         await store.patchAttempt(live.id, { tries: 3 }); // 3 wrong already on the live code
-        await a.addAttempt(old("old-a", 3));
-        await a.addAttempt(old("old-b", 3));
-        await a.addAttempt(old("old-c", prior - 9)); // the wrong tries in the last 15 minutes: prior
+        await a.addAttempt(old("old-a", 5));
+        await a.addAttempt(old("old-b", 5));
+        await a.addAttempt(old("old-c", prior - 13)); // the wrong tries in the last 24 hours: prior
         expect((await person(AOIFE))!.codeLockedUntil).toBeNull(); // the lock is not written: the count is still in flight
         expect((await s.checkCode(hash("b1"), codeOf(lastMail(AOIFE)), NOW)).ok, `prior ${prior}`).toBe(ok);
       }

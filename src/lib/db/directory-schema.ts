@@ -60,7 +60,7 @@ export const staff = sqliteTable("staff", {
   id: text().primaryKey(),
   email: text().notNull().unique(), // lower case, as in members
   codeFailures: integer("code_failures").notNull().default(0), // wrong codes in a row; back to 0 at any sign-in
-  codeLockedUntil: integer("code_locked_until", { mode: "timestamp_ms" }), // codes refused until then (10 wrong in 15 minutes)
+  codeLockedUntil: integer("code_locked_until", { mode: "timestamp_ms" }), // codes refused until then (15 wrong in a day)
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
 });
 
