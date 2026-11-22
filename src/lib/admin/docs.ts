@@ -120,11 +120,8 @@ export function defineCollection<T extends Doc>(name: string, demoSeed: (demo: b
     async replaceMany(removeIds: string[], docs: T[]): Promise<void> {
       const w = await ready();
       if (w.mem) {
-        const done = new Map(w.mem);
-        removeIds.forEach((id) => done.delete(id));
-        docs.forEach((d) => done.set(d.id, d));
-        w.mem.clear();
-        done.forEach((d, id) => w.mem!.set(id, d));
+        removeIds.forEach((id) => w.mem!.delete(id));
+        docs.forEach((d) => w.mem!.set(d.id, d));
         return;
       }
       const db = w.db!;

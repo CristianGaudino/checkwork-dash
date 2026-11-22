@@ -155,7 +155,7 @@ test("Settings makes a website key, shows it once, and revokes it", async ({ pag
   await expect(row).toContainText("Revoked");
 });
 
-test("a day's visitor counts sent with the website's key are accepted and replaced, and a name off the list is turned away", async ({ request }) => {
+test("a day's visitor counts sent with the website's key are accepted and replaced, and a bad count or date is turned away", async ({ request }) => {
   const day = new Date().toLocaleDateString("en-CA", { timeZone: "Europe/Dublin" });
   const post = (data: object, key?: string) => request.post("/api/site/v1/counts", { headers: auth(key), data });
   expect((await post({ day, counts: { "no-results": 4 } }, "cw_site_nope")).status()).toBe(401);
