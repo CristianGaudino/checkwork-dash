@@ -1,5 +1,5 @@
 import "server-only";
-import { and, eq, notLike, sql } from "drizzle-orm";
+import { and, eq, inArray, notLike, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import { adminDocs } from "@/lib/db/schema";
 import { currentDealer, hasD1 } from "@/lib/tenancy/current";
@@ -114,6 +114,25 @@ export function defineCollection<T extends Doc>(name: string, demoSeed: (demo: b
         if (done.length) return next;
       }
       throw new Error(`admin_docs ${name} update clashed`);
+    },
+    // Delete some records and write others as one unit: one D1 batch, which is one round trip and all or nothing (a failed insert leaves the
+    // deleted records in place). D1 allows 100 bound values a statement, so the ids and rows go in chunks of statements inside that batch.
+    async replaceMany(removeIds: string[], docs: T[]): Promise<void> {
+      const w = await ready();
+      if (w.mem) {
+        const done = new Map(w.mem);
+        removeIds.forEach((id) => done.delete(id));
+        docs.forEach((d) => done.set(d.id, d));
+        w.mem.clear();
+        done.forEach((d, id) => w.mem!.set(id, d));
+        return;
+      }
+      const db = w.db!;
+      const at = new Date(); // `docs` ids must be new or in `removeIds`: a clash fails the whole batch
+      const stmts = [];
+      for (let i = 0; i < removeIds.length; i += 90) stmts.push(db.delete(adminDocs).where(and(eq(adminDocs.collection, name), inArray(adminDocs.id, removeIds.slice(i, i + 90)))));
+      for (let i = 0; i < docs.length; i += 20) stmts.push(db.insert(adminDocs).values(docs.slice(i, i + 20).map((d) => ({ collection: name, id: d.id, data: d, updatedAt: at }))));
+      if (stmts.length) await quiet(db.batch(stmts as [(typeof stmts)[number], ...(typeof stmts)[number][]]), "replaceMany");
     },
     async remove(id: string): Promise<void> {
       const w = await ready();

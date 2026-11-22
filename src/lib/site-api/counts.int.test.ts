@@ -12,7 +12,7 @@ const { env } = await import("@/test/sqlite-d1");
 const { POST } = await import("@/app/api/site/v1/counts/route");
 const { makeSiteKey } = await import("@/lib/tenancy/directory");
 const { runAsDealer } = await import("@/lib/tenancy/current");
-const { countsBetween, bump } = await import("@/lib/owner-api/counters");
+const { countsBetween, bump, countStore } = await import("@/lib/owner-api/counters");
 const { addDays, dublinDay } = await import("@/lib/admin/format");
 
 const A = "checkwork-motors";
@@ -62,6 +62,17 @@ describe("POST /api/site/v1/counts", () => {
     const got = await seen(A, day);
     expect(got.features).toEqual({ saved: 1 });
     expect(got.dashboard).toEqual({});
+  });
+
+  it("saves a day all or nothing: a failing insert leaves the old day as it was", async () => {
+    const day = addDays(today, -6);
+    await send(keyA, { day, counts: { saved: 2, compare: 1 } });
+    const ids = ["saved", "compare"].map((e) => `${day}:${e}`);
+    const dup = { id: `${day}:finance`, day, event: "finance", count: 1 };
+    await expect(runAsDealer(A, () => countStore.replaceMany(ids, [dup, dup]))).rejects.toThrow(); // the same id twice breaks the primary key
+    expect((await seen(A, day)).features).toEqual({ saved: 2, compare: 1 });
+    await runAsDealer(A, () => countStore.replaceMany(ids, [dup])); // and a good one swaps the day in one go
+    expect((await seen(A, day)).features).toEqual({ finance: 1 });
   });
 
   it("caps the numbers and the keys", async () => {
