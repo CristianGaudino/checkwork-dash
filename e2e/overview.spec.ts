@@ -60,7 +60,7 @@ test("Sales sees only their own to-dos by default, and can switch to the whole t
   await page.goto("/");
   const mine = page.getByRole("link", { name: "Only mine" });
   await expect(mine).toHaveAttribute("aria-current", "true");
-  await expect(page.getByRole("navigation", { name: "Quick actions" }).getByRole("link", { name: /^Reply to leads/ })).toHaveAttribute("href", /with=Conor/);
+  await expect(page.getByRole("navigation", { name: "Quick actions" }).getByRole("link", { name: /^Reply to leads/ })).toHaveAttribute("href", /mine=1/);
   await expect(async () => {
     const c = await counts(page);
     expect(c.toDo).toBe(c.headline);

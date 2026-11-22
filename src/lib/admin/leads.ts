@@ -1,7 +1,7 @@
 import { LEAD_SOURCES, LEAD_STATUSES, LEAD_TYPES, type Claim, type Lead, type LeadStatus, type LeadType } from "./collections";
 import { TOPIC_IDS, type TopicId } from "@/lib/leads/contact-topics";
 import { followUpDue, isHotLead, pastReplyTarget } from "./follow-ups";
-export { followUpDue, isHotLead, isOpenLead, leadsToAnswer, type LeadTask } from "./follow-ups";
+export { followUpDue, forPerson, isHotLead, isOpenLead, leadsToAnswer, type LeadTask } from "./follow-ups";
 
 // A warranty message from the website is aftersales work, not a sale: it is listed in Aftersales as a request, and left out of Leads, its
 // counts, the overview and the reports. A person's own page and their data requests still show everything.

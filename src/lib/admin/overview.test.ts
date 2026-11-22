@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { AdminReview, Lead, TestDrive } from "./collections";
 import { overview } from "./overview";
-import { leadsToAnswer } from "./follow-ups";
+import { forPerson, leadsToAnswer } from "./follow-ups";
 import { personalReport } from "./reports";
 import { DAY, HOUR } from "@/lib/time";
 import { DEMO_PROFILE } from "@/lib/tenancy/profile";
@@ -77,21 +77,25 @@ describe("overview", () => {
     expect(o.answer.length).toBe(6);
     expect(o.attention.filter((a) => a.key === "reply" || a.key === "follow").reduce((n, a) => n + a.count, 0)).toBe(6);
   });
-  it("Only mine keeps the leads and test drives given to that person, and agrees with their report's follow-ups", () => {
+  it("Only mine keeps what is given to that person or to nobody yet, and agrees with their report's follow-ups and with Leads", () => {
     const leads = [
       { ...lead("a", 5 * DAY, "contacted"), assignedTo: "Ciara", followUpOn: "2026-11-09" },
       { ...lead("b", 5 * DAY, "new"), assignedTo: "Ciara", followUpOn: "2026-11-10" },
       { ...lead("c", 5 * DAY, "contacted"), assignedTo: "Conor", followUpOn: "2026-11-09" },
-      lead("d", 2 * HOUR), // nobody's yet
+      lead("d", 2 * HOUR), // a new website lead nobody has taken yet: stays in sight
+      { ...lead("e", 5 * DAY, "new"), assignedTo: "Conor" },
+      { ...lead("f", 5 * DAY, "contacted"), followUpOn: "2026-11-09" }, // nobody's follow-up: not in their report, so not here
     ] as Lead[];
-    const drives = [{ ...drive("x", DAY, "requested"), assignedTo: "Ciara" }, drive("y", DAY, "requested")];
+    const drives = [{ ...drive("x", DAY, "requested"), assignedTo: "Ciara" }, drive("y", 2 * DAY, "requested"), { ...drive("z", DAY, "requested"), assignedTo: "Conor" }];
     const o = overview({ rules: DEMO_PROFILE.rules, listingSite: "DoneDeal", leads, drives, reviews: [], now, mine: "Ciara" });
-    expect(o.answer.map((t) => t.lead.id)).toEqual(["a", "b"]);
-    expect(o.toConfirm.map((d) => d.id)).toEqual(["x"]);
+    expect(o.answer.map((t) => t.lead.id)).toEqual(["a", "b", "d"]);
+    expect(o.toConfirm.map((d) => d.id)).toEqual(["x", "y"]);
+    // Leads' To answer now with Only mine (the button's link) counts the same leads.
+    expect(forPerson(leadsToAnswer(leads, now, "2026-11-10", 24), "Ciara").length).toBe(o.answer.length);
     expect(o.attention.find((a) => a.key === "follow")?.href).toBe("/leads?need=due&with=Ciara");
     expect(o.due.length).toBe(personalReport({ name: "Ciara", sales: [], leads, period: 3, now }).totals.followUpsDue);
     // Without it, the whole team's.
-    expect(overview({ rules: DEMO_PROFILE.rules, listingSite: "DoneDeal", leads, drives, reviews: [], now }).answer).toHaveLength(4);
+    expect(overview({ rules: DEMO_PROFILE.rules, listingSite: "DoneDeal", leads, drives, reviews: [], now }).answer).toHaveLength(6);
   });
   it("averages ratings, and is 0 with no reviews", () => {
     expect(overview({ rules: DEMO_PROFILE.rules, listingSite: "DoneDeal", leads: [], drives: [], reviews: [review("a", 5), review("b", 4)], now }).averageRating).toBe(4.5);

@@ -1,13 +1,13 @@
 import { sourceText } from "@/lib/visit-rules";
 import Link from "next/link";
 import { LeadStatusBadge } from "@/components/admin/badges";
-import { Avatar, Badge, DataTable, EmptyState, PageHeader, Panel, SummaryTabs, TableFooter, TableToolbar, Task, TaskList, pageOf, sortRows, type Column, type FilterGroup } from "@/components/admin/kit";
+import { Avatar, Badge, DataTable, EmptyState, PageHeader, Panel, SummaryTabs, TableFooter, TableToolbar, Task, TaskList, choicePill, pageOf, sortRows, type Column, type FilterGroup } from "@/components/admin/kit";
 import { NextStatusButton, ReachButton } from "@/components/admin/LeadActions";
-import { AlertIcon, CalendarIcon, InboxIcon } from "@/components/stock/icons";
-import { can } from "@/lib/permissions";
+import { AlertIcon, CalendarIcon, CheckIcon, InboxIcon } from "@/components/stock/icons";
+import { can, currentMember } from "@/lib/permissions";
 import { LEAD_SOURCES, LEAD_STATUSES, LEAD_STATUS_LABELS, LEAD_TYPE_LABELS, getSettings, leadsStore, type Lead } from "@/lib/admin/collections";
 import { dublinDay, fmtAgo, fmtDate } from "@/lib/admin/format";
-import { SALES_LEAD_TYPES, countByStatus, filterLeads, followUpDue, isHotLead, isOpenLead, isSalesLead, leadsToAnswer, parseLeadFilter, urgentFirst } from "@/lib/admin/leads";
+import { SALES_LEAD_TYPES, countByStatus, filterLeads, followUpDue, forPerson, isHotLead, isOpenLead, isSalesLead, leadsToAnswer, parseLeadFilter, urgentFirst, type LeadTask } from "@/lib/admin/leads";
 import { TOPICS, isUrgent, leadTags } from "@/lib/leads/contact-topics";
 import { LeadKind, LeadTags, leadChips } from "@/components/admin/LeadKind";
 import { enabledModules } from "@/lib/modules";
@@ -20,7 +20,7 @@ const now = () => Date.now();
 // What each status means, in a few words under it.
 const STATUS_HINTS = { new: "Not answered yet", contacted: "Answered", appointment: "Coming in", won: "Bought", lost: "Did not buy" } as const;
 
-type Params = { status?: string; type?: string; topic?: string; q?: string; due?: string; late?: string; need?: string; with?: string; source?: string; sort?: string; dir?: string; page?: string; per?: string };
+type Params = { mine?: string; status?: string; type?: string; topic?: string; q?: string; due?: string; late?: string; need?: string; with?: string; source?: string; sort?: string; dir?: string; page?: string; per?: string };
 
 export default async function Page({ searchParams }: { searchParams: Promise<Params> }) {
   const sp = await searchParams;
@@ -119,18 +119,40 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
   };
 
   // What to answer now, worked down from the top, by the same rule as the Overview's To do (leadsToAnswer). On the plain list, or one
-  // person's (the Overview's Reply to leads opens it with Only mine): any other filter or a search is looking for something else.
+  // person's: Only mine (forPerson, as the Overview's, whose Reply to leads opens it so) or Who has it. Any other filter or a search is
+  // looking for something else.
   const filtered = Boolean(f.status || f.type || f.topic || f.q || f.due || f.late || f.source || (sp.page && sp.page !== "1"));
-  const why = ({ lead: l, kind, late }: { lead: Lead; kind: string; late: boolean }) =>
+  const me = await currentMember();
+  const mine = sp.mine === "1" && Boolean(me.name);
+  const why = ({ lead: l, kind, late }: LeadTask) =>
     kind === "follow" ? (l.followUpOn! < today ? `Follow-up was due ${fmtDate(`${l.followUpOn}T12:00:00Z`)}` : "Follow up today") : late ? `Came in ${fmtAgo(l.createdAt)}, past your reply time` : isHotLead(l) ? `In a hurry: ${leadTags(l.topic!, l.answers ?? {}).join(", ")}` : `New, came in ${fmtAgo(l.createdAt)}`;
-  const todo = leadsToAnswer(f.with ? filterLeads(all, { q: "", with: f.with }) : all, now(), today, leadSlaHours).map((t) => ({ ...t, why: why(t) }));
+  const every = leadsToAnswer(f.with ? filterLeads(all, { q: "", with: f.with }) : all, now(), today, leadSlaHours);
+  const todo = (mine ? forPerson(every, me.name) : every).map((t) => ({ ...t, why: why(t) }));
   const SHOWN = 8;
+  // The footer's links keep whose leads these are: new ones by Who has it, follow-ups by Who has it or Only mine (only their own).
+  const withWho = f.with ? `&with=${encodeURIComponent(f.with)}` : "";
+  const replies = todo.filter((t) => t.kind === "reply").length;
+  const follows = todo.length - replies;
+  const mineParams = new URLSearchParams(Object.entries(sp).filter((e): e is [string, string] => typeof e[1] === "string" && e[0] !== "page" && e[0] !== "mine"));
+  if (!mine) mineParams.set("mine", "1");
+  const mineHref = `/leads${mineParams.size ? `?${mineParams}` : ""}`;
 
   return (
     <>
       <PageHeader title="Leads" text="Everyone who got in touch. Answer the ones at the top first." />
       {!filtered && (
-        <Panel title="To answer now" count={todo.length}>
+        <Panel
+          title="To answer now"
+          count={todo.length}
+          action={
+            me.name && (
+              <Link href={mineHref} aria-current={mine ? "true" : undefined} className={choicePill(mine)}>
+                {mine && <CheckIcon className="shrink-0 size-4" />}
+                Only mine
+              </Link>
+            )
+          }
+        >
           {todo.length === 0 ? (
             <p className="text-body text-text-2">All caught up. No new leads and no follow-ups due.</p>
           ) : (
@@ -166,8 +188,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
           {todo.length > SHOWN && (
             <p className="flex flex-wrap gap-x-4 text-meta text-text-2">
               {todo.length - SHOWN} more waiting.
-              <Link href="/leads?status=new" className="font-medium text-text underline">New leads ({counts.new})</Link>
-              {due > 0 && <Link href="/leads?need=due" className="font-medium text-text underline">Follow-ups due ({due})</Link>}
+              {replies > 0 && <Link href={`/leads?status=new${withWho}`} className="font-medium text-text underline">New leads ({replies})</Link>}
+              {follows > 0 && <Link href={`/leads?need=due${withWho || (mine ? `&with=${encodeURIComponent(me.name)}` : "")}`} className="font-medium text-text underline">Follow-ups due ({follows})</Link>}
             </p>
           )}
         </Panel>

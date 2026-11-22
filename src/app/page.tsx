@@ -98,10 +98,10 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
         ];
       case "follow":
         return [
-          ...o.due.slice(0, EACH).map(({ lead: l }) => {
-            const late = l.followUpOn! < today;
+          ...o.due.slice(0, EACH).map(({ lead: l, urgency }) => {
+            const late = urgency === "now"; // overdue (leadsToAnswer), the same colour as on Leads
             return (
-              <Task key={`follow-${l.id}`} urgency={late ? "now" : "soon"} icon={<PhoneIcon />} title={`Follow up with ${l.name}`} detail={[late ? `Was due ${fmtDay(l.followUpOn!, "dayMonth")}` : "Due today", about(l)].filter(Boolean).join(" · ")} action={<><CallButton phone={l.phone} name={l.name} /><Link href={`/leads/${l.id}`} aria-label={`Open ${l.name}'s lead`} className={rowButton}>Open</Link></>} />
+              <Task key={`follow-${l.id}`} urgency={urgency} icon={<PhoneIcon />} title={`Follow up with ${l.name}`} detail={[late ? `Was due ${fmtDay(l.followUpOn!, "dayMonth")}` : "Due today", about(l)].filter(Boolean).join(" · ")} action={<><CallButton phone={l.phone} name={l.name} /><Link href={`/leads/${l.id}`} aria-label={`Open ${l.name}'s lead`} className={rowButton}>Open</Link></>} />
             );
           }),
           ...rest(a.key, o.due.length, "follow-up due", "follow-ups due", a.href, a.urgency),
@@ -145,7 +145,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
         {drivesOn && <ActionTile href="/test-drives/new" icon={<CalendarIcon />} label="Book a test drive" text="Pick a car and a time" />}
         {mods.has("social") && <ActionTile href="/marketing/new" icon={<ShareIcon />} label="New post" text="Facebook and Instagram" />}
         {/* The same leads as To do and Leads' To answer now (leadsToAnswer). */}
-        <ActionTile href={mine ? `/leads?with=${encodeURIComponent(me.name)}` : "/leads"} icon={<InboxIcon />} label="Reply to leads" text={o.answer.length ? `${plural(o.answer.length, "lead")} to answer` : "All answered"} />
+        <ActionTile href={mine ? "/leads?mine=1" : "/leads"} icon={<InboxIcon />} label="Reply to leads" text={o.answer.length ? `${plural(o.answer.length, "lead")} to answer` : "All answered"} />
       </ActionTiles>
 
       <Columns

@@ -28,3 +28,6 @@ export function leadsToAnswer(leads: Lead[], now: number, today: string, slaHour
     })
     .sort((a, b) => (a.urgency === b.urgency ? since(a) - since(b) : a.urgency === "now" ? -1 : 1));
 }
+// Only mine (#38), on the Overview's To do and Leads' To answer now: what is given to this person, and the new leads nobody has taken
+// yet, so a new website lead never drops out of sight. Follow-ups only their own, so the count matches their report.
+export const forPerson = (tasks: LeadTask[], name: string) => tasks.filter((t) => t.lead.assignedTo === name || (!t.lead.assignedTo && t.kind === "reply"));
