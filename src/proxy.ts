@@ -11,9 +11,11 @@ const withoutPath = (req: NextRequest) => {
 };
 // The app's own not found page, not a bare line. A path no route matches renders app/not-found.tsx.
 const notThere = (req: NextRequest) => NextResponse.rewrite(new URL("/not-found-closed-area", req.url), { status: 404, headers: { "X-Robots-Tag": "noindex" }, request: { headers: withoutPath(req) } });
-// Our sign-in's pages and /sign-out check SIGN_IN themselves (signInOpen in src/lib/staff.ts): the proxy only strips PATH_HEADER there and
-// gates nothing, so a signed-out visit to /sign-in is never sent to /sign-in again.
+// Our sign-in's pages and /sign-out: never given a path (so a signed-out visit to /sign-in is never sent to /sign-in again), and any the
+// browser sent is stripped. Gated by Access like any page in `access` and `both`; open to everyone in `own`, where they check SIGN_IN
+// themselves too (signInOpen in src/lib/staff.ts).
 const SIGN_IN_PAGES = /^\/(sign-in(\/.*)?|sign-out)$/;
+const through = (req: NextRequest) => (SIGN_IN_PAGES.test(req.nextUrl.pathname) ? NextResponse.next({ request: { headers: withoutPath(req) } }) : pass(req));
 const isPageLoad = (req: NextRequest) => req.method === "GET" || req.method === "HEAD";
 // The page's path and query, for the sign-in redirect's `next` (src/lib/staff.ts toSignIn).
 const pathOf = (req: NextRequest) => {
@@ -35,12 +37,12 @@ const pass = (req: NextRequest) => {
 // (src/components/admin/PlanGate.tsx), and every action checks it again (requireModule). Proxy is not for data fetching (Next 16 docs), so
 // it reads no directory and no session: the server checks the session (src/lib/staff.ts), and a dead one goes to sign in from dealerAccess.
 export async function proxy(req: NextRequest) {
-  if (SIGN_IN_PAGES.test(req.nextUrl.pathname)) return NextResponse.next({ request: { headers: withoutPath(req) } });
   // A closed area looks like a page that is not there. Server actions post to the page itself, so this covers them too.
   // Open in development and when the build says so, but never with a real directory bound (the Worker, where OpenNext gives the proxy the
   // bindings too). staffIdentity checks the same again.
-  if (appOpen()) return pass(req);
+  if (appOpen()) return through(req);
   if (signInMode() === "own") {
+    if (SIGN_IN_PAGES.test(req.nextUrl.pathname)) return through(req);
     if (SESSION_VALUE.test(req.cookies.get(SESSION_COOKIE)?.value ?? "")) return pass(req); // its shape only: the server looks it up
     // A page load with no session goes to sign in and back; anything else (a server action) is not there.
     return isPageLoad(req) ? NextResponse.redirect(new URL(signInPath(pathOf(req)), req.url)) : notThere(req);
@@ -51,7 +53,7 @@ export async function proxy(req: NextRequest) {
   const who = cfg === null || !token ? null : await verifyAccessJwt(token, cfg);
   const verdict = cfg === null ? "not-configured" : !token ? "no-token" : who ? "open" : "rejected";
   // The pages and actions verify the token again themselves (src/lib/staff.ts): a server action can be posted to any page.
-  if (verdict === "open") return pass(req);
+  if (verdict === "open") return through(req);
   // Why it was closed, in the Worker's logs (never the token): "no-token" means Access did not cover this path, "rejected" means a token came
   // that did not verify (wrong audience, team domain or expired), "not-configured" means CF_ACCESS_TEAM_DOMAIN or CF_ACCESS_AUD is missing.
   console.warn(`dashboard gate closed: ${verdict}`);
@@ -60,7 +62,7 @@ export async function proxy(req: NextRequest) {
 
 // Every page. Not the routes that check their own key (api: CRON_KEY, the owner token or a website key, /api/site; the photo and media
 // routes) nor the static files (Next's own, the seeded car photos in public/stock/<id>/*.webp, and the brand files in public/). Only the photo
-// files: the stock pages under /stock are gated like any other. Our sign-in's pages pass through ungated (SIGN_IN_PAGES above).
+// files: the stock pages under /stock are gated like any other, and so are our sign-in's pages (SIGN_IN_PAGES above).
 export const config = {
   matcher: ["/((?!api/|car-photos/|media-files/|_next/|stock/[^/]+/[^/]+\\.webp|brand/|brands/|icon\\.|favicon\\.ico).*)"],
 };

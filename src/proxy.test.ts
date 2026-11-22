@@ -86,18 +86,62 @@ describe("x-cw-path reaches the app only as the proxy wrote it", () => {
   const kept = (res: Response) => (res.headers.get("x-middleware-override-headers") ?? "").split(",");
   const stripped = (res: Response) => !kept(res).includes("x-cw-path") && res.headers.get("x-middleware-request-x-cw-path") === null;
 
-  it("strips it on the sign-in pages and /sign-out, in every mode, and gates nothing there", async () => {
+  const SIGN_IN_REQUESTS: [string, string, Record<string, string>][] = [
+    ["/sign-in", "GET", {}],
+    ["/sign-in", "POST", { "next-action": "x" }],
+    ["/sign-in/code", "POST", { "next-action": "x" }],
+    ["/sign-out", "POST", { origin: "https://demo.example" }],
+  ];
+  const accessOn = () => {
     vi.stubEnv("APP_ENV", "demo");
-    for (const mode of ["", "both", "own"]) {
+    vi.stubEnv("CF_ACCESS_TEAM_DOMAIN", "team.cloudflareaccess.com");
+    vi.stubEnv("CF_ACCESS_AUD", "aud");
+  };
+
+  it("access and both: the sign-in pages and /sign-out are behind Access like any page, so no app code runs without a token", async () => {
+    accessOn();
+    for (const mode of ["", "access", "bogus", "both"]) {
       vi.stubEnv("SIGN_IN", mode);
-      for (const [path, method] of [["/sign-in", "GET"], ["/sign-in/code", "POST"], ["/sign-in", "POST"], ["/sign-out", "POST"]]) {
-        const res = await send(path, method);
+      for (const [path, method, extra] of SIGN_IN_REQUESTS) {
+        const res = await send(path, method, { ...FORGED, ...extra });
+        expect(res.status, `${mode} ${method} ${path}`).toBe(404);
+        expect(res.headers.get("x-middleware-rewrite"), `${mode} ${path}`).toContain("/not-found-closed-area"); // the proxy's own 404
+        expect(stripped(res), `${mode} ${path}`).toBe(true);
+      }
+    }
+  });
+
+  it("access and both: with a valid token they pass with the header stripped, never given a path, so /sign-in never loops", async () => {
+    accessOn();
+    for (const mode of ["", "both"]) {
+      vi.stubEnv("SIGN_IN", mode);
+      for (const [path, method, extra] of SIGN_IN_REQUESTS) {
+        verify.mockResolvedValueOnce({ email: "owner@dealer.example" });
+        const res = await send(path, method, { ...FORGED, ...extra, "cf-access-jwt-assertion": "a.b.c" });
         expect(res.status, `${mode} ${path}`).toBe(200);
-        expect(res.headers.get("location"), `${mode} ${path}`).toBeNull();
         expect(kept(res), `${mode} ${path}`).toContain("accept"); // the rest of the request goes on as it was
         expect(stripped(res), `${mode} ${path}`).toBe(true);
       }
     }
+  });
+
+  it("own: they pass with no token and no cookie, the header stripped", async () => {
+    accessOn();
+    vi.stubEnv("SIGN_IN", "own");
+    for (const [path, method, extra] of SIGN_IN_REQUESTS) {
+      const res = await send(path, method, { ...FORGED, ...extra });
+      expect(res.status, path).toBe(200);
+      expect(res.headers.get("location"), path).toBeNull();
+      expect(kept(res), path).toContain("accept");
+      expect(stripped(res), path).toBe(true);
+    }
+  });
+
+  it("the open app: they pass with the header stripped", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+    const res = await send("/sign-in");
+    expect(res.status).toBe(200);
+    expect(stripped(res)).toBe(true);
   });
 
   it("strips it on the closed area's 404, in every mode", async () => {
