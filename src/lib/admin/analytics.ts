@@ -57,6 +57,7 @@ export function changeText(now: number, before: number, rate = false): string {
   const r = (x: number) => Math.round(x * 10) / 10; // to the 0.1 the figures show, so the change matches them
   const d = rate ? r(now) - r(before) : change(now, before);
   const n = r(Math.abs(d));
+  if (n === 0) return "No change on the period before";
   return `${d >= 0 ? "Up" : "Down"} ${n}${rate ? (n === 1 ? " point" : " points") : "%"} on the period before`;
 }
 

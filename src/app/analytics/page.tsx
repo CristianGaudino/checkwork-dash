@@ -23,7 +23,7 @@ import { sourceTiles, visitWindows } from "@/lib/admin/visit-sources";
 import { realVisitSources } from "@/lib/admin/visit-sources-load";
 
 // Green or red only for a change big enough to compare (countChange): "Too few to compare" stays plain.
-const countTone = (now: number, before: number) => (countChange(now, before).kind === "few" ? undefined : now >= before ? ("good" as const) : ("bad" as const));
+const countTone = (now: number, before: number) => (countChange(now, before).kind === "few" || now === before ? undefined : now >= before ? ("good" as const) : ("bad" as const));
 
 export const metadata = { title: "Analytics" };
 

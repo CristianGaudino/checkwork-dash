@@ -77,6 +77,8 @@ describe("range and change", () => {
     expect(changeText(12, 0)).toBe("None the period before"); // not "Up 0%"
     expect(changeText(7, 2)).toBe("Too few to compare"); // not "Up 250%"
     expect(changeText(58, 6)).toBe("Up from 6 the period before"); // not "Up 866.7%"
+    expect(changeText(120, 120)).toBe("No change on the period before"); // not "Up 0%"
+    expect(changeText(2.04, 2.01, true)).toBe("No change on the period before"); // a rate that rounds to the same figure
     expect(changeText(5, 9)).toBe("Down from 9 the period before");
     expect(changeText(1.9, 1.3, true)).toBe("Up 0.6 points on the period before");
     expect(changeText(2, 3, true)).toBe("Down 1 point on the period before");
