@@ -24,6 +24,8 @@ describe("the spam check on a lead as it arrives (#56)", () => {
       ["Like these: https://www.cargurus.ie/a https://www.carsales.com/b https://www.motors.co.uk/c, have you anything similar?"],
       ["What finance would I get on 48 months with 10% down? I earn 45k."],
       ["Is there room on the price for cash? Limited time offer from the bank, I can buy now if you click here on a deal."],
+      ["Our SEO team has a question about your opening hours."], // "SEO" alone is a job, or a surname
+      ["Dad and I (Mr Seo) want to see it this weekend."],
     ];
     for (const [message, name] of ok) expect(check(message, name), message).toBeUndefined();
     expect(check("Is this one still for sale? https://www.murphymotors.ie/cars/golf-2019", "Mary", "https://www.murphymotors.ie")).toBeUndefined();
@@ -33,9 +35,15 @@ describe("the spam check on a lead as it arrives (#56)", () => {
     const maybe: [string, string?][] = [
       ["I want to buy now, do you take crypto?"],
       ["Photos of my trade-in https://pics.example.org/123", "Seo-yeon Park"],
-      ["Our SEO team has a question about your opening hours."],
       ["Three I liked: https://a.example.net/1 https://b.example.net/2 https://c.example.net/3"],
       ["We offer high quality backlinks and guest posts at great prices."], // a pitch with no link: a person decides
+      // A signature pasted under a real enquiry: a job title, a surname, a footer, a company site.
+      ["Is the Tucson still for sale?\n\nSeo-yeon Park, Marketing Lead, www.acme-ltd.com\nTo unsubscribe from our mailing list, reply STOP"],
+      ["Can I view it Saturday?\nMin-jun Seo, Head of SEO & Digital Marketing, brightwave.com"],
+      ["Can I view Saturday? Aoife Kelly | Digital Marketing Manager | kellyco.com | Unsubscribe"],
+      ["Dad and I (Mr Seo) want to see it. We run a casino-themed bar, www.luckybar.com"],
+      ["Trade buyer, interested in the Golf", "Pat Kelly, KellyAuto.com"], // a company in the name
+      ["Interested?", "Get backlinks https://linkfarm.top"],
     ];
     for (const [message, name] of maybe) expect(check(message, name), message).toBe("maybe");
   });
@@ -47,7 +55,9 @@ describe("the spam check on a lead as it arrives (#56)", () => {
       ["Earn 5000 USDT a day, guaranteed profits: http://quick-profit.top"],
       ["[url=http://casino-wins.example]best casino bonus[/url]"],
       ['<a href="http://cheap-pills.example">cheap</a>'],
-      ["Interested?", "Get backlinks https://linkfarm.top"],
+      ["Interested?", "www.cheap-seo.com"], // a name that is only a web address
+      ["Check this out https://goo.gl/abcd backlinks and guest posts cheap"], // a shortener is no safe site
+      ["Backlinks and guest posts: https://user@evil.xyz/path"], // an @ in a link does not hide it
     ];
     for (const [message, name] of spam) expect(check(message, name), message).toBe("spam");
   });
