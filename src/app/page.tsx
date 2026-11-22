@@ -35,19 +35,19 @@ const MODULE_OF: Record<string, ModuleId> = { drives: "testDrives", "sold-drives
 const GROUPED: Record<string, { noun: string; verb: string; icon: React.ReactNode }> = {
   reviews: { noun: "review", verb: "Reply", icon: <StarIcon /> },
   sync: { noun: "problem", verb: "Check", icon: <SyncIcon /> },
-  "sold-drives": { noun: "booking", verb: "See them", icon: <CalendarIcon /> },
-  deposits: { noun: "reservation", verb: "See them", icon: <ReceiptIcon /> },
-  orders: { noun: "car", verb: "See them", icon: <TruckIcon /> },
+  "sold-drives": { noun: "booking", verb: "Open", icon: <CalendarIcon /> },
+  deposits: { noun: "reservation", verb: "Open", icon: <ReceiptIcon /> },
+  orders: { noun: "car", verb: "Open", icon: <TruckIcon /> },
   "taken-down": { noun: "car", verb: "Check", icon: <CarIcon /> },
-  old: { noun: "car", verb: "See them", icon: <CarIcon /> },
+  old: { noun: "car", verb: "Open", icon: <CarIcon /> },
   costs: { noun: "car", verb: "Add costs", icon: <PercentIcon /> },
 };
 
 // A lead in a line: the car, else the first line of the message.
 const about = (l: Lead) => l.carTitle ?? (l.message.trim().split("\n")[0] || undefined);
 const ReplyButton = ({ id, name }: { id: string; name: string }) => (
-  <Link href={`/leads/${id}`} aria-label={`Reply to ${name}`} className={rowButton}>
-    Reply
+  <Link href={`/leads/${id}`} aria-label={`Open ${name}'s lead`} className={rowButton}>
+    Open
   </Link>
 );
 const ConfirmDrive = ({ id, name, status }: { id: string; name: string; status: string }) => (
@@ -59,7 +59,7 @@ const ConfirmDrive = ({ id, name, status }: { id: string; name: string; status: 
 const row = "relative flex min-h-16 items-center gap-3 px-1 py-3 transition-colors has-[>a:hover]:bg-surface";
 
 // Where the day starts: the main jobs as big buttons, then what needs doing (each with the button that does it), today's test drives and
-// the newest leads with Call and Reply in the row, and a few numbers last. No chart (docs/dashboard-polish.md #72): Analytics has them.
+// the newest leads with Call and Open in the row, and a few numbers last. No chart (docs/dashboard-polish.md #72): Analytics has them.
 export default async function Page() {
   const [leads, drives, reviews, all, settings, source, sales, reservations, orders, mods] = await Promise.all([leadsStore.list(), drivesStore.list(), reviewsStore.list(), adminCars(), getSettings(), stockSource(), salesStore.list(), reservationsStore.list(), ordersStore.list(), enabledModules()]);
   const [{ site: listingSite, url: listingUrl }, { rules }] = await Promise.all([listing(), dealerProfile()]);

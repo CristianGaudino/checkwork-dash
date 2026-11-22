@@ -7,13 +7,25 @@ import { AlertIcon, CalendarIcon, InboxIcon } from "@/components/stock/icons";
 import { can } from "@/lib/permissions";
 import { LEAD_SOURCES, LEAD_STATUSES, LEAD_STATUS_LABELS, LEAD_TYPE_LABELS, getSettings, leadsStore, type Lead } from "@/lib/admin/collections";
 import { dublinDay, fmtAgo, fmtDate } from "@/lib/admin/format";
-import { SALES_LEAD_TYPES, countByStatus, filterLeads, followUpDue, isHotLead, isOpenLead, isSalesLead, parseLeadFilter, urgentFirst } from "@/lib/admin/leads";
-import { TOPICS, isUrgent, leadTags } from "@/lib/leads/contact-topics";
+import { SALES_LEAD_TYPES, countByStatus, filterLeads, followUpDue, isOpenLead, isSalesLead, leadFlag, parseLeadFilter, urgentFirst } from "@/lib/admin/leads";
+import { TOPICS, leadTags } from "@/lib/leads/contact-topics";
 import { LeadKind, LeadTags, leadChips } from "@/components/admin/LeadKind";
 import { enabledModules } from "@/lib/modules";
 import { BrandIcon } from "@/components/admin/BrandIcon";
 
 export const metadata = { title: "Leads" };
+
+// What kind of request it is (a word and an icon) and where it came from, in one line.
+function KindSource({ l, className = "" }: { l: Lead; className?: string }) {
+  return (
+    <span className={`flex flex-wrap items-center gap-x-2 gap-y-0.5 text-meta ${className}`}>
+      <LeadKind type={l.type} topic={l.topic} />
+      <span className="inline-flex min-w-0 items-center gap-1 text-text-2">
+        <BrandIcon name={sourceText(l)} className="size-3.5 shrink-0" /> {sourceText(l)}
+      </span>
+    </span>
+  );
+}
 
 // What each status means, in a few words under it.
 const STATUS_HINTS = { new: "Not answered yet", contacted: "Answered", appointment: "Coming in", won: "Bought", lost: "Did not buy" } as const;
@@ -37,27 +49,35 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
       key: "who",
       header: "Who",
       sort: (l) => l.name,
-      // The name is the row's title; under it what kind of request it is (a word and an icon), where it came from, then the form's
-      // answers as chips. On a phone, where the About column is hidden, the car is named here too.
+      // The name is the row's title, and the form's first answer as a chip. On a phone, where the About column is hidden, what it is about
+      // is here too: the kind, where it came from and the car.
       cell: (l) => (
         <span className="flex min-w-0 flex-col gap-1">
           <Link href={`/leads/${l.id}`} className="font-bold text-text [overflow-wrap:anywhere] after:absolute after:inset-0">
             {l.name}
           </Link>
-          <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-meta">
-            <LeadKind type={l.type} topic={l.topic} />
-            <span className="inline-flex min-w-0 items-center gap-1 text-text-2">
-              <BrandIcon name={sourceText(l)} className="size-3.5 shrink-0" /> {sourceText(l)}
-            </span>
-          </span>
+          <KindSource l={l} className="sm:hidden" />
           {l.carTitle && <span className="truncate text-meta font-medium text-text sm:hidden">{l.carTitle}</span>}
-          <LeadTags tags={leadChips(l.type, l.topic, l.answers)} urgent={l.status === "new" && isUrgent(l.answers ?? {})} />
+          <LeadTags tags={leadChips(l.type, l.topic, l.answers).slice(0, 1)} />
         </span>
       ),
-      className: "max-w-[11rem] sm:max-w-[18rem]",
+      className: "max-w-[11rem] sm:max-w-[14rem]",
     },
-    // The car in full, else the first words of their message, quoted and muted so the two never read alike.
-    { key: "about", header: "About", sort: (l) => l.carTitle, cell: (l) => <span title={l.carTitle ?? l.message} className="line-clamp-2">{l.carTitle ? <span className="font-medium">{l.carTitle}</span> : l.message.trim() ? <span className="text-text-2">&ldquo;{l.message.split("\n")[0]}&rdquo;</span> : null}</span>, className: "max-w-[16rem]", hide: "sm" },
+    // What kind of request and where it came from, then the car in full, else the first words of their message, quoted and muted so the
+    // two never read alike.
+    {
+      key: "about",
+      header: "About",
+      sort: (l) => l.carTitle,
+      cell: (l) => (
+        <span className="flex min-w-0 flex-col gap-1">
+          <KindSource l={l} />
+          <span title={l.carTitle ?? l.message} className="line-clamp-2">{l.carTitle ? <span className="font-medium">{l.carTitle}</span> : l.message.trim() ? <span className="text-text-2">&ldquo;{l.message.split("\n")[0]}&rdquo;</span> : null}</span>
+        </span>
+      ),
+      className: "min-w-[14rem] max-w-[20rem]",
+      hide: "sm",
+    },
     {
       key: "status",
       header: "Status",
@@ -68,13 +88,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
         <span className="flex flex-col items-start gap-1">
           <span className="inline-flex flex-wrap items-center gap-1.5">
             <LeadStatusBadge status={l.status} type={l.type} />
-            {/* Why it sits at the top of the list: urgentFirst pins these. */}
-            {isHotLead(l) && <Badge tone="warn">Urgent</Badge>}
-            {lateIds.has(l.id) && (
-              <Badge tone="bad" strong>
-                Late
-              </Badge>
-            )}
+            {/* One badge for a lead that cannot wait (leadFlag). Urgent ones sit at the top of the list: urgentFirst pins them. */}
+            {leadFlag(l, leadSlaHours) === "late" ? <Badge tone="bad" strong>Late</Badge> : leadFlag(l, leadSlaHours) === "urgent" && <Badge tone="warn">Urgent</Badge>}
           </span>
           {/* The follow-up, when there is one, under the status: one place to look for what to do next. Overdue is red, today amber. */}
           {l.followUpOn && isOpenLead(l) && (
@@ -90,7 +105,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
     { key: "owner", header: "Who has it", hide: "2xl", nowrap: true, sort: (l) => l.assignedTo, cell: (l) => (l.assignedTo ? <span className="inline-flex items-center gap-2"><Avatar name={l.assignedTo} />{l.assignedTo.split(" ")[0]}</span> : <span className="text-text-2">Nobody</span>) },
     { key: "when", header: "Received", sort: (l) => l.createdAt, cell: (l) => <span className={l.status === "new" ? "font-medium" : "text-text-2"}>{fmtAgo(l.createdAt)}</span>, align: "right", nowrap: true, hide: "sm" }, // on a phone it is in the Who column
     // The two things done most from the list: reach them the way they asked, and move it on a step. Above the row's link.
-    { key: "act", header: "Next step", quietHeader: true, hide: "lg", nowrap: true, cell: (l) => <span className="relative z-10 flex justify-end gap-2">{isOpenLead(l) && <ReachButton lead={l} />}<NextStatusButton lead={l} /></span> },
+    // Two fixed slots, so the buttons line up from row to row whichever are there.
+    { key: "act", header: "Next step", quietHeader: true, hide: "lg", nowrap: true, cell: (l) => <span className="relative z-10 grid grid-cols-[7.5rem_11.5rem] gap-2"><span>{isOpenLead(l) && <ReachButton lead={l} />}</span><span><NextStatusButton lead={l} /></span></span> },
   ];
   const ordered = sortRows(filterLeads(all, f, today, leadSlaHours), columns, sp, { key: "when", dir: "desc" });
   // Unless a column was chosen, the urgent new ones come first.
@@ -124,9 +140,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
   const todo = all
     .flatMap((l): { lead: Lead; why: string; urgency: TaskUrgency }[] => {
       if (l.status === "new") {
-        const now = lateIds.has(l.id) || isHotLead(l);
-        const why = lateIds.has(l.id) ? `Came in ${fmtAgo(l.createdAt)}, past your reply time` : isHotLead(l) ? `In a hurry: ${leadTags(l.topic!, l.answers ?? {}).join(", ")}` : `New, came in ${fmtAgo(l.createdAt)}`;
-        return [{ lead: l, why, urgency: now ? "now" : "soon" }];
+        const flag = leadFlag(l, leadSlaHours);
+        const why = flag === "late" ? `Came in ${fmtAgo(l.createdAt)}, past your reply time` : flag === "urgent" ? `In a hurry: ${leadTags(l.topic!, l.answers ?? {}).join(", ")}` : `New, came in ${fmtAgo(l.createdAt)}`;
+        return [{ lead: l, why, urgency: flag ? "now" : "soon" }];
       }
       if (!followUpDue(l, today)) return [];
       const late = l.followUpOn! < today;

@@ -30,13 +30,13 @@ export function LeadKind({ type, topic }: { type: LeadType; topic?: string }) {
   );
 }
 
-// The guided form's answers ("this week", "trade-in") as small chips, so they read as separate facts. `urgent` tints them amber.
-export function LeadTags({ tags, urgent = false }: { tags: string[]; urgent?: boolean }) {
+// The guided form's answers ("this week", "trade-in") as small chips, so they read as separate facts.
+export function LeadTags({ tags }: { tags: string[] }) {
   if (tags.length === 0) return null;
   return (
     <span className="flex flex-wrap gap-1">
       {tags.map((t) => (
-        <span key={t} className={`inline-flex h-6 items-center whitespace-nowrap rounded-full px-2 text-meta ${urgent ? "bg-warn-soft font-medium text-warn" : "bg-hairline text-text-2"}`}>
+        <span key={t} className="inline-flex h-6 items-center whitespace-nowrap rounded-full bg-hairline px-2 text-meta text-text-2">
           {t}
         </span>
       ))}

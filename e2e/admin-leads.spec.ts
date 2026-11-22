@@ -20,8 +20,8 @@ test("open a lead, change who has it and its status, add a note", async ({ page 
   await page.goto("/leads?status=new");
   await page.getByRole("row").nth(1).getByRole("link").first().click();
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-  await page.getByRole("button", { name: "Contacted" }).click();
-  await expect(page.getByRole("button", { name: "Contacted" })).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: "Mark contacted" }).click();
+  await expect(page.getByRole("button", { name: "Mark contacted" })).toHaveAttribute("aria-pressed", "true");
   const person = page.getByRole("region", { name: "Who has it" }).getByRole("button").nth(1);
   await person.click();
   await expect(person).toHaveAttribute("aria-pressed", "true");
@@ -65,4 +65,11 @@ test("Book a test drive on a lead fills in their name and number", async ({ page
   await page.getByRole("main").locator("li > button[aria-pressed]").first().click();
   await page.getByRole("button", { name: "Next", exact: true }).click();
   await expect(page.getByLabel("Name", { exact: true })).toHaveValue("Fiona Byrne");
+});
+
+test("a phone lead's main button is Call, and Book a test drive is not filled", async ({ page }) => {
+  await page.goto("/leads/lead-2004"); // came in by phone, and no other spec changes it
+  const filled = /(^|\s)bg-accent(\s|$)/;
+  await expect(page.getByRole("link", { name: "Call", exact: true })).toHaveClass(filled);
+  await expect(page.getByRole("link", { name: "Book a test drive" })).not.toHaveClass(filled);
 });

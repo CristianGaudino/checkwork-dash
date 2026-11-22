@@ -86,13 +86,15 @@ export function AIWriter({ task, request, text, onText, format }: { task: Task; 
 
 // A text box with the writer under it, for the places that have no state of their own (a form that posts the box by `name`). `request` is
 // the ask, or (from a client component only) a function that gets the box, so the car form can read its sibling fields. `copy` adds a Copy button (a string names it), for a draft that is sent from somewhere else.
-export function AITextarea({ id, name, label, defaultValue = "", rows = 5, maxLength, task, request, onSubject, copy = false }: { id?: string; name?: string; label: string; defaultValue?: string; rows?: number; maxLength?: number; task: Task; request: WriteRequest | ((box: HTMLTextAreaElement | null) => WriteRequest | null); onSubject?: (s: string) => void; copy?: boolean | string }) {
+// `folded`: only Write with AI until it has written, then the box (a lead's reply, so a phone is not handed a big empty box).
+export function AITextarea({ id, name, label, defaultValue = "", rows = 5, maxLength, task, request, onSubject, copy = false, folded = false }: { id?: string; name?: string; label: string; defaultValue?: string; rows?: number; maxLength?: number; task: Task; request: WriteRequest | ((box: HTMLTextAreaElement | null) => WriteRequest | null); onSubject?: (s: string) => void; copy?: boolean | string; folded?: boolean }) {
   const box = useRef<HTMLTextAreaElement>(null);
   const own = useId();
   id ??= own;
   const [text, setText] = useState(defaultValue);
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState("");
+  const [open, setOpen] = useState(!folded);
   // A copy that fails says so: otherwise the dealer pastes whatever was copied before.
   const copyText = () => {
     const failed = () => { setCopied(false); setCopyError("Couldn't copy. Select the text and copy it."); };
@@ -102,9 +104,13 @@ export function AITextarea({ id, name, label, defaultValue = "", rows = 5, maxLe
   };
   return (
     <div className="flex flex-col gap-2">
-      <label className="sr-only" htmlFor={id}>{label}</label>
-      <textarea ref={box} id={id} name={name} rows={rows} maxLength={maxLength} value={text} onChange={(e) => { setText(e.target.value); setCopied(false); setCopyError(""); }} className={`${adminInput} h-auto py-2`} />
-      <AIWriter task={task} text={text} request={() => (typeof request === "function" ? request(box.current) : request)} onText={(t, subject) => { setText(t); setCopied(false); setCopyError(""); if (subject) onSubject?.(subject); }} />
+      {open && (
+        <>
+          <label className="sr-only" htmlFor={id}>{label}</label>
+          <textarea ref={box} id={id} name={name} rows={rows} maxLength={maxLength} value={text} onChange={(e) => { setText(e.target.value); setCopied(false); setCopyError(""); }} className={`${adminInput} h-auto py-2`} />
+        </>
+      )}
+      <AIWriter task={task} text={text} request={() => (typeof request === "function" ? request(box.current) : request)} onText={(t, subject) => { setText(t); setOpen(true); setCopied(false); setCopyError(""); if (subject) onSubject?.(subject); }} />
       {copy && text.trim() && (
         <>
           <button type="button" onClick={copyText} className={`${adminButtonQuiet} self-start`}>
