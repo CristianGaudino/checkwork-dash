@@ -84,7 +84,8 @@ export function PostComposer({ cars, initialSlug, initialFormat = "post", initia
 
   return (
     <form action={action} className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
-      <div className="flex min-w-0 flex-col gap-5">
+      {/* Until a car is picked there is no preview, so the cars take the full width. */}
+      <div className={`flex min-w-0 flex-col gap-5 ${slug ? "" : "lg:col-span-2"}`}>
         <Stepper titles={STEPS} step={step} headingRef={heading} />
         <input type="hidden" name="carSlug" value={slug} />
         <input type="hidden" name="network" value={network} />

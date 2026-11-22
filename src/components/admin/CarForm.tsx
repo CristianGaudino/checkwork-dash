@@ -100,7 +100,7 @@ export function CarForm({ car, at, cost, reg: startReg = "", photosMax }: { car?
       {/* Adding a car starts from its registration: the lookup fills the basics and details, and every box can still be changed. */}
       {!car && (
         <Panel title="1. Look up the registration">
-          <p className="max-w-measure text-body text-text-2">It fills in the make, model, year and more. You can change anything after. No registration? Skip to the boxes below.</p>
+          <p className="max-w-measure text-body text-text-2">It fills in the make, model, year and more. No registration? Fill in the boxes below.</p>
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start">
             <Field label="Registration" className="flex-1 sm:max-w-xs">
               <input value={reg} onChange={(e) => setReg(e.target.value.toUpperCase())} autoCapitalize="characters" spellCheck={false} maxLength={12} placeholder="191-KY-1234" className={adminInput} />
