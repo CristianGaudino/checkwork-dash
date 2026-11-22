@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Avatar, EmptyState, PageHeader, Segmented, SummaryTabs, TableFooter, type FilterGroup } from "@/components/admin/kit";
+import { Avatar, EmptyState, PageHeader, Segmented, SummaryTabs, TableFooter, tapArea, type FilterGroup } from "@/components/admin/kit";
 import { AppliedFilters, Filters } from "@/components/admin/TableTools";
 import { card } from "@/components/ui";
 import { perPage } from "@/lib/admin/paging";
@@ -53,7 +53,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
     const r = view(e);
     if (!r) return null;
     return r.href ? (
-      <Link href={r.href} className="font-medium text-accent-text underline-offset-2 hover:underline">
+      <Link href={r.href} className={`font-medium text-accent-text underline-offset-2 hover:underline ${tapArea}`}>
         {r.label}
       </Link>
     ) : (

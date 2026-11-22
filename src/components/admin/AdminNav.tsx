@@ -5,11 +5,11 @@ import { usePathname } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 import { navGroups, openGroupsCookie, type NavGroup, type NavIcon, type NavItem } from "@/lib/admin/nav";
 import { Sheet, leaveSheet } from "@/components/Sheet";
-import { CalendarIcon, CarIcon, ChartIcon, ChevronDownIcon, CogIcon, HistoryIcon, ReportIcon, ReceiptIcon, HelpIcon, WhatsAppIcon, ShieldCheckIcon, TruckIcon, WrenchIcon, HomeIcon, InboxIcon, MegaphoneIcon, MenuIcon, PercentIcon, StarIcon, UsersIcon } from "@/components/stock/icons";
+import { CalendarIcon, CarIcon, ChartIcon, ChevronDownIcon, CogIcon, HistoryIcon, ReportIcon, ReceiptIcon, HelpIcon, WhatsAppIcon, ShieldCheckIcon, SwapIcon, TruckIcon, WrenchIcon, HomeIcon, InboxIcon, MegaphoneIcon, MenuIcon, PercentIcon, StarIcon, UsersIcon } from "@/components/stock/icons";
 import { NEW_TAB, press } from "@/components/ui";
 import { useDealerFacts } from "@/components/DealerFacts";
 
-const ICONS: Record<NavIcon, typeof HomeIcon> = { home: HomeIcon, inbox: InboxIcon, car: CarIcon, calendar: CalendarIcon, users: UsersIcon, megaphone: MegaphoneIcon, chart: ChartIcon, percent: PercentIcon, star: StarIcon, cog: CogIcon, history: HistoryIcon, report: ReportIcon, shield: ShieldCheckIcon, wrench: WrenchIcon, truck: TruckIcon, whatsapp: WhatsAppIcon, receipt: ReceiptIcon, help: HelpIcon };
+const ICONS: Record<NavIcon, typeof HomeIcon> = { home: HomeIcon, inbox: InboxIcon, car: CarIcon, calendar: CalendarIcon, users: UsersIcon, megaphone: MegaphoneIcon, chart: ChartIcon, percent: PercentIcon, star: StarIcon, cog: CogIcon, history: HistoryIcon, report: ReportIcon, shield: ShieldCheckIcon, wrench: WrenchIcon, truck: TruckIcon, whatsapp: WhatsAppIcon, receipt: ReceiptIcon, help: HelpIcon, swap: SwapIcon };
 
 // The four places staff go all day: the tab bar on a phone shows these, and More opens the rest.
 const TABS = ["/", "/leads", "/test-drives", "/stock"];
@@ -25,10 +25,11 @@ const saveOpenGroups = (open: string[]) => {
 // under its heading. Under 1024px a tab bar at the foot of the screen. The current section is marked in both.
 export function AdminNav({ items, label, openGroups, rail = false }: { items: NavItem[]; label: string; openGroups: string[]; rail?: boolean }) {
   const path = usePathname();
-  // The first item is the area's home, so it matches only itself; the others match their whole branch.
-  const current = (href: string) => (href === items[0]?.href ? path === href : path === href || path.startsWith(href + "/"));
+  // The first item is the area's home, so it matches only itself; the others match their whole branch, and the pages they are `also`.
+  const at = (href: string) => (href === items[0]?.href ? path === href : path === href || path.startsWith(href + "/"));
+  const current = (it: NavItem) => at(it.href) || !!it.also?.some(at);
   const { top, groups } = navGroups(items);
-  const here = groups.find((g) => g.items.some((i) => current(i.href)))?.name;
+  const here = groups.find((g) => g.items.some(current))?.name;
   // Open: the groups the person left open (the cookie), and the one holding the page they are on. Arriving in a closed group opens it,
   // set while rendering (not in an effect), so it is never drawn shut first.
   const [open, setOpen] = useState(() => new Set(here ? [...openGroups, here] : openGroups));
@@ -52,25 +53,39 @@ export function AdminNav({ items, label, openGroups, rail = false }: { items: Na
   }, [path]);
   return (
     <>
-      <nav ref={nav} aria-label={label} className={`hidden min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto overscroll-contain pb-4 lg:flex ${rail ? "items-center px-2" : "px-3"}`}>
+      {/* Overview and the everyday places stay put; on a short screen (a 1280x800 laptop) only the groups under them scroll. */}
+      <nav ref={nav} aria-label={label} className={`hidden min-h-0 flex-1 flex-col lg:flex ${rail ? "items-center px-2" : "px-3"}`}>
         {rail ? (
           // The rail: every place as its icon, the groups parted by a line (nothing to fold), each named on hover and to screen readers.
-          [top, ...groups.map((g) => g.items)].map((list, i) => (
-            <div key={i} className={`flex flex-col items-center gap-0.5 ${i ? "mt-2 border-t border-hairline pt-2" : ""}`}>
-              {list.map((it) => (
-                <NavLink key={it.href} item={it} on={current(it.href)} iconOnly />
+          <>
+            <div className="flex shrink-0 flex-col items-center gap-0.5">
+              {top.map((it) => (
+                <NavLink key={it.href} item={it} on={current(it)} iconOnly />
               ))}
             </div>
-          ))
+            <div className="flex min-h-0 flex-1 flex-col items-center gap-0.5 overflow-y-auto overscroll-contain pb-4">
+              {groups.map((g) => (
+                <div key={g.name} className="mt-2 flex flex-col items-center gap-0.5 border-t border-hairline pt-2">
+                  {g.items.map((it) => (
+                    <NavLink key={it.href} item={it} on={current(it)} iconOnly />
+                  ))}
+                </div>
+              ))}
+            </div>
+          </>
         ) : (
           <>
-            {top.map((it) => (
-              <NavLink key={it.href} item={it} on={current(it.href)} />
-            ))}
-            {groups.length > 0 && <div aria-hidden className="mx-3 mt-3 border-t border-hairline" />}
-            {groups.map((g) => (
-              <NavSection key={g.name} group={g} open={open.has(g.name)} holdsCurrent={g.name === here} onToggle={() => toggle(g.name)} current={current} />
-            ))}
+            <div className="flex shrink-0 flex-col gap-0.5">
+              {top.map((it) => (
+                <NavLink key={it.href} item={it} on={current(it)} />
+              ))}
+            </div>
+            {groups.length > 0 && <div aria-hidden className="mx-3 mt-3 shrink-0 border-t border-hairline" />}
+            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain pb-4">
+              {groups.map((g) => (
+                <NavSection key={g.name} group={g} open={open.has(g.name)} holdsCurrent={g.name === here} onToggle={() => toggle(g.name)} current={current} />
+              ))}
+            </div>
           </>
         )}
       </nav>
@@ -98,7 +113,7 @@ function NavLink({ item, on, iconOnly = false }: { item: NavItem; on: boolean; i
 // A heading that opens and shuts its group. Shut, its links are invisible (out of the tab order and hidden from screen readers; visibility
 // flips at the end of the closing ease, so they show while it plays), and a dot on the heading says the page you are on is inside. The height
 // eases open, and does not move for someone who asked for less motion.
-function NavSection({ group, open, holdsCurrent, onToggle, current }: { group: NavGroup; open: boolean; holdsCurrent: boolean; onToggle: () => void; current: (href: string) => boolean }) {
+function NavSection({ group, open, holdsCurrent, onToggle, current }: { group: NavGroup; open: boolean; holdsCurrent: boolean; onToggle: () => void; current: (it: NavItem) => boolean }) {
   const id = useId();
   return (
     <div className="flex flex-col pt-3">
@@ -110,7 +125,7 @@ function NavSection({ group, open, holdsCurrent, onToggle, current }: { group: N
       <div id={id} className={`grid transition-[grid-template-rows,visibility] duration-200 ease-out motion-reduce:transition-none ${open ? "visible grid-rows-[1fr]" : "invisible grid-rows-[0fr]"}`}>
         <div className="flex min-h-0 flex-col gap-0.5 overflow-hidden">
           {group.items.map((it) => (
-            <NavLink key={it.href} item={it} on={current(it.href)} />
+            <NavLink key={it.href} item={it} on={current(it)} />
           ))}
         </div>
       </div>
@@ -119,11 +134,11 @@ function NavSection({ group, open, holdsCurrent, onToggle, current }: { group: N
 }
 
 // Under 1024px: the four main places as tabs, and More. More is marked when the page you are on is one of its own.
-function TabBar({ items, label, current }: { items: NavItem[]; label: string; current: (href: string) => boolean }) {
+function TabBar({ items, label, current }: { items: NavItem[]; label: string; current: (it: NavItem) => boolean }) {
   const tabs = items.filter((i) => TABS.includes(i.href));
-  // Each item under its sidebar group, so More shows the same headings.
-  const more = items.map((it) => ({ ...it, section: it.group ?? "" })).filter((i) => !TABS.includes(i.href));
-  const inMore = more.some((i) => current(i.href));
+  // Each item under its sidebar group, so More shows the same headings. An everyday place that is not a tab (Marketing) gets one too.
+  const more = items.map((it) => ({ ...it, section: it.group ?? "Daily work" })).filter((i) => !TABS.includes(i.href));
+  const inMore = more.some(current);
   const { siteUrl } = useDealerFacts();
   const tab = (on: boolean) => `flex min-h-14 flex-col items-center justify-center gap-0.5 text-[0.75rem] font-medium leading-tight ${on ? "text-accent-text" : "text-text-2"} ${press}`;
   return (
@@ -135,7 +150,7 @@ function TabBar({ items, label, current }: { items: NavItem[]; label: string; cu
           <ul className="mx-auto grid max-w-xl grid-cols-5">
             {tabs.map((it) => {
               const Icon = ICONS[it.icon];
-              const on = current(it.href);
+              const on = current(it);
               return (
                 <li key={it.href}>
                   <Link href={it.href} aria-current={on ? "page" : undefined} className={tab(on)}>
@@ -158,7 +173,7 @@ function TabBar({ items, label, current }: { items: NavItem[]; label: string; cu
       <nav aria-label="More" className="flex flex-col overflow-y-auto px-4 pb-6">
         {more.map((it, i) => {
           const Icon = ICONS[it.icon];
-          const on = current(it.href);
+          const on = current(it);
           return (
             <div key={it.href} className="contents">
               {it.section && it.section !== more[i - 1]?.section && <p className={`pb-1 text-meta text-text-2 ${i ? "pt-4" : ""}`}>{it.section}</p>}

@@ -211,7 +211,7 @@ function PlanAndUsage({ modules, services, usage, counts, b, now }: { modules: M
         )}
       </Panel>
 
-      <Panel title="Pay as you go this month" action={services.length > 0 ? <Link href="/billing?section=limits" className="text-meta font-medium text-accent-text underline underline-offset-2">Set a limit</Link> : undefined}>
+      <Panel title="Pay as you go this month" action={services.length > 0 ? <Link href="/billing?section=limits" className={rowButton}>Set a limit</Link> : undefined}>
         {services.length === 0 ? (
           <EmptyState title="No usage is billed" text="Nothing on your site is charged per use." />
         ) : (

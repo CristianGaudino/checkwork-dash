@@ -19,12 +19,28 @@ test("owners, managers and finance see the full report with profit; the period f
   expect((await page.request.get("/reports?period=7")).status()).toBe(200); // a bad period falls back
 });
 
+test("the monthly report is Reports' Monthly view: one menu entry, marked on both, and the menu's way in without Reports", async ({ page, context, baseURL }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto("/reports");
+  await page.getByRole("navigation", { name: "Period" }).getByRole("link", { name: "Monthly" }).click();
+  await expect(page).toHaveURL(/\/monthly-report$/);
+  await expect(page.getByRole("navigation", { name: "Period" }).getByRole("link", { name: "Monthly" })).toHaveAttribute("aria-current", "page");
+  await expect(await sideLink(page, "Reports")).toHaveAttribute("aria-current", "page");
+  await expect((await sideLink(page, "Reports")).locator("xpath=..").getByRole("link")).toHaveText(["Reports", "Analytics", "Margins"]);
+  // Without the Margins module there is no /reports: the same entry opens the monthly report, with no views to switch to.
+  await context.addCookies([{ name: "checkwork-demo-modules", value: "dashboard", url: baseURL! }]);
+  await page.goto("/");
+  await (await sideLink(page, "Reports")).click();
+  await expect(page).toHaveURL(/\/monthly-report$/);
+  await expect(page.getByRole("navigation", { name: "Period" })).toHaveCount(0);
+});
+
 test("a salesperson sees only their own counts: no money, no one else", async ({ page, context }) => {
   await page.setViewportSize({ width: 1280, height: 900 }); // the sidebar; the phone tab bar has its own test (admin-shell)
   await as(context, "Sales");
   await page.goto("/");
   await (await sideLink(page, "Reports")).click();
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Your report");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Reports");
   await expect(page.getByText("Conor Doyle, the last 12 months")).toBeVisible();
   const main = page.locator("main");
   await expect(main).not.toContainText("€");

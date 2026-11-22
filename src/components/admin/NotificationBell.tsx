@@ -54,7 +54,7 @@ export function NotificationBell() {
     <>
       <button ref={button} type="button" popoverTarget={id} onClick={place} aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"} className={`relative inline-flex size-11 shrink-0 items-center justify-center rounded-control text-text-2 transition-colors hover:bg-card hover:text-text ${press}`}>
         <BellIcon className="shrink-0 size-5" />
-        {unread > 0 && <span aria-hidden className="absolute right-1.5 top-1.5 inline-flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-bad px-1 text-[0.6875rem] font-semibold leading-none text-on-accent tabular-nums">{unread > 9 ? "9+" : unread}</span>}
+        {unread > 0 && <span aria-hidden className="absolute right-1.5 top-1.5 inline-flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-bad px-1 text-[0.6875rem] font-semibold leading-none text-ink tabular-nums">{unread > 9 ? "9+" : unread}</span>}
       </button>
       <div
         ref={panel}

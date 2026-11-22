@@ -28,7 +28,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const coverText = !ends ? "" : left <= 0 ? `Ended ${day(ends)}` : `${left === 1 ? "About a month" : `About ${left} months`} left, until ${day(ends)}`;
   return (
     <>
-      <PageHeader title={claim.carTitle} text={`Warranty claim opened ${day(claim.openedOn)}`} back={{ href: "/aftersales", label: "Aftersales" }} />
+      <PageHeader title={claim.carTitle} text={`Warranty claim opened ${day(claim.openedOn)}`} back={{ href: "/aftersales", label: "Warranty claims" }} />
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="flex min-w-0 flex-col gap-6">
           <Panel title="The fault" action={<CoverBadge inCover={claim.inCover} />}>

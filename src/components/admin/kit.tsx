@@ -6,6 +6,7 @@ import { AppliedFilters, DensityToggle, Filters, LiveSearch, SortHeader, type Fi
 import { PER_PAGE_DEFAULT, perPage } from "@/lib/admin/paging";
 import { fmtNum } from "@/lib/admin/format";
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/stock/icons";
+import { TabRow } from "./TabRow";
 export { TableFooter, type FilterGroup } from "./TableTools";
 
 // The admin kit: the few pieces every admin page is made of. Same tokens as the site, denser and calmer.
@@ -222,11 +223,12 @@ export function DataTable<T>({ columns, rows, rowKey, empty, bare = false, linkR
 }
 
 // The summary that is also the filter: one tile per view, its count, and the chosen one filled. The filter lives in the URL, so a filtered
-// list can be shared and the back button works. Never a row of numbers above a separate row of chips.
+// list can be shared and the back button works. Never a row of numbers above a separate row of chips. On a phone the tiles scroll sideways
+// (TabRow): the chosen one is scrolled into view and an edge with more past it fades.
 export type SummaryTab = { label: string; href: string; active: boolean; count?: number | string; hint?: string };
 export function SummaryTabs({ items, label = "Filter" }: { items: SummaryTab[]; label?: string }) {
   return (
-    <nav aria-label={label} className="scrollbar-none -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:grid sm:grid-cols-[repeat(auto-fit,minmax(8rem,1fr))] sm:overflow-visible sm:px-0">
+    <TabRow current={items.find((i) => i.active)?.href ?? ""} aria-label={label} className="scrollbar-none -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:grid sm:grid-cols-[repeat(auto-fit,minmax(8rem,1fr))] sm:overflow-visible sm:px-0">
       {items.map((i) => (
         <Link
           key={i.label}
@@ -239,7 +241,7 @@ export function SummaryTabs({ items, label = "Filter" }: { items: SummaryTab[]; 
           {i.hint && <span className="text-meta text-text-2">{i.hint}</span>}
         </Link>
       ))}
-    </nav>
+    </TabRow>
   );
 }
 
@@ -280,17 +282,21 @@ export const rowButton = `${rowBase} text-accent-text hover:bg-accent-soft`;
 export const rowButtonStrong = `${rowBase} bg-accent-soft text-accent-text hover:bg-accent-soft-hover`;
 // Delete or remove in a row: red text, a red tint on hover.
 export const rowDanger = `${rowBase} text-bad hover:bg-bad-soft`;
+// A link in running text (a name in a line of activity): it looks the same, but its hit area is at least 44px each way, centred on it,
+// so it is easy to tap on a phone without making the line taller. An inline block, so a name that wraps is still one box to measure from.
+export const tapArea = "relative inline-block after:absolute after:left-1/2 after:top-1/2 after:h-[max(100%,2.75rem)] after:w-[max(100%_+_8px,2.75rem)] after:-translate-x-1/2 after:-translate-y-1/2";
 
 // A page's views, one at a time (Today, Week, List): links, so the view is in the URL. Not a filter: a view changes how the page is laid out.
+// Too many for a small phone (Reports' four at 320px), it scrolls sideways as a tab row does, with the fade.
 export function Segmented({ items, label }: { items: { label: string; href: string; active: boolean }[]; label: string }) {
   return (
-    <nav aria-label={label} className="inline-flex rounded-control border border-hairline bg-card p-1">
+    <TabRow current={items.find((i) => i.active)?.href ?? ""} aria-label={label} className="scrollbar-none inline-flex max-w-full overflow-x-auto rounded-control border border-hairline bg-card p-1">
       {items.map((i) => (
-        <Link key={i.label} href={i.href} aria-current={i.active ? "page" : undefined} className={`inline-flex min-h-11 items-center justify-center rounded-[calc(var(--radius-control)-4px)] px-4 text-meta max-sm:flex-1 font-medium ${i.active ? "bg-accent text-white" : "text-text-2 hover:text-text"} ${press}`}>
+        <Link key={i.label} href={i.href} aria-current={i.active ? "page" : undefined} className={`inline-flex min-h-11 shrink-0 items-center justify-center whitespace-nowrap rounded-[calc(var(--radius-control)-4px)] px-4 text-meta max-sm:flex-1 max-sm:px-3 font-medium ${i.active ? "bg-accent text-white" : "text-text-2 hover:text-text"} ${press}`}>
           {i.label}
         </Link>
       ))}
-    </nav>
+    </TabRow>
   );
 }
 
@@ -349,7 +355,7 @@ export function Choice({ name, options, value, onChange, legend, error, classNam
       <legend className="mb-1 text-meta font-medium">{legend}</legend>
       {options.map(([v, label]) => (
         <label key={v} className="flex min-h-11 items-center gap-3 text-body">
-          <input type="radio" name={name} value={v} checked={value === v} onChange={() => onChange(v)} className="size-5 accent-accent" />
+          <input type="radio" name={name} value={v} checked={value === v} onChange={() => onChange(v)} className="size-5 shrink-0 accent-accent" />
           {label}
         </label>
       ))}
@@ -374,8 +380,9 @@ export function Avatar({ name, className = "" }: { name: string; className?: str
 
 // One choice among several, as a button that posts on its own: a server action gets the `name` and `value`. The chosen one is filled.
 // A choice among a few (a status, who has it), filled when it is the one now. ChoiceAct (ActButton.tsx) runs it with Undo in its toast.
-// A neutral chip, not an outline, so a row of choices never reads as a row of buttons of equal weight.
-export const choicePill = (active: boolean) => `inline-flex min-h-11 items-center gap-2 rounded-full px-4 text-meta font-medium transition-colors ${active ? "bg-text text-ink" : "bg-hairline text-text hover:bg-accent-soft hover:text-accent-text"} ${press}`;
+// A neutral chip, not an outline, so a row of choices never reads as a row of buttons of equal weight. In dark the chosen one is the soft
+// accent with an accent edge (an off-white fill was the loudest thing on the page); the edge tells it from a chip under the pointer.
+export const choicePill = (active: boolean) => `inline-flex min-h-11 items-center gap-2 rounded-full px-4 text-meta font-medium transition-colors ${active ? "bg-text text-ink dark:bg-accent-soft dark:text-accent-text dark:ring-1 dark:ring-inset dark:ring-accent" : "bg-hairline text-text hover:bg-accent-soft hover:text-accent-text"} ${press}`;
 
 // What needs doing, as a list a person works down: each row says what it is, why it matters now (`detail`) and has the button that does
 // it (`action`), so nobody has to work out where to go. The marker on the left is the urgency: `now` (red) is late or due today, `soon`
