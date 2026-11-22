@@ -125,3 +125,17 @@ test("in the collapsed rail a group's place can be reached: in view at 1280x800,
     await expect(page).toHaveURL(/\/orders$/);
   }
 });
+
+// The logo in the frame goes to the Overview, in the sidebar, the collapsed rail and the phone header.
+for (const [where, width, rail] of [["the sidebar", 1280, false], ["the collapsed rail", 1280, true], ["the phone header", 390, false]] as const) {
+  test(`the logo in ${where} goes to the Overview`, async ({ page, context }) => {
+    if (rail) await context.addCookies([{ name: RAIL_COOKIE, value: "1", url: BASE }]);
+    await page.setViewportSize({ width, height: 800 });
+    await page.goto("/leads");
+    const logo = page.getByRole("link", { name: /, go to the overview$/ });
+    await expect(logo).toHaveCount(1);
+    await logo.click();
+    await expect(page).toHaveURL(new RegExp(`${BASE}/$`));
+    await expect(logo).not.toHaveAttribute("aria-current", /.+/);
+  });
+}
