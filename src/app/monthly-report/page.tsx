@@ -19,7 +19,7 @@ import { carName } from "@/lib/stock/format";
 import { forSale } from "@/lib/stock/types";
 import { notFound } from "next/navigation";
 import { PrintButton } from "./PrintButton";
-import { BrandName } from "@/components/admin/BrandIcon";
+import { VisitSources } from "@/components/admin/VisitSources";
 
 export const metadata = { title: "Monthly report" };
 
@@ -123,6 +123,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
       {a && (
         <>
           <h2 className="text-heading font-semibold">Visitors</h2>
+          <Panel plain title="Where visits came from" text="Compared with the month before">
+            <VisitSources now={a.channels} before={a.previous.channels} />
+          </Panel>
           <Panel title="Top 5 cars viewed">
             <p className="text-meta text-text-2">
               {fmtNum(a.totals.pageviews)} pages viewed in all. {compare(a.totals.pageviews, a.previous.pageviews)}.
@@ -138,11 +141,10 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
           <StatGrid>
             <StatCard label="Visits that became leads" value={fmtPct(real.now.totals.conversion)} />
           </StatGrid>
-          {real.now.sources.length > 0 && (
-            <Panel title="Where visitors came from">
-              <DataTable bare rows={real.now.sources.slice(0, 6)} rowKey={(c) => c.name} columns={[{ key: "n", header: "Source", cell: (c) => <BrandName name={c.name} className="font-medium" /> }, { key: "v", header: "Visits", align: "right", cell: (c) => fmtNum(c.visits) }, { key: "l", header: "Leads", align: "right", cell: (c) => fmtNum(c.leads) }]} />
-            </Panel>
-          )}
+          <Panel plain title="Where visits came from" text="Compared with the month before">
+            <VisitSources now={real.now.channels} before={real.before.channels} />
+            {real.now.unknownLeads > 0 && <p className="text-meta text-text-2">{plural(real.now.unknownLeads, "website lead")} came with no source known.</p>}
+          </Panel>
         </>
       )}
 

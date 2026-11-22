@@ -1,5 +1,7 @@
 import { DAY } from "@/lib/time";
 import { rng } from "./seed-data";
+import type { Channel } from "@/lib/visit-rules";
+import type { ChannelCount } from "./visit-sources";
 
 // The demo's numbers on the Analytics page (a real site shows its own counts, ./visitor-figures.ts). They are generated here from a
 // fixed seed: the same range always gives the same figures, and the figures agree with each other (the days add up to the totals, the
@@ -11,7 +13,8 @@ export const RANGES = [7, 30, 90] as const;
 export type Range = (typeof RANGES)[number];
 export const parseRange = (v: unknown): Range => (RANGES.includes(Number(v) as Range) ? (Number(v) as Range) : 30);
 
-const SOURCES = [["Google search", 42, 1.0], ["Direct", 22, 1.2], ["Facebook", 15, 0.7], ["Instagram", 9, 0.6], ["Other sites", 8, 0.9], ["Email", 4, 1.8]] as const;
+// Each channel's share of the visits and how readily its visitors get in touch (the real site's channels, src/lib/visit-rules.ts).
+const SOURCES: readonly (readonly [Channel, number, number])[] = [["google", 38, 1.0], ["direct", 20, 1.2], ["facebook", 13, 0.7], ["instagram", 8, 0.6], ["donedeal", 7, 1.4], ["bing", 4, 0.9], ["carzone", 3, 1.2], ["other", 2.6, 0.9], ["email", 2.2, 1.8], ["tiktok", 1.6, 0.4]];
 const PLACES = [["Dublin", 24], ["Cork", 14], ["Galway", 9], ["Limerick", 8], ["Kerry", 7], ["Waterford", 6], ["Kildare", 5], ["Meath", 5], ["Other Irish counties", 17], ["Outside Ireland", 5]] as const;
 const DEVICES = [["Phone", 68], ["Desktop", 27], ["Tablet", 5]] as const;
 
@@ -71,9 +74,11 @@ export function buildAnalytics(input: { range: Range; cars: Car[]; now?: number;
   const leads = sum(days, "leads");
   const r = rng(seed + range);
 
-  const sources = share(visitors, SOURCES.map((s) => s[1])).map((v, i) => ({ name: SOURCES[i][0], visitors: v, leads: 0 }));
-  const leadWeights = SOURCES.map((s, i) => sources[i].visitors * s[2]);
-  share(leads, leadWeights).forEach((l, i) => (sources[i].leads = l));
+  // The same shape as the real counts (visitorFigures().channels); the period before has its own mix, so each channel moves on its own.
+  const channels: ChannelCount[] = share(visitors, SOURCES.map((s) => s[1])).map((v, i) => ({ channel: SOURCES[i][0], visits: v, leads: 0 }));
+  share(leads, SOURCES.map((s, i) => channels[i].visits * s[2])).forEach((l, i) => (channels[i].leads = l));
+  const mix = rng(seed + range + 1);
+  const channelsBefore = share(sum(before, "visitors"), SOURCES.map((s) => s[1] * (0.75 + mix.next() * 0.5))).map((v, i) => ({ channel: SOURCES[i][0], visits: v }));
 
   const places = share(visitors, PLACES.map((p) => p[1])).map((v, i) => ({ name: PLACES[i][0], visitors: v }));
   const devices = share(visitors, DEVICES.map((d) => d[1])).map((v, i) => ({ name: DEVICES[i][0], visitors: v }));
@@ -98,8 +103,8 @@ export function buildAnalytics(input: { range: Range; cars: Car[]; now?: number;
   return {
     days,
     totals: { visitors, pageviews: sum(days, "pageviews"), leads, conversion: visitors ? (leads / visitors) * 100 : 0 },
-    previous: { visitors: sum(before, "visitors"), pageviews: sum(before, "pageviews"), leads: sum(before, "leads") },
-    sources,
+    previous: { visitors: sum(before, "visitors"), pageviews: sum(before, "pageviews"), leads: sum(before, "leads"), channels: channelsBefore },
+    channels,
     places,
     devices,
     topCars,

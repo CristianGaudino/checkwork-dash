@@ -227,6 +227,31 @@ export const TikTokIcon = (p: Props) => (
   </Icon>
 );
 
+export const BingIcon = (p: Props) => (
+  <Icon {...p}>
+    <path d="M6 3.5 9 4.5v12l6-3.5-3-1.4-1.3-3.2L18 11v4.3L9 20.5 6 18.8Z" />
+  </Icon>
+);
+// Where a visit came from, when it is not a network with a mark of its own: a listing site (tag), typed in (keyboard), another site (globe).
+export const TagIcon = (p: Props) => (
+  <Icon {...p}>
+    <path d="M3.5 12.1V5A1.5 1.5 0 0 1 5 3.5h7.1a1.5 1.5 0 0 1 1 .4l7.5 7.5a1.5 1.5 0 0 1 0 2.1l-7.1 7.1a1.5 1.5 0 0 1-2.1 0l-7.5-7.5a1.5 1.5 0 0 1-.4-1Z" />
+    <circle cx="8" cy="8" r="1.5" />
+  </Icon>
+);
+export const KeyboardIcon = (p: Props) => (
+  <Icon {...p}>
+    <rect x="3" y="6.5" width="18" height="11" rx="2" />
+    <path d="M7 10h.01M10.5 10h.01M14 10h.01M17 10h.01M8 14h8" />
+  </Icon>
+);
+export const GlobeIcon = (p: Props) => (
+  <Icon {...p}>
+    <circle cx="12" cy="12" r="8.5" />
+    <path d="M3.5 12h17M12 3.5c2.3 2.4 3.5 5.2 3.5 8.5s-1.2 6.1-3.5 8.5c-2.3-2.4-3.5-5.2-3.5-8.5S9.7 5.9 12 3.5Z" />
+  </Icon>
+);
+
 export const PinIcon = (p: Props) => (
   <Icon {...p}>
     <path d="M12 21s6.5-5.6 6.5-11a6.5 6.5 0 0 0-13 0c0 5.4 6.5 11 6.5 11Z" />

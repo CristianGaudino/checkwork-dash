@@ -1,5 +1,4 @@
 import { bounds } from "@/lib/reports/monthly";
-import { DAY } from "@/lib/time";
 import { alertsStore, salesStore } from "@/lib/admin/collections";
 import { addDays, dublinDay } from "@/lib/admin/format";
 import { visitorFigures } from "@/lib/admin/visitor-figures";
@@ -9,7 +8,7 @@ import { AreaChart, BarList } from "@/components/admin/charts";
 import { MoreDetail } from "@/components/admin/MoreDetail";
 import { DataTable, PageHeader, Panel, Segmented, StatCard, StatGrid } from "@/components/admin/kit";
 import { RANGES, buildAnalytics, change, changeText, parseRange } from "@/lib/admin/analytics";
-import { fmtNum, fmtPct, threeLetter } from "@/lib/admin/format";
+import { fmtNum, fmtPct, plural, threeLetter } from "@/lib/admin/format";
 import { leadsStore } from "@/lib/admin/collections";
 import { adminCars } from "@/lib/admin/stock-admin";
 import { simulating } from "@/lib/integrations";
@@ -19,7 +18,9 @@ import { carName, siteCarUrl } from "@/lib/stock/format";
 import { dealerProfile } from "@/lib/tenancy/current";
 import { NEW_TAB } from "@/components/ui";
 import { forSale } from "@/lib/stock/types";
-import { BrandName } from "@/components/admin/BrandIcon";
+import { VisitSources } from "@/components/admin/VisitSources";
+import { sourceTiles, visitWindows } from "@/lib/admin/visit-sources";
+import { realVisitSources } from "@/lib/admin/visit-sources-load";
 
 export const metadata = { title: "Analytics" };
 
@@ -45,7 +46,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ r
   const sold = sales.filter((s) => !s.returnedOn && s.soldOn > from).length;
   // The funnel is the dealership's: its last step only for those who see every sale, never one person's sales under it.
   const funnel = whole ? a.funnel.map((s, i, f) => (i === f.length - 1 ? { ...s, count: Math.min(sold, f[i - 1]?.count ?? sold) } : s)) : a.funnel.slice(0, -1);
-  const best = [...a.sources].sort((x, y) => y.leads - x.leads)[0];
+  const best = sourceTiles(a.channels, a.previous.channels).find((t) => t.best);
 
   return (
     <>
@@ -55,7 +56,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ r
       {/* The answer first, in words; the figures behind it follow. */}
       <p className="max-w-measure text-body">
         {fmtNum(a.totals.visitors)} people visited your site in the last {range} days, {changeText(a.totals.visitors, a.previous.visitors).toLowerCase()}. {fmtNum(a.totals.leads)} got in touch{whole ? ` and ${fmtNum(sold)} bought a car.` : `, and you sold ${fmtNum(sold)}.`}
-        {best && best.leads > 0 && ` Most leads came from ${best.name}.`}
+        {best && ` Most leads came from ${best.channel === "direct" ? "people who typed in your address" : best.label}.`}
       </p>
 
       <StatGrid>
@@ -65,24 +66,13 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ r
         <StatCard label="Visitors who got in touch" value={fmtPct(a.totals.conversion)} hint={changeText(a.totals.conversion, convBefore, true)} tone={a.totals.conversion >= convBefore ? "good" : "bad"} />
       </StatGrid>
 
-      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
-        <Panel title="Where visitors come from">
-          <DataTable
-            bare
-            rows={[...a.sources].sort((x, y) => y.leads - x.leads || y.visitors - x.visitors)}
-            rowKey={(s) => s.name}
-            columns={[
-              { key: "name", header: "Source", cell: (s) => <BrandName name={s.name} className="font-medium" /> },
-              { key: "v", header: "Visitors", align: "right", cell: (s) => fmtNum(s.visitors) },
-              { key: "l", header: "Leads", align: "right", cell: (s) => <span className="font-semibold">{fmtNum(s.leads)}</span> },
-              { key: "c", header: "Got in touch", align: "right", cell: (s) => fmtPct(s.visitors ? (s.leads / s.visitors) * 100 : 0), hide: "sm" },
-            ]}
-          />
-        </Panel>
-        <Panel title="From visit to sale">
-          <BarList items={funnel.map((s, i) => ({ label: s.label, value: s.count, note: i ? fmtPct((s.count / top) * 100) : undefined }))} of={top} />
-        </Panel>
-      </div>
+      <Panel plain title="Where visits come from" text={`Last ${range} days, compared with the ${range} before`}>
+        <VisitSources now={a.channels} before={a.previous.channels} />
+      </Panel>
+
+      <Panel title="From visit to sale">
+        <BarList items={funnel.map((s, i) => ({ label: s.label, value: s.count, note: i ? fmtPct((s.count / top) * 100) : undefined }))} of={top} />
+      </Panel>
 
       <Panel title="Visitors each day">
         <AreaChart data={a.days.map((d) => ({ label: threeLetter(shortDate.format(new Date(d.date))), value: d.visitors }))} format={(n) => `${fmtNum(n)} visitors`} summary={`Visitors each day over the last ${range} days, from ${fmtNum(Math.min(...a.days.map((d) => d.visitors)))} to ${fmtNum(Math.max(...a.days.map((d) => d.visitors)))}.`} />
@@ -125,10 +115,13 @@ const none = <p className="text-meta text-text-2">None in this period.</p>;
 
 async function RealAnalytics({ range }: { range: Range }) {
   const now = today();
-  const [from, to] = [dublinDay(now - (range - 1) * DAY), dublinDay(now)];
+  const w = visitWindows(range, now); // the same Irish days as Where visits come from
+  const { from, to } = w;
   const [start] = bounds(from, to);
-  const [{ features }, leads, alerts] = await Promise.all([countsBetween(from, to), leadsStore.list(), alertsStore.list()]);
+  // The window before is read at the same time; this period's counts are passed in, so nothing is read twice.
+  const [{ features }, leads, alerts, before] = await Promise.all([countsBetween(from, to), leadsStore.list(), alertsStore.list(), countsBetween(w.beforeFrom, w.beforeTo)]);
   const f = visitorFigures({ counts: features, leads: leads.filter((l) => l.createdAt >= start), alerts });
+  const src = await realVisitSources(range, now, leads, features, before.features);
 
   return (
     <>
@@ -141,22 +134,9 @@ async function RealAnalytics({ range }: { range: Range }) {
         <StatCard label="Visits that became leads" value={fmtPct(f.totals.conversion)} />
       </StatGrid>
 
-      <Panel title="Where visitors come from">
-        {f.sources.length ? (
-          <DataTable
-            bare
-            rows={f.sources}
-            rowKey={(s) => s.name}
-            columns={[
-              { key: "name", header: "Source", cell: (s) => <BrandName name={s.name} className="font-medium" /> },
-              { key: "v", header: "Visits", align: "right", cell: (s) => fmtNum(s.visits) },
-              { key: "l", header: "Leads", align: "right", cell: (s) => fmtNum(s.leads) },
-              { key: "c", header: "Became leads", align: "right", cell: (s) => (s.visits ? fmtPct((s.leads / s.visits) * 100) : ""), hide: "sm" },
-            ]}
-          />
-        ) : (
-          none
-        )}
+      <Panel plain title="Where visits come from" text={`Last ${range} days, compared with the ${range} before`}>
+        <VisitSources now={src.now} before={src.before} />
+        {src.unknownLeads > 0 && <p className="text-meta text-text-2">{plural(src.unknownLeads, "website lead")} came with no source known.</p>}
       </Panel>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">

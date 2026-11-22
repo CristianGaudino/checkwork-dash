@@ -23,13 +23,14 @@ describe("buildAnalytics", () => {
       expect(a.days[0].date < a.days[1].date).toBe(true);
     }
   });
-  it("agrees with itself: days, sources, places and devices all add up to the visitors", () => {
+  it("agrees with itself: days, channels, places and devices all add up to the visitors", () => {
     const a = buildAnalytics({ range: 30, cars, now });
     expect(total(a.days)).toBe(a.totals.visitors);
-    expect(total(a.sources)).toBe(a.totals.visitors);
+    expect(a.channels.reduce((s, x) => s + x.visits, 0)).toBe(a.totals.visitors);
+    expect(a.previous.channels.reduce((s, x) => s + x.visits, 0)).toBe(a.previous.visitors);
     expect(total(a.places)).toBe(a.totals.visitors);
     expect(total(a.devices)).toBe(a.totals.visitors);
-    expect(a.sources.reduce((s, x) => s + x.leads, 0)).toBe(a.totals.leads);
+    expect(a.channels.reduce((s, x) => s + x.leads, 0)).toBe(a.totals.leads);
   });
   it("never grows going down the funnel, and the top step is the visitors", () => {
     for (const range of RANGES) {
@@ -47,12 +48,12 @@ describe("buildAnalytics", () => {
 });
 
 describe("real lead times", () => {
-  it("make the lead totals match the inbox, and the sources and funnel follow", () => {
+  it("make the lead totals match the inbox, and the channels and funnel follow", () => {
     const day = 86_400_000;
     const times = [now - 1000, now - 2000, now - 3 * day, now - 40 * day]; // two today, one three days ago, one outside 30 days
     const a = buildAnalytics({ range: 30, cars, now, leadTimes: times });
     expect(a.totals.leads).toBe(3);
-    expect(a.sources.reduce((s, x) => s + x.leads, 0)).toBe(3);
+    expect(a.channels.reduce((s, x) => s + x.leads, 0)).toBe(3);
     expect(a.funnel[3].count).toBeLessThanOrEqual(3);
     expect(buildAnalytics({ range: 7, cars, now, leadTimes: times }).totals.leads).toBe(3);
     expect(buildAnalytics({ range: 30, cars, now, leadTimes: [] }).totals.leads).toBe(0);
