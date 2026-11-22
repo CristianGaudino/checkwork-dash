@@ -41,12 +41,12 @@ A proposal, not decided. Prices a month before VAT. It keeps the bundle prices a
 Today one repo and site per dealer. Revisit at about 10 live dealers.
 
 ### Own sign-in
-Passkeys first, an emailed link as the fallback (#10). Design and security review before code: `docs/sign-in.md`, pending the owner's
-approval (below).
+Passkeys first, an emailed code and link as the fallback (#10). Design and security review before code: `docs/sign-in.md`, approved by
+the owner on 2026-11-22 (below).
 
-## Pending the owner's approval: our own sign-in (#10)
+## Approved by the owner, 2026-11-22: our own sign-in (#10)
 
-Proposed in `docs/sign-in.md`. None of it is built until the owner approves; its open questions are in section 11 there. Revised after a second security review.
+Proposed in `docs/sign-in.md` and approved by the owner on 2026-11-22; it is built in the steps of section 9 there, and the answers to its questions are in section 11. Revised after a second security review.
 
 | Decision | What it means |
 |---|---|
@@ -54,7 +54,7 @@ Proposed in `docs/sign-in.md`. None of it is built until the owner approves; its
 | Invite only | Being added in Settings, Team is the invitation, with an email that holds no token. Sign-in is refused for anyone at no active dealer, with the same answer as for a stranger |
 | Our own WebAuthn code, no library | A small, strict CBOR and COSE reader and the spec's checks, with WebCrypto doing the cryptography (Ed25519, ES256, RS256), as Web Push already is. Attestation `none`, or `packed` self attestation. `@simplewebauthn/server` would add ten dependencies for attestation we do not use |
 | One relying party id per environment | `dash.checkwork.ie` for production, `dev.dash.checkwork.ie` for dev, each accepting its own origin only |
-| Sessions in the directory | An opaque id in a `__Host-` cookie (Secure, HttpOnly, SameSite=Lax), its hash in the directory D1. 12 hours idle, 7 days at most (to confirm). Adding or removing a passkey needs a confirmation within 10 minutes. Sign out everywhere; removal from a team (not a role change, and only once the removal has saved) ends every session, at every dealer |
+| Sessions in the directory | An opaque id in a `__Host-` cookie (Secure, HttpOnly, SameSite=Lax), its hash in the directory D1. 12 hours idle, 7 days at most (owner, 2026-11-22). Adding or removing a passkey needs a confirmation within 10 minutes. Sign out everywhere; removal from a team (not a role change, and only once the removal has saved) ends every session, at every dealer |
 | Limits | Per IP by a rate limit binding, per email in D1, 5 tries a code, 15 wrong tries a day per email whichever code (then codes locked for 24 hours) and 100 in a row (then codes off until a sign-in), NIST's limit. A lock leaves the link (in an email capped like any other) and passkeys working; a request over the email caps sends and ends nothing. Known and unknown emails answer alike, with the per-email work after the answer. No email, IP or token in any log |
 | Moving off Access | A `SIGN_IN` switch (`access`, `both`, `own`; unset or unknown means `access`), dev first then production, Access bypassed and kept two weeks for rollback before it is deleted. Every order of changing the switch and the Access policy fails closed |
 | CSRF | Sign-in actions, sign-out and session-reading route handlers require `Origin` equal to the app's own (Next lets a missing one through). No GET changes state |

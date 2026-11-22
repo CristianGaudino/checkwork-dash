@@ -12,6 +12,7 @@ import { purgeOldActivity } from "./src/lib/admin/activity-purge.ts";
 import { purgeOldCounts } from "./src/lib/owner-api/counts-purge.ts";
 import { anonymiseOldSales } from "./src/lib/admin/sales-purge.ts";
 import { purgeOldLeads } from "./src/lib/leads/purge.ts";
+import { purgeSignIn } from "./src/lib/auth/purge.ts";
 import { apexRedirect } from "./src/lib/redirect.ts";
 import { APP_URL } from "./src/lib/site.ts";
 
@@ -79,6 +80,8 @@ const worker = {
     ];
     let failed = 0;
     for (const [job, key, run] of jobs) failed += await runForDealers(dealers, job, async (d) => ({ [key]: await run(d) }));
+    // The directory's own step, once, not per dealer: our sign-in's old attempts, ended sessions, and people at no dealer (docs/sign-in.md).
+    failed += await runForDealers([{ id: "directory" }], "purge-sign-in", () => purgeSignIn(drizzle(env.DIRECTORY)));
     if (failed) throw new Error(`${failed} nightly job run(s) failed`);
   },
 };

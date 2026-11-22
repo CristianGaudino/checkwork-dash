@@ -1,7 +1,7 @@
 # Our own sign-in (#10)
 
-Design and security review, for the owner to approve before any code. It replaces Cloudflare Access with sign-in of our own: passkeys
-first, an emailed code and link as the fallback, invite only. Status: proposed, pending the owner's approval (`docs/decisions.md`).
+Design and security review. It replaces Cloudflare Access with sign-in of our own: passkeys first, an emailed code and link as the
+fallback, invite only. Status: approved by the owner on 2026-11-22 (`docs/decisions.md`), built in the steps of section 9.
 Revised after an independent security review (second round).
 
 What is fixed (owner): our own code, never Clerk, Auth0 or a similar service; invite only, never a sign-up page; passkeys first, email as
@@ -293,7 +293,7 @@ version Safari has them, so we do not rely on them).
 
 One email carries both. The code is for the device that asked; the link is for whoever opens the mailbox.
 
-> From: Checkwork <sign-in@checkwork.ie>
+> From: Checkwork <noreply@checkwork.ie>
 > Subject: Your Checkwork sign-in code
 >
 > Your code is 482 913
@@ -392,7 +392,7 @@ before the row exists fails as a wrong code (the IP limit caps that moment).
 Checking a code also does the same work either way: the row with no code compares the HMAC against a random value. The per-email counts
 are updated after the answer (section 5).
 
-Mail goes through the Worker's `EMAIL` binding, from `sign-in@checkwork.ie`. See open question 3: production must be able to send to any
+Mail goes through the Worker's `EMAIL` binding, from `noreply@checkwork.ie`. See open question 3: production must be able to send to any
 staff address.
 
 ## 4. Sessions
@@ -541,7 +541,7 @@ for every sign-in by email (section 1).
 | `staff` | `id` (the user handle, 32 random bytes base64url, primary key), `email` (unique, lower case), `code_failures`, `code_locked_until`, `created_at` | One row per person, made the first time they ask for a code or sign in. `members` stays keyed by email |
 | `passkeys` | `id` (credential id, base64url, primary key), `staff_id`, `public_key` (COSE bytes), `alg`, `sign_count`, `backup_eligible`, `backed_up`, `transports`, `label`, `created_at`, `last_used_at` | Index on `staff_id`. At most 10 per person |
 | `sessions` | `id_hash` (hex SHA-256 of the cookie value, primary key), `staff_id`, `method` (`passkey` or `email`), `label` (device kind), `created_at`, `last_seen_at`, `verified_at`, `expires_at` | Index on `staff_id` |
-| `sign_in_attempts` | `id`, `kind` (`passkey-sign-in`, `passkey-register`, `passkey-confirm`, `code`, `confirm-code`, `link`), `email` (code, link and confirm-code rows for a known email only; the link-only email writes its link row with the email too), `staff_id` (registration and confirmation), `challenge` (passkeys), `code_hmac`, `token_hmac` (unique), `browser_hash` (the attempt cookie's hash), `tries`, `created_at`, `expires_at`, `used_at` | A code row is written for every request, with no email and no code when the email is unknown, over a limit or locked; the counts in section 5 come from the rows that have an email |
+| `sign_in_attempts` | `id`, `kind` (`passkey-sign-in`, `passkey-register`, `passkey-confirm`, `code`, `confirm-code`, `link`), `email` (code, link and confirm-code rows for a known email only; the link-only email writes its link row with the email too), `staff_id` (registration and confirmation), `challenge` (passkeys), `code_hmac`, `token_hmac` (unique), `browser_hash` (the attempt cookie's hash), `tries`, `created_at`, `expires_at`, `used_at` | A code row is written for every request, with no email and no code when the email is unknown, over a limit or locked; the counts in section 5 come from the rows that have an email. Indexes on `created_at`, `browser_hash`, (`email`, `created_at`) and `staff_id` |
 
 No IP addresses and no user agents are stored: only the device kind ("iPhone").
 
@@ -555,7 +555,9 @@ With no D1 (`next dev`, the E2E run, unit tests) the same live in the in-memory 
 | `sessions` | when they end (sign-out, sign out everywhere, removal), and nightly once past either lifetime |
 | `passkeys`, `staff` | when the person is at no dealer any more (at removal), and nightly for any `staff` row with no membership |
 
-The nightly job gains one directory step, `purge-sign-in`, which logs counts only, as the other purges do.
+The nightly job gains one directory step, `purge-sign-in`, which logs counts only, as the other purges do. It deletes at most 20 chunks of
+5,000 rows per table a night (`PURGE_LIMITS` in `src/lib/auth/purge.ts`), so a flood of requests can't stop it; the rest goes the next
+night.
 
 ### A data request from a staff member
 
@@ -570,7 +572,7 @@ retention.
 - Kept to the minimum: an email (already in `members`), a random id, public keys, dates, two counters and a device kind. No IPs, no user
   agents, no passwords, nothing biometric (user verification happens on the device; WebAuthn sends us only a flag).
 - The purpose is security of the service, and the retention above is short.
-- Who is the controller for staff sign-in data is open question 4.
+- Checkwork keeps staff sign-in records as each dealer's processor (owner, 2026-11-22; section 11, question 4).
 
 ## 7. Moving off Access
 
@@ -601,7 +603,7 @@ Between the two halves of the right order the app is stricter, never looser: wit
 ### Dev first
 
 1. Merge the build plan's steps 1 to 6 (each changes nothing while `SIGN_IN` is `access`).
-2. Owner: `npx wrangler secret put SIGN_IN_SECRET` (dev), a random 32-byte value. Set up `sign-in@checkwork.ie` as a sending address
+2. Owner: `npx wrangler secret put SIGN_IN_SECRET` (dev), a random 32-byte value. Set up `noreply@checkwork.ie` as a sending address
    (open question 3). Dev's `EMAIL` binding can only send to `contact@checkwork.ie` today: add our own team's addresses to its
    `allowed_destination_addresses`. If the zone's Web Analytics is on, also exclude `/sign-in/*` there (the CSP already blocks it).
 3. PR: dev's `SIGN_IN` to `both`. Deploy. Each of us signs in through Access, then through our sign-in (email code, then add a passkey) on
@@ -636,7 +638,7 @@ Between the two halves of the right order the app is stricter, never looser: wit
 | When | What |
 |---|---|
 | Step 2 and 6 | `SIGN_IN_SECRET` per environment |
-| Step 2 | The sending address `sign-in@checkwork.ie`, dev's allowed addresses, and Web Analytics off for `/sign-in/*` if it is on |
+| Step 2 | The sending address `noreply@checkwork.ie`, dev's allowed addresses, and Web Analytics off for `/sign-in/*` if it is on |
 | Step 4 and 8 | Bypass, Everyone on the Access application (dev, then production), after the deploy |
 | Step 9 | Delete the Access applications |
 
@@ -702,22 +704,29 @@ The scripts go through `target()` in `scripts/dealers.mjs`, dev by default, prod
 
 ## 11. Open questions for the owner
 
-1. **How long a session lasts.** Recommended: 12 hours idle, 7 days at most. On the phone app that means Face ID about once a working day,
-   one tap. This is longer than NIST SP 800-63B-4's guidance for AAL2 (1 hour idle and 24 hours overall, both SHOULD, not SHALL). Why it
-   is acceptable here: the app is a dealer's working tool, open all day on a phone that has its own lock; a 1 hour idle limit would mean
-   Face ID many times a day and people leaving the app open to avoid it. The things that matter most are guarded more tightly: adding or
-   removing a passkey needs a confirmation within 10 minutes, every request checks the membership again, and a lost phone is ended from any
-   other device. Longer (say 30 days) is friendlier and weaker on a lost phone; shorter is closer to NIST.
-2. **Email sign-in once someone has a passkey.** Recommended for now: keep it for everyone, so a lost phone never locks anyone out (every
-   sign-in by email is already emailed to the person). Later, once everyone has a passkey on two devices, we can require passkeys for
-   owners and managers, which closes code relaying, mailbox takeover and the residual guessing odds in section 5 for them.
+Answered by the owner on 2026-11-22: questions 1, 2, 4 and 5 approved as recommended, and question 3's sending address is
+`noreply@checkwork.ie`. Question 3's check of production's binding is still open.
+
+1. **How long a session lasts.** Answered (owner, 2026-11-22): as recommended. Recommended: 12 hours idle, 7 days at most. On the phone app
+   that means Face ID about once a working day, one tap. This is longer than NIST SP 800-63B-4's guidance for AAL2 (1 hour idle and 24 hours
+   overall, both SHOULD, not SHALL). Why it is acceptable here: the app is a dealer's working tool, open all day on a phone that has its own
+   lock; a 1 hour idle limit would mean Face ID many times a day and people leaving the app open to avoid it. The things that matter most
+   are guarded more tightly: adding or removing a passkey needs a confirmation within 10 minutes, every request checks the membership again,
+   and a lost phone is ended from any other device. Longer (say 30 days) is friendlier and weaker on a lost phone; shorter is closer to
+   NIST.
+2. **Email sign-in once someone has a passkey.** Answered (owner, 2026-11-22): as recommended, email sign-in for everyone. Recommended for
+   now: keep it for everyone, so a lost phone never locks anyone out (every sign-in by email is already emailed to the person). Later, once
+   everyone has a passkey on two devices, we can require passkeys for owners and managers, which closes code relaying, mailbox takeover and
+   the residual guessing odds in section 5 for them.
 3. **Sending sign-in email to any address.** Production must email any staff member. I have not confirmed that our `EMAIL` binding on
    production can send to addresses that are not verified in Email Routing (dev's cannot, by design). Lead emails to dealers suggest it can,
    but this must be checked on dev with an unverified address before step 4 ships. If it cannot, the choice is Cloudflare's email sending
-   service (if it is available to the account) or an email API called with `fetch` (a service, not a library). Recommended: Cloudflare's,
-   so nothing new is added. Also: is `sign-in@checkwork.ie` the address you want?
-4. **Who controls staff sign-in data.** Recommended: say in the agreement with each dealer that Checkwork keeps staff sign-in records
-   (section 6) as the dealer's processor, for security only, with the retention above. This wants your solicitor's or the DPA's wording, not
-   ours.
-5. **The only-owner recovery in section 10.** Is a call to the dealer's known number plus a second person at the dealer enough proof for
-   you, or do you want something stronger (a signed letter, a visit) before we add an owner by script?
+   service (if it is available to the account) or an email API called with `fetch` (a service, not a library). Recommended: Cloudflare's, so
+   nothing new is added. The sending address is `noreply@checkwork.ie` (owner, 2026-11-22). Whether production's binding can send to any
+   address is still open.
+4. **Who controls staff sign-in data.** Answered (owner, 2026-11-22): as recommended, Checkwork as the dealer's processor. Recommended: say
+   in the agreement with each dealer that Checkwork keeps staff sign-in records (section 6) as the dealer's processor, for security only,
+   with the retention above. This wants your solicitor's or the DPA's wording, not ours.
+5. **The only-owner recovery in section 10.** Answered (owner, 2026-11-22): the call and the second person are enough. Is a call to the
+   dealer's known number plus a second person at the dealer enough proof for you, or do you want something stronger (a signed letter, a
+   visit) before we add an owner by script?
