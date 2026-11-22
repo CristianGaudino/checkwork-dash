@@ -144,7 +144,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
           <ActionTile primary href="/stock/new" icon={<CarIcon />} label="Add a car" text="Photos, price and details" />
         )}
         {drivesOn && <ActionTile href="/test-drives/new" icon={<CalendarIcon />} label="Book a test drive" text="Pick a car and a time" />}
-        {mods.has("social") && <ActionTile href="/marketing/new" icon={<ShareIcon />} label="New post" text="Facebook and Instagram" />}
+        {mods.has("social") && <ActionTile href="/marketing/new" icon={<ShareIcon />} label="New post" text="Facebook, Instagram or TikTok" />}
         {/* The same leads as To do and Leads' To answer now (leadsToAnswer). */}
         <ActionTile href={mine ? "/leads?mine=1" : "/leads"} icon={<InboxIcon />} label="Reply to leads" text={o.answer.length ? `${plural(o.answer.length, "lead")} to answer` : "All answered"} />
       </ActionTiles>

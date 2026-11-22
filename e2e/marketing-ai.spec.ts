@@ -32,6 +32,9 @@ test("write a post with AI, adjust it, undo, and edit it: it is marked as AI and
   await expect(text(page)).toHaveValue(short);
   await text(page).fill(`${short} Ask for Aoife.`);
   await expect(page.getByText("AI draft, edited")).toBeVisible();
+  await page.getByRole("button", { name: "Use the suggestion" }).click(); // back to the template, so no AI label
+  await expect(page.getByText("AI draft")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Write with AI" })).toBeVisible();
 });
 
 test("make a story from a car: pick the layout, see it drawn on the photo, and publish it", async ({ page }) => {
