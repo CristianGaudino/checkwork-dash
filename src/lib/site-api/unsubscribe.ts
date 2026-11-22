@@ -1,6 +1,6 @@
 import "server-only";
-import { logActivity } from "@/lib/admin/activity";
 import { alertsStore, subscribersStore } from "@/lib/admin/collections";
+import { pauseAlert, unsubscribeSubscriber } from "@/lib/admin/customers-stop";
 import { getBindings } from "@/lib/leads/bindings";
 import { runAsDealerRow } from "@/lib/tenancy/current";
 import { dealerById } from "@/lib/tenancy/directory";
@@ -35,41 +35,31 @@ async function limited(req: Request) {
   return Boolean(limiter) && !(await limiter!.limit({ key: `unsub:${req.headers.get("cf-connecting-ip") ?? "unknown"}` })).success;
 }
 
+const error500 = () => {
+  console.error(JSON.stringify({ unsubscribe: "error" })); // nothing from the error or the link
+  return page(500, "Something went wrong", "<p>Please try the link again in a minute.</p>");
+};
+
 export async function showUnsubscribe(req: Request): Promise<Response> {
   if (await limited(req)) return page(429, "Please try again in a minute", "");
-  const f = await open(new URL(req.url)).catch(() => null);
-  if (!f || !(await f.run(() => exists(f)).catch(() => null))) return invalid();
-  const what = f.kind === "alert" ? "stock alerts" : "emails";
-  return page(200, `Stop these ${what}?`, `<p>You will not get any more ${what} from ${escape(f.dealerName)}.</p><form method="post"><button type="submit">Stop these ${what}</button></form>`);
+  try {
+    const f = await open(new URL(req.url));
+    if (!f || !(await f.run(() => exists(f)))) return invalid();
+    const what = f.kind === "alert" ? "stock alerts" : "emails";
+    return page(200, `Stop these ${what}?`, `<p>You will not get any more ${what} from ${escape(f.dealerName)}.</p><form method="post"><button type="submit">Stop these ${what}</button></form>`);
+  } catch {
+    return error500();
+  }
 }
 
 export async function doUnsubscribe(req: Request): Promise<Response> {
   if (await limited(req)) return page(429, "Please try again in a minute", "");
-  const f = await open(new URL(req.url)).catch(() => null);
-  if (!f) return invalid();
   try {
-    const done = await f.run(async () => {
-      if (f.kind === "newsletter") {
-        const s = await subscribersStore.get(f.id);
-        if (!s) return false;
-        if (s.status === "subscribed") {
-          await subscribersStore.put({ ...s, status: "unsubscribed" });
-          await logActivity("customers", "Unsubscribed from the newsletter", { kind: "subscriber", id: f.id }, "The subscriber");
-        }
-      } else {
-        const a = await alertsStore.get(f.id);
-        if (!a) return false;
-        if (a.active) {
-          await alertsStore.put({ ...a, active: false });
-          await logActivity("customers", "Paused the stock alert", { kind: "alert", id: f.id }, "The subscriber");
-        }
-      }
-      return true;
-    });
-    if (!done) return invalid();
+    const f = await open(new URL(req.url));
+    if (!f) return invalid();
+    const found = await f.run(() => (f.kind === "newsletter" ? unsubscribeSubscriber(f.id, "The subscriber") : pauseAlert(f.id, "The subscriber")));
+    return found ? page(200, "You won't get these emails again", "") : invalid();
   } catch {
-    console.error(JSON.stringify({ unsubscribe: "error" })); // nothing from the error or the link
-    return page(500, "Something went wrong", "<p>Please try the link again in a minute.</p>");
+    return error500();
   }
-  return page(200, "You won't get these emails again", "");
 }

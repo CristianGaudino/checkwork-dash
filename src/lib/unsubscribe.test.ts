@@ -14,7 +14,11 @@ describe("signed unsubscribe links", () => {
     expect(await verifyUnsub(S, "checkwork-motors", "newsletter", "sub-501", sig)).toBe(false); // another record
     expect(await verifyUnsub("other-secret", "checkwork-motors", "newsletter", "sub-500", sig)).toBe(false);
     expect(await verifyUnsub(undefined, "checkwork-motors", "newsletter", "sub-500", sig)).toBe(false); // no secret set: nothing verifies
-    expect(await verifyUnsub(S, "checkwork-motors", "newsletter", "sub-500", `${sig.slice(0, 42)}${sig[42] === "A" ? "B" : "A"}`)).toBe(false); // tampered
+    expect(await verifyUnsub(S, "checkwork-motors", "newsletter", "sub-500", `${sig[0] === "A" ? "B" : "A"}${sig.slice(1)}`)).toBe(false); // tampered: the first character
+    const AB = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+    const spare = sig.slice(0, 42) + AB[AB.indexOf(sig[42]) ^ 1]; // the last character has two spare bits: same bytes, other text
+    expect(Buffer.from(spare, "base64url").equals(Buffer.from(sig, "base64url"))).toBe(true);
+    expect(await verifyUnsub(S, "checkwork-motors", "newsletter", "sub-500", spare)).toBe(false);
     for (const bad of ["", "x", sig.slice(1), `${sig}A`]) expect(await verifyUnsub(S, "checkwork-motors", "newsletter", "sub-500", bad)).toBe(false);
   });
 
@@ -35,6 +39,13 @@ describe("signed unsubscribe links", () => {
     expect(await verifyUnsub(S, "checkwork-motors", "alert", "alert-400", u.searchParams.get("sig")!)).toBe(true);
     expect(listUnsubscribeHeaders(link)).toEqual({ "List-Unsubscribe": `<${link}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" });
     expect((await unsubscribeParts("checkwork-motors", "alert", "alert-400")).link).toBe(link);
+  });
+
+  it("unsubscribeParts refuses a link that is not https", async () => {
+    vi.stubEnv("UNSUBSCRIBE_SECRET", S);
+    vi.stubEnv("APP_URL", "http://localhost:3000");
+    await expect(unsubscribeParts("checkwork-motors", "alert", "alert-400")).rejects.toThrow();
+    expect(await unsubscribeLink("checkwork-motors", "alert", "alert-400")).toContain("http://localhost:3000/");
   });
 
   it("throws with no secret, so an email never goes out without a working link", async () => {

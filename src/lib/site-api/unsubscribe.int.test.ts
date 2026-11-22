@@ -115,6 +115,17 @@ describe("/api/site/unsubscribe", () => {
     vi.stubEnv("UNSUBSCRIBE_SECRET", "int-secret");
   });
 
+  it("answers 500, never the not-valid page, when the store is down", async () => {
+    const s = await subscribed();
+    const link = await unsubscribeLink(A, "newsletter", s.id);
+    const down = vi.spyOn(subscribersStore, "get").mockRejectedValue(new Error("D1 down"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    expect((await get(link)).status).toBe(500);
+    expect((await post(link)).status).toBe(500);
+    down.mockRestore();
+    expect((await get(link)).status).toBe(200);
+  });
+
   it("is the only route under /api/site besides v1 (whose routes need a website key)", () => {
     expect(readdirSync("src/app/api/site").sort()).toEqual(["unsubscribe", "v1"]);
     expect(readdirSync("src/app/api/site/unsubscribe")).toEqual(["route.ts"]);
