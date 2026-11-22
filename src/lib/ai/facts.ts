@@ -32,7 +32,7 @@ export async function buildFacts(req: WriteRequest, dealer: string, siteUrl: str
   const v = { signOff: voice.signOff, hashtags: voice.hashtags };
   switch (req.task) {
     case "post": {
-      const car = (await adminCars()).find((c) => c.slug === req.carSlug && forSale(c));
+      const car = askedCar((await adminCars()).filter(forSale), req.carSlug);
       return car ? { task: "post", facts: { dealer, car: carFacts(car, siteUrl), network: req.network, format: req.format, layout: req.layout, voice: v } } : null;
     }
     case "newsletter": {

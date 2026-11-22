@@ -1,6 +1,7 @@
 "use server";
 
 import { currentDealer, dealerProfile } from "@/lib/tenancy/current";
+import { askedCar } from "@/lib/leads/journey";
 import { revalidatePath } from "next/cache";
 import { AD_PLATFORMS, FORMATS_FOR, FORMAT_LIMITS, POST_FORMATS, POST_LIMITS, PUBLISH_MODE, STORY_LAYOUTS } from "@/lib/admin/networks";
 import { requireModule } from "@/lib/modules";
@@ -52,7 +53,7 @@ export async function composeAction(data: FormData) {
   await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
   await requireModule("social");
   const r = compose.safeParse(Object.fromEntries(data));
-  const car = r.success ? (await adminCars()).find((c) => c.slug === r.data.carSlug) : undefined;
+  const car = r.success ? askedCar(await adminCars(), r.data.carSlug) : undefined;
   if (!r.success || !car) return go("posts", "invalid");
   if (!forSale(car)) return go("posts", "car-gone"); // sold or hidden while the composer was open
   const d = r.data;
@@ -158,7 +159,7 @@ export async function deleteAdAction(id: string) {
 export async function composerCarAction(slug: string): Promise<ComposerCar | null> {
   await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
   await requireModule("social");
-  const car = (await adminCars()).find((c) => c.slug === slug && forSale(c));
+  const car = askedCar((await adminCars()).filter(forSale), slug);
   if (!car) return null;
   const [{ marketing }, { siteUrl }] = await Promise.all([getSettings(), dealerProfile()]);
   const p = priceInfo(car);
@@ -229,7 +230,7 @@ export async function uploadMediaAction(data: FormData): Promise<{ ok: true; ite
   if (!checked.ok) return checked;
   const size = z.object({ width: dim, height: dim }).safeParse({ width: data.get("width") || undefined, height: data.get("height") || undefined });
   const carSlug = String(data.get("carSlug") ?? "");
-  const car = carSlug ? (await adminCars()).find((c) => c.slug === carSlug) : undefined;
+  const car = carSlug ? askedCar(await adminCars(), carSlug) : undefined;
   if (carSlug && !car) return bad;
   const name = String(data.get("name") ?? "").split(/[\\/]/).pop()!.replace(/[^\w .()-]/g, "").slice(0, 80) || (checked.kind === "video" ? "Video" : "Photo");
   const item: MediaItem = { id: newId("media"), kind: checked.kind, src: await storeMedia(bytes, checked), name, bytes: bytes.length, ...(size.success && size.data), ...(checked.kind === "video" && { durationSec: Math.round(seconds ?? 0) }), ...(car && { carSlug: car.slug, carTitle: carName(car) }), createdAt: Date.now() };

@@ -6,7 +6,7 @@ import { hasD1 } from "@/lib/tenancy/current";
 import { memoryCars, refreshMemoryStock } from "@/lib/stock";
 import type { Car } from "@/lib/stock/types";
 import { devFixtureCars } from "@/lib/dev-data";
-import { drivesStore, leadsStore, reservationsStore, salesStore } from "./collections";
+import { drivesStore, leadsStore, mediaStore, postsStore, reservationsStore, salesStore } from "./collections";
 import { carSlug, nextCarId, slugId } from "./stock-admin-pure";
 import { dropCarPhotos } from "./car-photos";
 
@@ -30,10 +30,11 @@ export async function adminCars(): Promise<Car[]> {
 }
 
 // The id for a new car: above every id still in use, by a car or by a record that names one (a sale, a deposit, a lead and its visit note,
-// a test drive, which find their car by id), so none is given twice.
+// a test drive, a post, a library photo, which find their car by id), so none is given twice.
 export async function freeCarId(): Promise<string> {
-  const [cars, sales, deposits, leads, drives] = await Promise.all([adminCars(), salesStore.list(), reservationsStore.list(), leadsStore.list(), drivesStore.list()]);
-  const named = [...leads.flatMap((l) => [slugId(l.carSlug ?? ""), ...(l.journey?.cars.map((c) => c.id) ?? [])]), ...drives.map((d) => slugId(d.carSlug))].map((id) => ({ id }));
+  const [cars, sales, deposits, leads, drives, posts, media] = await Promise.all([adminCars(), salesStore.list(), reservationsStore.list(), leadsStore.list(), drivesStore.list(), postsStore.list(), mediaStore.list()]);
+  const slugs = [...leads, ...drives, ...posts, ...media].map((r) => slugId(r.carSlug ?? ""));
+  const named = [...slugs, ...leads.flatMap((l) => l.journey?.cars.map((c) => c.id) ?? [])].map((id) => ({ id }));
   return nextCarId([...cars, ...sales.map((s) => ({ id: s.carId ?? s.id })), ...deposits.map((r) => ({ id: r.carId })), ...named]);
 }
 
