@@ -17,6 +17,7 @@ import { dealerProfile } from "@/lib/tenancy/current";
 import { forSale, isSold, onRequest } from "@/lib/stock/types";
 import { isSalesLead } from "@/lib/admin/leads";
 import { enabledModules } from "@/lib/modules";
+import { readLead } from "@/lib/leads/lead-text";
 import type { ModuleId } from "@/lib/modules-rules";
 import { setDriveStatusAction } from "@/app/test-drives/actions";
 import { DRIVE_STATUS_LABELS } from "@/lib/admin/drives";
@@ -45,7 +46,7 @@ const GROUPED: Record<string, { noun: string; verb: string; icon: React.ReactNod
 };
 
 // A lead in a line: the car, else the first line of the message.
-const about = (l: Lead) => l.carTitle ?? (l.message.trim().split("\n")[0] || undefined);
+const about = (l: Lead) => l.carTitle ?? (readLead(l).text.split("\n")[0] || undefined);
 const OpenLeadButton = ({ id, name }: { id: string; name: string }) => (
   <Link href={`/leads/${id}`} aria-label={`Open ${name}'s lead`} className={rowButton}>
     Open

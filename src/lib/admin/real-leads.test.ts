@@ -35,7 +35,7 @@ describe("mirrorOf", () => {
     const m = mirrorOf(row({ type: "test_drive", message: null, details: { driveDate: "2026-11-12", driveTime: "10:30" } }));
     expect(m.drive).toMatchObject({ id: "real-abc", status: "requested", carSlug: "x-1" });
     expect(new Date(m.drive!.startsAt).toISOString()).toBe("2026-11-12T10:30:00.000Z");
-    expect(m.lead).toMatchObject({ type: "test-drive", message: "Test drive on 2026-11-12 at 10:30." });
+    expect(m.lead).toMatchObject({ type: "test-drive", message: "", details: { "Test drive": "Thu 12 Nov, 10:30" } });
   });
   it("makes an alert, not a lead, from an alert sign-up", () => {
     const m = mirrorOf(row({ type: "alert", name: "Stock alert", details: { alertKind: "price-drop" } }));
@@ -55,9 +55,18 @@ describe("mirrorOf", () => {
   it("keeps the answers with the words: a factory order says the car", () => {
     expect(mirrorOf(row({ type: "order", carId: null, message: "White please", details: { make: "Kia", model: "Sportage", regPeriod: "271" } })).lead).toMatchObject({ type: "order", message: "Kia Sportage, 271 reg\n\nWhite please" });
   });
-  it("describes a form with no free text from its answers", () => {
-    const m = mirrorOf(row({ type: "finance", message: null, details: { deposit: 2000, term: 48 } }));
-    expect(m.lead!.message).toBe("Deposit: 2000. Term (months): 48");
+  it("keeps a form's answers as details, never run into the message (#59)", () => {
+    const m = mirrorOf(row({ type: "finance", message: null, details: { deposit: 2000, term: 48, product: "pcp", employment: "self_employed" } }));
+    expect(m.lead!.message).toBe("");
+    expect(m.lead!.details).toEqual({ Finance: "PCP", Deposit: "€2,000", "Term (months)": "48", "Employment status": "Self-employed" });
+  });
+  it("keeps only the buyer's words as the message of a guided form: the topic, taps and channel are tags and the source (#59)", () => {
+    const m = mirrorOf(row({ type: "general", carId: null, message: "Something small for my daughter", details: { topic: "buying", timing: "this-month", contactWhen: "evening", channel: "Typed in or bookmarked", budgetMax: 15000 } }));
+    expect(m.lead).toMatchObject({ message: "Something small for my daughter", topic: "buying", answers: { timing: "this-month", contactWhen: "evening" }, details: { "Budget up to": "€15,000" } });
+    expect(JSON.stringify(m.lead)).not.toMatch(/Hoping to buy|Came from|About:/);
+  });
+  it("gives a lead no details when every answer shows elsewhere", () => {
+    expect(mirrorOf(row({ details: { channel: "Google" } })).lead).not.toHaveProperty("details");
   });
 });
 

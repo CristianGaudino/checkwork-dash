@@ -46,6 +46,31 @@ test("a lead sent with the website's key reaches the inbox once, and a wrong key
   await expect(page.getByRole("row").filter({ hasText: name })).toContainText("Website, from Facebook");
 });
 
+// #59: the message is only what they wrote. The form's taps are tags, the channel is the source, and the other answers a list: never
+// "About: Buying a car. Hoping to buy: This month." run into their words.
+test("a guided form's lead shows their words as the message and the answers as a list, never run together", async ({ page, request }) => {
+  const name = who("Guided buyer");
+  const words = "Something small and cheap to insure for my daughter.";
+  const sent = lead({ name, message: words, details: { topic: "buying", timing: "this-month", contactVia: "call", contactWhen: "evening", channel: "Google" } });
+  expect((await send(request, sent)).status()).toBe(201);
+  const runOn = /Hoping to buy|Came from|About:|Reach by:|Best time:/;
+
+  await page.goto(`/leads?q=${encodeURIComponent(name)}`);
+  const row = page.getByRole("row").filter({ hasText: name });
+  await expect(row).toContainText(words);
+  await expect(row).toContainText("This month"); // the tap answer, as a tag
+  await expect(row).not.toContainText(runOn);
+
+  await row.getByRole("link", { name, exact: true }).click();
+  await expect(page.locator("blockquote")).toHaveText(words);
+  const answers = page.getByRole("definition").filter({ hasText: "Evening" });
+  await expect(answers).toBeVisible();
+  await expect(page.getByLabel("Their answers")).toContainText("Best time");
+  await expect(page.getByLabel("Their answers")).toContainText("Call me");
+  await expect(page.getByText("Website, from Google").first()).toBeVisible();
+  await expect(page.locator("main")).not.toContainText(runOn);
+});
+
 test("the spam check: clear spam goes to the Spam tab only; a possible one is flagged, and Not spam clears it (#56)", async ({ page, request }) => {
   const spam = who("Spam check");
   expect((await send(request, lead({ name: spam, message: "Cheap backlinks [url=https://linkfarm.example.top]here[/url]" }))).status()).toBe(201);

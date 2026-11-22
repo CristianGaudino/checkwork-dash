@@ -76,6 +76,7 @@ export type Lead = {
   reg?: string; // the registration of the car a person wants to sell or trade in
   topic?: string; // a contact form's guided topic (src/lib/leads/contact-topics.ts) and the tap answers, shown as tags
   answers?: Record<string, string>;
+  details?: Record<string, string>; // the form's other answers, label to value as read ("Budget up to": "€15,000"), shown as a list (#59)
   whatsappOptIn?: boolean; // the buyer ticked the box on the form: they may be messaged on WhatsApp (#178)
   journey?: Journey; // a website lead: what they did on the site this visit, when they chose to send it (#34, src/lib/leads/journey.ts)
   assignedTo?: string;

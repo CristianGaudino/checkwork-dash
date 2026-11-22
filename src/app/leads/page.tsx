@@ -11,6 +11,7 @@ import { SALES_LEAD_TYPES, countByStatus, filterLeads, followUpDue, forPerson, i
 import { TOPICS, leadTags } from "@/lib/leads/contact-topics";
 import { LeadKind, LeadTags, leadChips } from "@/components/admin/LeadKind";
 import { enabledModules } from "@/lib/modules";
+import { readLead } from "@/lib/leads/lead-text";
 import { BrandIcon } from "@/components/admin/BrandIcon";
 
 export const metadata = { title: "Leads" };
@@ -75,12 +76,15 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
       key: "about",
       header: "About",
       sort: (l) => l.carTitle,
-      cell: (l) => (
-        <span className="flex min-w-0 flex-col gap-1">
-          <KindSource l={l} />
-          <span title={l.carTitle ?? l.message} className="line-clamp-2">{l.carTitle ? <span className="font-medium">{l.carTitle}</span> : l.message.trim() ? <span className="text-text-2">&ldquo;{l.message.split("\n")[0]}&rdquo;</span> : null}</span>
-        </span>
-      ),
+      cell: (l) => {
+        const { text } = readLead(l); // their words only, never the form's answers run together (#59)
+        return (
+          <span className="flex min-w-0 flex-col gap-1">
+            <KindSource l={l} />
+            <span title={l.carTitle ?? text} className="line-clamp-2">{l.carTitle ? <span className="font-medium">{l.carTitle}</span> : text ? <span className="text-text-2">&ldquo;{text.split("\n")[0]}&rdquo;</span> : null}</span>
+          </span>
+        );
+      },
       className: "max-w-[20rem]",
       hide: "sm",
     },

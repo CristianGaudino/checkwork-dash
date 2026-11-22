@@ -49,7 +49,7 @@ export function filterLeads(leads: Lead[], f: LeadFilter, today = "", slaHours =
     .filter((l) => !f.topic || l.topic === f.topic)
     .filter((l) => !f.with || (f.with === "none" ? !l.assignedTo : l.assignedTo === f.with))
     .filter((l) => !f.source || l.source === f.source)
-    .filter((l) => !f.q || `${l.name} ${l.email} ${l.carTitle ?? ""} ${l.message}`.toLowerCase().includes(f.q) || (qDigits !== "" && digits(l.phone).includes(qDigits)))
+    .filter((l) => !f.q || `${l.name} ${l.email} ${l.carTitle ?? ""} ${l.message} ${Object.values(l.details ?? {}).join(" ")}`.toLowerCase().includes(f.q) || (qDigits !== "" && digits(l.phone).includes(qDigits)))
     .sort((a, b) => b.createdAt - a.createdAt);
 }
 
