@@ -29,6 +29,7 @@ import { requireStaff } from "@/lib/staff";
 import { requireModule } from "@/lib/modules";
 import { alertNewIn, alertStaff } from "@/lib/whatsapp/alerts";
 import { STALE_CAR, STALE_STATUS, changedSince } from "@/lib/admin/stale";
+import type { CostState } from "@/app/aftersales/actions";
 
 const carRef = (c: Car) => ({ kind: "car" as const, id: c.id, label: carTitleOf(c) });
 
@@ -85,18 +86,20 @@ export async function saveCarAction(id: string | null, _prev: FormState, data: F
 }
 
 // The cost is the dealer's own figure, never DoneDeal's, so it can be set on synced stock too. Margins permission only; a bad figure saves nothing.
-export async function saveCostAction(id: string, data: FormData) {
+// Saved in place: the page stays where it is and says so under the box.
+export async function saveCostAction(id: string, _prev: CostState, data: FormData): Promise<CostState> {
   await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
   const car = (await can("margins")) ? await adminCar(id) : undefined;
-  if (!car) return;
+  if (!car) return { error: "Only staff who see margins can enter the cost" };
   const cost = parseCost(String(data.get("costEur") ?? ""));
-  if (cost === "invalid") return;
+  if (cost === "invalid") return { error: BAD_COST };
   const was = (await costsStore.get(id))?.costEur;
   if (cost === null) await costsStore.remove(id);
   else await costsStore.put({ id, costEur: cost });
   const change = costText(was, cost);
   if (change) await logActivity("stock", change, carRef(car));
-  redirect(`/stock/${id}?cost=saved`);
+  revalidatePath(`/stock/${id}`);
+  return { saved: Date.now() };
 }
 
 // Back on sale is for a sold car with no sale recorded. One with a sale is undone on its own page (undoSaleAction), which keeps the record.

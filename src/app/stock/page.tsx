@@ -11,7 +11,7 @@ import { adminCars } from "@/lib/admin/stock-admin";
 import { can } from "@/lib/permissions";
 import { daysSince, fmtDate, fmtEur, fmtNum } from "@/lib/admin/format";
 import { carName, siteCarUrl, priceLabel } from "@/lib/stock/format";
-import { FUEL_LABELS, FUELS, GEARBOXES, GEARBOX_LABELS, forSale, isReduced, isSold, onRequest, type Car, onPublicSite } from "@/lib/stock/types";
+import { FUEL_LABELS, FUELS, GEARBOXES, GEARBOX_LABELS, forSale, isReduced, isSold, type Car, onPublicSite } from "@/lib/stock/types";
 import { stockSource } from "@/lib/stock-source";
 import { listingHref } from "@/lib/stock-source-rules";
 import { listing } from "@/lib/stock-source";
@@ -53,6 +53,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
     ) : null;
   // The margin column is for staff with the margins permission; without it the costs are not even read.
   const costs = (await can("margins")) ? new Map([...(await carCosts())].map(([id, c]) => [id, c.total])) : null;
+  const marginPrice = (c: Car) => (isSold(c) ? sales.get(c.id)?.priceEur : undefined) ?? c.priceEur;
   // The makes in stock, for the make filter.
   const makes = [...new Map(all.map((c) => [c.makeSlug, c.make])).entries()].sort((a, b) => a[1].localeCompare(b[1], "en-IE"));
   const matching = stockList(all, view, q, OLD_DAYS, { make, fuel, gearbox });
@@ -133,7 +134,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
         </span>
       ),
     },
-    ...(costs ? [{ key: "margin", header: "Margin", align: "right" as const, hide: "md" as const, nowrap: true, sort: (c: Car) => (costs.has(c.id) && !onRequest(c) ? marginOf(c.priceEur, costs.get(c.id)!).eur : undefined), cell: (c: Car) => (onRequest(c) ? "" : costs.has(c.id) ? fmtEur(marginOf(c.priceEur, costs.get(c.id)!).eur) : <span className="text-text-2">Not set</span>) }] : []),
+    // A sold car's margin is on what it sold for, as on Margins; a car on request (price 0, no sale) has none.
+    ...(costs ? [{ key: "margin", header: "Margin", align: "right" as const, hide: "md" as const, nowrap: true, sort: (c: Car) => (costs.has(c.id) && marginPrice(c) ? marginOf(marginPrice(c), costs.get(c.id)!).eur : undefined), cell: (c: Car) => (!marginPrice(c) ? "" : costs.has(c.id) ? fmtEur(marginOf(marginPrice(c), costs.get(c.id)!).eur) : <span className="text-text-2">Not set</span>) }] : []),
     // How long a car has been for sale: what a dealer watches to decide on a price drop.
     // The days, and a bar that turns amber at the dealer's old stock days (the old stock view): which cars are ageing, down the column at a glance.
     {
@@ -230,9 +232,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
     { name: "gearbox", label: "Gearbox", any: "Any gearbox", options: GEARBOXES.map((g) => [g, GEARBOX_LABELS[g]] as const) },
   ];
 
-  // What needs doing about the stock, at the top, each with the button that does it. A sale is asked for while it is recent, as the
-  // overview does; photos and price drops for the cars still to sell. Drafts only in our version (DoneDeal stock has none).
-  const toRecord = all.filter((c) => isSold(c) && !sales.has(c.id) && daysSince(c.soldAt!) <= rules.saleNudgeDays).sort((a, b) => a.soldAt!.localeCompare(b.soldAt!));
+  // What needs doing about the stock, at the top, each with the button that does it. Every sold car with no sale, as the overview and the
+  // Sold view's Record sale buttons count them; photos and price drops for the cars still to sell. Drafts only in our version.
+  const toRecord = all.filter((c) => isSold(c) && !sales.has(c.id)).sort((a, b) => a.soldAt!.localeCompare(b.soldAt!));
   const needPhotos = all.filter((c) => !isSold(c) && c.photos.length < FEW_PHOTOS);
   const old = all.filter((c) => STOCK_VIEWS.old.test(c));
   const drafts = synced ? [] : all.filter((c) => c.listing === "draft" && !isSold(c));

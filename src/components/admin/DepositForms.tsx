@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useKeptForm } from "@/components/admin/useKeptForm";
 import { useState } from "react";
 import { Select } from "@/components/Select";
@@ -85,8 +86,10 @@ export function UndoSaleForm({ carId, soldOn, today }: { carId: string; soldOn: 
       <Field label={kind === "returned" ? "Why it came back" : "Why (optional)"} error={e.reason} className={full}>
         <textarea name="reason" maxLength={300} className={textarea} />
       </Field>
-      <div className={full}>
+      <div className={`${full} flex flex-wrap gap-3`}>
         <button type="submit" disabled={pending} className={adminButton}>{pending ? "Saving" : kind === "returned" ? "Take it back" : "Cancel the sale"}</button>
+        {/* The way out without undoing anything. Not "Cancel": next to Cancel the sale it would read as the same thing. */}
+        <Link href="/stock?view=sold" className={adminButtonQuiet}>Keep the sale</Link>
       </div>
     </form>
   );

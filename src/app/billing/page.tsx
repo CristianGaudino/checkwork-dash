@@ -293,7 +293,6 @@ async function SetForYou() {
           ["Old stock after", `${r.oldStockDays} days`],
           ["Price drop suggested", `€${r.slowDropEur}`],
           ["Sold cars stay on your website", `${r.soldVisibleDays} days`],
-          ["Sales asked about for", `${r.saleNudgeDays} days`],
         ]}
       />
       <p className="text-meta text-text-2">

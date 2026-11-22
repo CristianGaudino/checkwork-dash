@@ -18,6 +18,7 @@ vi.mock("next/headers", () => ({
 const { addCarPhotoAction, carPhotoAction, addPrepAction, removePrepAction, bulkStockAction, deleteCarAction, endReservationAction, recordSaleAction, reserveAction, saveCarAction, saveCostAction, setListingAction, toggleSoldAction, undoSaleAction, withdrawnAction } = await import("./actions");
 const { claimsStore, costsStore, customersStore, leadsStore, prepStore, reservationsStore, salesStore } = await import("@/lib/admin/collections");
 const { carCosts } = await import("@/lib/admin/costs");
+const { BAD_COST } = await import("@/lib/admin/margins");
 const { adminCar, adminCars, saveCar } = await import("@/lib/admin/stock-admin");
 
 describe("stock synced from DoneDeal", () => {
@@ -33,12 +34,12 @@ describe("stock synced from DoneDeal", () => {
       f.set("costEur", v);
       return f;
     };
-    await saveCostAction(car.id, form("12345"));
+    expect((await saveCostAction(car.id, undefined, form("12345")))?.error).toBeTruthy();
     expect((await costsStore.get(car.id))?.costEur).not.toBe(12345); // no permission, no change
     role = "Finance";
-    await expect(saveCostAction(car.id, form("12345"))).rejects.toThrow(/redirect/);
+    expect((await saveCostAction(car.id, undefined, form("12345")))?.saved).toBeTruthy(); // saved in place, no redirect
     expect((await costsStore.get(car.id))?.costEur).toBe(12345);
-    await saveCostAction(car.id, form("not a number"));
+    expect((await saveCostAction(car.id, undefined, form("-500")))?.error).toBe(BAD_COST); // said, not silently dropped
     expect((await costsStore.get(car.id))?.costEur).toBe(12345); // a bad figure saves nothing
   });
 

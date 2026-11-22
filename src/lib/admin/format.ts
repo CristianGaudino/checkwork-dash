@@ -58,7 +58,7 @@ export function addMonths(day: string, n: number) {
 // `count` months from `from` (YYYY-MM) on, as [value, label] pairs for a drop-down: an empty month box reads "--------- ----" in Chrome.
 export const monthChoices = (from: string, count: number) =>
   Array.from({ length: count }, (_, i) => addMonths(`${from}-01`, i).slice(0, 7)).map((m) => [m, fmtDay(`${m}-01`, "monthYear")] as const);
-export const fmtPct = (n: number) => `${(Math.round(n * 10) / 10).toString()}%`;
+export const fmtPct = (n: number) => `${n.toFixed(1)}%`; // always one decimal, so 20.0% and 20.1% line up
 
 const rtf = new Intl.RelativeTimeFormat("en-IE", { numeric: "auto" });
 // "2 hours ago", "yesterday": for a list where the order of events matters more than the exact time.

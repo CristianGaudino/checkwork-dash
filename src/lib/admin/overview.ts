@@ -3,7 +3,7 @@ import { DAY } from "@/lib/time";
 import { forSale, isSold, type Car } from "@/lib/stock/types";
 import { isOpenDrive } from "./drives";
 import { slugId } from "./stock-admin-pure";
-import { daysSince, dublinDay } from "./format";
+import { dublinDay } from "./format";
 import { counted } from "./reports";
 import { forPerson, leadsToAnswer } from "./follow-ups";
 import type { DealerRules } from "@/lib/tenancy/profile";
@@ -42,7 +42,7 @@ export function overview(input: { leads: Lead[]; drives: TestDrive[]; reviews: A
   const reply = answer.filter((t) => t.kind === "reply");
   const due = answer.filter((t) => t.kind === "follow");
   const toConfirm = ownDrives.filter((d) => d.status === "requested" && d.startsAt >= now).sort((a, b) => a.startsAt - b.startsAt);
-  const unrecorded = input.sales ? cars.filter((c) => isSold(c) && daysSince(c.soldAt!, now) <= rules.saleNudgeDays && !input.sales!.has(c.id)).sort((a, b) => a.soldAt!.localeCompare(b.soldAt!)) : []; // oldest first, as on Stock
+  const unrecorded = input.sales ? cars.filter((c) => isSold(c) && !input.sales!.has(c.id)).sort((a, b) => a.soldAt!.localeCompare(b.soldAt!)) : []; // oldest first, as on Stock
   // Reservations past their date; with just one, its task opens it.
   const overdue = (input.reservations ?? []).filter((r) => r.status === "held" && r.until < today);
   const attention = ([

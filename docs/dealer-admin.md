@@ -69,7 +69,7 @@ What differs between dealers beyond their records is in their profile (#5): one 
   email, address and hours in Settings, Your business (`saveBusinessAction`, in the activity history); it merges into the profile, never
   over what is ours.
 - **Ours to set** (shown read only in Billing: the plan, and "What we set for you"): `modules` (the plan), `stock` (`source` "checkwork" or "donedeal",
-  `listingSite`, `listingUrl`), `rules` (`oldStockDays`, `slowDropEur`, `soldVisibleDays`, `saleNudgeDays`), `placeId` (Google reviews)
+  `listingSite`, `listingUrl`), `rules` (`oldStockDays`, `slowDropEur`, `soldVisibleDays`), `placeId` (Google reviews)
   and `leadEmail` (where leads go when Settings has no address). How to set them: `docs/new-dealer.md`.
 - **Defaults:** a dealer with nothing set has the dashboard alone, stock kept here, the usual rules, no website and no logo (the menu
   shows the name). A demo dealer's base is the made-up demo business (`DEMO_PROFILE`: every module, its facts and logo); the demo reset
