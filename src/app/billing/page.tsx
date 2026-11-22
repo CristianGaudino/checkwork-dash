@@ -9,7 +9,7 @@ import { MODULES, withModule } from "@/lib/modules-rules";
 import { enabledModules } from "@/lib/modules";
 import { can, currentMember } from "@/lib/permissions";
 import { billingDetails, listBills } from "@/lib/billing/bills";
-import { eur, fmtMonth, itemise, nextBillDate, scopeName, billedServices } from "@/lib/billing/bills-rules";
+import { eur, fmtMonth, itemise, nextBillDate, scopeName, billedServices, type Bill } from "@/lib/billing/bills-rules";
 import { AI_MODELS, KINDS, MODULE_EUR, SHOW_PRICING, TERM_LABELS, allowanceFor, setupEur, setupLines, SERVICE_LABELS, UNIT_PRICE_EUR, VAT_PCT, capOf, planEur, planFor, planLines, termSetupEur, usageEstimate, round2, withVat, yearUpfrontEur, type BillingSettings, type Scope, type Service, type UsageCount } from "@/lib/billing/rules";
 import { billingSettings, monthCounts, monthUsage } from "@/lib/billing/usage";
 import { askModuleAction, removeAlertAction, saveAiModelAction } from "./actions";
@@ -110,25 +110,30 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
         </>
       )}
 
-      {section === "bills" && <Bills owner={me.role === "Owner"} />}
+      {section === "bills" && <Bills owner={me.role === "Owner"} estimate={monthBill(modules, b, counts, today()).total} />}
     </>
   );
+}
+
+// This month's bill as it stands: the plan and the usage estimated to month end, with VAT. The Plan and Bills tabs both show it.
+function monthBill(modules: Modules, b: BillingSettings, counts: UsageCount[], now: Date) {
+  const plan = planEur(modules, b);
+  const estimate = usageEstimate(counts, allowanceFor(modules, b), b, dublinDay(now.getTime()));
+  const bill = round2((b.term === "annual" ? 0 : plan) + estimate); // a year paid upfront: each month's bill is the usage only
+  return { plan, estimate, bill, total: withVat(bill) };
 }
 
 function PlanAndUsage({ modules, services, usage, counts, b, now }: { modules: Modules; services: Service[]; usage: Usage; counts: UsageCount[]; b: BillingSettings; now: Date }) {
   // What adding a module costs: with what it needs, and a tier it completes. 0 when the plan already pays for it.
   const addEur = (id: (typeof MODULES)[number]["id"]) => planFor(withModule(modules, id), b).eur - planFor(modules, b).eur;
   const others = MODULES.filter((m) => !modules.has(m.id) && MODULE_EUR[m.id] > 0);
-  const plan = planEur(modules, b);
+  const { plan, estimate, bill, total } = monthBill(modules, b, counts, now);
   const sofar = usage.totalEur;
-  const estimate = usageEstimate(counts, allowanceFor(modules, b), b, dublinDay(now.getTime()));
-  const bill = round2((b.term === "annual" ? 0 : plan) + estimate); // a year paid upfront: each month's bill is the usage only
   const setup = setupLines(modules, b);
   const setupFull = setupEur(modules, b);
   const setupNet = termSetupEur(setupFull, b.term);
   const allowance = allowanceFor(modules, b);
   const lines = planLines(modules, b).map((l) => [l.label, l.eur] as const);
-  const total = withVat(bill);
   return (
     <>
       {/* What most people come for first: this month's bill, and what it is made of, in one place. Beside it, what to do if it looks wrong. */}
@@ -226,7 +231,7 @@ function PlanAndUsage({ modules, services, usage, counts, b, now }: { modules: M
                       <span className="font-medium">{SERVICE_LABELS[s]}</span>
                       <span className="text-meta text-text-2">
                         {plural(usage[s].kinds.reduce((n, k) => n + k.count, 0), USE_WORD[s][0], USE_WORD[s][1])}
-                        {allowance[s] ? `, ${fmtNum(allowance[s])} ${INCLUDED[s]} in your plan` : ""}
+                        {allowance[s] ? `, ${fmtNum(allowance[s])} ${INCLUDED[s]} in your plan${s === "whatsapp" ? ", replies and marketing paid" : ""}` : ""}
                       </span>
                     </span>
                     <span className="flex items-center gap-2 tabular-nums">
@@ -246,7 +251,7 @@ function PlanAndUsage({ modules, services, usage, counts, b, now }: { modules: M
                         { key: "cost", header: "So far", align: "right", cell: (k) => eur(k.costEur) },
                       ]}
                     />
-                    {allowance[s] ? <p className="text-meta text-text-2">The first {fmtNum(allowance[s])} {INCLUDED[s]} a month are in your plan.</p> : null}
+                    {allowance[s] ? <p className="text-meta text-text-2">The first {fmtNum(allowance[s])} {INCLUDED[s]} a month are in your plan.{s === "whatsapp" && " Replies to buyers and marketing messages are paid for each one."}</p> : null}
                   </div>
                 </details>
               </li>
@@ -365,27 +370,29 @@ async function WithoutPrices() {
   );
 }
 
-async function Bills({ owner }: { owner: boolean }) {
+async function Bills({ owner, estimate }: { owner: boolean; estimate: number }) {
   const [bills, details] = await Promise.all([listBills(), billingDetails()]);
+  // This month first, as it stands: its bill is issued on the 1st of next month.
+  const rows: { id: string; bill?: Bill }[] = [{ id: dublinDay().slice(0, 7) }, ...bills.map((bill) => ({ id: bill.id, bill }))];
   return (
     <>
       <Panel title="Bills">
         <DataTable
           bare
-          rows={bills}
+          rows={rows}
           rowKey={(x) => x.id}
           columns={[
             {
               key: "period",
               header: "Period",
               cell: (x) => (
-                <Link href={`/billing/${x.id}`} className="font-medium underline-offset-2 hover:underline">
+                <Link href={x.bill ? `/billing/${x.id}` : "/billing"} className="font-medium underline-offset-2 hover:underline">
                   {fmtMonth(x.id)}
                 </Link>
               ),
             },
-            { key: "total", header: "Total", align: "right", cell: (x) => eur(itemise(x).total, true) },
-            { key: "status", header: "Status", cell: (x) => (x.status === "paid" ? <Badge tone="good">Paid</Badge> : <Badge tone="warn">Due {fmtDay(x.dueOn, "dayMonth")}</Badge>) },
+            { key: "total", header: "Total", align: "right", cell: (x) => eur(x.bill ? itemise(x.bill).total : estimate, true) },
+            { key: "status", header: "Status", cell: ({ bill: x }) => (!x ? <Badge>Estimate</Badge> : x.status === "paid" ? <Badge tone="good">Paid</Badge> : <Badge tone="warn">Due {fmtDay(x.dueOn, "dayMonth")}</Badge>) },
           ]}
         />
         <p className="text-meta text-text-2">Invoices are emailed as PDFs when each bill is issued.</p>
