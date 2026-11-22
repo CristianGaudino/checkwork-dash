@@ -18,6 +18,8 @@ import type { PrepLine } from "./prep";
 import type { Journey } from "@/lib/leads/journey";
 import { CHANNEL_LABELS } from "@/lib/visit-rules";
 import { carTitleOf, demoJourney, livePicks, person, rng } from "./seed-data";
+import { openingAt } from "@/lib/reports/monthly";
+import { DEMO_PROFILE } from "@/lib/tenancy/profile";
 import { BILLING_DEFAULT, type BillingSettings } from "@/lib/billing/rules";
 import type { BillingDetails } from "@/lib/billing/bills-rules";
 
@@ -164,16 +166,17 @@ const STORY_LEADS = (now: number): Lead[] => {
     { id: "lead-2005", type: "service", status: "appointment", ...person(r), source: "Website", message: "Need an NCT check before the test.", assignedTo: "Ciara Walsh", followUpOn: dublinDay(now), notes: [{ at: now - 2 * DAY, text: "Booked in for Friday." }], createdAt: now - 3 * DAY },
   ];
 };
-// Six weeks of leads before the demo's last fortnight, mostly decided (won, or lost with a reason) and a few still being worked: so this
-// week has weeks to compare with on the overview, and the reports have a past. A random sequence of their own, so the rest are unchanged.
+// A year of leads before the demo's last fortnight: six busy recent weeks, mostly decided (won, or lost with a reason) and a few still being
+// worked, then a quieter, all-decided year behind them, so the reports' 3, 6 and 12 months differ (#83). The older weeks come after the
+// recent ones in a random sequence of their own, so the recent weeks and the rest of the seed are unchanged.
 const PAST_LEADS = (now: number): Lead[] => {
   const r = rng(149);
   const out: Lead[] = [];
-  for (let week = 2; week < 8; week++) {
-    for (let n = r.int(8, 14); n > 0; n--) {
+  for (let week = 2; week < 52; week++) {
+    for (let n = week < 8 ? r.int(8, 14) : r.int(3, 6); n > 0; n--) {
       const type = r.pick(SEED_TYPES);
       const car = type === "find-a-car" || type === "general" || type === "sell" ? undefined : livePicks(r);
-      const status = r.pick(["won", "won", "lost", "lost", "contacted"] as const);
+      const status = r.pick(week < 8 ? (["won", "won", "lost", "lost", "contacted"] as const) : (["won", "won", "lost", "lost", "lost"] as const));
       const lostReason = r.pick(LOST_REASONS);
       out.push({
         id: `lead-${3000 + out.length}`,
@@ -182,14 +185,17 @@ const PAST_LEADS = (now: number): Lead[] => {
         ...person(r),
         message: r.pick(MESSAGES[type]),
         source: r.pick(LEAD_SOURCES),
-        carSlug: car?.slug,
+        // The cars for sale now were listed after the older weeks' leads came in, so those keep the title but link no car (as lead-2000 does).
+        carSlug: week < 8 ? car?.slug : undefined,
         carTitle: car && carTitleOf(car),
         assignedTo: r.pick(TEAM_SEED).name,
         ...(status === "lost" && { lostReason }),
-        // Sent during the day in Dublin, and answered within a few hours, as most are (from the index, so the random sequence is unchanged).
+        // Sent during the day in Dublin. One sent while the shop is open is answered within a few hours; one sent before opening, after closing
+        // or on a Sunday is answered 14 to 18 hours later, so the reports' two reply times differ (#83). From the index, so the sequence is unchanged.
         ...(() => {
           const at = irishAt(now - (week * 7 + r.int(0, 6)) * DAY - r.int(1, 10) * HOUR, 9 + ((out.length * 7) % 10), (out.length * 13) % 60);
-          return { createdAt: at, notes: out.length % 9 === 4 ? [] : [{ at: at + (20 + ((out.length * 37) % 220)) * MINUTE, text: "Called back." }] };
+          const wait = openingAt(at, DEMO_PROFILE.hours).open ? 20 + ((out.length * 37) % 220) : (14 + (out.length % 5)) * 60;
+          return { createdAt: at, notes: out.length % 9 === 4 ? [] : [{ at: at + wait * MINUTE, text: "Called back." }] };
         })(),
       });
     }
