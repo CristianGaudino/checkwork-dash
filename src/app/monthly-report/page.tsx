@@ -182,7 +182,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
             <h2 className="text-heading font-semibold">Reviews</h2>
             <StatGrid>
               <StatCard label="New reviews" value={fmtNum(s.reviews.count)} hint={compare(s.reviews.count, p.reviews.count)} />
-              <StatCard label="Average rating" value={s.reviews.average === null ? "None" : s.reviews.average.toFixed(1)} hint={`From ${plural(s.reviews.count, "review")}`} />
+              <StatCard label="Average rating" value={s.reviews.average === null ? "None" : s.reviews.average.toFixed(1)} hint={s.reviews.average === null ? undefined : `From ${plural(s.reviews.count, "review")}`} />
             </StatGrid>
           </section>
         )}
