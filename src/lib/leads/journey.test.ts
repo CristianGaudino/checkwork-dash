@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Car } from "@/lib/stock/types";
-import { JOURNEY_MAX_BYTES, closestCars, parseJourney, toolLines, visitCars, visitPattern, wantOf, type Journey } from "./journey";
+import { mockText } from "@/lib/ai/mock";
+import { askedCar, closestCars, parseJourney, toolLines, visitCars, visitPattern, wantOf, type Journey } from "./journey";
 
 const journey = (over: Partial<Journey> = {}): Journey => ({
   v: 1,
@@ -42,16 +43,15 @@ describe("parseJourney", () => {
     expect(parseJourney(journey({ searches: Array.from({ length: 9 }, () => ({ make: "toyota" })) }))).toBeUndefined();
   });
 
-  it("drops one over 4 KB; the largest v1 can be is well under it", () => {
+  it("keeps the largest note v1 allows, and it is under the website's 4 KB", () => {
     const largest = journey({
       minutes: 240,
       cars: Array.from({ length: 12 }, (_, i) => ({ id: String(1e11 + i), views: 99 })),
       searches: Array.from({ length: 8 }, () => ({ make: "a".repeat(40), model: "b".repeat(40), body: "c".repeat(40), fuel: "plug-in-hybrid" as const, gearbox: "automatic" as const, priceBand: "under-10k" as const, condition: "commercial" as const })),
       tools: { finance: { monthlyEur: 5000 }, tradeIn: true, saved: 99, compared: 99 },
     });
-    expect(JSON.stringify(largest).length).toBeLessThan(JOURNEY_MAX_BYTES);
+    expect(new TextEncoder().encode(JSON.stringify(largest)).length).toBeLessThan(4096);
     expect(parseJourney(largest)).toEqual(largest);
-    expect(parseJourney({ ...journey(), cars: Array.from({ length: 400 }, (_, i) => ({ id: String(i), views: 1 })) })).toBeUndefined();
   });
 });
 
@@ -75,7 +75,16 @@ describe("visitPattern", () => {
   });
 
   it("reads searches alone, with readable words for slugs the stock does not have", () => {
-    expect(visitPattern([], [{ body: "mpv", priceBand: "under-10k" }, { body: "mpv" }], [])).toBe("Mostly MPVs, under €10k");
+    expect(visitPattern([], [{ body: "mpv", priceBand: "under-10k" }, { body: "mpv" }], [])).toBe("Mostly MPVs");
+    expect(visitPattern([], [{ body: "mpv", priceBand: "under-10k" }, { body: "mpv", priceBand: "under-10k" }], [])).toBe("Mostly MPVs, under €10k");
+  });
+
+  it("calls nothing a pattern from one car and a price-only search: a value needs two to agree", () => {
+    const one = [car({ bodySlug: "suv", bodyType: "SUV", priceEur: 22000, gearbox: "automatic", fuel: "diesel" })];
+    expect(visitPattern(one, [{ priceBand: "30k-50k" }], one)).toBeNull();
+    const pattern = visitPattern(one, [{ priceBand: "30k-50k" }], one) ?? undefined;
+    const brief = mockText("leadBrief", { dealer: "D", kind: "Enquiry", type: "enquiry", tags: [], message: "", visit: { minutes: 5, cars: [{ name: "2020 Toyota RAV4", views: 1 }], pattern, searches: [], tools: [] }, closest: [] });
+    expect(brief).not.toMatch(/^They mostly/i);
   });
 });
 
@@ -109,6 +118,13 @@ describe("closestCars", () => {
 });
 
 describe("the visit's cars and tools", () => {
+  it("finds the car they asked about by its id, whatever the rest of the slug says", () => {
+    const here = car({});
+    expect(askedCar([here], `old-make-model-2001-${here.id}`)).toBe(here);
+    expect(askedCar([here], `${here.slug}9`)).toBeUndefined();
+    expect(askedCar([here], undefined)).toBeUndefined();
+  });
+
   it("marks the car they asked about, and names a gone car only when the lead does", () => {
     const here = car({});
     const j = journey({ cars: [{ id: "77", views: 2 }, { id: here.id, views: 1 }, { id: "88", views: 1 }] });

@@ -1,5 +1,5 @@
 import { FUEL_LABELS, GEARBOX_LABELS, forSale, isSold, type Car, type Fuel, type Gearbox } from "@/lib/stock/types";
-import { closestCars, readVisit, wantOf } from "@/lib/leads/journey";
+import { askedCar, closestCars, readVisit, wantOf } from "@/lib/leads/journey";
 import { leadChips } from "@/components/admin/LeadKind";
 import { carFacts, newestForSale } from "@/lib/admin/marketing";
 import { adminCars } from "@/lib/admin/stock-admin";
@@ -47,7 +47,7 @@ export async function buildFacts(req: WriteRequest, dealer: string, siteUrl: str
       const lead = await leadsStore.get(req.leadId);
       if (!lead) return null;
       // The car's own details, so the reply can answer "is it still there, what mileage" instead of "I'll check".
-      const car = lead.carSlug ? (await adminCars()).find((c) => c.slug === lead.carSlug) : undefined;
+      const car = askedCar(await adminCars(), lead.carSlug);
       const carDetails = car && { ...carFacts(car, siteUrl), forSale: forSale(car) };
       return { task: "leadReply", facts: { dealer, firstName: firstName(lead.name, ""), kind: LEAD_TYPE_LABELS[lead.type], type: lead.type, message: noContacts(lead.message).slice(0, 600), car: lead.carTitle, carDetails } };
     }
@@ -56,7 +56,7 @@ export async function buildFacts(req: WriteRequest, dealer: string, siteUrl: str
       if (!lead?.journey) return null;
       const stock = await adminCars();
       const { cars, viewed, pattern, searches, tools } = readVisit(lead.journey, stock, lead);
-      const asked = lead.carSlug ? stock.find((c) => c.slug === lead.carSlug) : undefined;
+      const asked = askedCar(stock, lead.carSlug);
       const closest = closestCars(stock, wantOf(asked, viewed, lead.journey.searches), forSale, asked ? [asked.id] : []);
       const visit: VisitFacts = {
         ...(lead.channel && { from: lead.channel }),

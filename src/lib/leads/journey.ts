@@ -35,13 +35,11 @@ export const journeySchema = z.strictObject({
 });
 export type Journey = z.infer<typeof journeySchema>;
 export type JourneySearch = Journey["searches"][number];
-export const JOURNEY_MAX_BYTES = 4096;
 
-// The journey as sent, or undefined when it is missing, over 4 KB, malformed or of a version this app does not know. Never a throw: a lead is
-// never refused over its history (docs/site-api.md).
+// The journey as sent, or undefined when it is missing, malformed or of a version this app does not know. Never a throw: a lead is never
+// refused over its history (docs/site-api.md). The caps above keep the largest valid note near 2 KB, under the website's 4 KB.
 export function parseJourney(raw: unknown): Journey | undefined {
   if (raw === undefined) return undefined;
-  if (new TextEncoder().encode(JSON.stringify(raw)).length > JOURNEY_MAX_BYTES) return undefined;
   const parsed = journeySchema.safeParse(raw);
   return parsed.success ? parsed.data : undefined;
 }
@@ -76,7 +74,8 @@ export function toolLines(t: Journey["tools"]): string[] {
 export const minutesText = (m: number) => (m < 1 ? "Under a minute" : m === 1 ? "1 minute" : m >= 240 ? "4 hours or more" : `${m} minutes`);
 
 // What the visit points to: the make, body, price band, gearbox and fuel most of what they opened and searched share. Each car opened counts
-// once (a car opened ten times is still one car), each search once. A value is kept when it is more than half of what was seen for it.
+// once (a car opened ten times is still one car), each search once. A value is kept when it is more than half of what was seen for it
+// and seen twice at least: one car is not a pattern.
 export type Profile = { make?: string; body?: string; band?: PriceBand; gearbox?: string; fuels: string[] };
 export function visitProfile(viewed: Car[], searches: JourneySearch[]): Profile {
   const signals = [
@@ -91,11 +90,11 @@ export function visitProfile(viewed: Car[], searches: JourneySearch[]): Profile 
   };
   const most = (k: keyof (typeof signals)[number]) => {
     const { all, total } = ranked(k);
-    return all[0] && all[0][1] * 2 > total ? all[0][0] : undefined;
+    return all[0] && all[0][1] >= 2 && all[0][1] * 2 > total ? all[0][0] : undefined;
   };
   // Fuel: one, or two when the two cover everything ("diesel or hybrid").
   const f = ranked("fuel");
-  const fuels = f.all[0] && f.all[0][1] * 2 > f.total ? [f.all[0][0]] : f.all.length === 2 ? f.all.map(([k]) => k) : [];
+  const fuels = f.all[0] && f.all[0][1] >= 2 && f.all[0][1] * 2 > f.total ? [f.all[0][0]] : f.all.length === 2 ? f.all.map(([k]) => k) : [];
   return { make: most("make"), body: most("body"), band: most("band") as PriceBand | undefined, gearbox: most("gearbox"), fuels };
 }
 
@@ -130,8 +129,10 @@ export function wantOf(asked: Car | undefined, viewed: Car[], searches: JourneyS
   return { body: p.body, band: p.band, make: p.make, priceEur: prices[Math.floor(prices.length / 2)] };
 }
 
-// A car of the visit is the one they asked about when the lead's car page (`…-<id>`) is that car's.
+// A car of the visit is the one they asked about when the lead's car page (`…-<id>`) is that car's. By the id, not the whole slug: editing a
+// car's make, model or year gives it a new slug (car-form.ts), and the lead keeps the old one.
 export const isAsked = (carSlug: string | undefined, id: string) => Boolean(carSlug?.endsWith(`-${id}`));
+export const askedCar = (stock: Car[], carSlug: string | undefined) => (carSlug ? stock.find((c) => isAsked(carSlug, c.id)) : undefined);
 
 // The cars of the visit against the dealer's stock: the car when it is still there, whether it is the one they asked about, and a name when
 // one is known (a car gone from the stock keeps the lead's own title if it is the one they asked about).

@@ -49,6 +49,14 @@ describe("buildFacts for Prepare me", () => {
     for (const gone of [seeded.name, seeded.email, seeded.phone, "087 123 4567", "Private note"]) expect(all).not.toContain(gone);
   });
 
+  it("finds the car they asked about by its id, after an edit gave it a new slug", async () => {
+    const seeded = (await leadsStore.list()).find((l) => l.journey && l.carSlug)!;
+    const id = seeded.carSlug!.slice(seeded.carSlug!.lastIndexOf("-") + 1);
+    await leadsStore.put({ ...seeded, id: "lead-old-slug", carSlug: `renamed-make-model-2001-${id}` });
+    const f = (await buildFacts({ task: "leadBrief", leadId: "lead-old-slug" }, "D", ""))!.facts as import("./tasks").FactsOf["leadBrief"];
+    expect(f.carForSale).toBeDefined();
+  });
+
   it("is nothing for a lead without a visit note", async () => {
     const plain = (await leadsStore.list()).find((l) => !l.journey)!;
     expect(await buildFacts({ task: "leadBrief", leadId: plain.id }, "D", "")).toBeNull();

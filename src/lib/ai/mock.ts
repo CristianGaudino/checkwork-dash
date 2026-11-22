@@ -98,7 +98,7 @@ function leadBrief(f: FactsOf["leadBrief"]): string {
   const want = v.pattern
     ? `They mostly looked at ${v.pattern.replace(/^Mostly /, "")}${f.car ? ` and asked about the ${f.car}` : ""}.`
     : f.car ? `They asked about the ${f.car}${seen.length ? ` and also opened the ${seen.slice(0, 2).join(" and the ")}` : ""}.`
-    : `They sent a ${f.kind.toLowerCase()} message after ${v.minutes} ${v.minutes === 1 ? "minute" : "minutes"} on the site.`;
+    : v.minutes > 0 ? `They got in touch after ${v.minutes} ${v.minutes === 1 ? "minute" : "minutes"} on the site.` : "They got in touch through the site.";
   const others = f.closest.map((c) => `the ${c.name}${c.price ? ` (${c.price})` : ""}`);
   const ready = [f.car && f.carForSale && `the ${f.car}`, ...others].filter(Boolean).join(", ");
   const sold = f.car && f.carForSale === false ? `The ${f.car} is no longer for sale. ` : ""; // sold or reserved: the facts do not say which

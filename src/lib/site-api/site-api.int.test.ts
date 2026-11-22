@@ -152,7 +152,7 @@ describe("POST /api/site/v1/leads", () => {
     expect(await runAsDealer(A, () => leadsStore.get(`real-${id}`))).toMatchObject({ journey: JOURNEY });
   });
 
-  it("stores the lead without its note when the note is bad, too big or of a version it does not know", async () => {
+  it("stores the lead without its note when the note is bad, has too many cars or is of a version it does not know", async () => {
     for (const journey of [{ ...JOURNEY, v: 2 }, { ...JOURNEY, url: "https://x.ie" }, { ...JOURNEY, searches: [{ make: "Toyota Corolla" }] }, { ...JOURNEY, cars: Array.from({ length: 300 }, (_, i) => ({ id: String(i), views: 1 })) }, "no"]) {
       const res = await send(keyA, body(lead(), { journey }));
       expect(res.status).toBe(201);

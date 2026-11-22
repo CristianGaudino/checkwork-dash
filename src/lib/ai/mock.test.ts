@@ -136,4 +136,12 @@ describe("the demo's Prepare me", () => {
     expect(t).toContain("Nothing close is in stock right now");
     expect(t).not.toMatch(/Hyundai|Sportage 1\.6/);
   });
+
+  it("with no car and no pattern, says they got in touch, and how long they looked when it is known", () => {
+    const bare = (minutes: number) => mockText("leadBrief", brief({ kind: "General message", car: undefined, carForSale: undefined, visit: { ...brief().visit, minutes, cars: [], pattern: undefined } }));
+    expect(bare(9).split("\n")[0]).toBe("They got in touch after 9 minutes on the site.");
+    expect(bare(1).split("\n")[0]).toBe("They got in touch after 1 minute on the site.");
+    expect(bare(0).split("\n")[0]).toBe("They got in touch through the site.");
+    expect(bare(9)).not.toMatch(/message message|after 0/);
+  });
 });

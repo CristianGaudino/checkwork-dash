@@ -57,8 +57,9 @@ IP address, nothing about the device.
 ```
 
 - Checked by a strict schema (`journeySchema` in `src/lib/leads/journey.ts`): no unknown keys, strings to their patterns or lists, whole
-  numbers within their caps, and at most 4 KB as JSON (the largest valid v1 is about 2 KB).
-- **A bad note is dropped, never the lead.** A note that is malformed, too big or of a `v` this app does not know (a later version) is
+  numbers within their caps. The website keeps a note to at most 4 KB as JSON; the caps keep the largest valid v1 near 2 KB, so the app
+  checks the schema only.
+- **A bad note is dropped, never the lead.** A note that is malformed, over a cap or of a `v` this app does not know (a later version) is
   dropped and the lead is stored and answered 201 as if it came without one. Losing an enquiry over its history would be the worse failure,
   and the person already sent it. Nothing says it was dropped: the answer is the lead's.
 - Kept on the lead in the dealer's inbox (the leads collection, `real-` records), not in the `leads` table, so it goes with the lead: the
