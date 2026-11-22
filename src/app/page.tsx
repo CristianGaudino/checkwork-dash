@@ -157,12 +157,11 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
             {drivesOn && (
               <Panel title="Test drives today" count={o.todayDrives.length || undefined} action={<PanelLink href="/test-drives">All test drives</PanelLink>}>
                 {o.todayDrives.length === 0 ? (
-                  <EmptyState
-                    compact
-                    title="None today"
-                    text={o.upcomingDrives[0] ? `Next: ${o.upcomingDrives[0].name}, ${fmtDateTime(o.upcomingDrives[0].startsAt)}.` : "Nothing booked this week."}
-                    action={<Link href="/test-drives/new" className={adminButtonQuiet}>Book a test drive</Link>}
-                  />
+                  // One line, not a tall empty block beside the busiest panel.
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <p className="text-body text-text-2">{o.upcomingDrives[0] ? `None today. Next: ${o.upcomingDrives[0].name}, ${fmtDateTime(o.upcomingDrives[0].startsAt)}` : "None booked this week"}</p>
+                    <Link href="/test-drives/new" className={adminButtonQuiet}>Book a test drive</Link>
+                  </div>
                 ) : (
                   <ul className="-mx-1 flex flex-col divide-y divide-hairline">
                     {o.todayDrives.map((d) => (
@@ -201,7 +200,6 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
         <Panel
           title="To do"
           count={toDo || undefined}
-          text={toDo ? "The most urgent first. Each button does the job." : undefined}
           action={
             me.name && (
               <Link href={link({ mine: !mine })} aria-current={mine ? "true" : undefined} className={choicePill(mine)}>

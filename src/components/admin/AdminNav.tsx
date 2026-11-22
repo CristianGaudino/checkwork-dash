@@ -103,9 +103,9 @@ function NavLink({ item, on, iconOnly = false }: { item: NavItem; on: boolean; i
       href={item.href}
       aria-current={on ? "page" : undefined}
       aria-label={iconOnly ? item.label : undefined}
-      className={`group/link flex min-h-10 items-center gap-3 whitespace-nowrap rounded-control text-body font-medium transition-colors ${iconOnly ? "size-10 justify-center" : "px-3"} ${on ? "bg-card text-text ring-1 ring-inset ring-hairline" : "text-text-2 hover:bg-card hover:text-text"} ${press}`}
+      className={`group/link flex min-h-9 items-center gap-3 whitespace-nowrap rounded-control text-meta font-medium transition-colors ${iconOnly ? "size-10 justify-center" : "px-3"} ${on ? "bg-card text-text ring-1 ring-inset ring-hairline" : "text-text-2 hover:bg-card hover:text-text"} ${press}`}
     >
-      <Icon className={`size-5 shrink-0 ${on ? "text-accent-text" : ""}`} />
+      <Icon className={`${iconOnly ? "size-5" : "size-4.5"} shrink-0 ${on ? "text-accent-text" : ""}`} />
       {iconOnly ? (
         // The rail's name for the icon, on hover and on keyboard focus. Fixed at its own place in the link (no top or left), so the rail's
         // scrolling sides never clip it, then moved off to the right of the icon.
@@ -125,8 +125,9 @@ function NavLink({ item, on, iconOnly = false }: { item: NavItem; on: boolean; i
 function NavSection({ group, open, holdsCurrent, onToggle, current }: { group: NavGroup; open: boolean; holdsCurrent: boolean; onToggle: () => void; current: (it: NavItem) => boolean }) {
   const id = useId();
   return (
-    <div className="flex flex-col pt-3">
-      <button type="button" aria-expanded={open} aria-controls={id} onClick={onToggle} className={`flex min-h-9 items-center gap-2 rounded-control px-3 text-meta font-medium text-text-2 transition-colors hover:text-text ${press}`}>
+    // A heading sits further from the group above than from its own links, so each group reads as one block.
+    <div className="flex flex-col pt-4">
+      <button type="button" aria-expanded={open} aria-controls={id} onClick={onToggle} className={`flex min-h-8 items-center gap-2 rounded-control px-3 text-meta font-medium text-text-2 transition-colors hover:text-text ${press}`}>
         {group.name}
         {holdsCurrent && !open && <span aria-hidden className="size-1.5 rounded-full bg-accent" />}
         <ChevronDownIcon aria-hidden className={`ml-auto size-4 transition-transform duration-200 motion-reduce:transition-none ${open ? "rotate-180" : ""}`} />

@@ -93,7 +93,7 @@ export const figureSize = (value: string) =>
 export function StatCard({ label, value, hint, tone, href, className = "" }: { label: string; value: string; hint?: string; tone?: "good" | "bad" | "warn"; href?: string; className?: string }) {
   const body = (
     <>
-      <p className="min-h-[2lh] text-meta text-text-2">{label}</p>
+      <p className="text-meta text-text-2">{label}</p>
       {/* Sized from the tile's own width (a container query), so tiles side by side show their figures at the same size, and a
           half-width tile on a 360px phone still fits €117,565 on one line. A year's sales (€5,864,950) take a smaller share. Anything
           longer still wraps, never spills. */}
@@ -103,7 +103,9 @@ export function StatCard({ label, value, hint, tone, href, className = "" }: { l
       {hint && <p className={`text-meta ${tone === "good" ? "text-ok" : tone === "bad" ? "text-bad" : tone === "warn" ? "text-warn" : "text-text-2"}`}>{hint}</p>}
     </>
   );
-  const frame = `${card} @container flex min-w-0 flex-col gap-1 p-4 ${className}`; // @container: the figure is sized from the tile
+  // @container: the figure is sized from the tile. Label, figure and hint are rows of the grid around it (subgrid), so tiles side by side keep
+  // their figures level when one label wraps, with no blank line when none does.
+  const frame = `${card} @container row-span-3 grid min-w-0 grid-rows-subgrid gap-1 p-4 ${className}`;
   return href ? (
     <Link href={href} className={`${frame} transition-colors hover:border-control ${press}`}>
       {body}
@@ -388,8 +390,8 @@ export const choicePill = (active: boolean) => `inline-flex min-h-11 items-cente
 // it (`action`), so nobody has to work out where to go. The marker on the left is the urgency: `now` (red) is late or due today, `soon`
 // (amber) is coming up, `info` is worth knowing. The row's own link (`href`) opens the thing; the action sits above it and is what a press
 // on it hits. Inside a Panel, or on its own as the page's first block.
+// The marker alone carries the colour; the icon stays neutral, so a long list of late rows is not a wall of red.
 const TASK_MARK = { now: "bg-bad", soon: "bg-warn", info: "bg-hairline" } as const;
-const TASK_ICON = { now: "bg-bad-soft text-bad", soon: "bg-warn-soft text-warn", info: "bg-row-alt text-text-2" } as const;
 export type TaskUrgency = keyof typeof TASK_MARK;
 export function TaskList({ children, label }: { children: React.ReactNode; label?: string }) {
   return (
@@ -404,7 +406,7 @@ export function Task({ title, detail, href, action, icon, mark, urgency = "info"
     // On a phone the buttons drop under the words when both do not fit, so a name is never squeezed to a word a line.
     <li className="relative flex min-h-16 flex-wrap items-center gap-x-3 gap-y-2 py-3 pl-4 pr-1 transition-colors has-[>a:hover]:bg-surface">
       <span aria-hidden="true" className={`absolute inset-y-3 left-0 w-1 rounded-full ${TASK_MARK[urgency]}`} />
-      {icon && <span aria-hidden="true" className={`hidden size-10 shrink-0 place-items-center sm:grid rounded-control [&>svg]:size-5 ${TASK_ICON[urgency]}`}>{icon}</span>}
+      {icon && <span aria-hidden="true" className={`hidden size-10 shrink-0 place-items-center sm:grid rounded-control bg-row-alt text-text-2 [&>svg]:size-5`}>{icon}</span>}
       <span className="flex min-w-[min(12rem,100%)] flex-1 flex-col">
         <span className={`font-medium ${mark ? "inline-flex items-center gap-1.5" : ""}`}>
           {mark}
