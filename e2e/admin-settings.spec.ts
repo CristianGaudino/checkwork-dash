@@ -25,6 +25,8 @@ test("a team member is added, shows in the lead owner choices, and cannot be add
   await add.locator('input[name="email"]').fill("tester@example.com");
   await add.getByRole("button", { name: "Add", exact: true }).click();
   await expect(page.getByText("already on the team")).toBeVisible();
+  await add.locator('input[name="email"]').fill("tester2@example.com"); // an edit clears the old answer
+  await expect(page.getByText("already on the team")).toHaveCount(0);
   await page.goto("/leads");
   await page.getByRole("row").nth(1).getByRole("link").first().click();
   await expect(page.getByRole("region", { name: "Who has it" }).getByRole("button", { name })).toHaveCount(1);

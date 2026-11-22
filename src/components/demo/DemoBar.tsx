@@ -103,7 +103,9 @@ export function DemoBar({ demo, donedeal }: { demo: boolean; donedeal: boolean }
       {/* Which modules the dealer has (#173), so a smaller site can be shown. One switch in one place, so choosing a plan keeps it open. */}
       {demo && <ModuleSwitches chip={chip} inline={phone} />}
       <button type="button" aria-pressed={theme === "dark"} onClick={() => setTheme(theme === "dark" ? "light" : "dark")} className={`flex h-11 items-center px-2 text-text-2 ${press}`}>
-        {theme === "dark" ? "Dark" : "Light"}
+        {/* From <html data-theme> in CSS, not the hook: the server cannot know the theme, so the first paint would say Light on a dark page. */}
+        <span className="[[data-theme=dark]_&]:hidden">Light</span>
+        <span className="hidden [[data-theme=dark]_&]:inline">Dark</span>
       </button>
     </>
   );

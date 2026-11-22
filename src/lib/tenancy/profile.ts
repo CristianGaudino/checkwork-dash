@@ -87,7 +87,7 @@ export const FACTS_SCHEMA = z.object({
   name: z.string().trim().min(1, "Give the business name").max(80),
   siteUrl: z.union([z.literal(""), z.url({ protocol: /^https$/, error: "A full address starting https://" }).max(200)]).transform((u) => u.replace(/\/+$/, "")),
   phone: z.string().trim().max(30),
-  email: z.union([z.literal(""), z.email("An email address").max(120)]),
+  email: z.union([z.literal(""), z.email("Enter a valid email address").max(120)]),
   street: z.string().trim().max(80),
   town: z.string().trim().max(60),
   county: z.string().trim().max(60),
