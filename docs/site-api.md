@@ -31,7 +31,7 @@ A lead the website already stored and emailed (or tried to). Headers `Authorizat
   "emailed": true, "photoCount": 0 }
 ```
 
-Exactly these fields; times are epoch milliseconds. No photos in v1: `photoCount` only, and the lead says in the inbox that photos came
+and, optionally, `"journey": { ... }`, the visit note (below). Exactly these fields; times are epoch milliseconds. No photos in v1: `photoCount` only, and the lead says in the inbox that photos came
 with it on the website.
 
 The lead is checked by the website's own rules (`src/lib/leads/schema.ts`, a booking against the dealer's opening hours), consent
@@ -39,11 +39,39 @@ included (`consentAt` and `consentVersion`). The bot check and the per-visitor l
 lead lands in the dealer's `leads` table (kept and purged by the same rules, `docs/lead-retention.md`) and in their inbox as a website
 lead: the bell, the staff WhatsApp alert, and, when `emailed` is false and the dealer has a lead email, the lead email.
 
+### The visit note (`journey`, #34)
+
+What the person did on the website during the visit they sent the enquiry from, sent only when they turned the switch on the form on
+(checkwork-demo#249). The website keeps it for that visit only, in the tab's `sessionStorage`. Fixed values only: no free text, no URLs, no
+IP address, nothing about the device.
+
+```ts
+{ v: 1,
+  minutes: number,                              // whole minutes from the first page to sending, 0 to 240
+  cars: { id: string; views: number }[],        // car pages opened, most viewed first, at most 12; id as lead.carId (digits); views 1 to 99
+  searches: { make?, model?, body?: string;     // slugs, lowercase a-z0-9-, at most 40 characters
+              fuel?: Fuel; gearbox?: "manual" | "automatic"; condition?: "used" | "new" | "commercial";
+              priceBand?: "under-10k" | "10k-20k" | "20k-30k" | "30k-50k" | "over-50k" }[],   // at most 8, most recent first
+  tools: { finance?: { monthlyEur?: number };   // 0 to 5000
+           tradeIn?: boolean; saved?: number; compared?: number } }  // counts 0 to 99
+```
+
+- Checked by a strict schema (`journeySchema` in `src/lib/leads/journey.ts`): no unknown keys, strings to their patterns or lists, whole
+  numbers within their caps, and at most 4 KB as JSON (the largest valid v1 is about 2 KB).
+- **A bad note is dropped, never the lead.** A note that is malformed, too big or of a `v` this app does not know (a later version) is
+  dropped and the lead is stored and answered 201 as if it came without one. Losing an enquiry over its history would be the worse failure,
+  and the person already sent it. Nothing says it was dropped: the answer is the lead's.
+- Kept on the lead in the dealer's inbox (the leads collection, `real-` records), not in the `leads` table, so it goes with the lead: the
+  daily purge, an erasure and the data request export (`docs/lead-retention.md`). An alert sign-up has no lead, so its note is dropped. If the
+  copy into the inbox fails (`mirror_failed`), the note is lost with it; the lead is still in the `leads` table.
+- Never logged.
+- Shown on the lead as This visit, and used by the Prepare me AI brief (`leadBrief` in `src/lib/ai/`).
+
 | Status | When | Body |
 |---|---|---|
 | 201 | Stored | `{ "id": "<the dashboard's id>" }` |
 | 200 | That `clientRef` was already received for this dealer (a retry) | `{ "id": "<the same id>" }` |
-| 400 | Not JSON, not the contract, or the lead breaks a rule (consent missing included) | none |
+| 400 | Not JSON, not the contract, or the lead breaks a rule (consent missing included). A bad `journey` alone never causes it | none |
 | 401 | No key, a malformed, unknown or revoked key | none |
 | 413 | Body over 64 KB, by its Content-Length or as it is read | none |
 | 429 | Over the key's rate limit | none |
@@ -64,7 +92,7 @@ website is not built yet.
 
 - `SITE_LIMITER` (`wrangler.jsonc`): 60 requests a minute per key. With no binding (next dev, the E2E run) there is no limit.
 - One log line per request: the route, the dealer's id, the outcome and the status (`logSite` in `src/lib/log.ts`). Never the key, the
-  lead, a name, an email or a phone.
+  lead, its visit note, a name, an email or a phone.
 
 ## What the owner sets up
 

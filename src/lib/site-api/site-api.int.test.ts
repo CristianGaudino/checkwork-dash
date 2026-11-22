@@ -144,18 +144,38 @@ describe("POST /api/site/v1/leads", () => {
     expect(limit).toHaveBeenCalledWith({ key: (await dealerOfSiteKey(keyA))!.keyId }); // per key, never the key itself
   });
 
+  const JOURNEY = { v: 1, minutes: 14, cars: [{ id: "4508173", views: 3 }], searches: [{ make: "toyota", body: "suv", priceBand: "20k-30k" }], tools: { finance: { monthlyEur: 320 }, saved: 2 } };
+  it("keeps the visit note with the lead in the dealer's inbox", async () => {
+    const res = await send(keyA, body(lead(), { journey: JOURNEY }));
+    expect(res.status).toBe(201);
+    const { id } = await res.json();
+    expect(await runAsDealer(A, () => leadsStore.get(`real-${id}`))).toMatchObject({ journey: JOURNEY });
+  });
+
+  it("stores the lead without its note when the note is bad, too big or of a version it does not know", async () => {
+    for (const journey of [{ ...JOURNEY, v: 2 }, { ...JOURNEY, url: "https://x.ie" }, { ...JOURNEY, searches: [{ make: "Toyota Corolla" }] }, { ...JOURNEY, cars: Array.from({ length: 300 }, (_, i) => ({ id: String(i), views: 1 })) }, "no"]) {
+      const res = await send(keyA, body(lead(), { journey }));
+      expect(res.status).toBe(201);
+      const stored = await runAsDealer(A, async () => leadsStore.get(`real-${(await res.json()).id}`));
+      expect(stored).toMatchObject({ name: NAME });
+      expect(stored).not.toHaveProperty("journey");
+    }
+  });
+
   it("logs the route, the dealer, the outcome and the status: never the key, a name, an email or a phone", async () => {
     const out = vi.spyOn(console, "log").mockImplementation(() => {});
     const err = vi.spyOn(console, "error").mockImplementation(() => {});
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     await send(keyA, body());
+    await send(keyA, body(lead(), { journey: JOURNEY }));
+    await send(keyA, body(lead(), { journey: { ...JOURNEY, v: 9 } }));
     await send(keyA, body(lead({ email: "bad" })));
     await send("cw_site_wrong", body());
     const logged = [...out.mock.calls, ...err.mock.calls, ...warn.mock.calls].map((c) => c.map(String).join(" ")).join(" | ");
     expect(logged).toContain(`"site":"leads","dealerId":"${A}","outcome":"stored","status":201`);
     expect(logged).toContain(`"outcome":"invalid","status":400`);
     expect(logged).toContain(`"outcome":"no-key","status":401`);
-    for (const secret of [keyA, "cw_site_", NAME, "Murphy", EMAIL, PHONE, "estates"]) expect(logged).not.toContain(secret);
+    for (const secret of [keyA, "cw_site_", NAME, "Murphy", EMAIL, PHONE, "estates", "4508173", "toyota", "journey", "320"]) expect(logged).not.toContain(secret);
   });
 });
 
