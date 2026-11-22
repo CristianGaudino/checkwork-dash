@@ -117,7 +117,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ n
               <ol className="flex flex-col gap-4">
                 {STEPS.map(([title, text], i) => (
                   <li key={title} className="flex gap-3">
-                    <span aria-hidden="true" className="flex size-7 shrink-0 items-center justify-center rounded-full bg-accent text-meta font-semibold text-on-accent">
+                    <span aria-hidden="true" className="flex size-7 shrink-0 items-center justify-center rounded-full bg-hairline text-meta font-semibold text-text">
                       {i + 1}
                     </span>
                     <div className="flex flex-col gap-0.5">
@@ -140,7 +140,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ n
                 return (
                   <li key={id} data-wa-module={module.id} className={`flex flex-col gap-3 rounded-card border border-hairline p-4 ${on ? "bg-card" : "bg-row-alt"}`}>
                     <div className="flex items-start gap-3">
-                      <span aria-hidden="true" className={`flex size-10 shrink-0 items-center justify-center rounded-control ${on ? "bg-accent text-on-accent" : "bg-hairline text-text-2"}`}>
+                      <span aria-hidden="true" className={`flex size-10 shrink-0 items-center justify-center rounded-control text-text-2 ${on ? "bg-row-alt" : "bg-hairline"}`}>
                         <Icon className="size-5" />
                       </span>
                       <div className="flex min-w-0 flex-1 flex-col gap-0.5">

@@ -26,8 +26,8 @@ export function VisitSources({ now, before, top }: Props) {
         g.channels.length === 1 ? (
           <Tile key={g.id} f={g.channels[0]} best={g.best} icon={<ChannelIcon channel={g.channels[0].channel} />} />
         ) : (
-          <details key={g.id} className="group/src min-w-0 open:col-span-full">
-            <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+          <details key={g.id} className="group/src flex min-w-0 flex-col open:col-span-full">
+            <summary className="flex-1 cursor-pointer list-none [&::-webkit-details-marker]:hidden">
               <Tile f={g} best={g.best} icon={<Marks tiles={g.channels} />} more={<OpenLine tiles={g.channels} />} />
             </summary>
             <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fit,minmax(11rem,1fr))]">

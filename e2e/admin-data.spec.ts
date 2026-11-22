@@ -11,7 +11,7 @@ test("sales and finance have no data requests and no lead or customer exports; t
     await as(context, role);
     await page.goto("/");
     await expect(await sideLink(page, "Data requests")).toHaveCount(0);
-    await notForRole(page, "/data-requests", "For privacy requests");
+    await notForRole(page, "/data-requests", "When someone asks what you hold");
     expect((await page.request.get("/leads/export")).status()).toBe(404);
     expect((await page.request.get("/customers/export")).status()).toBe(404);
     await page.goto("/leads");

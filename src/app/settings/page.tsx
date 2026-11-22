@@ -93,11 +93,11 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
               key={k}
               href={k === "business" ? "/settings" : `/settings?section=${k}`}
               aria-current={k === section ? "page" : undefined}
-              className={`flex min-h-11 shrink-0 flex-col justify-center rounded-control px-3 lg:py-2.5 ${k === section ? "bg-text text-ink" : "text-text-2 hover:bg-card hover:text-text"}`}
+              className={`flex min-h-11 shrink-0 flex-col justify-center rounded-control px-3 lg:py-2.5 ${k === section ? "bg-card text-text ring-1 ring-inset ring-hairline" : "text-text-2 hover:bg-card hover:text-text"}`}
             >
               <span className="text-meta font-medium">{label}</span>
               {/* The line on what it changes: in the side list on a laptop; on a phone it is under the tabs, for the open one only. */}
-              <span aria-hidden="true" className={`hidden text-meta lg:block ${k === section ? "opacity-80" : "text-text-2"}`}>{line}</span>
+              <span aria-hidden="true" className="hidden text-meta text-text-2 lg:block">{line}</span>
             </Link>
           ))}
         </TabRow>

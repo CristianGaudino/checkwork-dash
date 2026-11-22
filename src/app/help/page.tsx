@@ -54,7 +54,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ f
         <ul className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <li>
             <a href={supportTel} className={contact}>
-              <PhoneIcon className="size-5 shrink-0 text-accent-text" />
+              <PhoneIcon className="size-5 shrink-0 text-text-2" />
               <span className="flex flex-col">
                 <span>Call</span>
                 <span className="font-normal text-text-2">{SUPPORT.phone}</span>
@@ -63,7 +63,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ f
           </li>
           <li>
             <a href={`mailto:${SUPPORT.email}`} className={contact}>
-              <InboxIcon className="size-5 shrink-0 text-accent-text" />
+              <InboxIcon className="size-5 shrink-0 text-text-2" />
               <span className="flex min-w-0 flex-col">
                 <span>Email</span>
                 <span className="truncate font-normal text-text-2">{SUPPORT.email}</span>
@@ -96,7 +96,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ f
             {guides.map((g) => (
               <li key={g.title} className="flex flex-col gap-3 rounded-control border border-hairline bg-row-alt p-4">
                 <h3 className="flex items-center gap-2 font-semibold">
-                  <span aria-hidden="true" className="grid size-8 shrink-0 place-items-center rounded-control bg-card text-accent-text [&>svg]:size-4">
+                  <span aria-hidden="true" className="grid size-8 shrink-0 place-items-center rounded-control bg-card text-text-2 [&>svg]:size-4">
                     {g.icon}
                   </span>
                   {g.title}
