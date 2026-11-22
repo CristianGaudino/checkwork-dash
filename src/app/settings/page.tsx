@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { AddTeamForm, BusinessForm, RoleForm, LeadEmailsForm, MarketingForm, NotificationsForm, SiteKeyForm, TargetsForm } from "@/components/admin/SettingsForms";
-import { Badge, DataTable, PageHeader, Panel, adminButtonQuiet, rowButton, rowDanger, tapArea } from "@/components/admin/kit";
+import { Badge, DataTable, PageHeader, Panel, adminButtonQuiet, rowDanger, tapArea } from "@/components/admin/kit";
 import { TabRow } from "@/components/admin/TabRow";
 import { ChevronDownIcon } from "@/components/stock/icons";
 import { ActButton } from "@/components/admin/ActButton";
@@ -21,9 +21,6 @@ import { ROLES, roleCan, type Role } from "@/lib/permission-rules";
 import { enabledModules } from "@/lib/modules";
 import { type ModuleId } from "@/lib/modules-rules";
 import { BrandIcon } from "@/components/admin/BrandIcon";
-import { ServiceKeys } from "@/components/admin/ServiceKeys";
-import { savedNames } from "@/lib/dealer-secrets";
-import { realRole } from "@/lib/permissions";
 import { PushPanel } from "@/components/admin/PushPanel";
 import { pushStore, vapid } from "@/lib/push";
 import { staffIdentity } from "@/lib/staff";
@@ -52,7 +49,7 @@ const SERVICE_MODULE: Partial<Record<IntegrationId, ModuleId | ModuleId[]>> = {
 };
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ section?: string }> }) {
-  const [s, me, source, sp, resettable, { id: dealerId, name, profile, demo }, { site: listingSite, url: listingUrl }] = await Promise.all([getSettings(), currentMember(), stockSource(), searchParams, mayResetDemo(), currentDealer(), listing()]);
+  const [s, me, source, sp, resettable, { id: dealerId, name, profile }, { site: listingSite, url: listingUrl }] = await Promise.all([getSettings(), currentMember(), stockSource(), searchParams, mayResetDemo(), currentDealer(), listing()]);
   const synced = source === "donedeal";
   const sync = synced ? await syncStatus() : null;
   // The listing site is a service only for a dealer whose stock comes from there; the others only with their module (#173).
@@ -74,9 +71,6 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
   const sections = SECTIONS.filter(([k]) => (edit ? k !== "demo" || resettable : k === "emails")).map(([k, label, line]) => [k, label, k === "business" && !voice ? "Your details and opening hours" : line] as const);
   const [section, , about] = sections.find(([k]) => k === sp.section) ?? sections[0];
   // The owner's own accounts (#26): the services that are the dealer's, whatever their plan, the listing site only if their stock comes from it.
-  const keysOwner = !demo && (await realRole()) === "Owner";
-  const keyServices = keysOwner && section === "services" ? INTEGRATIONS.filter((i) => i.perDealer && (i.id !== "donedeal" || synced)).map((i) => integrationText(i, { name, site: listingSite })) : [];
-  const saved = keyServices.length ? await savedNames() : new Set<string>();
   // Website keys only for those who make and revoke them (owners and managers).
   const keys = section === "services" && edit ? await siteKeysOf(dealerId) : [];
   // This person's own devices with notifications on (#11), never anyone else's.
@@ -225,7 +219,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
 
           {section === "services" && (
             <Panel title="Connected services">
-              <p className="-mt-2 max-w-measure text-meta text-text-2">{keysOwner ? "Add your own accounts below. We connect the rest for you." : "We connect these for you."}</p>
+              <p className="-mt-2 max-w-measure text-meta text-text-2">We connect these for you.</p>
               <DataTable
                 bare
                 rows={services}
@@ -233,23 +227,10 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
                 columns={[
                   { key: "name", header: "Service", cell: (i) => <span className="flex flex-col"><span className="inline-flex items-center gap-1.5 font-medium"><BrandIcon name={i.name} />{i.name}</span><span className="text-meta text-text-2 md:hidden">{i.purpose}</span></span> },
                   { key: "purpose", header: "What it does", hide: "md", cell: (i) => i.purpose, className: "max-w-[20rem]" },
-                  // A dealer never sees setting names. One not connected yet offers the way to get it, in the column a phone shows, instead of a warning:
-                  // the owner's own accounts are added in Your accounts below, the rest we connect.
-                  { key: "status", header: "Status", cell: (i) => (usable(i.id) ? <Badge tone="good">Connected</Badge> : keysOwner && i.perDealer ? <span className="text-meta text-text-2">Add it below</span> : <Link href={ASK_CHANGE} className={rowButton}>Ask us to connect</Link>) },
+                  { key: "status", header: "Status", cell: (i) => (usable(i.id) ? <Badge tone="good">Connected</Badge> : <span className="text-meta text-text-2">Not connected</span>) },
                   { key: "account", header: "Account", hide: "sm", cell: (i) => (mode(i.id) === "off" ? null : <span className="break-words text-meta text-text-2">{mode(i.id) === "simulated" ? i.demoAccount : "Nothing to do"}</span>) },
                 ]}
               />
-            </Panel>
-          )}
-
-          {/* Owners only, and never the demo (it simulates): the dealer's own accounts, pasted once and never shown again (#26). */}
-          {section === "services" && keysOwner && (
-            <Panel title="Your accounts" text="Paste each service's details once. They are kept safe and never shown again.">
-              <ul className="flex flex-col">
-                {keyServices.map((i) => (
-                  <ServiceKeys key={i.id} id={i.id} name={i.name} fields={Object.entries(i.perDealer!)} saved={Object.keys(i.perDealer!).every((n) => saved.has(n))} />
-                ))}
-              </ul>
             </Panel>
           )}
 

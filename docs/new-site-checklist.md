@@ -45,7 +45,7 @@ deploy fails its tests while it is false.
 ### Stock, modules and the dashboard (this app)
 - Where the stock comes from (`stock.source`, `stock.listingSite`, `stock.listingUrl`), the modules the dealer pays for (`modules`) and
   the business rules (`rules`) are the dealer's profile: `docs/new-dealer.md` sets them, and Billing shows them read only. A synced
-  dealer (DoneDeal or CarsIreland) also needs DoneDeal's written consent and their API key (per dealer: the owner sets it in Settings, Your accounts, #26), and
+  dealer (DoneDeal or CarsIreland) also needs DoneDeal's written consent and their API key (per dealer: Checkwork sets it through the owner API, `docs/owner-api.md`, #80), and
   `CRON_KEY`. The sync runs every 15 minutes (`docs/dealer-admin.md`, DoneDeal stock).
 - The registration lookup is two modules: `lookupWebsite` and `lookupDashboard` (#180).
 - The prices on the Billing page are the demo's (`src/lib/billing/rules.ts`). Before a real dealer goes live, choose the payment
