@@ -32,6 +32,8 @@
 		"CF_ACCESS_AUD": "0433f1e74c24f6f5c996f8ed8dc3eaa764633a385f9c7d4624e2538d79f9787a",
 		"APP_URL": "https://dev.dash.checkwork.ie"
 	},
+	// Not here: the Turnstile site key is a build input (NEXT_PUBLIC_TURNSTILE_SITE_KEY, deploy.yml) and TURNSTILE_SECRET_KEY a Worker secret per
+	// environment (docs/sign-in.md, section 7).
 	// Lead emails to the dealer. No "remote": a local wrangler dev has no Cloudflare credentials, so it uses the local simulator.
 	// Dev never emails real people: only our own inbox (a verified Email Routing destination, or dev sends nothing at all).
 	"send_email": [{ "name": "EMAIL", "allowed_destination_addresses": ["contact@checkwork.ie"] }],

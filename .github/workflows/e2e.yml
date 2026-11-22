@@ -26,6 +26,7 @@ jobs:
       APP_ENV: production
       NEXT_PUBLIC_ADMIN_OPEN: 1 # the app is closed on a deployed site; the specs need it open
       NEXT_TELEMETRY_DISABLED: 1
+      NEXT_PUBLIC_TURNSTILE_SITE_KEY: 1x00000000000000000000BB # Cloudflare's always-pass test key; the sign-in specs stub its script
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7

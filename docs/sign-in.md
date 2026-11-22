@@ -32,7 +32,8 @@ A dealer's first owner, added by our script, gets the same words from us.
 
 1. **Sign in** (`/sign-in`). Title "Sign in to Checkwork". A button "Sign in with a passkey", then "or", an Email field and a button
    "Email me a code". Nothing else: no sign-up link, no "forgot password" (there are no passwords).
-2. They type their email and tap "Email me a code".
+2. They type their email and tap "Email me a code". A Cloudflare Turnstile check runs behind the button without a puzzle (a challenge only
+   when Cloudflare is unsure); the button waits until it has passed (section 3, "The bot check").
 3. **Check your email** (`/sign-in/code`). "If that email is on a team, we have sent a code to it. It works for 15 minutes." A Code field
    (six digits) and a button "Sign in". Under it: "Send a new code" (after a minute) and "Use a different email". The page says the same
    for an email that is on no team, so it never tells anyone whether an address is known.
@@ -425,6 +426,29 @@ staff address.
 - **Rotation:** every sign-in makes a new session id. An id is never accepted unless we issued it at a sign-in, so it cannot be fixed in
   advance. A session already on the device is ended at sign-in.
 
+### The bot check
+
+Scripts that post the Email form can fill an inbox or burn an address's send cap, so "Email me a code" carries a Cloudflare Turnstile token
+(`src/lib/auth/turnstile.ts`, `src/app/sign-in/useTurnstile.ts`; the same pattern as the showroom's lead form).
+
+- **Browser:** the script from `challenges.cloudflare.com` loads on `/sign-in` only. The widget is Managed with interaction-only appearance (no
+  puzzle unless Cloudflare is unsure) and action `sign-in`. The button waits for the token, which works once, so a refused send asks for a fresh one.
+- **Server:** `requestCode` checks the token with `siteverify` (secret, token and the visitor's IP, 5 second limit) after the origin, the per-IP
+  limit and the address check, and before the attempt cookie is set or anything is reserved or sent. A bad, missing, reused, over-long or
+  other-form token, or no answer from Cloudflare, is refused with "We could not check this request. Reload the page and try again." The log
+  line is the step and `bot-check`, never the token, the address or the IP.
+- **Policy:** the sign-in pages' content policy allows `https://challenges.cloudflare.com` in `script-src`, `connect-src` and `frame-src`, and
+  no other page does (`next.config.ts`).
+- **No keys:** with `TURNSTILE_SECRET_KEY` set, the check always runs. With none, it is skipped in `next dev`, the unit tests and the E2E run
+  (`E2E_FAKE_BACKENDS`), and on a deployed Worker "Email me a code" is refused ("Sign-in by email is not available right now.", log outcome
+  `bot-check-off`): a missing secret never leaves the form open. With no site key at build there is no widget, so a deploy with the secret
+  but no site key refuses everyone: set both.
+- **Setup, per environment:** Cloudflare dashboard, Turnstile, Add widget, hostnames `www.dash.checkwork.ie` and `dev.dash.checkwork.ie`
+  (one widget serves both), Managed. The site key (public) is the GitHub repo variable `TURNSTILE_SITE_KEY`, used as
+  `NEXT_PUBLIC_TURNSTILE_SITE_KEY` by `deploy.yml` at build. The secret key is the Worker secret `TURNSTILE_SECRET_KEY`
+  (`npx wrangler secret put TURNSTILE_SECRET_KEY`, and again with `--env production`). Cloudflare's test keys always pass: site
+  `1x00000000000000000000BB`, secret `1x0000000000000000000000000000000AA`.
+
 ### Each request, and a dead cookie
 
 - `staffIdentity()` reads the cookie, looks up its hash, checks both lifetimes, and returns the email (once a request, React `cache`, as
@@ -608,7 +632,8 @@ Between the two halves of the right order the app is stricter, never looser: wit
 ### Dev first
 
 1. Merge the build plan's steps 1 to 6 (each changes nothing while `SIGN_IN` is `access`).
-2. Owner: `npx wrangler secret put SIGN_IN_SECRET` (dev), a random 32-byte value. Set up `noreply@checkwork.ie` as a sending address
+2. Owner: `npx wrangler secret put SIGN_IN_SECRET` (dev), a random 32-byte value, and the bot check (section 3, "The bot check"): the
+   Turnstile widget, the repo variable `TURNSTILE_SITE_KEY` and `npx wrangler secret put TURNSTILE_SECRET_KEY` (dev). Set up `noreply@checkwork.ie` as a sending address
    (open question 3). Dev's `EMAIL` binding can only send to `contact@checkwork.ie` today: add our own team's addresses to its
    `allowed_destination_addresses`. If the zone's Web Analytics is on, also exclude `/sign-in/*` there (the CSP already blocks it).
 3. PR: dev's `SIGN_IN` to `both`. Deploy. Each of us signs in through Access, then through our sign-in (email code, then add a passkey) on
@@ -621,7 +646,7 @@ Between the two halves of the right order the app is stricter, never looser: wit
 
 ### Then production
 
-6. Owner: `SIGN_IN_SECRET` for production.
+6. Owner: `SIGN_IN_SECRET` and `TURNSTILE_SECRET_KEY` (`--env production`) for production.
 7. PR: production's `SIGN_IN` to `both`. Every real person signs in once through our sign-in and adds a passkey while Access still guards
    the app. We check in the directory that each has one.
 8. PR: production's `SIGN_IN` to `own`. Deploy, then the owner adds Bypass, Everyone on production's Access application.
@@ -643,6 +668,7 @@ Between the two halves of the right order the app is stricter, never looser: wit
 | When | What |
 |---|---|
 | Step 2 and 6 | `SIGN_IN_SECRET` per environment |
+| Step 2 | Cloudflare dashboard, Turnstile, Add widget: name "Checkwork dash sign-in", hostnames `www.dash.checkwork.ie` and `dev.dash.checkwork.ie`, mode Managed. Its site key goes in the GitHub repo variable `TURNSTILE_SITE_KEY` (Settings, Secrets and variables, Actions, Variables), then redeploy; its secret key is `TURNSTILE_SECRET_KEY` on each Worker (dev, then `--env production`) |
 | Step 2 | The sending address `noreply@checkwork.ie`, dev's allowed addresses, and Web Analytics off for `/sign-in/*` if it is on |
 | Step 4 and 8 | Bypass, Everyone on the Access application (dev, then production), after the deploy |
 | Step 9 | Delete the Access applications |

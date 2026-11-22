@@ -7,6 +7,7 @@ import { z } from "zod";
 import { ATTEMPT_COOKIE, SESSION_COOKIE, attemptCookie, originOk, safeNext } from "@/lib/auth/gate";
 import { checkCode, completeSignIn, countWrong, hmac, peekLink, sendSignIn, sendSignedInNotice, spendLink } from "@/lib/auth/email-signin";
 import { sessionCookie } from "@/lib/auth/session";
+import { humanCheck } from "@/lib/auth/turnstile";
 import { getBindings } from "@/lib/leads/bindings";
 import { logSignIn, type SignInOutcome, type SignInStep } from "@/lib/log";
 import { deviceLabel } from "@/lib/push";
@@ -40,6 +41,12 @@ export async function requestCode(_prev: FormState, data: FormData): Promise<For
   if (!(await guard("email"))) return { error: RATE_ERROR };
   const input = RequestInput.safeParse({ email: data.get("email"), next: data.get("next") ?? undefined });
   if (!input.success) return { error: "Enter your email address." };
+  // After the address is checked, so a typo never spends the single-use token; before anything is reserved or sent.
+  const human = await humanCheck(String(data.get("cf-turnstile-response") ?? ""), (await headers()).get("cf-connecting-ip") ?? "");
+  if (human !== "ok") {
+    done("email", human === "failed" ? "bot-check" : "bot-check-off");
+    return { error: human === "failed" ? "We could not check this request. Reload the page and try again." : "Sign-in by email is not available right now." };
+  }
   const next = safeNext(input.data.next);
   const value = Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString("base64url");
   const browserHash = await sha256Hex(value);
