@@ -15,9 +15,9 @@ export function ReplyForm({ action, id, author, reply, filter }: { action: (data
   const onSubmit = (ev: React.FormEvent<HTMLFormElement>) => {
     if (sure.current) return void (sure.current = false);
     const text = String(new FormData(ev.currentTarget).get("reply") ?? "").trim();
+    if (!text && !reply) return void (ev.preventDefault(), setError("Write a reply first"));
     if (text === (reply ?? "")) return; // nothing changed: the server does nothing
     ev.preventDefault();
-    if (!text && !reply) return setError("Write a reply first");
     setError("");
     setAsking(
       !text
