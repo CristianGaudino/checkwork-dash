@@ -8,11 +8,37 @@ test("a request is confirmed from the list, and Undo puts it back", async ({ pag
   const waiting = page.getByRole("region", { name: /^Still to confirm/ });
   const first = waiting.getByRole("listitem").first();
   const who = (await first.locator("[data-name]").textContent())!.trim();
+  // Cancel is not beside Confirm in a row: it is under More.
+  await expect(first.getByRole("button", { name: `Cancel: ${who}` })).toHaveCount(0);
+  await first.getByRole("button", { name: `More for ${who}` }).click();
+  await expect(page.getByRole("button", { name: `Cancel: ${who}` })).toBeVisible();
+  await page.keyboard.press("Escape");
   await first.getByRole("button", { name: "Confirm" }).click();
   await expect(page.getByText(`${who}: Confirmed`)).toBeVisible();
   await expect(waiting.getByText(who, { exact: true })).toHaveCount(0);
   await page.getByTestId("toast").getByRole("button", { name: "Undo" }).click();
   await expect(waiting.getByText(who, { exact: true })).toBeVisible();
+});
+
+test("a request's row has one strong button, Confirm; on its own page Confirm is the filled one and Cancel is in view", async ({ page }) => {
+  await page.goto("/test-drives");
+  // Every row on Today (today's, the requests, the next few days) has at most one strong (tonal) button. Today's confirmed rows (Call
+  // and Mark done) are only there on an open day with one booked, so this covers them when they are.
+  const strong = await page.locator("li:has([data-name])").evaluateAll((rows) => rows.map((r) => r.querySelectorAll('[class~="bg-accent-soft"]').length));
+  expect(strong.length).toBeGreaterThan(0);
+  expect(Math.max(...strong)).toBeLessThanOrEqual(1);
+  // A seeded request, the last: the test above confirms (and puts back) the first, and one sent from the site (site-api) is a real-… id.
+  const row = page.getByRole("region", { name: /^Still to confirm/ }).getByRole("listitem").filter({ has: page.locator('a[href*="/test-drives/drive-"]') }).last();
+  const who = (await row.locator("[data-name]").textContent())!.trim();
+  // Whole class names: rowButton has hover:bg-accent-soft, rowButtonStrong has bg-accent-soft itself.
+  await expect(row.getByRole("link", { name: `Call ${who}` })).not.toHaveClass(/(^|\s)bg-accent-soft(\s|$)/);
+  await expect(row.getByRole("button", { name: `Confirm: ${who}` })).toHaveClass(/(^|\s)bg-accent-soft(\s|$)/);
+  await row.locator("[data-name]").click();
+  await expect(page).toHaveURL(/\/test-drives\/drive-/);
+  const status = page.getByRole("region", { name: "Status" });
+  await expect(status.getByRole("button", { name: `Cancel: ${who}` })).toBeVisible();
+  // Filled (bg-accent), not tonal (bg-accent-soft).
+  await expect(status.getByRole("button", { name: `Confirm: ${who}` })).toHaveClass(/(^|\s)bg-accent(\s|$)/);
 });
 
 test("the list filters, Only mine keeps the bookings given to me, and a booking opens on its own page", async ({ page }) => {

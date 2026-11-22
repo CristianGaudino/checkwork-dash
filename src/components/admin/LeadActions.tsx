@@ -7,10 +7,11 @@ import { telHref, waHref } from "@/lib/phone";
 import { setStatusAction } from "@/app/leads/actions";
 
 // A call to them, the row's strong action (tonal), named for a screen reader ("Call Mary Byrne"). Nothing when there is no number to call.
-export function CallButton({ phone, name }: { phone: string; name: string }) {
+// `quiet`: another action is the row's strong one (Confirm on a test drive request), so Call is tertiary.
+export function CallButton({ phone, name, quiet = false }: { phone: string; name: string; quiet?: boolean }) {
   const tel = phone ? telHref(phone) : undefined;
   return tel ? (
-    <a href={tel} aria-label={`Call ${name}`} className={rowButtonStrong}>
+    <a href={tel} aria-label={`Call ${name}`} className={quiet ? rowButton : rowButtonStrong}>
       <PhoneIcon className="shrink-0 size-4" />
       Call
     </a>
