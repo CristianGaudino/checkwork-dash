@@ -135,7 +135,7 @@ Reg ${f.reg}.` : ""}${quoted(f.text)}`;
     case "slow-stock":
       return `The ${f.car} has been in stock ${f.days} days. Drop the price by ${fmtEur(f.dropEur ?? 0)}?`;
     case "new-in":
-      return `New in: ${f.car}. Post it to Facebook and Instagram?`;
+      return `New in: ${f.car}. Post it to Facebook, Instagram or TikTok?`;
     case "monday":
       return `Last week: ${plural(f.leads ?? 0, "new lead")}, ${plural(f.drives ?? 0, "test drive")}, ${plural(f.sales ?? 0, "sale")}. The full report is a tap away.`;
   }
