@@ -12,6 +12,7 @@ test.describe("SIGN_IN unset (the open app, and production today)", () => {
   test("has no sign-in page and no sign-out, and pages are sent no-store", async ({ request, baseURL }) => {
     expect((await request.get("/sign-in", { maxRedirects: 0 })).status()).toBe(404);
     expect((await request.post("/sign-out", { headers: { origin: baseURL! }, maxRedirects: 0 })).status()).toBe(404);
+    for (const path of ["/sign-in/code", "/sign-in/link", "/sign-in/outbox?to=aoife%40example.com"]) expect((await request.get(path, { maxRedirects: 0 })).status(), path).toBe(404);
     const page = await request.get("/", { maxRedirects: 0 });
     expect(page.status()).toBe(200);
     expect(page.headers()["cache-control"]).toContain("no-store"); // a signed-in page is never kept by a cache
@@ -25,6 +26,7 @@ test("SIGN_IN unset on a closed server: the sign-in page and /sign-out are 404s,
     expect((await api.get("/sign-in", { headers, maxRedirects: 0 })).status()).toBe(404);
     expect((await api.get("/sign-in?next=%2Fleads", { headers, maxRedirects: 0 })).status()).toBe(404);
     expect((await api.post("/sign-out", { headers: { ...headers, origin: CLOSED_ACCESS }, maxRedirects: 0 })).status()).toBe(404);
+    for (const path of ["/sign-in/code", "/sign-in/link", "/sign-in/outbox?to=aoife%40example.com"]) expect((await api.get(path, { headers, maxRedirects: 0 })).status(), path).toBe(404);
     const page = await api.get("/leads", { headers, maxRedirects: 0 });
     expect(page.status()).toBe(404);
     expect(page.headers()["location"]).toBeUndefined(); // never sent to sign in
@@ -111,5 +113,90 @@ test.describe("SIGN_IN=own on a closed server", () => {
     await page.goto(`${CLOSED}/leads?status=new`);
     await expect(page).toHaveURL(`${CLOSED}/sign-in?next=%2Fleads%3Fstatus%3Dnew`);
     await expect(page.getByRole("heading", { level: 1, name: "Sign in to Checkwork" })).toBeVisible();
+  });
+});
+
+// The emailed code and link (docs/sign-in.md, section 3), on the closed server. Its mail is the in-memory outbox, read at /sign-in/outbox.
+test.describe("signing in by email on the closed server", () => {
+  test.skip(!!process.env.E2E_BASE_URL, "needs the run's own closed server");
+  const mailTo = async (page: import("@playwright/test").Page, to: string) => {
+    const get = async () => (await (await page.request.get(`${CLOSED}/sign-in/outbox?to=${encodeURIComponent(to)}`)).json()) as { subject: string; text: string }[];
+    await expect.poll(async () => (await get()).length).toBeGreaterThan(0);
+    return (await get()).at(-1)!;
+  };
+  const sessionCookie = (page: import("@playwright/test").Page) => page.context().cookies(CLOSED).then((c) => c.find((x) => x.name === "__Host-cw_session"));
+
+  test("a code from the outbox signs in a seeded person, who lands on the dashboard with a session", async ({ page }) => {
+    await page.goto(`${CLOSED}/sign-in?next=%2Fleads`);
+    await page.getByLabel("Email").fill("aoife@example.com");
+    await page.getByRole("button", { name: "Email me a code" }).click();
+    await expect(page).toHaveURL(`${CLOSED}/sign-in/code?next=%2Fleads`);
+    await expect(page.getByText("If that email is on a team, we have sent a code to it.")).toBeVisible();
+    const mail = await mailTo(page, "aoife@example.com");
+    expect(mail.text).toMatch(/Only type the code at localhost:\d+/);
+    const code = /Your code is (\d{3}) (\d{3})/.exec(mail.text)!.slice(1).join("");
+    await page.getByLabel("Code").fill(code);
+    await page.getByRole("button", { name: "Sign in" }).click();
+    await expect(page).toHaveURL(`${CLOSED}/leads`); // where they were going
+    await expect(page.getByRole("heading", { level: 1 }).first()).toBeVisible();
+    expect(await sessionCookie(page)).toMatchObject({ httpOnly: true, secure: true, sameSite: "Lax" });
+    expect((await page.context().cookies(CLOSED)).find((c) => c.name === "__Host-cw_attempt")).toBeUndefined();
+    expect((await page.request.get(`${CLOSED}/`, { maxRedirects: 0 })).status()).toBe(200); // signed in: the overview
+    await page.goto(`${CLOSED}/sign-in?next=%2Fleads`); // a signed-in person is sent on
+    await expect(page).toHaveURL(`${CLOSED}/leads`);
+  });
+
+  test("a wrong code is refused and an unknown address looks the same", async ({ page }) => {
+    for (const email of ["ciara@example.com", "nobody@example.com"]) {
+      await page.goto(`${CLOSED}/sign-in`);
+      await page.getByLabel("Email").fill(email);
+      await page.getByRole("button", { name: "Email me a code" }).click();
+      await expect(page.getByRole("heading", { name: "Check your email" })).toBeVisible();
+      await page.getByLabel("Code").fill("000000");
+      await page.getByRole("button", { name: "Sign in" }).click();
+      await expect(page.locator("form").getByRole("alert")).toHaveText("That code did not work. Check it, or ask for a new one.");
+      expect(await sessionCookie(page)).toBeUndefined();
+    }
+  });
+
+  test("the link page shows the masked email, clears the fragment, never redirects, and its button signs in", async ({ page }) => {
+    await page.goto(`${CLOSED}/sign-in`);
+    await page.getByLabel("Email").fill("conor@example.com");
+    await page.getByRole("button", { name: "Email me a code" }).click();
+    await expect(page).toHaveURL(/\/sign-in\/code/);
+    const link = /(http:\/\/localhost:\d+\/sign-in\/link[^\s]*)/.exec((await mailTo(page, "conor@example.com")).text)![1];
+    expect(link).toMatch(/#t=[A-Za-z0-9_-]{43}$/);
+    await page.goto(link);
+    await expect(page.getByRole("heading", { name: "Sign in as co…r@example.com?" })).toBeVisible();
+    expect(page.url()).toBe(`${CLOSED}/sign-in/link`); // the token is out of the address bar, and the page did not redirect
+    expect(await page.evaluate(() => location.hash)).toBe("");
+    await page.reload(); // the link is not in the history either, so nothing is left to open
+    await expect(page.getByRole("heading", { name: "Open the link again" })).toBeVisible();
+    await page.goto("about:blank"); // a new tab, as from Mail: the same address with only a new #t would not load the page again
+    await page.goto(link);
+    await page.getByRole("button", { name: "Sign in" }).click();
+    await expect(page).toHaveURL(`${CLOSED}/`);
+    expect(await sessionCookie(page)).toBeDefined();
+    // signed in, the link page is still just a page
+    const again = await page.request.get(`${CLOSED}/sign-in/link`, { maxRedirects: 0 });
+    expect(again.status()).toBe(200);
+    expect(again.headers()["location"]).toBeUndefined();
+    // and the link was single use
+    await page.context().clearCookies();
+    await page.goto(link);
+    await expect(page.getByRole("heading", { name: "This link has expired" })).toBeVisible();
+  });
+
+  test("/sign-in/link sends its own policy: frame-ancestors none and no analytics", async () => {
+    const api = await http.newContext({ baseURL: CLOSED });
+    const res = await api.get("/sign-in/link", { maxRedirects: 0 });
+    expect(res.status()).toBe(200);
+    const csp = res.headers()["content-security-policy"];
+    expect(csp).toContain("frame-ancestors 'none'");
+    expect(csp).not.toContain("cloudflareinsights");
+    expect(res.headers()["referrer-policy"]).toBe("no-referrer");
+    expect((await api.get("/sign-in", { maxRedirects: 0 })).headers()["content-security-policy"]).not.toContain("cloudflareinsights");
+    expect((await api.get("/sign-in/outbox", { maxRedirects: 0 })).status()).toBe(200); // the run's mail, in an E2E run only
+    await api.dispose();
   });
 });

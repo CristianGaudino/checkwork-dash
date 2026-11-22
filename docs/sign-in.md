@@ -321,8 +321,8 @@ One email carries both. The code is for the device that asked; the link is for w
 - **Checking a code** (`/sign-in/code`): the attempt is found only through the `__Host-cw_attempt` cookie's row, never by an id or email
   in the form. One statement spends a try before anything is compared: `UPDATE sign_in_attempts SET tries = tries + 1 WHERE browser_hash =
   :h AND kind = 'code' AND used_at IS NULL AND expires_at > :now AND tries < 5 RETURNING id, email, code_hmac`. No row back means the code
-  is dead. Then the HMAC of what was typed is compared with `code_hmac` in constant time (`crypto.subtle.timingSafeEqual` in Workers,
-  `node:crypto` in tests). A match marks the row used (`UPDATE ... SET used_at = :now WHERE id = :id AND used_at IS NULL RETURNING`), so
+  is dead. Then the HMAC of what was typed is compared with `code_hmac` in constant time (the equal-length `same()` in `src/lib/cron.ts`, which
+  does the same work however much matches). A match marks the row used (`UPDATE ... SET used_at = :now WHERE id = :id AND used_at IS NULL RETURNING`), so
   two posts at once cannot both sign in.
 - **Single use, and a new code:** a new email to the same address ends that address's earlier code and link. A request that sends
   nothing (over a limit) ends nothing, so the last link the person was sent stays valid.
@@ -506,7 +506,7 @@ code, before a session starts, the check reads `code_locked_until` and `code_fai
 hours from the rows; if any of them says locked or off, the match is refused as a wrong code. A correct guess after the 15th wrong one
 never signs in.
 
-**Spending someone's emails.** Anyone can use up a person's 10 emails a day by asking for codes for their address. That denies them email
+**Spending someone's emails.** Anyone who knows an address can use up its emails for the day (3 in 15 minutes, 10 a day) by asking for codes for it. The person still gets each email, with its working link, and a passkey is the way in that this cannot touch. That denies them email
 sign-in for the rest of the day, except the last link they were sent, which an over-limit request does not end, and only for that link's
 15 minutes: after that they have no working email sign-in until the next day. Their passkey still works. Open question 2 is the lasting answer.
 
