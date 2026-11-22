@@ -40,9 +40,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
   const counts = countByStatus(all);
   const today = dublinDay();
   const due = all.filter((l) => followUpDue(l, today)).length;
-  // New leads waiting past the reply target: counted for the filter, and marked Late on their rows.
-  const lateIds = new Set(filterLeads(all, { q: "", late: true }, today, leadSlaHours).map((l) => l.id));
-  const late = lateIds.size;
+  // New leads waiting past the reply target, counted for the filter.
+  const late = filterLeads(all, { q: "", late: true }, today, leadSlaHours).length;
   const STATUS_ORDER = Object.fromEntries(LEAD_STATUSES.map((s, i) => [s, i]));
   const columns: Column<Lead>[] = [
     {
@@ -75,7 +74,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
           <span title={l.carTitle ?? l.message} className="line-clamp-2">{l.carTitle ? <span className="font-medium">{l.carTitle}</span> : l.message.trim() ? <span className="text-text-2">&ldquo;{l.message.split("\n")[0]}&rdquo;</span> : null}</span>
         </span>
       ),
-      className: "min-w-[14rem] max-w-[20rem]",
+      className: "min-w-[11rem] max-w-[20rem]",
       hide: "sm",
     },
     {
@@ -84,12 +83,14 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
       sort: (l) => STATUS_ORDER[l.status],
       // A new lead waiting past the reply target says so, filled: it is the one to answer now. The badges may wrap, each whole, so the
       // row's Next step fits a laptop card and a phone has no sideways scroll.
-      cell: (l) => (
+      cell: (l) => {
+        const flag = leadFlag(l, leadSlaHours);
+        return (
         <span className="flex flex-col items-start gap-1">
           <span className="inline-flex flex-wrap items-center gap-1.5">
             <LeadStatusBadge status={l.status} type={l.type} />
-            {/* One badge for a lead that cannot wait (leadFlag). Urgent ones sit at the top of the list: urgentFirst pins them. */}
-            {leadFlag(l, leadSlaHours) === "late" ? <Badge tone="bad" strong>Late</Badge> : leadFlag(l, leadSlaHours) === "urgent" && <Badge tone="warn">Urgent</Badge>}
+            {/* One badge for a lead that cannot wait (leadFlag). These sit at the top of the list: urgentFirst pins them. */}
+            {flag === "late" ? <Badge tone="bad" strong>Late</Badge> : flag === "urgent" && <Badge tone="warn">Urgent</Badge>}
           </span>
           {/* The follow-up, when there is one, under the status: one place to look for what to do next. Overdue is red, today amber. */}
           {l.followUpOn && isOpenLead(l) && (
@@ -100,17 +101,18 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
           {/* On a phone the Received column is hidden; when it came in sits here, under its status. */}
           <span className={`text-meta sm:hidden ${l.status === "new" ? "font-medium text-text" : "text-text-2"}`}>{fmtAgo(l.createdAt)}</span>
         </span>
-      ),
+        );
+      },
     },
     { key: "owner", header: "Who has it", hide: "2xl", nowrap: true, sort: (l) => l.assignedTo, cell: (l) => (l.assignedTo ? <span className="inline-flex items-center gap-2"><Avatar name={l.assignedTo} />{l.assignedTo.split(" ")[0]}</span> : <span className="text-text-2">Nobody</span>) },
     { key: "when", header: "Received", sort: (l) => l.createdAt, cell: (l) => <span className={l.status === "new" ? "font-medium" : "text-text-2"}>{fmtAgo(l.createdAt)}</span>, align: "right", nowrap: true, hide: "sm" }, // on a phone it is in the Who column
     // The two things done most from the list: reach them the way they asked, and move it on a step. Above the row's link.
     // Two fixed slots, so the buttons line up from row to row whichever are there.
-    { key: "act", header: "Next step", quietHeader: true, hide: "lg", nowrap: true, cell: (l) => <span className="relative z-10 grid grid-cols-[7.5rem_11.5rem] gap-2"><span>{isOpenLead(l) && <ReachButton lead={l} />}</span><span><NextStatusButton lead={l} /></span></span> },
+    { key: "act", header: "Next step", quietHeader: true, hide: "lg", nowrap: true, cell: (l) => <span className="relative z-10 grid grid-cols-[7.5rem_12.5rem] gap-2"><span>{isOpenLead(l) && <ReachButton lead={l} />}</span><span><NextStatusButton lead={l} /></span></span> },
   ];
   const ordered = sortRows(filterLeads(all, f, today, leadSlaHours), columns, sp, { key: "when", dir: "desc" });
   // Unless a column was chosen, the urgent new ones come first.
-  const sorted = sp.sort ? ordered.rows : urgentFirst(ordered.rows);
+  const sorted = sp.sort ? ordered.rows : urgentFirst(ordered.rows, leadSlaHours);
   const sort = ordered.sort;
   const paged = pageOf(sorted, sp);
   const rows = paged.rows;

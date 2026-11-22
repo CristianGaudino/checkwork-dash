@@ -21,7 +21,7 @@ import { enabledModules } from "@/lib/modules";
 import type { ModuleId } from "@/lib/modules-rules";
 import { setDriveStatusAction } from "@/app/test-drives/actions";
 import { DRIVE_STATUS_LABELS } from "@/lib/admin/drives";
-import { CallButton } from "@/components/admin/LeadActions";
+import { CallButton, ReachButton } from "@/components/admin/LeadActions";
 import { VisitSources } from "@/components/admin/VisitSources";
 import { visitSources } from "@/lib/admin/visit-sources-load";
 
@@ -45,7 +45,7 @@ const GROUPED: Record<string, { noun: string; verb: string; icon: React.ReactNod
 
 // A lead in a line: the car, else the first line of the message.
 const about = (l: Lead) => l.carTitle ?? (l.message.trim().split("\n")[0] || undefined);
-const ReplyButton = ({ id, name }: { id: string; name: string }) => (
+const OpenLeadButton = ({ id, name }: { id: string; name: string }) => (
   <Link href={`/leads/${id}`} aria-label={`Open ${name}'s lead`} className={rowButton}>
     Open
   </Link>
@@ -89,7 +89,7 @@ export default async function Page() {
       case "slow":
         return [
           ...o.late.slice(0, EACH).map((l) => (
-            <Task key={`slow-${l.id}`} urgency="now" icon={<InboxIcon />} title={`Reply to ${l.name}`} detail={[about(l), `came in ${fmtAgo(l.createdAt)}`].filter(Boolean).join(" · ")} action={<><CallButton phone={l.phone} name={l.name} /><ReplyButton id={l.id} name={l.name} /></>} />
+            <Task key={`slow-${l.id}`} urgency="now" icon={<InboxIcon />} title={`Reply to ${l.name}`} detail={[about(l), `came in ${fmtAgo(l.createdAt)}`].filter(Boolean).join(" · ")} action={<><ReachButton lead={l} /><OpenLeadButton id={l.id} name={l.name} /></>} />
           )),
           ...rest(a.key, o.late.length, "lead past your reply target", "leads past your reply target", a.href, "now"),
         ];
@@ -98,7 +98,7 @@ export default async function Page() {
           ...o.due.slice(0, EACH).map((l) => {
             const late = l.followUpOn! < today;
             return (
-              <Task key={`follow-${l.id}`} urgency={late ? "now" : "soon"} icon={<PhoneIcon />} title={`Follow up with ${l.name}`} detail={[late ? `Was due ${fmtDay(l.followUpOn!, "dayMonth")}` : "Due today", about(l)].filter(Boolean).join(" · ")} action={<><CallButton phone={l.phone} name={l.name} /><Link href={`/leads/${l.id}`} aria-label={`Open ${l.name}'s lead`} className={rowButton}>Open</Link></>} />
+              <Task key={`follow-${l.id}`} urgency={late ? "now" : "soon"} icon={<PhoneIcon />} title={`Follow up with ${l.name}`} detail={[late ? `Was due ${fmtDay(l.followUpOn!, "dayMonth")}` : "Due today", about(l)].filter(Boolean).join(" · ")} action={<><CallButton phone={l.phone} name={l.name} /><OpenLeadButton id={l.id} name={l.name} /></>} />
             );
           }),
           ...rest(a.key, o.due.length, "follow-up due", "follow-ups due", a.href, a.urgency),
@@ -219,7 +219,7 @@ export default async function Page() {
                   <Link href={`/leads/${l.id}`} aria-label={l.name} className="absolute inset-0" />
                   <span className="relative z-10 flex shrink-0 gap-2">
                     <CallButton phone={l.phone} name={l.name} />
-                    <ReplyButton id={l.id} name={l.name} />
+                    <OpenLeadButton id={l.id} name={l.name} />
                   </span>
                 </li>
               ))}

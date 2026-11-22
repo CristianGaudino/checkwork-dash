@@ -18,8 +18,8 @@ const BRIEF_SAID = { limit: `The monthly AI limit is reached.${SHOW_PRICING ? ""
 
 // "Write with AI" for any text box (#179): a first draft from the record's facts, then buttons that rewrite it, Undo for one step back, and a
 // label so AI text is never taken for the dealer's own. The box stays the host's own and stays editable. `request` is read when a button is
-// pressed (the car form's boxes may have changed). Hidden entirely when the dealer has no AI module.
-export function AIWriter({ task, request, text, onText, format }: { task: Task; request: () => WriteRequest | null; text: string; onText: (text: string, subject?: string) => void; format?: PostFormat }) {
+// pressed (the car form's boxes may have changed). Hidden entirely when the dealer has no AI module. `onStart`: a button was pressed.
+export function AIWriter({ task, request, text, onText, onStart, format }: { task: Task; request: () => WriteRequest | null; text: string; onText: (text: string, subject?: string) => void; onStart?: () => void; format?: PostFormat }) {
   const has = useModules().has("ai");
   const [pending, start] = useTransition();
   const [said, setSaid] = useState("");
@@ -28,6 +28,7 @@ export function AIWriter({ task, request, text, onText, format }: { task: Task; 
   if (!has) return null;
 
   const run = (adjust?: Adjust) => {
+    onStart?.();
     const req = request();
     if (!req) return setSaid("Fill in the car's details first.");
     setSaid("");
@@ -86,7 +87,8 @@ export function AIWriter({ task, request, text, onText, format }: { task: Task; 
 
 // A text box with the writer under it, for the places that have no state of their own (a form that posts the box by `name`). `request` is
 // the ask, or (from a client component only) a function that gets the box, so the car form can read its sibling fields. `copy` adds a Copy button (a string names it), for a draft that is sent from somewhere else.
-// `folded`: only Write with AI until it has written, then the box (a lead's reply, so a phone is not handed a big empty box).
+// `folded`: only Write with AI until it is pressed, then the box, focused (a lead's reply, so a phone is not handed a big empty box). It
+// opens on the press, not on success, so a failed write or the AI limit still leaves a box to type in.
 export function AITextarea({ id, name, label, defaultValue = "", rows = 5, maxLength, task, request, onSubject, copy = false, folded = false }: { id?: string; name?: string; label: string; defaultValue?: string; rows?: number; maxLength?: number; task: Task; request: WriteRequest | ((box: HTMLTextAreaElement | null) => WriteRequest | null); onSubject?: (s: string) => void; copy?: boolean | string; folded?: boolean }) {
   const box = useRef<HTMLTextAreaElement>(null);
   const own = useId();
@@ -107,10 +109,10 @@ export function AITextarea({ id, name, label, defaultValue = "", rows = 5, maxLe
       {open && (
         <>
           <label className="sr-only" htmlFor={id}>{label}</label>
-          <textarea ref={box} id={id} name={name} rows={rows} maxLength={maxLength} value={text} onChange={(e) => { setText(e.target.value); setCopied(false); setCopyError(""); }} className={`${adminInput} h-auto py-2`} />
+          <textarea ref={box} id={id} name={name} rows={rows} maxLength={maxLength} autoFocus={folded} value={text} onChange={(e) => { setText(e.target.value); setCopied(false); setCopyError(""); }} className={`${adminInput} h-auto py-2`} />
         </>
       )}
-      <AIWriter task={task} text={text} request={() => (typeof request === "function" ? request(box.current) : request)} onText={(t, subject) => { setText(t); setOpen(true); setCopied(false); setCopyError(""); if (subject) onSubject?.(subject); }} />
+      <AIWriter task={task} text={text} request={() => (typeof request === "function" ? request(box.current) : request)} onStart={() => setOpen(true)} onText={(t, subject) => { setText(t); setCopied(false); setCopyError(""); if (subject) onSubject?.(subject); }} />
       {copy && text.trim() && (
         <>
           <button type="button" onClick={copyText} className={`${adminButtonQuiet} self-start`}>

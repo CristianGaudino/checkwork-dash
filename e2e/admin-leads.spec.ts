@@ -73,3 +73,16 @@ test("a phone lead's main button is Call, and Book a test drive is not filled", 
   await expect(page.getByRole("link", { name: "Call", exact: true })).toHaveClass(filled);
   await expect(page.getByRole("link", { name: "Book a test drive" })).not.toHaveClass(filled);
 });
+
+test("Draft a reply opens on the press, so a write that fails still leaves a box to type in", async ({ page }) => {
+  await page.goto("/leads/lead-1000");
+  const box = page.getByRole("textbox", { name: "Reply draft" });
+  await expect(box).toHaveCount(0);
+  // The write never reaches the server (a server action is a POST to the page), as when the AI is down.
+  await page.route("**/leads/lead-1000", (r) => (r.request().method() === "POST" ? r.abort() : r.continue()));
+  await page.getByRole("button", { name: "Write with AI" }).click();
+  await expect(page.getByText(/^Couldn't write that/)).toBeVisible();
+  await expect(box).toBeFocused();
+  await box.fill("Hi, it is still here.");
+  await expect(box).toHaveValue("Hi, it is still here.");
+});

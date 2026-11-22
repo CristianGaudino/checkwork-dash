@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 import type { Lead } from "./collections";
-import { SALES_LEAD_TYPES, countByStatus, filterLeads, isSalesLead, leadFlag, leadMain, openWarrantyRequests, parseLeadFilter, replyVia } from "./leads";
+import { SALES_LEAD_TYPES, countByStatus, filterLeads, isSalesLead, leadFlag, leadMain, openWarrantyRequests, parseLeadFilter, replyVia, urgentFirst } from "./leads";
 
 const lead = (id: string, o: Partial<Lead> = {}): Lead => ({ id, type: "enquiry", status: "new", name: id, email: `${id}@example.com`, phone: "", message: "", source: "Website", notes: [], createdAt: Number(id.replace(/\D/g, "")) || 0, ...o });
 
@@ -73,5 +73,13 @@ describe("the lateness badge", () => {
     expect(leadFlag(lead("a", { createdAt: 0, ...hot }), 24, 1 * H)).toBe("urgent");
     expect(leadFlag(lead("a", { createdAt: 0 }), 24, 1 * H)).toBeUndefined();
     expect(leadFlag(lead("a", { createdAt: 0, status: "contacted", ...hot }), 24, 30 * H)).toBeUndefined();
+  });
+});
+
+describe("the list's order", () => {
+  it("pins late and urgent new leads first, the rest keep their order", () => {
+    const H = 3_600_000;
+    const leads = [lead("a1", { createdAt: 29 * H }), lead("a2", { createdAt: 0 }), lead("a3", { createdAt: 29 * H, topic: "buying", answers: { timing: "this-week" } }), lead("a4", { createdAt: 29 * H })];
+    expect(urgentFirst(leads, 24, 30 * H).map((l) => l.id)).toEqual(["a2", "a3", "a1", "a4"]);
   });
 });

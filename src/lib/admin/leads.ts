@@ -59,7 +59,11 @@ export function countByStatus(leads: Lead[]): Record<LeadStatus, number> {
 
 // New leads that need an answer first: "this week" ("can't be driven" is a car bought here, filed in Aftersales). The rest keep their order.
 export const isHotLead = (l: Lead) => l.status === "new" && Boolean(l.topic) && isUrgent(l.answers ?? {});
-export const urgentFirst = (leads: Lead[]): Lead[] => [...leads.filter(isHotLead), ...leads.filter((l) => !isHotLead(l))];
+// Late or urgent (leadFlag) first, the rest keep their order.
+export function urgentFirst(leads: Lead[], slaHours: number, now = Date.now()): Lead[] {
+  const pinned = (l: Lead) => leadFlag(l, slaHours, now) !== undefined;
+  return [...leads.filter(pinned), ...leads.filter((l) => !pinned(l))];
+}
 
 // One badge for a new lead that cannot wait, the same on every list: Late once past the reply target (it is overdue now), else Urgent when
 // they said this week. Never both.
