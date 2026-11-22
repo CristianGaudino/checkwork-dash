@@ -57,7 +57,6 @@ export function mirrorOf(row: LeadRow, emailed = true, service = true, photos = 
   }
   const drive = row.type === "test_drive" && row.carSlug && row.carTitle ? { id, name: row.name, email: row.email ?? "", phone: row.phone ?? "", carSlug: row.carSlug, carTitle: row.carTitle, startsAt: dublinMs(String(row.details.driveDate), String(row.details.driveTime)), status: "requested" as const, notes: row.message ?? "", createdAt: at } : undefined;
   const verdict = arrivalSpam(row, spam);
-  const details = detailsOf(row.type, row.details);
   const lead: Lead = {
     id,
     type: row.type === "trade_in" && row.details.intent === "sell" ? "sell" : row.type === "general" ? pageType(row.sourcePath, row.details.topic, service) : LEAD_TYPE[row.type],
@@ -68,7 +67,7 @@ export function mirrorOf(row: LeadRow, emailed = true, service = true, photos = 
     email: row.email ?? "",
     phone: row.phone ?? "",
     message: messageOf(row),
-    ...(Object.keys(details).length > 0 && { details }),
+    details: detailsOf(row.type, row.details), // always, even empty: it marks a lead whose message is only their words (readLead)
     source: "Website",
     carSlug: row.carSlug ?? undefined,
     carTitle: row.carTitle ?? undefined,

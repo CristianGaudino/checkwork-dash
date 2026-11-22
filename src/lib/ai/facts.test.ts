@@ -16,7 +16,7 @@ describe("buildFacts for a lead reply", () => {
   });
   it("gives the buyer's words as the message and the form's answers apart, as it reads an old lead too (#59)", async () => {
     const lead = (await leadsStore.list())[0]!;
-    await leadsStore.put({ ...lead, id: "lead-answers", message: "Finance: PCP. Deposit: 3000\n\nCall me on 087 123 4567 please", details: undefined, topic: undefined, answers: undefined });
+    await leadsStore.put({ ...lead, id: "lead-answers", source: "Website", message: "Finance: PCP. Deposit: 3000\n\nCall me on 087 123 4567 please", details: undefined, topic: undefined, answers: undefined });
     const f = (await buildFacts({ task: "leadReply", leadId: "lead-answers" }, "D", ""))!.facts as import("./tasks").FactsOf["leadReply"];
     expect(f.details).toEqual({ Finance: "PCP", Deposit: "€3,000" });
     expect(f.message).not.toMatch(/Finance:|087 123 4567/);

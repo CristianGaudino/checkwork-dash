@@ -111,14 +111,14 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
             </span>
           )}
           {l.status === "closed" && l.closedReason && <span className="text-meta text-text-2">{l.closedReason}</span>}
-          {/* On a phone the Received column is hidden; when it came in sits here, under its status. */}
-          <span className={`text-meta sm:hidden ${l.status === "new" ? "font-medium text-text" : "text-text-2"}`}>{fmtAgo(l.createdAt)}</span>
+          {/* Below 2xl the Received column is hidden, so About has room; when it came in sits here, under its status. */}
+          <span className={`text-meta 2xl:hidden ${l.status === "new" ? "font-medium text-text" : "text-text-2"}`}>{fmtAgo(l.createdAt)}</span>
         </span>
         );
       },
     },
     { key: "owner", header: "Who has it", hide: "2xl", nowrap: true, sort: (l) => l.assignedTo, cell: (l) => (l.assignedTo ? <span className="inline-flex items-center gap-2"><Avatar name={l.assignedTo} />{l.assignedTo.split(" ")[0]}</span> : <span className="text-text-2">Nobody</span>) },
-    { key: "when", header: "Received", sort: (l) => l.createdAt, cell: (l) => <span className={l.status === "new" ? "font-medium" : "text-text-2"}>{fmtAgo(l.createdAt)}</span>, align: "right", nowrap: true, hide: "sm" }, // on a phone it is in the Who column
+    { key: "when", header: "Received", sort: (l) => l.createdAt, cell: (l) => <span className={l.status === "new" ? "font-medium" : "text-text-2"}>{fmtAgo(l.createdAt)}</span>, align: "right", nowrap: true, hide: "2xl" }, // below 2xl it is in the Status column
     // The two things done most from the list: reach them the way they asked, and move it on a step. Above the row's link.
     // Two fixed slots, so the buttons line up from row to row whichever are there.
     { key: "act", header: "Next step", quietHeader: true, hide: "lg", nowrap: true, cell: (l) => <span className="relative z-10 grid grid-cols-[7.5rem_12.5rem] gap-2"><span>{isOpenLead(l) && <ReachButton lead={l} />}</span><span>{l.status === "spam" ? <SpamButton lead={l} to="no" /> : <NextStatusButton lead={l} />}</span></span> },

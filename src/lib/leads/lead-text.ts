@@ -51,12 +51,13 @@ export function splitOldMessage(message: string): { text: string; given: [key: s
   return { text: rest, given: pairs.map((m) => [KEY_OF[m![1]!]!, show(KEY_OF[m![1]!]!, m![2]!.replace(/\.$/, ""))]) };
 }
 
-type LeadLike = { message: string; details?: Facts; topic?: string; answers?: Record<string, string>; channel?: string; reg?: string; whatsappOptIn?: boolean };
+type LeadLike = { message: string; source?: string; details?: Facts; topic?: string; answers?: Record<string, string>; channel?: string; reg?: string; whatsappOptIn?: boolean };
 
 // What a lead shows: their words, and the list of answers not already shown as its tags, source or reg. How they want to be reached and
 // when are answers, but no tag says them, so the list does.
 export function readLead(l: LeadLike): { text: string; facts: Facts } {
-  const old = splitOldMessage(l.message);
+  // Only a website lead stored before #59 (no details) has the glued text: any other message is their words, even "About: the blue Golf".
+  const old = l.details === undefined && l.source === "Website" ? splitOldMessage(l.message) : { text: l.message, given: [] };
   const shown = (k: string) => (k === "topic" ? l.topic : k === "channel" ? l.channel : k === "reg" ? l.reg : k === "whatsappOptIn" ? l.whatsappOptIn : k === "alertKind" || k === "intent" || l.answers?.[k]);
   const facts: Facts = { ...Object.fromEntries(old.given.filter(([k]) => !shown(k)).map(([k, v]) => [k === "drive" ? DRIVE : DETAIL_LABELS[k]!, v])), ...l.details };
   for (const k of ["contactVia", "contactWhen"] as const) if (l.answers?.[k]) facts[DETAIL_LABELS[k]!] = readable(k, l.answers[k]);

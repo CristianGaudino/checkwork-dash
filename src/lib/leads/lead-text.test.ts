@@ -26,11 +26,15 @@ describe("splitOldMessage", () => {
 
 describe("readLead", () => {
   it("shows an old lead's words, and only the answers no tag or source already shows", () => {
-    const old = { message: "About: Buying a car. Hoping to buy: This month. Budget up to: 15000. Came from: Google\n\nHi there", topic: "buying", answers: { timing: "this-month", contactWhen: "evening" }, channel: "Google" };
+    const old = { source: "Website", message: "About: Buying a car. Hoping to buy: This month. Budget up to: 15000. Came from: Google\n\nHi there", topic: "buying", answers: { timing: "this-month", contactWhen: "evening" }, channel: "Google" };
     expect(readLead(old)).toEqual({ text: "Hi there", facts: { "Budget up to": "€15,000", "Best time": "Evening" } });
   });
   it("keeps an old answer the lead holds nowhere else", () => {
-    expect(readLead({ message: "Came from: Google. Hoping to buy: This week" }).facts).toEqual({ "Hoping to buy": "This week", "Came from": "Google" });
+    expect(readLead({ source: "Website", message: "Came from: Google. Hoping to buy: This week" }).facts).toEqual({ "Hoping to buy": "This week", "Came from": "Google" });
+  });
+  it("keeps a new lead's words in full, even when they start like a label", () => {
+    expect(readLead({ source: "Website", message: "About: the blue Golf", details: {}, topic: "buying", answers: {} })).toEqual({ text: "About: the blue Golf", facts: {} });
+    expect(readLead({ source: "Phone", message: "Registration: 191-D-1234 for the trade-in" }).text).toBe("Registration: 191-D-1234 for the trade-in");
   });
   it("shows a new lead's words and stored details as they are, with how to reach them", () => {
     expect(readLead({ message: "Hello", details: { Deposit: "€2,000" }, topic: "finance", answers: { contactVia: "whatsapp" } })).toEqual({ text: "Hello", facts: { Deposit: "€2,000", "Reach by": "WhatsApp" } });

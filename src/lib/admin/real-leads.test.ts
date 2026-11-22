@@ -66,7 +66,7 @@ describe("mirrorOf", () => {
     expect(JSON.stringify(m.lead)).not.toMatch(/Hoping to buy|Came from|About:/);
   });
   it("gives a lead no details when every answer shows elsewhere", () => {
-    expect(mirrorOf(row({ details: { channel: "Google" } })).lead).not.toHaveProperty("details");
+    expect(mirrorOf(row({ details: { channel: "Google" } })).lead?.details).toEqual({});
   });
 });
 
