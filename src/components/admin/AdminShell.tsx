@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { AdminNav } from "@/components/admin/AdminNav";
 import { NotificationBell } from "@/components/admin/NotificationBell";
 import { Density } from "@/components/admin/density";
@@ -41,17 +42,20 @@ export function AdminShell({ title, profile, subtitle, nav, navLabel, openGroups
             {/* The dealer's own logo (the public site's, light and dark), in a box that keeps its shape: a wide wordmark or a square crest.
                 Its name is the logo's text for screen readers and shows on hover, so a long name is never cut short. */}
             <div title={title} className={`flex min-w-0 flex-1 flex-col items-start gap-1 ${rail ? "lg:hidden" : ""}`}>
-              <Logo name={title} logo={profile.logo} className="h-7 w-auto max-w-[10.5rem] object-contain object-left lg:h-8" eager />
+              <Link href="/" aria-label={`${title}, go to the overview`} className="inline-flex max-w-full relative rounded-control outline-offset-2 focus-visible:outline-2 focus-visible:outline-text before:absolute before:-inset-x-1 before:-inset-y-2 before:content-['']">
+                <Logo name={title} logo={profile.logo} className="h-7 w-auto max-w-[10.5rem] object-contain object-left lg:h-8" eager />
+              </Link>
               <p className="text-meta text-text-2 max-lg:sr-only">{subtitle}</p>
             </div>
             {/* The rail: the dealer's square mark when they have one (their profile), else their initials, so the frame still says whose it is. */}
             {profile.mark ? (
-              <img src={profile.mark} alt={title} title={title} width={40} height={40} className={`hidden size-10 object-contain ${rail ? "lg:block" : ""}`} />
+              <Link href="/" aria-label={`${title}, go to the overview`} title={title} className={`hidden relative rounded-control outline-offset-2 focus-visible:outline-2 focus-visible:outline-text before:absolute before:-inset-x-1 before:-inset-y-2 before:content-[''] ${rail ? "lg:block" : ""}`}>
+                <img src={profile.mark} alt="" width={40} height={40} className="size-10 object-contain" />
+              </Link>
             ) : (
-              <span title={title} className={`hidden size-10 items-center justify-center rounded-control bg-text font-display text-meta font-semibold text-ink ${rail ? "lg:inline-flex" : ""}`}>
+              <Link href="/" aria-label={`${title}, go to the overview`} title={title} className={`hidden size-10 items-center justify-center rounded-control bg-text font-display text-meta font-semibold text-ink outline-offset-2 focus-visible:outline-2 focus-visible:outline-text ${rail ? "lg:inline-flex" : ""}`}>
                 <span aria-hidden>{initials}</span>
-                <span className="sr-only">{title}</span>
-              </span>
+              </Link>
             )}
             <NotificationBell />
           </div>
