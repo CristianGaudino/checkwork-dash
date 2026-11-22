@@ -1,18 +1,24 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { card } from "@/components/ui";
+import { safeNext } from "@/lib/auth/gate";
+import { currentSession } from "@/lib/auth/session";
 import { signInOpen } from "@/lib/staff";
+import { EmailForm } from "./EmailForm";
 
 export const metadata: Metadata = { title: "Sign in" };
 
-// Where a signed-out page goes under our sign-in (docs/sign-in.md, section 4). The form comes in steps 4 and 5; until then this lets no one
-// in. Not there at all (404) while SIGN_IN is `access`, behind Access in `both`, and linked from nowhere.
-export default async function SignInPage() {
+// Where a signed-out page goes under our sign-in (docs/sign-in.md, section 4). Not there at all (404) while SIGN_IN is `access`, behind Access
+// in `both`, linked from nowhere. Someone with a live session goes on to `next`; a dead cookie is left alone (no loop).
+export default async function SignInPage({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
   if (!(await signInOpen())) notFound();
+  const next = safeNext((await searchParams).next);
+  if (await currentSession()) redirect(next);
   return (
-    <main className="flex flex-1 flex-col items-center px-4 py-16">
-      <div className="flex w-full max-w-sm flex-col gap-4">
+    <main className="flex flex-1 flex-col items-center px-4 py-12 sm:py-20">
+      <div className={`${card} flex w-full max-w-sm flex-col gap-5 p-6`}>
         <h1 className="text-display font-bold">Sign in to Checkwork</h1>
-        <p className="text-body text-text-2">Signing in here is not open yet.</p>
+        <EmailForm next={next} />
       </div>
     </main>
   );

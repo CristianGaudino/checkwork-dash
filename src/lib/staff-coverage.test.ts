@@ -16,7 +16,10 @@ describe("the dashboard's server actions", () => {
       expect(src, "an action exported another way (export const, export default, export {...}) could skip the check").not.toMatch(/^export (const|let|var|default|\{)/m);
       const bodies = [...src.matchAll(/^export async function (\w+)[\s\S]*?\{\r?\n(.*)/gm)];
       expect(bodies.length).toBeGreaterThan(0);
-      for (const [, name, first] of bodies) expect(first, name).toMatch(/await requireStaff\((?:"choosing")?\)/); // "choosing": the dealer chooser only
+      // "choosing": the dealer chooser only. Our sign-in's actions run signed out, so they open with guard(): 404 while SIGN_IN is `access`,
+      // then the Origin and per-IP checks (src/app/sign-in/actions.ts).
+      const required = f === join("src", "app", "sign-in", "actions.ts") ? /await guard\("\w+"\)/ : /await requireStaff\((?:"choosing")?\)/;
+      for (const [, name, first] of bodies) expect(first, name).toMatch(required);
     });
   }
 });

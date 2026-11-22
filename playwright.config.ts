@@ -10,7 +10,7 @@ const SERVER_ENV = { E2E_FAKE_BACKENDS: "1", SIGN_IN: "", UNSUBSCRIBE_SECRET: "e
 const PUSH_PORT = Number(process.env.PORT ?? 3000) + 1;
 const PUSH_URL = `http://localhost:${PUSH_PORT}`;
 // A third server of the same build, closed (docs/sign-in.md, section 9): E2E_SIGN_IN=1 turns the open shortcut off (it can only close the
-// app, never open it) and SIGN_IN=own puts our sign-in in front, for e2e/sign-in.spec.ts. Its APP_URL is its own, for the Origin checks.
+// app, never open it) and SIGN_IN=own puts our sign-in in front (its mail is the in-memory outbox, src/lib/auth/mail.ts), for e2e/sign-in.spec.ts. Its APP_URL is its own, for the Origin checks.
 const SIGN_IN_PORT = Number(process.env.PORT ?? 3000) + 2;
 const SIGN_IN_URL = `http://localhost:${SIGN_IN_PORT}`;
 // And a fourth, closed the same way with SIGN_IN unset (Access alone, as production today), to pin that nothing of our sign-in is reachable
@@ -44,7 +44,7 @@ export default defineConfig({
     : [
         { command: "npm start", url: baseURL, reuseExistingServer: false, env: { ...SERVER_ENV } },
         { command: "npm start", url: PUSH_URL, reuseExistingServer: false, env: { ...SERVER_ENV, PORT: String(PUSH_PORT), ...vapidForRun() } },
-        { command: "npm start", url: `${SIGN_IN_URL}/sign-in`, reuseExistingServer: false, env: { ...SERVER_ENV, PORT: String(SIGN_IN_PORT), E2E_SIGN_IN: "1", SIGN_IN: "own", APP_URL: SIGN_IN_URL } },
+        { command: "npm start", url: `${SIGN_IN_URL}/sign-in`, reuseExistingServer: false, env: { ...SERVER_ENV, PORT: String(SIGN_IN_PORT), E2E_SIGN_IN: "1", SIGN_IN: "own", APP_URL: SIGN_IN_URL, SIGN_IN_SECRET: "e2e-sign-in-secret-not-a-real-one-0123456789" } },
         { command: "npm start", url: `http://localhost:${ACCESS_PORT}/icon.svg`, reuseExistingServer: false, env: { ...SERVER_ENV, PORT: String(ACCESS_PORT), E2E_SIGN_IN: "1" } },
       ],
 });

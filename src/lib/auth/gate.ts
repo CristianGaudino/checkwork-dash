@@ -34,7 +34,11 @@ export const signInPath = (next: unknown) => `/sign-in?next=${encodeURIComponent
 
 // A POST that can act without a session, or that a route handler takes (Next checks no Origin there), must come from this app's own pages:
 // Origin present and equal to APP_URL's. Next lets a POST with no Origin through, and the other checkwork.ie sites are the same site.
-export function sameOrigin(req: Request, app: string = appUrl()): boolean {
-  const origin = req.headers.get("origin");
+export function originOk(origin: string | null, app: string = appUrl()): boolean {
   return Boolean(origin) && origin === new URL(app).origin; // "null" and anything malformed never equal a real origin
 }
+export const sameOrigin = (req: Request, app?: string) => originOk(req.headers.get("origin"), app);
+
+// The cookie that ties a code to the browser that asked for it (docs/sign-in.md, section 3). Strict: only our own pages send it.
+export const ATTEMPT_COOKIE = "__Host-cw_attempt";
+export const attemptCookie = (value: string) => ({ name: ATTEMPT_COOKIE, value, httpOnly: true, secure: true, sameSite: "strict" as const, path: "/", maxAge: 15 * 60 });
