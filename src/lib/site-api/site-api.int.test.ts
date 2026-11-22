@@ -147,7 +147,14 @@ describe("POST /api/site/v1/leads", () => {
     const limit = vi.fn(async () => ({ success: false }));
     env.SITE_LIMITER = { limit };
     expect((await send(keyA, body())).status).toBe(429);
-    expect(limit).toHaveBeenCalledWith({ key: (await dealerOfSiteKey(keyA))!.keyId }); // per key, never the key itself
+    expect(limit).toHaveBeenCalledWith({ key: `${(await dealerOfSiteKey(keyA))!.keyId}:leads` }); // per key and route, never the key itself
+  });
+
+  it("limits each route on its own: a drives flood does not use up the leads'", async () => {
+    const { keyId } = (await dealerOfSiteKey(keyA))!;
+    env.SITE_LIMITER = { limit: vi.fn(async ({ key }: { key: string }) => ({ success: key !== `${keyId}:drives` })) };
+    expect((await TAKEN(new Request("https://x.test/api/site/v1/drives/taken?carId=1", { headers: { Authorization: `Bearer ${keyA}` } }))).status).toBe(429);
+    expect((await send(keyA, body())).status).toBe(201);
   });
 
   const JOURNEY = { v: 1, minutes: 14, cars: [{ id: "4508173", views: 3 }], searches: [{ make: "toyota", body: "suv", priceBand: "20k-30k" }], tools: { finance: { monthlyEur: 320 }, saved: 2 } };

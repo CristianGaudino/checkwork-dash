@@ -1,23 +1,25 @@
 import "server-only";
 import { getSettings, drivesStore } from "@/lib/admin/collections";
-import { slotState } from "@/lib/admin/slots";
 import { slugId } from "@/lib/admin/stock-admin-pure";
 import { isOpenDrive } from "@/lib/admin/drives";
 import { dublinDateTime } from "@/lib/admin/format";
-import { driveDays, driveTimes } from "@/lib/leads/constants";
-import { dealerProfile } from "@/lib/tenancy/current";
+import { HOUR } from "@/lib/time";
 import type { Answer } from "./request";
 
-// GET /api/site/v1/drives/taken?carId=<digits>: the slot starts on the website's bookable days that the dashboard's own slot rule (slotState,
-// the same one the desk's picker uses) marks taken for that car, from its open bookings matched by car id. Times only, never a name or any
+// GET /api/site/v1/drives/taken?carId=<digits>: the slot starts (every :00 and :30) within the slot length of an open booking of that car, matched by car id; the same window clashes() uses. Times only, never a name or any
 // other detail of a booking. A car id that matches nothing gets an empty list, so the answer does not say whether a car exists.
 export async function takenTimes(carId: string, now = Date.now()): Promise<string[]> {
-  const hours = (await dealerProfile()).hours;
   const windowMin = (await getSettings()).driveSlotMinutes;
-  const taken = (await drivesStore.list()).filter((d) => isOpenDrive(d) && slugId(d.carSlug) === carId).map((d) => dublinDateTime(d.startsAt));
-  if (!taken.length) return [];
-  const stamp = dublinDateTime(now);
-  return driveDays(hours, new Date(now)).flatMap((day) => driveTimes(day, hours).filter((t) => slotState(day, t, taken, windowMin, stamp) === "taken").map((t) => `${day} ${t}`));
+  const open = (await drivesStore.list()).filter((d) => d.startsAt > now - HOUR && isOpenDrive(d) && slugId(d.carSlug) === carId);
+  // Every half hour within the slot of each booking, on its day: no opening hours in it, so the website's hours need not match ours.
+  const out = new Set<string>();
+  for (const d of open) {
+    const [day, t] = dublinDateTime(d.startsAt).split(" ");
+    const mid = Number(t.slice(0, 2)) * 60 + Number(t.slice(3));
+    for (let m = Math.floor((mid - windowMin) / 30 + 1) * 30; m < mid + windowMin; m += 30)
+      if (m >= 0 && m < 1440 && Math.abs(m - mid) < windowMin) out.add(`${day} ${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`);
+  }
+  return [...out].sort();
 }
 
 export async function takenAnswer(url: URL): Promise<Answer> {

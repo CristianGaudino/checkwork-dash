@@ -90,13 +90,13 @@ Each car's `photos` are links the website can put straight in an `<img>` (next s
 
 ## `GET /api/site/v1/drives/taken?carId=<1-12 digits>`
 
-Same key, same rate limit, same errors as the stock read. Answers 200 `{"times":["YYYY-MM-DD HH:MM", ...]}` (Irish time): every slot start on
-the website's bookable days (`driveDays` and `driveTimes` in `src/lib/leads/constants.ts`, the dealer's opening hours) that the dashboard's
-own slot rule (`slotState` in `src/lib/admin/slots.ts`, the dealer's drive slot length) marks taken for that car, from open bookings
-(requested or confirmed) matched by car id (`slugId`), so a booking made under an old slug still counts. Only times, never a name or any
-booking detail. A car id that matches nothing gets `{"times":[]}`, so the answer does not say whether a car exists. A missing or malformed
-`carId` gets 400 with no body, as a malformed lead does. `Cache-Control: no-store`. The website's form hides these times (#72); a double
-booking that still gets through is caught here as before ("Clashes with another booking for this car").
+Same key and errors as the stock read; the rate limit (60 a minute) is kept per key and route, so drives reads never use up the leads'. Answers 200
+`{"times":["YYYY-MM-DD HH:MM", ...]}` (Irish time): for each open booking (requested or confirmed) of that car, matched by car id (`slugId`), so one
+made under an old slug still counts, that has not finished (`startsAt` within the last hour or later), every :00 and :30 slot start on its day
+within the dealer's drive slot length of it (the window `clashes` uses). It does not depend on opening hours, so the website's hours need not
+match the dashboard's. Only times, never a name or any booking detail. A car id that matches nothing gets `{"times":[]}`, so the answer does not
+say whether a car exists. A missing or malformed `carId` gets 400 with no body, as a malformed lead does. `Cache-Control: no-store`. The website's
+form hides these times (#72); a double booking that still gets through is caught here as before ("Clashes with another booking for this car").
 
 ## Car photos (`GET /api/site/v1/photos/<dealer>/<key>?sig=<signature>`)
 
