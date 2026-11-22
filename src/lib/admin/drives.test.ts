@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { DEMO_PROFILE } from "@/lib/tenancy/profile";
 
 vi.mock("server-only", () => ({}));
-const { DRIVE_NEXT, clashes, filterDrives, parseDriveStatus, seededSlot, settleSeededDrive, slotData, waitingDrives } = await import("./drives");
+const { DRIVE_NEXT, clashes, drivePhoneError, filterDrives, parseDriveStatus, seededSlot, settleSeededDrive, slotData, waitingDrives } = await import("./drives");
 const { demoDrives } = await import("./collections");
 const { dublinDateTime } = await import("./format");
 const { inDriveHours } = await import("@/lib/leads/constants");
@@ -62,6 +62,12 @@ describe("test drive agenda", () => {
     expect(DRIVE_NEXT.requested?.map(([s]) => s)).toEqual(["confirmed", "cancelled"]);
     expect(DRIVE_NEXT.confirmed?.map(([s]) => s)).toEqual(["completed", "no-show", "cancelled"]);
     expect(DRIVE_NEXT.completed).toBeUndefined();
+  });
+  it("a phone: missing, typed but not one we can call, or fine", () => {
+    expect(drivePhoneError("  ")).toBe("Enter a phone number");
+    expect(drivePhoneError("087 12")).toBe("Enter a valid phone number");
+    expect(drivePhoneError("call me")).toBe("Enter a valid phone number");
+    expect(drivePhoneError(" 087 123 4567 ")).toBeUndefined();
   });
   it("car=gone keeps the open bookings on a car no longer for sale", () => {
     const list = [drive("open", at(12, 9)), drive("over", at(12, 10), { status: "completed" }), drive("other", at(12, 11), { carSlug: "car-2" })];

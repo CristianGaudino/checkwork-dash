@@ -1,6 +1,6 @@
 import type { TestDrive } from "./collections";
 import { HOUR } from "@/lib/time";
-import { TEST_DRIVE, driveTimes } from "@/lib/leads/constants";
+import { TEST_DRIVE, driveTimes, phoneError } from "@/lib/leads/constants";
 import { DEMO_PROFILE, type Hours } from "@/lib/tenancy/profile";
 import { addDays, addMonths, dublinDateTime, dublinDay, dublinMs } from "./format";
 import { slugId } from "./stock-admin-pure";
@@ -32,6 +32,8 @@ export const DRIVE_STATUS_LABELS: Record<DriveStatus, string> = { requested: "Re
 
 // The desk booking's limits: the form shows them and the server checks the same numbers.
 export const DRIVE_LIMITS = { name: 80, phone: 30, notes: 300 } as const;
+// A booking's phone, for the server and the form's check as it is fixed: missing, or typed but not a number we can call.
+export const drivePhoneError = (v: string) => (!v.trim() ? "Enter a phone number" : phoneError(v.trim()) ? "Enter a valid phone number" : undefined);
 
 // Two bookings for the same car within the slot (an hour by default) of each other clash: one car cannot be out twice. The same car by its
 // id, so a booking made before an edit to the car's make, model or year still counts.
@@ -55,8 +57,8 @@ export function slotData(drives: TestDrive[], hours: Hours, ignoreId?: string, n
 
 // What the dealer can do next from each status. Anything else is not offered (and a booking that is over has nothing).
 export const DRIVE_NEXT: Partial<Record<DriveStatus, [DriveStatus, string][]>> = {
-  requested: [["confirmed", "Confirm"], ["cancelled", "Cancel"]],
-  confirmed: [["completed", "Mark done"], ["no-show", "No show"], ["cancelled", "Cancel"]],
+  requested: [["confirmed", "Confirm"], ["cancelled", "Cancel test drive"]],
+  confirmed: [["completed", "Mark done"], ["no-show", "No show"], ["cancelled", "Cancel test drive"]],
 };
 
 // The requests still to confirm that have not happened yet, soonest first: Today's "Waiting to be confirmed".

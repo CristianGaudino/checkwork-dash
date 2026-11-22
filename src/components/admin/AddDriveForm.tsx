@@ -13,7 +13,8 @@ import { CarPicker } from "@/components/admin/CarPicker";
 import { SlotPicker } from "@/components/admin/SlotPicker";
 import { addDriveAction, moveDriveAction, type DriveFormState } from "@/app/test-drives/actions";
 import type { CarCard } from "@/lib/admin/car-cards";
-import { DRIVE_LIMITS } from "@/lib/admin/drives";
+import { DRIVE_LIMITS, drivePhoneError } from "@/lib/admin/drives";
+import { NAME_REQUIRED } from "@/lib/copy";
 import { slugId } from "@/lib/admin/stock-admin-pure";
 import { firstOpen } from "@/lib/admin/slots";
 
@@ -41,7 +42,14 @@ export function BookDriveForm({ cars, team, me, slots, initialCar, person }: { c
     }
     return r;
   }, undefined);
-  const e = state?.errors ?? {};
+  // A field showing an error is checked again as it is typed in, so the error goes once it is fixed. `of`: the answer these checks follow.
+  const [fixes, setFixes] = useState<{ of?: DriveFormState; e: Record<string, string | undefined> }>({ e: {} });
+  const e = { ...state?.errors, ...(fixes.of === state ? fixes.e : {}) };
+  const recheck = ({ target: t }: React.ChangeEvent<HTMLElement>) => {
+    if (!(t instanceof HTMLInputElement) || !state?.errors?.[t.name]) return;
+    const error = t.name === "name" ? (t.value.trim() ? undefined : NAME_REQUIRED) : t.name === "phone" ? drivePhoneError(t.value) : t.name === "email" && t.value.trim() ? state.errors.email : undefined; // email stays wrong until the server checks it again: the browser's rule is looser than the server's
+    setFixes({ of: state, e: { ...(fixes.of === state ? fixes.e : {}), [t.name]: error } });
+  };
   const [car, setCar] = useState(start);
   // The picker opens on the car's first free time, never on a day with nothing left (#238).
   const { hours } = useDealerFacts();
@@ -75,7 +83,7 @@ export function BookDriveForm({ cars, team, me, slots, initialCar, person }: { c
         <SlotPicker key={car} days={slots.days} taken={slots.taken[slugId(car)] ?? []} windowMin={slots.windowMin} now={slots.now} date={when.date} time={when.time} onChange={(date, time) => setWhen({ date, time })} errors={{ date: e.date, time: e.time }} />
       </section>
 
-      <section hidden={step !== 2} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <section hidden={step !== 2} onChange={recheck} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Name" error={e.name}>
           <input name="name" defaultValue={person?.name} className={adminInput} autoComplete="off" maxLength={DRIVE_LIMITS.name} />
         </Field>

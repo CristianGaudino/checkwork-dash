@@ -7,7 +7,7 @@ import { logActivity } from "@/lib/admin/activity";
 import { notify } from "@/lib/admin/notifications";
 import { currentMember } from "@/lib/permissions";
 import { DRIVE_STATUS_LABELS, drivesStore, getSettings, leadStatusLabel, leadStatusSteps, leadsStore } from "@/lib/admin/collections";
-import { DRIVE_LIMITS, clashes, parseDriveStatus } from "@/lib/admin/drives";
+import { DRIVE_LIMITS, clashes, drivePhoneError, parseDriveStatus } from "@/lib/admin/drives";
 import { adminCars } from "@/lib/admin/stock-admin";
 import { askedCar } from "@/lib/leads/journey";
 import { carName } from "@/lib/stock/format";
@@ -58,7 +58,10 @@ export async function assignDriveAction(id: string, name: string) {
 
 const booking = z.object({
   name: z.string().trim().min(1, NAME_REQUIRED).max(DRIVE_LIMITS.name),
-  phone: z.string().trim().min(6, "Enter a phone number").max(DRIVE_LIMITS.phone),
+  phone: z.string().trim().max(DRIVE_LIMITS.phone).superRefine((v, ctx) => {
+    const message = drivePhoneError(v);
+    if (message) ctx.addIssue({ code: "custom", message });
+  }),
   email: z.preprocess((v) => (v === "" ? undefined : v), z.string().trim().email(EMAIL_INVALID).max(LIMITS.email).optional()),
   carSlug: z.string().min(1, "Choose a car"),
   date: isoDay("Choose a day"),
