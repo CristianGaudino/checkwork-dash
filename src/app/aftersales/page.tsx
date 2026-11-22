@@ -8,7 +8,7 @@ import { openWarrantyRequests } from "@/lib/admin/leads";
 import { fmtAgo, fmtDate } from "@/lib/admin/format";
 import { setClaimStatusAction } from "./actions";
 
-export const metadata = { title: "Aftersales" };
+export const metadata = { title: "Warranty claims" };
 
 // The usual next step for an open claim, as a button in its row (with Undo in its toast). Declined, and anything off the usual path, is
 // on the claim's own page.
@@ -67,8 +67,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
   return (
     <>
       <PageHeader
-        title="Aftersales"
-        text="Warranty claims on cars you sold. New requests from your website come first."
+        title="Warranty claims"
+        text="On cars you sold. New requests from your website come first."
         actions={
           <Link href="/aftersales/new" className={adminButton}>
             <PlusIcon className="shrink-0 size-4" />

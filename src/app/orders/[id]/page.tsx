@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { OrderBadge } from "@/components/admin/badges";
 import { ChoiceAct } from "@/components/admin/ActButton";
-import { Facts, PageHeader, Panel, adminButton, adminButtonQuiet } from "@/components/admin/kit";
+import { Facts, PageHeader, Panel, adminButton, adminButtonQuiet, tapArea } from "@/components/admin/kit";
 import { CancelOrderForm } from "@/components/admin/OrderForms";
 import { ORDER_STATUS_LABELS, customersStore, orderOpen, ordersStore } from "@/lib/admin/collections";
 import { fmtDate, fmtEur } from "@/lib/admin/format";
@@ -42,7 +42,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
                 ["Taken by", o.salesperson ?? "Not set"],
               ] as const}
             />
-            {o.leadId && <Link href={`/leads/${o.leadId}`} className="w-fit text-meta underline">The website request</Link>}
+            {o.leadId && <Link href={`/leads/${o.leadId}`} className={`w-fit text-meta underline ${tapArea}`}>The website request</Link>}
           </Panel>
           <NotesPanel notes={o.notes} action={addOrderNoteAction.bind(null, o.id)} />
           {/* At the end, out of the way: it cannot be taken back. Owners and managers only; the server refuses anyone else. */}
@@ -82,7 +82,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
                 </div>
               </>
             )}
-            {o.carId && !open && <Link href={`/stock/${o.carId}`} className="w-fit text-meta underline">The car</Link>}
+            {o.carId && !open && <Link href={`/stock/${o.carId}`} className={`w-fit text-meta underline ${tapArea}`}>The car</Link>}
           </Panel>
         </div>
       </div>

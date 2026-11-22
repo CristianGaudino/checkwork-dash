@@ -1,11 +1,12 @@
 import { expect, test } from "@playwright/test";
-import { DEALER_NAV } from "../src/lib/admin/nav";
+import { DEALER_NAV, menuItems } from "../src/lib/admin/nav";
 import { sideLink, sideMenu } from "./admin-menu";
 import { as } from "./open";
 
 // The dealer area: its own frame, every nav link alive, no public header or footer, nothing wider than a phone. A dealer without a
 // permission does not get the entries that need one (see admin-margins.spec.ts for those).
-const nav = DEALER_NAV.filter((i) => !i.permission);
+// As the menu shows them: Reports once (its Monthly view is reached from Reports, admin-reports.spec.ts).
+const nav = menuItems(DEALER_NAV, 1).filter((i) => !i.permission);
 
 test("dealer admin: every nav link opens a page with one h1, and the public header and footer are not there", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 }); // the sidebar; the phone tab bar is the next test
