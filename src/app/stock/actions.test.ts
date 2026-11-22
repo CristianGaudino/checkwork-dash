@@ -156,6 +156,15 @@ describe("recording a sale", () => {
     expect(await salesStore.get(car.id)).toMatchObject({ coverMonths: 36, tradeIn: { reg: "151-D-1234", allowanceEur: 2500 }, leadId: "lead-sale" });
     expect(await leadsStore.get("lead-sale")).toMatchObject({ status: "won", followUpOn: undefined });
   });
+  it("never links a spam lead to a sale, even posted by hand (#56)", async () => {
+    stockCookie = "checkwork";
+    const recorded = new Set((await salesStore.list()).map((x) => x.id));
+    const car = (await adminCars()).find((c) => !c.soldAt && !c.listing && !c.reserved && !recorded.has(c.id))!;
+    await leadsStore.put({ id: "lead-spam-sale", type: "enquiry", status: "spam", statusBefore: "new", name: "Bot", email: "", phone: "", message: "", source: "Website", carSlug: car.slug, notes: [], createdAt: 0 });
+    await expect(recordSaleAction(car.id, undefined, form({ priceEur: "9000", soldOn: today, customerId: (await customersStore.list())[3].id, leadId: "lead-spam-sale" }))).rejects.toThrow(/redirect/);
+    expect((await salesStore.get(car.id))?.leadId).toBeUndefined();
+    expect((await leadsStore.get("lead-spam-sale"))?.status).toBe("spam");
+  });
 
   it("lets only owners and managers change a sale already recorded", async () => {
     stockCookie = "checkwork";

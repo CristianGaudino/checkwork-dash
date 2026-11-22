@@ -23,6 +23,9 @@ export function monthsOf(period: Period, today: string): string[] {
 export const monthLabel = (month: string) => threeLetter(MONTH.format(new Date(`${month}-01T12:00:00Z`)));
 const leadMonth = (l: Lead) => dublinDay(l.createdAt).slice(0, 7);
 const rate = (won: number, of: number) => (of ? Math.round((won / of) * 100) : 0);
+// Spam is no lead at all (#56): left out of every lead figure, chart and report. A closed lead still counts: a real lead that did not
+// buy, so it is in a win rate's leads, and never in the lost reasons (only lost leads are).
+export const counted = (l: Pick<Lead, "status">) => l.status !== "spam";
 
 export type MonthRow = { month: string; sold: number; value: number; profit: number; costed: number };
 export type PersonRow = { name: string; sold: number; value: number; profit: number; costed: number; leads: number; won: number; winRate: number };
@@ -50,7 +53,7 @@ export function fullReport(input: { sales: Sale[]; cars: Car[]; leads: Lead[]; t
   // An undone sale is not a sale: it is left out of every figure and counted under returns instead.
   const sales = input.sales.filter((s) => !s.returnedOn && inPeriod.has(s.soldOn.slice(0, 7)));
   const undone = input.sales.filter((s) => s.returnedOn && inPeriod.has(s.returnedOn.slice(0, 7)));
-  const leads = input.leads.filter((l) => inPeriod.has(leadMonth(l)));
+  const leads = input.leads.filter((l) => counted(l) && inPeriod.has(leadMonth(l)));
   const profitOf = (s: Sale) => (input.costs.has(s.id) ? s.priceEur - input.costs.get(s.id)! : undefined);
   const sum = (list: Sale[]) =>
     list.reduce((t, s) => {
@@ -123,7 +126,7 @@ export function personalReport(input: { name: string; sales: Sale[]; leads: Lead
   const inPeriod = new Set(months);
   const sales = input.sales.filter((s) => !s.returnedOn && s.salesperson === input.name && inPeriod.has(s.soldOn.slice(0, 7)));
   const mine = input.leads.filter((l) => l.assignedTo === input.name);
-  const leads = mine.filter((l) => inPeriod.has(leadMonth(l)));
+  const leads = mine.filter((l) => counted(l) && inPeriod.has(leadMonth(l)));
   const won = leads.filter((l) => l.status === "won").length;
   return {
     months: months.map((month) => ({

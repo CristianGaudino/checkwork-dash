@@ -13,7 +13,7 @@ vi.mock("next/headers", () => ({
 }));
 const { cancelOrderAction, placeOrderAction, setOrderStatusAction } = await import("./actions");
 const { recordSaleAction } = await import("../stock/actions");
-const { customersStore, ordersStore, reservationsStore, salesStore } = await import("@/lib/admin/collections");
+const { customersStore, leadsStore, ordersStore, reservationsStore, salesStore } = await import("@/lib/admin/collections");
 const { adminCar, adminCars } = await import("@/lib/admin/stock-admin");
 const { regPeriods } = await import("@/lib/leads/reg-periods");
 
@@ -41,6 +41,13 @@ describe("factory orders", () => {
     expect((await placeOrderAction(undefined, order({ customerId, expected: `${today.slice(0, 4)}-13` })))?.errors?.expected).toBe("Choose the month it is due"); // not a month
     stockCookie = "donedeal";
     expect((await placeOrderAction(undefined, order({ customerId })))?.errors?.make).toMatch(/DoneDeal/);
+  });
+
+  it("never links a spam lead, even posted by hand (#56)", async () => {
+    await leadsStore.put({ id: "lead-spam-order", type: "order", status: "spam", statusBefore: "new", name: "Bot", email: "", phone: "", message: "", source: "Website", notes: [], createdAt: 0 });
+    const o = await placed({ customerId: (await customersStore.list())[0].id, leadId: "lead-spam-order" });
+    expect(o.leadId).toBeUndefined();
+    expect((await leadsStore.get("lead-spam-order"))?.status).toBe("spam");
   });
 
   it("arrives as a hidden car held for the buyer with their deposit, and its sale hands the order over", async () => {

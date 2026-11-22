@@ -10,6 +10,7 @@ import { noticeOfLead, notify } from "./notifications";
 import { MINUTE } from "@/lib/time";
 import { alertStaffOnWhatsApp } from "@/lib/whatsapp/alerts";
 import { hasModule } from "@/lib/modules";
+import type { SpamVerdict } from "@/lib/leads/spam";
 
 // What visitors send reaches the dealer's admin as records. The lead pipeline (consent, bot check, retention) stays the one way in:
 // after a lead is stored, this copies it into the admin's own collections so it can be worked (status, notes, who has it). The copies
@@ -40,10 +41,16 @@ async function customerId(row: LeadRow): Promise<string> {
 
 
 export type Mirror = { lead?: Lead; drive?: TestDrive; alert?: StockAlert };
+// A test drive booking or a warranty request is never filed as clear spam on arrival, only as possible spam: a real booking always gets
+// its drive, and a warranty request (listed in Aftersales) is never hidden where nobody looks (#56).
+export const arrivalSpam = (row: Pick<LeadRow, "type" | "sourcePath" | "details">, v: SpamVerdict): SpamVerdict =>
+  v === "spam" && (row.type === "test_drive" || row.sourcePath.startsWith("/warranty") || row.details.topic === "bought") ? "maybe" : v;
 // emailed is false when the email to the dealer failed: the lead says so, as its first note, so the team replies from here.
 // `photos`: how many photos came with it on the dealer's website (the site API sends the count only; the photos stay with the website).
 // `journey`: the visit note the website sent with it (src/lib/leads/journey.ts), kept on the lead so it goes with it (purge, erasure, export).
-export function mirrorOf(row: LeadRow, emailed = true, service = true, photos = 0, journey?: Journey): Mirror {
+// `spam`: the spam check's verdict (spamCheck, run once by the site API, #56): clear spam is filed as spam, and a lead it is unsure of is
+// marked possible spam, left new for a person to decide.
+export function mirrorOf(row: LeadRow, emailed = true, service = true, photos = 0, journey?: Journey, spam?: SpamVerdict): Mirror {
   const id = `real-${row.id}`;
   const at = row.consentAt.getTime();
   if (row.type === "alert") {
@@ -52,10 +59,13 @@ export function mirrorOf(row: LeadRow, emailed = true, service = true, photos = 
     return { alert: { id, email: row.email ?? "", kind, criteria: row.carTitle ?? "Any new arrival", active: true, createdAt: at } };
   }
   const drive = row.type === "test_drive" && row.carSlug && row.carTitle ? { id, name: row.name, email: row.email ?? "", phone: row.phone ?? "", carSlug: row.carSlug, carTitle: row.carTitle, startsAt: dublinMs(String(row.details.driveDate), String(row.details.driveTime)), status: "requested" as const, notes: row.message ?? "", createdAt: at } : undefined;
+  const verdict = arrivalSpam(row, spam);
   const lead: Lead = {
     id,
     type: row.type === "trade_in" && row.details.intent === "sell" ? "sell" : row.type === "general" ? pageType(row.sourcePath, row.details.topic, service) : LEAD_TYPE[row.type],
-    status: "new",
+    status: verdict === "spam" ? "spam" : "new",
+    ...(verdict === "spam" && { statusBefore: "new" as const }),
+    ...(verdict === "maybe" && { maybeSpam: true as const }),
     name: row.name,
     email: row.email ?? "",
     phone: row.phone ?? "",
@@ -78,10 +88,12 @@ export function mirrorOf(row: LeadRow, emailed = true, service = true, photos = 
 }
 
 // Best effort: the lead is already stored, so a failure here must never turn into a failed form.
-export async function mirrorLead(row: LeadRow, emailed = true, photos = 0, journey?: Journey): Promise<void> {
-  const m = mirrorOf(row, emailed, await hasModule("service"), photos, journey);
+export async function mirrorLead(row: LeadRow, emailed = true, photos = 0, journey?: Journey, spam?: SpamVerdict): Promise<void> {
+  const m = mirrorOf(row, emailed, await hasModule("service"), photos, journey, spam);
   if (m.alert) await alertsStore.put(m.alert);
   if (m.lead) await leadsStore.put(m.lead);
+  // Spam is kept, on the Spam tab, and nothing more: no booking, no customer, no bell and no WhatsApp alert (#56).
+  if (m.lead?.status === "spam") return;
   if (m.drive) {
     // One car cannot be out twice: the form hides taken times (takenDriveTimes), so this is two people booking at once. Say so on the
     // booking, so the dealer sees it before confirming.

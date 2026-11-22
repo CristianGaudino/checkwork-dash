@@ -46,6 +46,31 @@ test("a lead sent with the website's key reaches the inbox once, and a wrong key
   await expect(page.getByRole("row").filter({ hasText: name })).toContainText("Website, from Facebook");
 });
 
+test("the spam check: clear spam goes to the Spam tab only; a possible one is flagged, and Not spam clears it (#56)", async ({ page, request }) => {
+  const spam = who("Spam check");
+  expect((await send(request, lead({ name: spam, message: "Cheap backlinks [url=https://linkfarm.example.top]here[/url]" }))).status()).toBe(201);
+  await page.goto(`/leads?q=${encodeURIComponent(spam)}`);
+  await expect(page.getByText("No leads match")).toBeVisible();
+  await page.goto(`/leads?status=spam&q=${encodeURIComponent(spam)}`);
+  await expect(page.getByRole("row").filter({ hasText: spam })).toHaveCount(1);
+  // The All tab counts what its list shows: no spam.
+  await page.goto("/leads");
+  const allTab = await page.getByRole("navigation", { name: "Lead status" }).getByRole("link").first().locator("span").nth(1).textContent();
+  const listed = (await page.getByText(/^Showing 1 to /).textContent())!.match(/of ([\d,]+)$/)![1];
+  expect(allTab).toBe(listed);
+
+  const maybe = who("Maybe spam");
+  expect((await send(request, lead({ name: maybe, message: "Photos of my car: https://myphotos.example.org/x1y2z3" }))).status()).toBe(201);
+  await page.goto(`/leads?q=${encodeURIComponent(maybe)}`);
+  const row = page.getByRole("row").filter({ hasText: maybe });
+  await expect(row).toContainText("Possible spam");
+  await row.getByRole("link").first().click();
+  await page.getByRole("button", { name: /^Not spam/ }).click();
+  await expect(page.getByText("Possible spam")).toHaveCount(0);
+  await page.goto(`/leads?q=${encodeURIComponent(maybe)}`);
+  await expect(page.getByRole("row").filter({ hasText: maybe })).not.toContainText("Possible spam");
+});
+
 test("the website reads its cars: on the site only, public fields only", async ({ request }) => {
   const res = await request.get("/api/site/v1/stock", { headers: auth() });
   expect(res.status()).toBe(200);

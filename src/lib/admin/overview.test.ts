@@ -24,6 +24,9 @@ describe("overview", () => {
   it("counts this week's leads as the last week, and last week's before it", () => {
     const o = overview({ rules: DEMO_PROFILE.rules, listingSite: "DoneDeal", leads: [lead("a", 1 * DAY), lead("b", 6 * DAY), lead("c", 9 * DAY)], drives: [], reviews: [], now });
     expect(o.weeks.slice(-2)).toEqual([1, 2]);
+    const spam = { ...lead("spam", 2 * DAY), status: "spam" as const };
+    const closed = { ...lead("closed", 3 * DAY), status: "closed" as const, closedReason: "Duplicate" as const };
+    expect(overview({ rules: DEMO_PROFILE.rules, listingSite: "DoneDeal", leads: [lead("a", 1 * DAY), spam, closed], drives: [], reviews: [], now }).weeks.at(-1)).toBe(2); // spam is no lead (#56); a closed one is
   });
   it("lists drives in the next 7 days in date order, ignoring past, far-off and closed ones", () => {
     const o = overview({ rules: DEMO_PROFILE.rules, listingSite: "DoneDeal", leads: [], drives: [drive("late", 5 * DAY, "confirmed"), drive("soon", DAY, "requested"), drive("past", -DAY, "confirmed"), drive("far", 9 * DAY, "confirmed"), drive("done", DAY, "cancelled")], reviews: [], now });

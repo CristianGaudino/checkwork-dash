@@ -42,6 +42,17 @@ describe("fullReport", () => {
     const gone = fullReport({ ...input, team: [], oldDays: 120 });
     expect(gone.people.map((p) => p.name)).toEqual(["Conor", "Aoife"]);
   });
+  it("counts a closed lead as a lead that did not buy, never as lost; leaves spam out of every figure (#55, #56)", () => {
+    const closed = lead("c", "2026-11-04", { assignedTo: "Conor", status: "closed", closedReason: "Duplicate", source: "Phone" });
+    const withClosed = fullReport({ ...input, leads: [...input.leads, closed], oldDays: 120 });
+    expect(withClosed.lost).toEqual(r.lost);
+    expect(withClosed.people.find((p) => p.name === "Conor")).toMatchObject({ leads: 3, won: 1, winRate: 33 });
+    expect(withClosed.sources.find((s) => s.source === "Phone")).toEqual({ source: "Phone", leads: 3, won: 1, winRate: 33 });
+    const spam = lead("s", "2026-11-04", { assignedTo: "Conor", status: "spam", source: "Phone" });
+    const withSpam = fullReport({ ...input, leads: [...input.leads, spam], oldDays: 120 });
+    expect([withSpam.people, withSpam.sources, withSpam.lost]).toEqual([r.people, r.sources, r.lost]);
+    expect(personalReport({ name: "Conor", sales: [], leads: [...input.leads, spam], period: 3, now }).totals).toMatchObject({ leads: 2, won: 1, winRate: 50 });
+  });
   it("shows which lead sources win, the stock by age, and the period's prep by kind", () => {
     expect(fullReport({ ...input, leads: [lead("l1", "2026-11-01", { status: "lost", lostReason: "Price" }), lead("l2", "2026-11-02", { status: "lost", lostReason: "Price" }), lead("l3", "2026-11-03", { status: "lost" })], oldDays: 120 }).lost).toEqual([{ reason: "Price", leads: 2 }, { reason: "Not said", leads: 1 }]);
     expect(r.sources).toEqual([{ source: "Phone", leads: 2, won: 1, winRate: 50 }, { source: "Website", leads: 1, won: 0, winRate: 0 }]);

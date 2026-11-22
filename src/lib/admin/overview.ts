@@ -4,6 +4,7 @@ import { forSale, isSold, type Car } from "@/lib/stock/types";
 import { isOpenDrive } from "./drives";
 import { slugId } from "./stock-admin-pure";
 import { daysSince, dublinDay } from "./format";
+import { counted } from "./reports";
 import { forPerson, leadsToAnswer } from "./follow-ups";
 import type { DealerRules } from "@/lib/tenancy/profile";
 
@@ -64,7 +65,7 @@ export function overview(input: { leads: Lead[]; drives: TestDrive[]; reviews: A
     .sort((a, b) => RANK[a.urgency] - RANK[b.urgency]); // stable: same urgency keeps this order
 
   // Leads in each of the last 8 weeks (7-day windows ending now), oldest first, and a usual week: the middle of the 7 before this one.
-  const weeks = Array.from({ length: 8 }, (_, i) => leads.filter((l) => l.createdAt > now - (8 - i) * 7 * DAY && l.createdAt <= now - (7 - i) * 7 * DAY).length);
+  const weeks = Array.from({ length: 8 }, (_, i) => leads.filter((l) => counted(l) && l.createdAt > now - (8 - i) * 7 * DAY && l.createdAt <= now - (7 - i) * 7 * DAY).length);
   const before = weeks.slice(0, -1).sort((a, b) => a - b);
   return {
     weeks,

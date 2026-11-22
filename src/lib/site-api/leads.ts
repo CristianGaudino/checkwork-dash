@@ -1,7 +1,7 @@
 import "server-only";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { mirrorLead } from "@/lib/admin/real-leads";
+import { arrivalSpam, mirrorLead } from "@/lib/admin/real-leads";
 import { getDb } from "@/lib/db";
 import { leads } from "@/lib/db/schema";
 import { buildLeadEmail } from "@/lib/leads/email";
@@ -9,6 +9,7 @@ import { leadRecipients, sendToDealer } from "@/lib/leads/mail";
 import { DETAIL_LABELS, TYPE_LABELS, leadSchemaFor, oneLine, type LeadType } from "@/lib/leads/schema";
 import { createDrizzleStore, type LeadRow } from "@/lib/leads/store";
 import { parseJourney } from "@/lib/leads/journey";
+import { spamCheck } from "@/lib/leads/spam";
 import { logLead } from "@/lib/log";
 import { currentDealer, hasD1 } from "@/lib/tenancy/current";
 import { CHANNELS, CHANNEL_LABELS } from "@/lib/visit-rules";
@@ -136,9 +137,11 @@ export async function receiveLead(text: string): Promise<Answer> {
     return id ? { status: 200, outcome: "duplicate", body: { id } } : { status: 500, outcome: "error" };
   }
 
+  // The spam check, once, before anything goes out (#56): clear spam sends no email and is filed as spam in the inbox.
+  const spam = arrivalSpam(row, spamCheck({ name: row.name, message: row.message ?? "" }, dealer.profile.siteUrl));
   // The website could not email the dealer: we try, when the dealer has an address. A failure leaves the lead marked in the inbox.
   let told = emailed;
-  if (!emailed && (await leadRecipients()).length > 0) {
+  if (!emailed && spam !== "spam" && (await leadRecipients()).length > 0) {
     try {
       await sendToDealer({ ...buildLeadEmail(row, { demo: dealer.demo, siteUrl: dealer.profile.siteUrl }), replyTo: row.email ?? undefined });
       told = true;
@@ -147,7 +150,7 @@ export async function receiveLead(text: string): Promise<Answer> {
     }
   }
   // Best effort, as on the website: the lead is stored, so a failed copy into the inbox is logged by id and type for a hand copy.
-  await mirrorLead(row, told, photoCount, journey).catch(() => logLead({ leadId: row.id, type: row.type, outcome: "mirror_failed" }));
+  await mirrorLead(row, told, photoCount, journey, spam).catch(() => logLead({ leadId: row.id, type: row.type, outcome: "mirror_failed" }));
   if (told) await leadsHere.markNotified(row.id).catch(() => {});
   return { status: 201, outcome: "stored", body: { id: row.id } };
 }

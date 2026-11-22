@@ -13,7 +13,7 @@ import { AITextarea } from "@/components/admin/AIWriter";
 import { IfModule } from "@/components/IfModule";
 import { lookupRegStaffAction } from "@/app/reg-action";
 import { Avatar, Badge, Field, PageHeader, Panel, adminButton, adminButtonQuiet, adminInput, rowButton, rowDanger } from "@/components/admin/kit";
-import { LOST_REASONS, drivesStore, getSettings, leadStatusLabel, leadStatusSteps, leadsStore } from "@/lib/admin/collections";
+import { LOST_REASONS, drivesStore, getSettings, leadStatusLabel, leadStatusSteps, leadsStore, statusBack } from "@/lib/admin/collections";
 import { isOpenDrive } from "@/lib/admin/drives";
 import { matchesAny, parsePersonQuery, type PersonQuery } from "@/lib/admin/person-match";
 
@@ -23,7 +23,7 @@ import { CalendarIcon, CarIcon, CheckIcon, CloseIcon, PhoneIcon } from "@/compon
 import type { LeadStatus } from "@/lib/admin/collections";
 import { addNoteAction, assignLeadAction, setFollowUpAction, setLostReasonAction, setStatusAction } from "../actions";
 import { dublinDay, fmtDate, fmtDateTime, fmtDay, fmtTime } from "@/lib/admin/format";
-import { followUpDue, isOpenLead, leadMain, replyVia } from "@/lib/admin/leads";
+import { followUpDue, isOpenLead, leadMain, possibleSpam, replyVia } from "@/lib/admin/leads";
 import { siteCarUrl } from "@/lib/stock/format";
 import { dealerProfile } from "@/lib/tenancy/current";
 import { stockSource } from "@/lib/stock-source";
@@ -33,9 +33,10 @@ import { askedCar } from "@/lib/leads/journey";
 import { ContactButtons } from "@/components/admin/ContactButtons";
 import { LeadKind, LeadTags, leadChips } from "@/components/admin/LeadKind";
 import { SubmitButton } from "@/components/admin/SubmitButton";
+import { LeadMenu, SpamButton } from "@/components/admin/LeadActions";
 
 // The quick actions on a lead: the steps it moves through (leadStatusSteps), each with its icon.
-const STATUS_ICONS: Record<LeadStatus, typeof PhoneIcon> = { new: PhoneIcon, contacted: PhoneIcon, appointment: CalendarIcon, won: CheckIcon, lost: CloseIcon };
+const STATUS_ICONS: Record<LeadStatus, typeof PhoneIcon> = { new: PhoneIcon, contacted: PhoneIcon, appointment: CalendarIcon, won: CheckIcon, lost: CloseIcon, closed: CloseIcon, spam: CloseIcon };
 
 // One lead, worked from here. At the top: what they asked, the ways to reach them and the next step. Below: when to get back to them, who
 // has it, the reply draft and the notes. Shown at its own address under Leads, or, for a warranty request, under Aftersales (where it is
@@ -52,8 +53,10 @@ export async function LeadView({ id }: { id: string }) {
   const qs = [lead.email, lead.phone].map((v) => (v ? parsePersonQuery(v) : null)).filter((q): q is PersonQuery => q !== null);
   const drive = qs.length ? drives.filter((d) => isOpenDrive(d) && dublinDay(d.startsAt) >= today && matchesAny(d, qs)).sort((a, b) => a.startsAt - b.startsAt)[0] : undefined;
   // What puts the follow-up back as it was, for Undo: none, or its day (a day that has passed cannot be set again).
-  // And the status as it was, with the follow-up day and the lost reason a move clears.
-  const statusBack = { status: lead.status, ...(lead.followUpOn && { on: lead.followUpOn }), ...(lead.lostReason && { reason: lead.lostReason }) };
+  // And the status as it was, with the follow-up day and the lost or closed reason a move clears.
+  const reason = lead.lostReason ?? lead.closedReason;
+  // `before`: where Reopen went, so Undo of a step on a closed lead keeps it.
+  const undoStatus = { status: lead.status, ...(lead.followUpOn && { on: lead.followUpOn }), ...(reason && { reason }), ...(lead.statusBefore && { before: lead.statusBefore }) };
   // The one filled button: the request's own job when it can be done here, else answering them the way they got in touch.
   const modules = await enabledModules();
   const main = leadMain(lead.type, { drive: !drive && isOpenLead(lead) && modules.has("testDrives"), order: modules.has("newCars") && (await stockSource()) !== "donedeal", claim: modules.has("service") });
@@ -144,18 +147,50 @@ export async function LeadView({ id }: { id: string }) {
               <p className="flex items-center gap-2 text-meta text-text-2">
                 Where it stands <LeadStatusBadge status={lead.status} type={lead.type} />
               </p>
-              <div className="flex flex-wrap gap-2">
-                {leadStatusSteps(lead.type).map((status) => {
-                  const Icon = STATUS_ICONS[status];
-                  return (
-                    <ChoiceAct key={status} action={setStatusAction.bind(null, lead.id)} set={{ status }} back={statusBack} active={lead.status === status} done={`${lead.name}: ${leadStatusLabel(lead.type, status)}`}>
-                      <Icon className="size-4" />
-                      Mark {leadStatusLabel(lead.type, status).toLowerCase()}
-                    </ChoiceAct>
-                  );
-                })}
-              </div>
+              {/* A spam lead has no steps: Not spam, below, is the way back. */}
+              {lead.status !== "spam" && (
+                <div className="flex flex-wrap gap-2">
+                  {leadStatusSteps(lead.type).map((status) => {
+                    const Icon = STATUS_ICONS[status];
+                    return (
+                      <ChoiceAct key={status} action={setStatusAction.bind(null, lead.id)} set={{ status }} back={undoStatus} active={lead.status === status} done={`${lead.name}: ${leadStatusLabel(lead.type, status)}`}>
+                        <Icon className="size-4" />
+                        Mark {leadStatusLabel(lead.type, status).toLowerCase()}
+                      </ChoiceAct>
+                    );
+                  })}
+                  {/* Close and Spam: quiet, under More, so neither is a slip away from the steps (#55, #56). */}
+                  <LeadMenu lead={lead} spam={!possibleSpam(lead)} />
+                </div>
+              )}
             </div>
+            {/* A closed lead says why, and Reopen puts back the status it had. */}
+            {lead.status === "closed" && (
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-meta text-text-2">Closed{lead.closedReason && `: ${lead.closedReason}`}. Not counted as a lost sale.</p>
+                <ChoiceAct action={setStatusAction.bind(null, lead.id)} set={{ status: statusBack(lead), from: "closed" }} back={undoStatus} active={false} done={`${lead.name}: Reopened`} className={rowButton}>
+                  Reopen
+                </ChoiceAct>
+              </div>
+            )}
+            {/* Spam is out of every list and figure until someone says it is not (#56). */}
+            {lead.status === "spam" && (
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-meta text-text-2">Marked as spam. Left out of every list and report.</p>
+                <SpamButton lead={lead} to="no" />
+              </div>
+            )}
+            {possibleSpam(lead) && (
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="flex items-center gap-2 text-meta text-text-2">
+                  <Badge tone="warn">Possible spam</Badge> Is this a real enquiry?
+                </p>
+                <span className="flex flex-wrap gap-2">
+                  <SpamButton lead={lead} to="yes" />
+                  <SpamButton lead={lead} to="no" />
+                </span>
+              </div>
+            )}
             {/* Why it was lost, for the reports. Only on a lost lead, and not on a closed warranty request, which was no sale. */}
             {lead.status === "lost" && lead.type !== "warranty" && (
               <fieldset className="flex flex-col gap-2">

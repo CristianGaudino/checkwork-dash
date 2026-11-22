@@ -13,7 +13,7 @@ export const metadata = { title: "Place an order" };
 export default async function Page({ searchParams }: { searchParams: Promise<{ lead?: string }> }) {
   if ((await stockSource()) === "donedeal") notFound();
   const sp = await searchParams;
-  const [customers, { team }, me, lead] = await Promise.all([customersStore.list(), getSettings(), currentMember(), sp.lead ? leadsStore.get(sp.lead) : undefined]);
+  const [customers, { team }, me, lead] = await Promise.all([customersStore.list(), getSettings(), currentMember(), sp.lead ? leadsStore.get(sp.lead).then((l) => (l?.status === "spam" ? undefined : l)) : undefined]); // spam is no buyer (#56)
   const today = dublinDay();
   return (
     <>

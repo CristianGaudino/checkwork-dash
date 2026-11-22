@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 import type { Lead } from "./collections";
-import { SALES_LEAD_TYPES, countByStatus, filterLeads, isSalesLead, leadFlag, leadMain, openWarrantyRequests, parseLeadFilter, replyVia, urgentFirst } from "./leads";
+import { SALES_LEAD_TYPES, countByStatus, filterLeads, isOpenLead, isSalesLead, leadFlag, leadMain, leadsToAnswer, onLeadsList, possibleSpam, openWarrantyRequests, parseLeadFilter, replyVia, urgentFirst } from "./leads";
 
 const lead = (id: string, o: Partial<Lead> = {}): Lead => ({ id, type: "enquiry", status: "new", name: id, email: `${id}@example.com`, phone: "", message: "", source: "Website", notes: [], createdAt: Number(id.replace(/\D/g, "")) || 0, ...o });
 
@@ -28,7 +28,7 @@ describe("lead filters", () => {
     expect(parseLeadFilter({ due: "1", late: "1" })).toMatchObject({ due: true, late: undefined });
   });
   it("counts every status, including those with none", () => {
-    expect(countByStatus([lead("a1"), lead("a2", { status: "lost" })])).toEqual({ new: 1, contacted: 0, appointment: 0, won: 0, lost: 1 });
+    expect(countByStatus([lead("a1"), lead("a2", { status: "lost" })])).toEqual({ new: 1, contacted: 0, appointment: 0, won: 0, lost: 1, closed: 0, spam: 0 });
   });
 });
 
@@ -80,6 +80,39 @@ describe("the list's order", () => {
   it("pins late and urgent new leads first, the rest keep their order", () => {
     const H = 3_600_000;
     const leads = [lead("a1", { createdAt: 29 * H }), lead("a2", { createdAt: 0 }), lead("a3", { createdAt: 29 * H, topic: "buying", answers: { timing: "this-week" } }), lead("a4", { createdAt: 29 * H })];
-    expect(urgentFirst(leads, 24, 30 * H).map((l) => l.id)).toEqual(["a2", "a3", "a1", "a4"]);
+    expect(urgentFirst(leads, 30 * H, "1970-01-02", 24).map((l) => l.id)).toEqual(["a2", "a3", "a1", "a4"]);
+  });
+  it("pins an overdue follow-up too, by To answer now's rule, but not one due today or on a closed lead (#55)", () => {
+    const today = "2026-11-10";
+    const leads = [lead("b1", { status: "contacted" }), lead("b2", { status: "contacted", followUpOn: today }), lead("b3", { status: "contacted", followUpOn: "2026-11-09" }), lead("b4", { status: "closed", followUpOn: "2026-11-09" })];
+    expect(urgentFirst(leads, 0, today, 24).map((l) => l.id)).toEqual(["b3", "b1", "b2", "b4"]);
+    // The same leads To answer now marks now (red).
+    expect(leadsToAnswer(leads, 0, today, 24).filter((t) => t.urgency === "now").map((t) => t.lead.id)).toEqual(["b3"]);
+  });
+});
+
+describe("a closed lead (#55)", () => {
+  it("is not open, so it leaves To answer now and the follow-ups, and has its own status tab", () => {
+    expect(isOpenLead({ status: "closed" })).toBe(false);
+    expect(leadsToAnswer([lead("c1", { status: "closed" }), lead("c2", { status: "closed", followUpOn: "2026-11-01" })], 0, "2026-11-10", 24)).toEqual([]);
+    expect(countByStatus([lead("c1", { status: "closed" })]).closed).toBe(1);
+    expect(parseLeadFilter({ status: "closed" }).status).toBe("closed");
+  });
+});
+
+describe("spam (#56)", () => {
+  const leads = [lead("s1", { status: "spam", statusBefore: "new" }), lead("s2", { maybeSpam: true }), lead("s3")];
+  it("is only on its own tab, never open, never to answer; a possible one stays to answer, flagged", () => {
+    expect(filterLeads(leads, { q: "" }).map((l) => l.id)).toEqual(["s3", "s2"]);
+    expect(filterLeads(leads, { status: "spam", q: "" }).map((l) => l.id)).toEqual(["s1"]);
+    expect(isOpenLead({ status: "spam" })).toBe(false);
+    expect(leadsToAnswer(leads, 0, "2026-11-10", 24).map((t) => t.lead.id)).toEqual(["s2", "s3"]); // the longest waiting first
+    expect(leads.map(possibleSpam)).toEqual([false, true, false]);
+    expect(possibleSpam(lead("s4", { maybeSpam: true, status: "contacted" }))).toBe(false); // answered: a person has decided
+    expect(openWarrantyRequests([lead("w1", { type: "warranty", status: "spam" })], [])).toEqual([]);
+    // Leads lists spam of every kind, so a warranty request marked spam can be put back from its Spam tab.
+    const listed = [lead("w2", { type: "warranty", status: "spam" }), lead("w3", { type: "warranty" }), lead("e1", { status: "spam" })].filter(onLeadsList);
+    expect(listed.map((l) => l.id)).toEqual(["w2", "e1"]);
+    expect(filterLeads(listed, { status: "spam", q: "" }).map((l) => l.id)).toEqual(["w2", "e1"]);
   });
 });

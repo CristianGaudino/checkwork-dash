@@ -58,7 +58,8 @@ export async function placeOrderAction(_prev: FormState, data: FormData): Promis
   if (d.depositEur && !d.depositMethod) return { errors: { depositMethod: "Choose how the deposit was paid" } };
   const who = await buyerOf(d, "Order");
   if ("errors" in who) return who;
-  const lead = d.leadId ? await leadsStore.get(d.leadId) : undefined;
+  const asked = d.leadId ? await leadsStore.get(d.leadId) : undefined;
+  const lead = asked?.status === "spam" ? undefined : asked; // spam is no buyer, even posted by hand (#56)
   const id = newId("order");
   const o: Order = {
     id,
@@ -79,7 +80,7 @@ export async function placeOrderAction(_prev: FormState, data: FormData): Promis
   };
   await ordersStore.put(o);
   if (lead && lead.status !== "won") {
-    await leadsStore.update(lead.id, (l) => ({ ...l, status: "won", followUpOn: undefined, notes: [...l.notes, { at: Date.now(), text: "Placed a factory order." }] }));
+    await leadsStore.update(lead.id, (l) => ({ ...l, status: "won", followUpOn: undefined, closedReason: undefined, statusBefore: undefined, notes: [...l.notes, { at: Date.now(), text: "Placed a factory order." }] }));
     await logActivity("leads", "Marked the lead won, with a factory order", { kind: "lead", id: lead.id });
   }
   await logActivity("stock", `Placed a factory order: ${title(o)}${o.depositEur ? `, ${fmtEur(o.depositEur)} deposit` : ""}`);

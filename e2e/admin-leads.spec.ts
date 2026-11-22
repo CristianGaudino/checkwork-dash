@@ -61,6 +61,44 @@ test("the list opens with what to answer now, and a lead moves on a step from it
   await expect.poll(async () => (await lead.reload(), (await status().textContent())?.trim())).toBe(before);
 });
 
+test("a lead marked spam from To answer now leaves the panel and the Overview count, and Undo brings it back (#56)", async ({ page, context }) => {
+  await page.setViewportSize({ width: 1263, height: 900 });
+  await page.goto("/leads");
+  const todo = page.getByRole("region", { name: /^To answer now/ });
+  // The last row shown, as the other tests work the first.
+  const href = (await todo.getByRole("listitem").last().locator('a[href^="/leads/lead-"]').first().getAttribute("href"))!;
+  const row = todo.getByRole("listitem").filter({ has: page.locator(`a[href="${href}"]`) });
+  // The Overview's count of leads to answer (its Reply to leads button), in a second tab, so the toast's Undo stays on the first. Other
+  // specs move leads meanwhile, so the count is only checked to drop.
+  const other = await context.newPage();
+  const toAnswer = async () => (await other.goto("/?mine=0"), Number(/(\d+) leads? to answer/.exec((await other.getByRole("navigation", { name: "Quick actions" }).getByRole("link", { name: /^Reply to leads/ }).textContent()) ?? "")?.[1] ?? 0));
+  const before = await toAnswer();
+
+  await row.getByRole("button", { name: /^More for / }).click();
+  await row.getByRole("button", { name: /^Spam: / }).click();
+  await expect(page.getByTestId("toast")).toContainText(": Spam");
+  await expect(row).toHaveCount(0);
+  await expect.poll(toAnswer).toBeLessThan(before);
+  // The lead says so. (That no count or report has it is reports.test.ts's and the others'.)
+  await other.goto(href);
+  await expect(other.getByText("Marked as spam. Left out of every list and report.")).toBeVisible();
+
+  await page.getByTestId("toast").getByRole("button", { name: "Undo" }).click();
+  await expect.poll(async () => (await page.reload(), row.count())).toBe(1);
+});
+
+test("a closed lead says why, and Reopen puts back the status it had (#55)", async ({ page }) => {
+  await page.goto("/leads/lead-4002"); // a lead already answered, which no other spec changes
+  const status = page.getByRole("group", { name: "Status" }).getByText(/^Where it stands/);
+  await expect(status).toHaveText(/Contacted$/);
+  await page.getByRole("button", { name: /^More for / }).click();
+  await page.getByRole("button", { name: /^Close: Duplicate/ }).click();
+  await expect(page.getByText("Closed: Duplicate. Not counted as a lost sale.")).toBeVisible();
+  await expect(status).toHaveText(/Closed$/);
+  await page.getByRole("button", { name: "Reopen" }).click();
+  await expect(status).toHaveText(/Contacted$/);
+});
+
 test("Book a test drive on a lead fills in their name and number", async ({ page }) => {
   await page.goto("/leads/lead-4000");
   await page.getByRole("link", { name: "Book a test drive" }).click();
