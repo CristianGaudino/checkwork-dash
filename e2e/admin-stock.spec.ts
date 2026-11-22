@@ -220,6 +220,7 @@ test("add a car with its photos and battery figures", async ({ page }) => {
   await page.getByLabel("Model", { exact: true }).fill("Volt");
   await page.getByLabel("Year", { exact: true }).fill("2023");
   await page.getByLabel("Price (€)", { exact: true }).fill("24950");
+  await page.getByText("More details (optional)").click(); // folded: the registration lookup fills most of them
   await page.getByLabel("CO2 (g/km)").fill("0");
   await page.getByLabel("Motor tax (€ a year)").fill("120");
   // The battery boxes are for a car with a plug only.
@@ -247,4 +248,30 @@ test("a car's photos: add one, remove it", async ({ page }) => {
   await page.getByRole("button", { name: "Remove photo 1" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Remove" }).click();
   await expect(page.locator("#photos").getByText("Main photo")).toHaveCount(0);
+});
+
+test.describe("on a phone", () => {
+  test.use({ viewport: { width: 360, height: 800 }, isMobile: true, hasTouch: true });
+
+  test("the stock list has photos and no tick boxes until Select; the car page opens on its price and Save follows a change", async ({ page }) => {
+    await page.goto("/stock");
+    await expect(page.getByRole("link", { name: /Need photos/ })).toHaveCount(0); // To do links to it
+    const first = page.getByRole("row").nth(1);
+    await expect(first.locator("img")).toBeVisible();
+    await expect(first.getByRole("checkbox")).toBeHidden();
+    await page.getByRole("button", { name: "Select", exact: true }).click();
+    await first.getByRole("checkbox").check();
+    await expect(page.getByText("1 car selected")).toBeVisible();
+    await page.getByRole("button", { name: "Done", exact: true }).click();
+    await expect(first.getByRole("checkbox")).toBeHidden();
+    await expect(page.getByText("1 car selected")).toBeHidden();
+
+    await first.getByRole("link").first().click();
+    await expect(page.locator("form section").first()).toContainText("Price (€)");
+    await expect(page.getByLabel("Mileage (km)")).toBeHidden(); // folded under Details
+    const save = page.getByRole("button", { name: "Save changes" });
+    await expect(save).not.toBeInViewport();
+    await page.getByLabel("Earlier price (€)").fill("1");
+    await expect(save).toBeInViewport();
+  });
 });

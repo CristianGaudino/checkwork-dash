@@ -217,6 +217,15 @@
       padding-bottom: calc(var(--demo-bar-h, 0px) + 4rem + env(safe-area-inset-bottom));
     }
   }
+  /* A car form's Save bar, once it is changed, sits over the foot of the screen: a box scrolled to or focused stops above it. */
+  html:has([data-sticky-save]) {
+    scroll-padding-bottom: calc(var(--demo-bar-h, 0px) + 9rem + env(safe-area-inset-bottom));
+  }
+  @media (min-width: 1024px) {
+    html:has([data-sticky-save]) {
+      scroll-padding-bottom: calc(var(--demo-bar-h, 0px) + 6rem);
+    }
+  }
   /* The compare pill floats at the foot of the screen: room for it while it shows, so the last content (the finance warning) is never under it. */
   body:has([data-compare-bar]) {
     padding-bottom: calc(var(--demo-bar-h, 0px) + 5rem + env(safe-area-inset-bottom));
