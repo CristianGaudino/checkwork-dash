@@ -37,6 +37,9 @@ describe("overview", () => {
     expect(o.attention.map((a) => [a.key, a.count])).toEqual([["reply", 2], ["drives", 1], ["reviews", 1]]); // every new lead, the late one makes it red
     expect(o.attention[0].urgency).toBe("now");
     expect(overview({ rules: DEMO_PROFILE.rules, listingSite: "DoneDeal", leads: [], drives: [], reviews: [review("s", 5, "thanks")], now }).attention).toEqual([]);
+    // Open warranty requests are a to-do too, after the drives to confirm (#91).
+    const w = overview({ rules: DEMO_PROFILE.rules, listingSite: "DoneDeal", leads: [], drives: [drive("d", DAY, "requested")], reviews: [], warrantyRequests: 1, now });
+    expect(w.attention.map((a) => [a.key, a.count, a.href])).toEqual([["drives", 1, "/test-drives?view=list&status=requested&when=ahead"], ["warranty", 1, "/aftersales?view=requests"]]);
   });
   it("flags old stock, cars with no cost, a failing sync and drives booked on a sold car", () => {
     const car = (id: string, listedAt: string, o: object = {}) => ({ id, slug: id, listedAt, photos: [], ...o }) as unknown as import("@/lib/stock/types").Car;

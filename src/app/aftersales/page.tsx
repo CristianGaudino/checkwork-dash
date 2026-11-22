@@ -28,7 +28,7 @@ function NextStep({ c }: { c: Claim }) {
 
 // Warranty requests from the website, then the claims, open first. Each row opens its record; a claim's customer name is read from their
 // record, so an erased customer shows none. A request becomes a claim with Open a claim on it.
-const VIEWS = { open: { label: "Open", test: (c: Claim) => claimOpen(c.status) }, closed: { label: "Closed", test: (c: Claim) => !claimOpen(c.status) }, all: { label: "All", test: () => true } } as const;
+const VIEWS = { open: { label: "Open", test: (c: Claim) => claimOpen(c.status) }, closed: { label: "Closed", test: (c: Claim) => !claimOpen(c.status) }, all: { label: "All claims", test: () => true } } as const;
 type View = keyof typeof VIEWS | "requests";
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ view?: string; q?: string; cover?: string; sort?: string; dir?: string; page?: string; per?: string }> }) {

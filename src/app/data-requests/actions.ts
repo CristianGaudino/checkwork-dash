@@ -39,7 +39,7 @@ export async function findAction(_prev: FindState, data: FormData): Promise<Find
     { label: "Leads", items: h.leads.map((l) => `${l.name}, ${LEAD_TYPE_LABELS[l.type]}, ${day(l.createdAt)}`) },
     { label: "WhatsApp messages", items: h.messages.map((m) => `${m.from === "buyer" ? "From the buyer" : "To the buyer"}, ${day(m.at)}`) },
     { label: "Test drives", items: h.drives.map((d) => `${d.name}, ${d.carTitle}, ${day(d.startsAt)}`) },
-    { label: "Stock alerts", items: h.alerts.map((a) => `${a.criteria}${a.active ? "" : ", paused"}`) },
+    { label: "Stock alerts", items: h.alerts.map((a) => `${a.criteria}${a.active ? "" : ", stopped"}`) },
     { label: "Newsletter", items: h.subscribers.map((s) => (s.status === "subscribed" ? "Subscribed" : "Unsubscribed")) },
     { label: "Customer record", items: h.customers.map((c) => `${c.name}, since ${day(c.createdAt)}`) },
     { label: "Purchases", items: h.sales.map((s) => `${s.carTitle}, ${day(s.soldOn)}${s.returnedOn ? `, undone ${day(s.returnedOn)}` : ""}`) },
