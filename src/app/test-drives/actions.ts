@@ -9,6 +9,7 @@ import { currentMember } from "@/lib/permissions";
 import { DRIVE_STATUS_LABELS, drivesStore, getSettings, leadStatusLabel, leadStatusSteps, leadsStore } from "@/lib/admin/collections";
 import { DRIVE_LIMITS, clashes, parseDriveStatus } from "@/lib/admin/drives";
 import { adminCars } from "@/lib/admin/stock-admin";
+import { askedCar } from "@/lib/leads/journey";
 import { carName } from "@/lib/stock/format";
 import { forSale } from "@/lib/stock/types";
 import { HOUR, MINUTE } from "@/lib/time";
@@ -108,7 +109,7 @@ export async function addDriveAction(_prev: DriveFormState, data: FormData): Pro
   const parsed = booking.safeParse(Object.fromEntries(data));
   if (!parsed.success) return { errors: fieldErrors(parsed.error) };
   const b = parsed.data;
-  const car = (await adminCars()).find((c) => c.slug === b.carSlug);
+  const car = askedCar(await adminCars(), b.carSlug); // by its id: the car may have been edited since the form opened
   if (!car) return { errors: { carSlug: "That car is not in stock" } };
   if (!forSale(car)) return { errors: { carSlug: "That car is no longer for sale" } }; // sold or hidden since the form opened
   const slot = await checkSlot(car.slug, carName(car), b.date, b.time);

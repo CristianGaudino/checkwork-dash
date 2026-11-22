@@ -2,6 +2,7 @@ import type { AdminReview, Lead, Order, Reservation, TestDrive } from "./collect
 import { DAY } from "@/lib/time";
 import { forSale, isSold, type Car } from "@/lib/stock/types";
 import { isOpenDrive } from "./drives";
+import { slugId } from "./stock-admin-pure";
 import { daysSince, dublinDay } from "./format";
 import { followUpDue, pastReplyTarget } from "./follow-ups";
 import type { DealerRules } from "@/lib/tenancy/profile";
@@ -28,7 +29,7 @@ export function overview(input: { leads: Lead[]; drives: TestDrive[]; reviews: A
   const rated = reviews.filter((r) => r.rating > 0);
   const cars = input.cars ?? [];
   const today = dublinDay(now);
-  const offSale = new Set(cars.filter((c) => !forSale(c)).map((c) => c.slug));
+  const offSale = new Set(cars.filter((c) => !forSale(c)).map((c) => c.id));
 
   // The records behind the to-dos the overview lists one by one, each in the order to work them: the longest waiting first, the soonest next.
   const due = leads.filter((l) => followUpDue(l, today)).sort((a, b) => a.followUpOn!.localeCompare(b.followUpOn!));
@@ -44,7 +45,7 @@ export function overview(input: { leads: Lead[]; drives: TestDrive[]; reviews: A
     { key: "drives", label: "Test drives to confirm", count: toConfirm.length, href: "/test-drives?view=list&status=requested&when=ahead", urgency: "soon" },
     { key: "reviews", label: "Reviews without a reply", count: reviews.filter((r) => !r.reply).length, href: "/reviews?filter=unreplied", urgency: "info" },
     { key: "sync", label: `${listingSite} stock is not updating`, count: input.syncProblem ? 1 : 0, href: "/stock", urgency: "now" },
-    { key: "sold-drives", label: "Test drives booked on a car no longer for sale", count: drives.filter((d) => d.startsAt >= now && isOpenDrive(d) && offSale.has(d.carSlug)).length, href: "/test-drives?view=list&car=gone&when=ahead", urgency: "now" },
+    { key: "sold-drives", label: "Test drives booked on a car no longer for sale", count: drives.filter((d) => d.startsAt >= now && isOpenDrive(d) && offSale.has(slugId(d.carSlug))).length, href: "/test-drives?view=list&car=gone&when=ahead", urgency: "now" },
     { key: "deposits", label: "Reservations past their date", count: overdue.length, href: overdue.length === 1 ? `/stock/${overdue[0].carId}/reserve` : "/stock?view=reserved", urgency: "now" },
     { key: "orders", label: "Ordered cars arrived, to hand over", count: (input.orders ?? []).filter((o) => o.status === "arrived").length, href: "/orders?view=arrived", urgency: "soon" },
     { key: "taken-down", label: `${listingSite} ads taken down: did they sell?`, count: cars.filter((c) => c.takenDownAt).length, href: "/stock?view=hidden", urgency: "soon" },

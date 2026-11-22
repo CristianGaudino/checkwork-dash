@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { CONDITIONS, FUELS, GEARBOXES, type Car } from "@/lib/stock/types";
 import { PRICE_BANDS, bandOf, type PriceBand } from "@/lib/visit-rules";
+import { slugId } from "@/lib/admin/stock-admin-pure";
 
 // The visit note (#34): what a person did on the dealer's website during the visit they sent an enquiry from, sent with the enquiry only when
 // they turned the switch on. The contract is shared with the website (checkwork-demo#249, docs/site-api.md): fixed values only, no free
@@ -131,7 +132,7 @@ export function wantOf(asked: Car | undefined, viewed: Car[], searches: JourneyS
 
 // A car of the visit is the one they asked about when the lead's car page (`…-<id>`) is that car's. By the id, not the whole slug: editing a
 // car's make, model or year gives it a new slug (car-form.ts), and the lead keeps the old one.
-export const isAsked = (carSlug: string | undefined, id: string) => Boolean(carSlug?.endsWith(`-${id}`));
+export const isAsked = (carSlug: string | undefined, id: string) => Boolean(carSlug) && slugId(carSlug!) === id;
 export const askedCar = (stock: Car[], carSlug: string | undefined) => (carSlug ? stock.find((c) => isAsked(carSlug, c.id)) : undefined);
 
 // The cars of the visit against the dealer's stock: the car when it is still there, whether it is the one they asked about, and a name when

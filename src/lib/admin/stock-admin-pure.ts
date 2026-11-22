@@ -13,7 +13,8 @@ export const slugify = (s: string) =>
 // every id still in use, by a car or by a record that names one (a sale, a deposit): an id is never given out twice, so a new car can never
 // take over a deleted car's sale.
 export function nextCarId(existing: { id: string }[]) {
-  return String(Math.max(0, ...existing.map((c) => Number(c.id) || 0)) + 1);
+  // Only a real id (digits, as the site API's carId): a long number at the end of a stored slug would give "1e+21".
+  return String(Math.max(0, ...existing.map((c) => (/^\d{1,12}$/.test(c.id) ? Number(c.id) : 0))) + 1);
 }
 
 // The day a car first went on the website: kept once it has one. A car on the website keeps what it has, so an edit never invents a date
@@ -23,6 +24,9 @@ export const listedOn = (was: Pick<Car, "listing" | "listedAt"> | undefined, liv
 
 // Slug is make, model, year and id, the same recipe as the feed (D-08). Keeping the id in it keeps every slug unique.
 export const carSlug = (c: Pick<Car, "make" | "model" | "year" | "id">) => `${slugify(c.make)}-${slugify(c.model)}-${c.year}-${c.id}`;
+// The car id at the end of a slug. A record that keeps a slug (a lead, a booking, a post) finds its car by this: editing the make, model or
+// year gives the car a new slug, and the record keeps the old one.
+export const slugId = (slug: string) => slug.split("-").at(-1) ?? "";
 
 // Where a car stands, the same on every page and in the export: off the website first (draft, hidden), then sold, reserved or for sale.
 export const CAR_STATUSES = ["Draft", "Hidden", "Sold", "Reserved", "For sale"] as const;

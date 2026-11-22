@@ -4,6 +4,7 @@ import { FUEL_LABELS, GEARBOX_LABELS, forSale, isReduced, type Car } from "@/lib
 import { DAY } from "@/lib/time";
 import type { Ad, DealerSettings, Network, SocialPost } from "./collections";
 import { addDays, dublinDay } from "./format";
+import { slugId } from "./stock-admin-pure";
 import { PUBLISH_MODE, type PostFormat } from "./networks";
 import type { CarFacts } from "@/lib/ai/tasks";
 
@@ -93,8 +94,8 @@ const RECENT_POST = 14 * DAY;
 const NEW_FOR = 7 * DAY;
 export type PostIdea = { car: Car; reason: "New this week" | "Price dropped" };
 export function worthPosting(cars: Car[], posts: Pick<SocialPost, "carSlug" | "createdAt">[], now = Date.now()): PostIdea[] {
-  const posted = new Set(posts.filter((p) => p.carSlug && now - p.createdAt < RECENT_POST).map((p) => p.carSlug));
-  const open = cars.filter((c) => forSale(c) && !posted.has(c.slug));
+  const posted = new Set(posts.filter((p) => p.carSlug && now - p.createdAt < RECENT_POST).map((p) => slugId(p.carSlug!))); // by id: an edit gives the car a new slug
+  const open = cars.filter((c) => forSale(c) && !posted.has(c.id));
   const fresh = open.filter((c) => c.listedAt && now - Date.parse(`${c.listedAt}T00:00:00Z`) < NEW_FOR).sort((a, b) => b.listedAt!.localeCompare(a.listedAt!));
   const reduced = open.filter((c) => !fresh.includes(c) && isReduced(c));
   return [...fresh.map((car) => ({ car, reason: "New this week" as const })), ...reduced.map((car) => ({ car, reason: "Price dropped" as const }))].slice(0, 3);
