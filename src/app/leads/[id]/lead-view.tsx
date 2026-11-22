@@ -19,7 +19,7 @@ import { matchesAny, parsePersonQuery, type PersonQuery } from "@/lib/admin/pers
 
 import { adminCars } from "@/lib/admin/stock-admin";
 import { isSold } from "@/lib/stock/types";
-import { CalendarIcon, CarIcon, CheckIcon, CloseIcon, PhoneIcon } from "@/components/stock/icons";
+import { CalendarIcon, CarIcon, CheckIcon, CloseIcon, InboxIcon, PhoneIcon } from "@/components/stock/icons";
 import type { LeadStatus } from "@/lib/admin/collections";
 import { addNoteAction, assignLeadAction, setFollowUpAction, setLostReasonAction, setStatusAction } from "../actions";
 import { dublinDay, fmtDate, fmtDateTime, fmtDay, fmtTime } from "@/lib/admin/format";
@@ -37,7 +37,7 @@ import { LeadMenu, SpamButton } from "@/components/admin/LeadActions";
 import { readLead } from "@/lib/leads/lead-text";
 
 // The quick actions on a lead: the steps it moves through (leadStatusSteps), each with its icon.
-const STATUS_ICONS: Record<LeadStatus, typeof PhoneIcon> = { new: PhoneIcon, contacted: PhoneIcon, appointment: CalendarIcon, won: CheckIcon, lost: CloseIcon, closed: CloseIcon, spam: CloseIcon };
+const STATUS_ICONS: Record<LeadStatus, typeof PhoneIcon> = { new: InboxIcon, contacted: PhoneIcon, appointment: CalendarIcon, won: CheckIcon, lost: CloseIcon, closed: CloseIcon, spam: CloseIcon };
 
 // One lead, worked from here. At the top: what they asked, the ways to reach them and the next step. Below: when to get back to them, who
 // has it, the reply draft and the notes. Shown at its own address under Leads, or, for a warranty request, under Aftersales (where it is
@@ -134,7 +134,7 @@ export async function LeadView({ id }: { id: string }) {
           </section>
           <section aria-labelledby="next" className="flex min-w-0 flex-col gap-4 max-lg:order-first max-lg:border-b max-lg:border-hairline max-lg:pb-5 lg:border-l lg:border-hairline lg:pl-6">
             <h2 id="next" className="text-section font-semibold">Next step</h2>
-            <ContactButtons phone={lead.phone} email={lead.email} main={main === "reply" ? replyVia(lead) : undefined} />
+            <ContactButtons phone={lead.phone} email={lead.email} main={main === "reply" ? replyVia(lead) : undefined} whatsapp={lead.whatsappOptIn !== false} />
             {/* Booking a drive from the lead carries their car, name and number into the form. */}
             {lead.type !== "warranty" && isOpenLead(lead) && (
               <IfModule id="testDrives">
@@ -163,7 +163,8 @@ export async function LeadView({ id }: { id: string }) {
               {/* A spam lead has no steps: Not spam, below, is the way back. */}
               {lead.status !== "spam" && (
                 <div className="flex flex-wrap gap-2">
-                  {leadStatusSteps(lead.type).map((status) => {
+                  {/* New first, so a status moved by mistake can be put back after the Undo toast has gone. */}
+                  {(["new", ...leadStatusSteps(lead.type)] as LeadStatus[]).map((status) => {
                     const Icon = STATUS_ICONS[status];
                     return (
                       <ChoiceAct key={status} action={setStatusAction.bind(null, lead.id)} set={{ status }} back={undoStatus} active={lead.status === status} done={`${lead.name}: ${leadStatusLabel(lead.type, status)}`}>
@@ -218,6 +219,11 @@ export async function LeadView({ id }: { id: string }) {
               </fieldset>
             )}
             {/* They ticked the WhatsApp box on the form: the site's messages reach them there until someone stops it. */}
+            {lead.whatsappOptIn === false && (
+              <IfModule id="whatsapp">
+                <p className="text-meta text-text-2">WhatsApp updates: off</p>
+              </IfModule>
+            )}
             {lead.whatsappOptIn && (
               <IfModule id="whatsapp">
                 <div className="flex flex-wrap items-center justify-between gap-2">

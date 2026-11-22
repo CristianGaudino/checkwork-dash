@@ -34,7 +34,7 @@ describe("Stop WhatsApp", () => {
   it("clears the buyer's opt-in and logs it without the buyer", async () => {
     db.leads.set("lead-1", { id: "lead-1", name: "Pat Byrne", whatsappOptIn: true });
     await stopWhatsAppAction("lead-1");
-    expect(db.leads.get("lead-1")?.whatsappOptIn).toBeUndefined();
+    expect(db.leads.get("lead-1")?.whatsappOptIn).toBe(false);
     expect(db.log).toEqual(["Stopped WhatsApp updates to the buyer"]);
   });
 

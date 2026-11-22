@@ -9,9 +9,9 @@ test("a request is confirmed from the list, and Undo puts it back", async ({ pag
   const first = waiting.getByRole("listitem").first();
   const who = (await first.locator("[data-name]").textContent())!.trim();
   // Cancel is not beside Confirm in a row: it is under More.
-  await expect(first.getByRole("button", { name: `Cancel: ${who}` })).toHaveCount(0);
+  await expect(first.getByRole("button", { name: `Cancel test drive: ${who}` })).toHaveCount(0);
   await first.getByRole("button", { name: `More for ${who}` }).click();
-  await expect(page.getByRole("button", { name: `Cancel: ${who}` })).toBeVisible();
+  await expect(page.getByRole("button", { name: `Cancel test drive: ${who}` })).toBeVisible();
   await page.keyboard.press("Escape");
   await first.getByRole("button", { name: "Confirm" }).click();
   await expect(page.getByText(`${who}: Confirmed`)).toBeVisible();
@@ -36,7 +36,11 @@ test("a request's row has one strong button, Confirm; on its own page Confirm is
   await row.locator("[data-name]").click();
   await expect(page).toHaveURL(/\/test-drives\/drive-/);
   const status = page.getByRole("region", { name: "Status" });
-  await expect(status.getByRole("button", { name: `Cancel: ${who}` })).toBeVisible();
+  // Cancel asks first; the dialog's Cancel changes nothing.
+  await status.getByRole("button", { name: `Cancel test drive: ${who}` }).click();
+  const ask = page.getByRole("dialog", { name: `Cancel ${who}'s test drive?` });
+  await ask.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(ask).toHaveCount(0); // and Confirm is still there below: the status is unchanged
   // Filled (bg-accent), not tonal (bg-accent-soft).
   await expect(status.getByRole("button", { name: `Confirm: ${who}` })).toHaveClass(/(^|\s)bg-accent(\s|$)/);
 });
@@ -83,6 +87,7 @@ test("a booking is made in steps, and the same car's time is then taken", async 
   await page.getByRole("button", { name: "Book test drive" }).click();
   await expect(page.getByText("Enter a name")).toBeVisible(); // what is missing, on the step it belongs to
   await page.getByRole("textbox", { name: /^Name/ }).fill("Test booker"); // its name now carries the error too
+  await expect(page.getByText("Enter a name")).toHaveCount(0); // checked again as it is typed, so the fixed error goes
   await page.getByLabel("Phone").fill("+353 83 000 1234");
   await page.getByRole("button", { name: "Book test drive" }).click();
   await expect(page.getByText("Booked Test booker for")).toBeVisible();

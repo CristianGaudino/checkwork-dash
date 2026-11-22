@@ -69,7 +69,7 @@ What differs between dealers beyond their records is in their profile (#5): one 
   email, address and hours in Settings, Your business (`saveBusinessAction`, in the activity history); it merges into the profile, never
   over what is ours.
 - **Ours to set** (shown read only in Billing: the plan, and "What we set for you"): `modules` (the plan), `stock` (`source` "checkwork" or "donedeal",
-  `listingSite`, `listingUrl`), `rules` (`oldStockDays`, `slowDropEur`, `soldVisibleDays`, `saleNudgeDays`), `placeId` (Google reviews)
+  `listingSite`, `listingUrl`), `rules` (`oldStockDays`, `slowDropEur`, `soldVisibleDays`), `placeId` (Google reviews)
   and `leadEmail` (where leads go when Settings has no address). How to set them: `docs/new-dealer.md`.
 - **Defaults:** a dealer with nothing set has the dashboard alone, stock kept here, the usual rules, no website and no logo (the menu
   shows the name). A demo dealer's base is the made-up demo business (`DEMO_PROFILE`: every module, its facts and logo); the demo reset
@@ -232,7 +232,7 @@ with no D1). The actor is the signed-in person (`currentMember`), or a named one
   each lead once, as a follow-up due, else as a new lead. The Overview's headline, its To do and its Reply to leads button, Leads' To
   answer now and a salesperson's report all count from it, so they agree. The Leads table pins the ones it marks red (`answerNow`: late,
   urgent, or a follow-up overdue) to its top, by the same rule. To do shows its top 8 rows, then See all. Only mine (To do,
-  and Leads' To answer now, where Reply to leads takes it) keeps the leads and test drives given to you or to nobody yet, so a new
+  and Leads' To answer now, where Reply to leads takes it and it reads Mine and unassigned) keeps the leads and test drives given to you or to nobody yet, so a new
   website lead never drops out of sight; follow-ups only your own, as in your report (`forPerson`). Stock, reviews and the like are
   nobody's and stay. It is on by default for Sales on the Overview. The bell counts something else on purpose: notices not yet read, of what came in, not the work still to do.
 

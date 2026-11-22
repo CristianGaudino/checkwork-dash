@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CarForm } from "@/components/admin/CarForm";
-import { Field, Notice, PageHeader, Panel, adminButton, adminButtonQuiet, adminInput, choicePill, dangerButton } from "@/components/admin/kit";
+import { Notice, PageHeader, Panel, adminButton, adminButtonQuiet, choicePill, dangerButton } from "@/components/admin/kit";
 import { CarFlags, ListingButton, PostToSocial, ViewOnSite, daysInStock } from "@/components/admin/CarActions";
 import { CarThumb } from "@/components/admin/CarThumb";
 import { card, NEW_TAB } from "@/components/ui";
 import { ActButton } from "@/components/admin/ActButton";
+import { CostForm } from "@/components/admin/ClaimForms";
 import { AITextarea } from "@/components/admin/AIWriter";
 import { carFields } from "@/lib/admin/car-fields";
 import { listingHref } from "@/lib/stock-source-rules";
@@ -18,7 +19,7 @@ import { fmtDate, fmtEur, fmtNum } from "@/lib/admin/format";
 import { PrepPanel } from "@/components/admin/PrepPanel";
 import { CarPhotos } from "@/components/admin/CarPhotos";
 import { CAR_PHOTOS_MAX } from "@/lib/admin/car-photos";
-import { adminCarAt } from "@/lib/admin/stock-admin";
+import { adminCar, adminCarAt } from "@/lib/admin/stock-admin";
 import { can } from "@/lib/permissions";
 import { carName, priceLabel } from "@/lib/stock/format";
 import { stockSource } from "@/lib/stock-source";
@@ -27,12 +28,15 @@ import { deleteCarAction, saveCostAction } from "../actions";
 import { enabledModules, hasModule } from "@/lib/modules";
 import { conditionShown } from "@/lib/modules-rules";
 
-export const metadata = { title: "Edit car" };
+// The tab names the car, so several open cars can be told apart.
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+  const car = await adminCar((await params).id);
+  return { title: car ? carName(car) : "Car" };
+}
 
-export default async function Page({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ cost?: string; photos?: string }> }) {
+export default async function Page({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ photos?: string }> }) {
   const { id } = await params;
   const sp = await searchParams;
-  const costSaved = sp.cost === "saved";
   // One read for the car and when it was written, so the form never pairs an older car with a newer time (#15).
   const [opened, deposits] = await Promise.all([adminCarAt(id), hasModule("sales")]);
   const car = opened?.car;
@@ -127,13 +131,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
         {cost && (
           <div id="cost" className="scroll-mt-24">
           <Panel title="Cost price">
-            {costSaved && <Notice>Cost saved.</Notice>}
-            <form action={saveCostAction.bind(null, car.id)} className="flex flex-wrap items-end gap-3">
-              <Field label="Cost price (€)" hint="Leave empty to clear it" className="sm:max-w-xs">
-                <input name="costEur" inputMode="numeric" defaultValue={cost.eur ?? ""} className={adminInput} />
-              </Field>
-              <button type="submit" className={adminButton}>Save cost</button>
-            </form>
+            <CostForm act={saveCostAction.bind(null, car.id)} label="Cost price (€)" hint="Leave empty to clear it" costEur={cost.eur} />
           </Panel>
           </div>
         )}

@@ -77,6 +77,7 @@ test("an owner changes a role as soon as it is picked, and the team cannot be le
   // The only owner cannot be demoted: it says why and stays an owner.
   await page.getByLabel("Role for Aoife Brennan").click();
   await page.getByRole("listbox").getByRole("option", { name: "Sales" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Change role" }).click(); // to or from Owner asks first
   await expect(page.getByRole("alert").filter({ hasText: "Keep at least one owner on the team" })).toBeVisible();
   await expect(page.getByLabel("Role for Aoife Brennan")).toHaveValue("Owner");
   await page.getByRole("row").filter({ hasText: name }).getByRole("button", { name: "Remove" }).click();

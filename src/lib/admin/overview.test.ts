@@ -37,6 +37,9 @@ describe("overview", () => {
     expect(o.attention.map((a) => [a.key, a.count])).toEqual([["reply", 2], ["drives", 1], ["reviews", 1]]); // every new lead, the late one makes it red
     expect(o.attention[0].urgency).toBe("now");
     expect(overview({ rules: DEMO_PROFILE.rules, listingSite: "DoneDeal", leads: [], drives: [], reviews: [review("s", 5, "thanks")], now }).attention).toEqual([]);
+    // Open warranty requests are a to-do too, after the drives to confirm (#91).
+    const w = overview({ rules: DEMO_PROFILE.rules, listingSite: "DoneDeal", leads: [], drives: [drive("d", DAY, "requested")], reviews: [], warrantyRequests: 1, now });
+    expect(w.attention.map((a) => [a.key, a.count, a.href])).toEqual([["drives", 1, "/test-drives?view=list&status=requested&when=ahead"], ["warranty", 1, "/aftersales?view=requests"]]);
   });
   it("flags old stock, cars with no cost, a failing sync and drives booked on a sold car", () => {
     const car = (id: string, listedAt: string, o: object = {}) => ({ id, slug: id, listedAt, photos: [], ...o }) as unknown as import("@/lib/stock/types").Car;
@@ -45,6 +48,13 @@ describe("overview", () => {
     expect(o.attention.map((a) => [a.key, a.count])).toEqual([["sync", 1], ["sold-drives", 2], ["taken-down", 1], ["old", 1], ["costs", 1]]);
     // Without the margins permission there is no cost item at all, and a sold car is never old stock.
     expect(overview({ rules: DEMO_PROFILE.rules, listingSite: "DoneDeal", leads: [], drives: [], reviews: [], cars: [car("gone", "2026-01-01", { soldAt: "2026-02-01" })], now }).attention).toEqual([]);
+  });
+  it("counts every sold car with no sale recorded, however long ago, oldest first", () => {
+    const car = (id: string, soldAt?: string) => ({ id, slug: id, photos: [], soldAt }) as unknown as import("@/lib/stock/types").Car;
+    const cars = [car("recent", "2026-11-01"), car("long-ago", "2026-03-01"), car("recorded", "2026-10-01"), car("for-sale")];
+    const o = overview({ rules: DEMO_PROFILE.rules, listingSite: "DoneDeal", leads: [], drives: [], reviews: [], cars, sales: new Set(["recorded"]), now });
+    expect(o.unrecorded.map((c) => c.id)).toEqual(["long-ago", "recent"]); // as many as the Sold view's Record sale buttons
+    expect(o.attention.find((a) => a.key === "sales")?.count).toBe(2);
   });
   it("lists the records behind the to-dos in the order to work them, and today's open drives", () => {
     const o = overview({ rules: DEMO_PROFILE.rules, listingSite: "DoneDeal", leads: [lead("newer", 30 * HOUR), lead("older", 50 * HOUR), lead("fresh", HOUR)], drives: [drive("later", 2 * DAY, "requested"), drive("sooner", HOUR, "requested"), drive("past", -HOUR, "confirmed"), drive("off", 2 * HOUR, "cancelled")], reviews: [], now });
@@ -95,7 +105,7 @@ describe("overview", () => {
     const o = overview({ rules: DEMO_PROFILE.rules, listingSite: "DoneDeal", leads, drives, reviews: [], now, mine: "Ciara" });
     expect(o.answer.map((t) => t.lead.id)).toEqual(["a", "b", "d"]);
     expect(o.toConfirm.map((d) => d.id)).toEqual(["x", "y"]);
-    // Leads' To answer now with Only mine (the button's link) counts the same leads.
+    // Leads' To answer now with Mine and unassigned (the button's link) counts the same leads.
     expect(forPerson(leadsToAnswer(leads, now, "2026-11-10", 24), "Ciara").length).toBe(o.answer.length);
     expect(o.attention.find((a) => a.key === "follow")?.href).toBe("/leads?need=due&with=Ciara");
     expect(o.due.length).toBe(personalReport({ name: "Ciara", sales: [], leads, period: 3, now }).totals.followUpsDue);

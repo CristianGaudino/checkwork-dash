@@ -37,7 +37,9 @@ test("the owner sees the plan, sets a limit and an alert, and opens a bill", asy
   await page.goto("/billing?section=bills");
   await expect(page.getByText("Invoices are emailed as PDFs when each bill is issued.")).toBeVisible();
   await expect(page.getByRole("link", { name: /download/i })).toHaveCount(0);
-  await page.getByRole("table").getByRole("link").first().click();
+  // This month comes first, as an estimate; last month is the latest bill.
+  await expect(page.getByRole("table").getByText("Estimate")).toBeVisible();
+  await page.getByRole("table").getByRole("link").nth(1).click();
   await expect(page.getByRole("heading", { level: 1 })).toContainText("Bill for");
   await expect(page.getByText("VAT at 23%")).toBeVisible();
 });

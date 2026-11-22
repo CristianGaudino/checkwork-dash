@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 import type { Lead } from "./collections";
-import { SALES_LEAD_TYPES, countByStatus, filterLeads, isOpenLead, isSalesLead, leadFlag, leadMain, leadsToAnswer, onLeadsList, possibleSpam, openWarrantyRequests, parseLeadFilter, replyVia, urgentFirst } from "./leads";
+import { SALES_LEAD_TYPES, countByStatus, filterLeads, isOpenLead, isSalesLead, leadFlag, leadMain, leadsToAnswer, onLeadsList, possibleSpam, openWarrantyRequests, parseLeadFilter, replyVia, statusCounts, urgentFirst } from "./leads";
 
 const lead = (id: string, o: Partial<Lead> = {}): Lead => ({ id, type: "enquiry", status: "new", name: id, email: `${id}@example.com`, phone: "", message: "", source: "Website", notes: [], createdAt: Number(id.replace(/\D/g, "")) || 0, ...o });
 
@@ -30,6 +30,12 @@ describe("lead filters", () => {
   it("counts every status, including those with none", () => {
     expect(countByStatus([lead("a1"), lead("a2", { status: "lost" })])).toEqual({ new: 1, contacted: 0, appointment: 0, won: 0, lost: 1, closed: 0, spam: 0 });
   });
+  it("counts the status tabs under the search and filters, whatever status is picked", () => {
+    const leads = [lead("a1", { name: "Ford" }), lead("a2", { status: "won", name: "Ford" }), lead("a3", { status: "spam", name: "Ford" }), lead("a4"), lead("a5", { status: "won" })];
+    expect(statusCounts(leads, { q: "ford" })).toMatchObject({ new: 1, won: 1, spam: 1 });
+    expect(statusCounts(leads, { q: "ford", status: "won" })).toEqual(statusCounts(leads, { q: "ford" }));
+    expect(statusCounts(leads, { q: "" })).toMatchObject({ new: 2, won: 2, spam: 1 });
+  });
 });
 
 describe("warranty requests", () => {
@@ -49,6 +55,7 @@ describe("the lead's main button", () => {
     expect(replyVia(lead("a", { type: "general", source: "Website", phone: PHONE }))).toBe("call");
     expect(replyVia(lead("a", { source: "WhatsApp", phone: PHONE }))).toBe("whatsapp");
     expect(replyVia(lead("a", { phone: PHONE, answers: { contactVia: "whatsapp" } }))).toBe("whatsapp");
+    expect(replyVia(lead("a", { source: "WhatsApp", phone: PHONE, whatsappOptIn: false }))).toBe("call"); // WhatsApp stopped on the lead
     expect(replyVia(lead("a", { phone: PHONE, answers: { contactVia: "email" } }))).toBe("email");
     expect(replyVia(lead("a", { source: "WhatsApp", phone: "" }))).toBe("email"); // no number to message
     expect(replyVia(lead("a", { phone: "12", email: "" }))).toBeUndefined();

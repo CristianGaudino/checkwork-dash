@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Avatar, Badge, Field, Notice, PageHeader, Panel, adminButton, adminInput, rowButton } from "@/components/admin/kit";
+import { Avatar, Badge, Notice, PageHeader, Panel, rowButton } from "@/components/admin/kit";
 import { ActButton } from "@/components/admin/ActButton";
 import { askModuleAction } from "@/app/billing/actions";
 import { SHOW_PRICING } from "@/lib/billing/rules";
@@ -12,14 +12,12 @@ import { can, currentMember } from "@/lib/permissions";
 import { BUTTON_LABELS, EVENTS, eventList, type EventId } from "@/lib/whatsapp/rules";
 import { dealerProfile } from "@/lib/tenancy/current";
 import { staffStore, viewFor } from "@/lib/whatsapp/store";
-import { saveStaffAction } from "./actions";
-import { SubmitButton } from "@/components/admin/SubmitButton";
+import { StaffForm } from "@/components/admin/whatsapp/StaffForm";
 
 export const metadata = { title: "WhatsApp" };
 
 const NOTICES: Record<string, { tone: "good" | "warn"; text: string }> = {
   saved: { tone: "good", text: "Saved." },
-  invalid: { tone: "warn", text: "Check the phone number and the quiet hours. Nothing was saved." },
 };
 
 // One line icon per alert, so the list reads at a glance.
@@ -46,6 +44,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ n
   const events = eventList(modules, rules.oldStockDays).map((e) => ({ ...e, module: MODULES.find((m) => m.id === e.module)! }));
   const allowed = events.filter((e) => e.on);
   const note = notice ? NOTICES[notice] : undefined;
+  const linked = phones.some((x) => x.name === me.name && x.phone);
 
   return (
     <>
@@ -76,34 +75,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ n
                     <ChevronDownIcon aria-hidden="true" className="size-5 shrink-0 text-text-2 transition-transform group-open:rotate-180 sm:hidden" />
                   </summary>
                   {canEdit ? (
-                    <form action={saveStaffAction.bind(null, t.id)} className="flex flex-col gap-5 pb-5 pt-2 sm:pl-13">
-                      <Field label="WhatsApp number" hint="With the country code. Leave empty to unlink." className="max-w-sm">
-                        <input name="phone" type="tel" inputMode="tel" defaultValue={p?.phone ?? ""} maxLength={18} className={adminInput} />
-                      </Field>
-                      <fieldset className="flex flex-col gap-2">
-                        <legend className="mb-1 text-meta font-semibold">Alerts to get</legend>
-                        <div className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
-                          {allowed.map((e) => (
-                            <label key={e.id} className="flex min-h-11 items-center gap-2.5 text-body">
-                              <input type="checkbox" name="alert" value={e.id} defaultChecked={mine.has(e.id)} className="size-5 accent-accent" />
-                              {e.label}
-                            </label>
-                          ))}
-                        </div>
-                      </fieldset>
-                      <fieldset className="flex flex-col gap-2">
-                        <legend className="mb-1 text-meta font-semibold">Quiet hours</legend>
-                        <div className="grid max-w-sm grid-cols-2 gap-3">
-                          <Field label="From">
-                            <input name="quietFrom" type="time" defaultValue={p?.quietFrom ?? ""} className={adminInput} />
-                          </Field>
-                          <Field label="Until">
-                            <input name="quietTo" type="time" defaultValue={p?.quietTo ?? ""} className={adminInput} />
-                          </Field>
-                        </div>
-                      </fieldset>
-                      <SubmitButton className={`${adminButton} self-start`}>Save</SubmitButton>
-                    </form>
+                    <StaffForm id={t.id} p={p} allowed={allowed.map(({ id, label }) => ({ id, label }))} />
                   ) : (
                     <p className="pb-4 text-meta text-text-2 sm:pl-13">Only {t.name} or an owner or manager can change this.</p>
                   )}
@@ -124,10 +96,17 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ n
           {/* Both phones side by side, how it works beside them from 1280px and under them before that. */}
           <section aria-labelledby="wa-how" className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_17rem]">
             <div className="flex min-w-0 flex-col gap-3">
-              {modules.has("tradeIn") && (
+              {/* Only a linked number gets alerts and can act, so say that first rather than point at a phone with nothing on it. */}
+              {!linked ? (
                 <p className="text-meta text-text-2">
-                  <span className="font-semibold text-text">Try it:</span> tap Reply with a price on the trade-in and type 8,500.
+                  <span className="font-semibold text-text">Try it:</span> link your number in Staff phones first.
                 </p>
+              ) : (
+                modules.has("tradeIn") && (
+                  <p className="text-meta text-text-2">
+                    <span className="font-semibold text-text">Try it:</span> tap Reply with a price on the trade-in and type 8,500.
+                  </p>
+                )
               )}
               <Phones initial={view} />
             </div>

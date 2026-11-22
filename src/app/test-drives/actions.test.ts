@@ -26,6 +26,10 @@ describe("a booking taken at the desk", () => {
     const r = await addDriveAction(undefined, form({}));
     expect(Object.keys(r?.errors ?? {})).toEqual(expect.arrayContaining(["name", "phone", "carSlug", "date", "time"]));
   });
+  it("tells a missing phone from one that is not a number", async () => {
+    expect((await addDriveAction(undefined, form(await base({ phone: "" }))))?.errors?.phone).toBe("Enter a phone number");
+    expect((await addDriveAction(undefined, form(await base({ phone: "087 12" }))))?.errors?.phone).toBe("Enter a valid phone number");
+  });
   it("refuses a car not in stock, a day gone, a day too far, a closed day and a time out of hours", async () => {
     expect((await addDriveAction(undefined, form(await base({ carSlug: "no-such-car" }))))?.errors).toEqual({ carSlug: "That car is not in stock" });
     const sold = (await adminCars()).find((c) => c.soldAt)!;

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { parseModules } from "@/lib/modules-rules";
 import { ROLES } from "@/lib/permission-rules";
-import { BUTTON_LABELS, EVENTS, EVENT_IDS, alertText, channelFor, defaultAlerts, eventList, eventOfLead, eventsFor, firstName, inQuiet, parsePrice } from "./rules";
+import { BUTTON_LABELS, EVENTS, EVENT_IDS, alertText, channelFor, defaultAlerts, eventList, eventOfLead, eventsFor, firstName, inQuiet, parsePrice, staffErrors } from "./rules";
 
 describe("parsePrice", () => {
   it.each([
@@ -74,5 +74,18 @@ describe("firstName", () => {
     expect(firstName("  Aoife  Byrne ")).toBe("Aoife");
     expect(firstName("A Google User")).toBe("there");
     expect(firstName("", "")).toBe("");
+  });
+});
+
+describe("staffErrors", () => {
+  it("passes a good number, an empty one, and quiet hours both or neither", () => {
+    expect(staffErrors("+353 83 123 4567", "22:00", "07:00")).toEqual({});
+    expect(staffErrors("", "", "")).toEqual({});
+  });
+  it("names the field that is wrong", () => {
+    expect(Object.keys(staffErrors("12ab", "", ""))).toEqual(["phone"]);
+    expect(Object.keys(staffErrors("+353 83 123 4567", "22:00", ""))).toEqual(["quietTo"]);
+    expect(Object.keys(staffErrors("", "", "07:00"))).toEqual(["quietFrom"]);
+    expect(Object.keys(staffErrors("1", "25:00", "07:00"))).toEqual(["phone", "quietFrom"]);
   });
 });

@@ -1,12 +1,11 @@
-import { Badge, EmptyState, Meter, Notice, PageHeader, Panel, SummaryTabs, TableFooter, adminButton, pageOf, rowButton, rowButtonStrong } from "@/components/admin/kit";
+import { Badge, EmptyState, Meter, Notice, PageHeader, Panel, SummaryTabs, TableFooter, pageOf, rowButton, rowButtonStrong } from "@/components/admin/kit";
 import { Stars } from "@/components/admin/Stars";
-import { AITextarea } from "@/components/admin/AIWriter";
 import { reviewsStore, type AdminReview } from "@/lib/admin/collections";
 import { fmtDate, plural } from "@/lib/admin/format";
 import { currentDealer } from "@/lib/tenancy/current";
 import { REVIEW_FILTERS, filterReviews, parseReviewFilter, ratingSummary, type ReviewFilter } from "@/lib/admin/reviews";
 import { replyAction } from "./actions";
-import { SubmitButton } from "@/components/admin/SubmitButton";
+import { ReplyForm } from "./ReplyForm";
 
 // What a reply came back as (replyAction). Only these codes are ever shown.
 const NOTICES: Record<string, { tone: "good" | "warn"; text: string }> = {
@@ -104,11 +103,7 @@ function ReviewList({ rows, label, filter }: { rows: AdminReview[]; label: strin
           )}
           <details className="group">
             <summary className={`${r.reply ? rowButton : rowButtonStrong} w-fit cursor-pointer list-none [&::-webkit-details-marker]:hidden`} aria-label={`${r.reply ? "Edit reply" : "Reply"} to ${r.author}`}>{r.reply ? "Edit reply" : "Reply"}</summary>
-            <form action={replyAction.bind(null, r.id)} className="mt-2 flex max-w-measure flex-col gap-2">
-              <input type="hidden" name="filter" value={filter} />
-              <AITextarea id={`reply-${r.id}`} name="reply" label={`Reply to ${r.author}`} rows={3} maxLength={500} defaultValue={r.reply ?? ""} task="reviewReply" request={{ task: "reviewReply", reviewId: r.id }} />
-              <SubmitButton className={`${adminButton} self-start`}>{r.reply ? "Update reply" : "Post reply"}</SubmitButton>
-            </form>
+            <ReplyForm action={replyAction.bind(null, r.id)} id={r.id} author={r.author} reply={r.reply} filter={filter} />
           </details>
         </li>
       ))}

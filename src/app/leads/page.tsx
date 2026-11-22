@@ -7,7 +7,7 @@ import { AlertIcon, CalendarIcon, CheckIcon, InboxIcon } from "@/components/stoc
 import { can, currentMember } from "@/lib/permissions";
 import { LEAD_SOURCES, LEAD_STATUSES, LEAD_STATUS_LABELS, LEAD_TYPE_LABELS, getSettings, leadsStore, type Lead } from "@/lib/admin/collections";
 import { dublinDay, fmtAgo, fmtDate } from "@/lib/admin/format";
-import { SALES_LEAD_TYPES, countByStatus, filterLeads, followUpDue, forPerson, isOpenLead, onLeadsList, leadFlag, leadsToAnswer, parseLeadFilter, possibleSpam, urgentFirst, type LeadTask } from "@/lib/admin/leads";
+import { SALES_LEAD_TYPES, filterLeads, followUpDue, forPerson, isOpenLead, onLeadsList, leadFlag, leadsToAnswer, parseLeadFilter, possibleSpam, statusCounts, urgentFirst, type LeadTask } from "@/lib/admin/leads";
 import { TOPICS, leadTags } from "@/lib/leads/contact-topics";
 import { LeadKind, LeadTags, leadChips } from "@/components/admin/LeadKind";
 import { enabledModules } from "@/lib/modules";
@@ -41,9 +41,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
   const f = parseLeadFilter(sp);
   const [everyLead, { leadSlaHours, team }, modules] = await Promise.all([leadsStore.list(), getSettings(), enabledModules()]);
   const all = everyLead.filter(onLeadsList);
-  const counts = countByStatus(all);
   const today = dublinDay();
   const at = now(); // one clock for the badges, the pinning and To answer now, so they agree
+  const counts = statusCounts(all, f, today, leadSlaHours, at);
   const due = all.filter((l) => followUpDue(l, today)).length;
   // New leads waiting past the reply target, counted for the filter.
   const late = filterLeads(all, { q: "", late: true }, today, leadSlaHours, at).length;
@@ -148,17 +148,17 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
   };
 
   // What to answer now, worked down from the top, by the same rule as the Overview's To do (leadsToAnswer). On the plain list, or one
-  // person's: Only mine (forPerson, as the Overview's, whose Reply to leads opens it so) or Who has it. Any other filter or a search is
-  // looking for something else.
-  const filtered = Boolean(f.status || f.type || f.topic || f.q || f.due || f.late || f.source || (sp.page && sp.page !== "1"));
+  // person's: Mine and unassigned (forPerson, as the Overview's, whose Reply to leads opens it so) or Who has it. Any other filter is
+  // looking for something else. A search keeps it, so the search box does not jump up under the cursor while typing (#85).
+  const filtered = Boolean(f.status || f.type || f.topic || f.due || f.late || f.source || (sp.page && sp.page !== "1"));
   const me = await currentMember();
-  const mine = sp.mine === "1" && Boolean(me.name) && !f.with; // Who has it wins: its pill hides Only mine
+  const mine = sp.mine === "1" && Boolean(me.name) && !f.with; // Who has it wins: its pill hides Mine and unassigned
   const why = ({ lead: l, kind, flag }: LeadTask) =>
     kind === "follow" ? (l.followUpOn! < today ? `Follow-up was due ${fmtDate(`${l.followUpOn}T12:00:00Z`)}` : "Follow up today") : flag === "late" ? `Came in ${fmtAgo(l.createdAt)}, past your reply time` : flag === "urgent" ? `In a hurry: ${leadTags(l.topic!, l.answers ?? {}).join(", ")}` : `New, came in ${fmtAgo(l.createdAt)}`;
   const every = leadsToAnswer(f.with ? filterLeads(all, { q: "", with: f.with }) : all, at, today, leadSlaHours);
   const todo = (mine ? forPerson(every, me.name) : every).map((t) => ({ ...t, why: why(t) }));
   const SHOWN = 8;
-  // The footer's links keep whose leads these are: new ones by Who has it, follow-ups by Who has it or Only mine (only their own).
+  // The footer's links keep whose leads these are: new ones by Who has it, follow-ups by Who has it or Mine and unassigned (only their own).
   const withWho = f.with ? `&with=${encodeURIComponent(f.with)}` : "";
   const replies = todo.filter((t) => t.kind === "reply").length;
   const follows = todo.length - replies;
@@ -177,7 +177,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
             me.name && !f.with && (
               <Link href={mineHref} aria-current={mine ? "true" : undefined} className={choicePill(mine)}>
                 {mine && <CheckIcon className="shrink-0 size-4" />}
-                Only mine
+                Mine and unassigned
               </Link>
             )
           }
@@ -235,7 +235,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
       {/* Closed and Spam only when they hold a lead (or are open), as Stock does with Hidden and Drafts: an empty one is noise. */}
       <SummaryTabs
         label="Lead status"
-        items={[{ label: "All", href: href({ status: undefined }), active: !f.status, count: all.length - counts.spam }, ...LEAD_STATUSES.filter((s) => !["closed", "spam"].includes(s) || counts[s] > 0 || f.status === s).map((s) => ({ label: LEAD_STATUS_LABELS[s], hint: STATUS_HINTS[s], href: href({ status: s }), active: f.status === s, count: counts[s] }))]}
+        items={[{ label: "All", href: href({ status: undefined }), active: !f.status, count: Object.values(counts).reduce((a, b) => a + b, 0) - counts.spam }, ...LEAD_STATUSES.filter((s) => !["closed", "spam"].includes(s) || counts[s] > 0 || f.status === s).map((s) => ({ label: LEAD_STATUS_LABELS[s], hint: STATUS_HINTS[s], href: href({ status: s }), active: f.status === s, count: counts[s] }))]}
       />
       <TableToolbar search={{ placeholder: "Search", label: "Search leads" }} filters={filters} />
       <DataTable label="Leads" linkRows rows={rows} rowKey={(l) => l.id} columns={columns} sort={sp.sort ? sort : { key: "", dir: "desc" }} empty={<EmptyState title="No leads match" text="Try another filter or search." />} />

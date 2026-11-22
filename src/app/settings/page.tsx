@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { AddTeamForm, BusinessForm, RoleForm, LeadEmailsForm, MarketingForm, NotificationsForm, SiteKeyForm, TargetsForm } from "@/components/admin/SettingsForms";
-import { Badge, DataTable, PageHeader, Panel, adminButtonQuiet, rowDanger, tapArea } from "@/components/admin/kit";
+import { Badge, DataTable, PageHeader, Panel, dangerButton, rowDanger, tapArea } from "@/components/admin/kit";
 import { TabRow } from "@/components/admin/TabRow";
 import { ChevronDownIcon } from "@/components/stock/icons";
 import { ActButton } from "@/components/admin/ActButton";
@@ -146,7 +146,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
                         mayChange(t) ? (
                           <div className="flex flex-col items-end gap-2 sm:flex-row sm:items-start">
                             <RoleForm member={t} owner={owner} />
-                            {s.team.length > 1 && (
+                            {/* Never on their own row: removing yourself would lock you out. */}
+                            {s.team.length > 1 && t.email.toLowerCase() !== me.email.toLowerCase() && (
                               <ActButton act={removeTeamAction.bind(null, t.id)} confirm={{ title: `Remove ${t.name} from the team?`, text: "Their leads and test drives go back to nobody. They can be added again later.", yes: "Remove" }} className={rowDanger}>
                                 Remove
                               </ActButton>
@@ -260,14 +261,13 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
                     { key: "name", header: "Key", cell: (k) => <span className="font-medium">{k.label}</span> },
                     { key: "made", header: "Made", cell: (k) => fmtDateTime(k.createdAt), hide: "sm" },
                     { key: "used", header: "Last used", cell: (k) => (k.lastUsedAt ? fmtDateTime(k.lastUsedAt) : "Not yet"), hide: "sm" },
+                    { key: "state", header: "Status", cell: (k) => (k.revokedAt ? <Badge>Revoked</Badge> : <Badge tone="good">Active</Badge>) },
                     {
-                      key: "state",
-                      header: "Status",
+                      key: "actions",
+                      header: "",
                       align: "right",
                       cell: (k) =>
-                        k.revokedAt ? (
-                          <Badge>Revoked</Badge>
-                        ) : (
+                        !k.revokedAt && (
                           <ActButton act={revokeSiteKeyAction.bind(null, k.id)} confirm={{ title: `Revoke ${k.label}?`, text: "A website using this key can no longer send leads or read your cars.", yes: "Revoke" }} className={rowDanger}>
                             Revoke
                           </ActButton>
@@ -284,7 +284,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
           {section === "demo" && (
             <Panel title="Start again">
               <p className="max-w-measure text-body">Put the leads, bookings, reviews, marketing and settings back as they started.</p>
-              <ActButton act={resetDemoAction} confirm={{ title: "Start again from the beginning?", text: "Every change made in the dashboard is lost.", yes: "Start again" }} className={`${adminButtonQuiet} w-fit`}>
+              <ActButton act={resetDemoAction} confirm={{ title: "Lose every change and start again?", text: "Every lead, booking, review, post and setting goes back to how it started. This cannot be undone.", yes: "Lose every change" }} className={`${dangerButton} w-fit`}>
                 Start again
               </ActButton>
             </Panel>

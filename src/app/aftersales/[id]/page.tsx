@@ -3,13 +3,13 @@ import { notFound } from "next/navigation";
 import { ClaimStatusBadge, CoverBadge } from "@/components/admin/badges";
 import { ChoiceAct } from "@/components/admin/ActButton";
 import { Facts, PageHeader, Panel } from "@/components/admin/kit";
-import { ClaimCostForm } from "@/components/admin/ClaimForms";
+import { CostForm } from "@/components/admin/ClaimForms";
 import { CLAIM_STATUSES, CLAIM_STATUS_LABELS, claimsStore, coverEnds, customersStore, salesStore } from "@/lib/admin/collections";
 import { TimeLeft } from "@/components/admin/charts";
 import { dublinDay, fmtDate } from "@/lib/admin/format";
 import { can } from "@/lib/permissions";
 import { hasModule } from "@/lib/modules";
-import { addClaimNoteAction, setClaimStatusAction } from "../actions";
+import { addClaimNoteAction, setClaimCostAction, setClaimStatusAction } from "../actions";
 import { NotesPanel } from "@/components/admin/NotesPanel";
 
 export const metadata = { title: "Warranty claim" };
@@ -61,7 +61,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           )}
           {margins && (
             <Panel title="Cost">
-              <ClaimCostForm id={claim.id} costEur={claim.costEur} />
+              <CostForm act={setClaimCostAction.bind(null, claim.id)} label="Repair cost to us (€)" hint="Counts against the car's margin. Leave empty to clear it." costEur={claim.costEur} />
             </Panel>
           )}
         </div>

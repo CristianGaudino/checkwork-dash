@@ -72,7 +72,7 @@ test("Sales sees only their own to-dos by default, and can switch to the whole t
   await expect(mine).not.toHaveAttribute("aria-current", "true");
 });
 
-test("Leads: Who has it wins over Only mine, so a colleague's waiting leads still show", async ({ page, context }) => {
+test("Leads: Who has it wins over Mine and unassigned, so a colleague's waiting leads still show", async ({ page, context }) => {
   await as(context, "Sales");
   const answer = async (url: string) => {
     await page.goto(url);
@@ -81,5 +81,5 @@ test("Leads: Who has it wins over Only mine, so a colleague's waiting leads stil
   const theirs = await answer("/leads?with=Aoife%20Brennan");
   expect(theirs).toBeGreaterThan(0); // a colleague with work waiting, so an empty panel would show
   expect(await answer("/leads?mine=1&with=Aoife%20Brennan")).toBe(theirs);
-  await expect(page.getByRole("link", { name: "Only mine" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Mine and unassigned" })).toHaveCount(0);
 });

@@ -57,6 +57,8 @@ export function PostComposer({ cars, initialSlug, initialFormat = "post", initia
   const suggestion = car ? (format === "story" ? [`${LAYOUT_LABELS[layout]}: ${car.title}.`, storyLine].filter(Boolean).join("\n") : car.byFormat[format][network]) : "";
   // The text follows the suggestion until the dealer types; "Use the suggestion" brings it back.
   const [typed, setTyped] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false); // hide "Use the suggestion" mid-write: remounting the writer would leave its AI text unlabelled
+  const [writer, setWriter] = useState(0); // a new key drops the AI writer's draft, so the suggestion is not labelled as AI
   const text = typed ?? suggestion;
   const [chosen, setChosen] = useState<string[] | null>(null);
   // Pictures come from the car's own photos and the dealer's library (the photos of this car first). A reel has no pictures, only its video.
@@ -155,9 +157,9 @@ export function PostComposer({ cars, initialSlug, initialFormat = "post", initia
           <Field label="Text">
             <textarea name="text" rows={7} maxLength={POST_LIMITS.text} required value={text} placeholder={car ? undefined : "Loading the suggested text"} onChange={(e) => setTyped(e.target.value)} className={`${adminInput} h-auto py-2`} />
           </Field>
-          <AIWriter task="post" format={format} text={text} request={() => (slug ? { task: "post", carSlug: slug, network, format, ...(format === "story" && { layout }) } : null)} onText={(t) => setTyped(t)} />
-          {typed !== null && typed !== suggestion && suggestion && (
-            <button type="button" onClick={() => setTyped(null)} className="-mt-3 min-h-11 self-start text-meta font-medium text-accent-text underline">
+          <AIWriter key={writer} task="post" format={format} text={text} request={() => (slug ? { task: "post", carSlug: slug, network, format, ...(format === "story" && { layout }) } : null)} onText={(t) => setTyped(t)} onBusy={setBusy} />
+          {!busy && typed !== null && typed !== suggestion && suggestion && (
+            <button type="button" onClick={() => { setTyped(null); setWriter((w) => w + 1); }} className="-mt-3 min-h-11 self-start text-meta font-medium text-accent-text underline">
               Use the suggestion
             </button>
           )}

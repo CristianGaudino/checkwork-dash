@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { ActButton } from "@/components/admin/ActButton";
 import { ActionTile, ActionTiles, Columns, EmptyState, PageHeader, Panel, PanelLink, StatCard, StatGrid, Task, TaskList, adminButtonQuiet, choicePill, rowButton, rowButtonStrong, type TaskUrgency } from "@/components/admin/kit";
-import { AlertIcon, CalendarIcon, CarIcon, CheckIcon, ExternalIcon, InboxIcon, PercentIcon, PhoneIcon, ReceiptIcon, ShareIcon, StarIcon, SyncIcon, TruckIcon } from "@/components/stock/icons";
+import { AlertIcon, CalendarIcon, CarIcon, CheckIcon, ExternalIcon, InboxIcon, PercentIcon, PhoneIcon, ReceiptIcon, ShareIcon, StarIcon, SyncIcon, TruckIcon, WrenchIcon } from "@/components/stock/icons";
 import { carCosts } from "@/lib/admin/costs";
-import { drivesStore, getSettings, leadsStore, ordersStore, reservationsStore, reviewsStore, salesStore, type Lead } from "@/lib/admin/collections";
+import { claimsStore, drivesStore, getSettings, leadsStore, ordersStore, reservationsStore, reviewsStore, salesStore, type Lead } from "@/lib/admin/collections";
 import { marginOf } from "@/lib/admin/margins";
 import { can, currentMember } from "@/lib/permissions";
 import { dublinDay, fmtAgo, fmtDateTime, fmtDay, fmtEur, fmtNum, fmtTime, plural } from "@/lib/admin/format";
@@ -15,7 +15,7 @@ import { stockSource } from "@/lib/stock-source";
 import { listing } from "@/lib/stock-source";
 import { dealerProfile } from "@/lib/tenancy/current";
 import { forSale, isSold, onRequest } from "@/lib/stock/types";
-import { isSalesLead } from "@/lib/admin/leads";
+import { isSalesLead, openWarrantyRequests } from "@/lib/admin/leads";
 import { enabledModules } from "@/lib/modules";
 import { readLead } from "@/lib/leads/lead-text";
 import type { ModuleId } from "@/lib/modules-rules";
@@ -32,9 +32,10 @@ export const metadata = { title: { absolute: "Overview | Dealer dashboard" } };
 const EACH = 3;
 // How many rows To do shows before See all: about one phone screen.
 const TOP = 8;
-const MODULE_OF: Record<string, ModuleId> = { drives: "testDrives", "sold-drives": "testDrives", reviews: "reviews", deposits: "sales", orders: "newCars", costs: "margins" };
+const MODULE_OF: Record<string, ModuleId> = { drives: "testDrives", "sold-drives": "testDrives", reviews: "reviews", deposits: "sales", orders: "newCars", costs: "margins", warranty: "service" };
 // The to-dos that stay one row each: what they count (`noun`), the button's word and the icon.
 const GROUPED: Record<string, { noun: string; verb: string; icon: React.ReactNode }> = {
+  warranty: { noun: "request", verb: "Open", icon: <WrenchIcon /> },
   reviews: { noun: "review", verb: "Reply", icon: <StarIcon /> },
   sync: { noun: "problem", verb: "Check", icon: <SyncIcon /> },
   "sold-drives": { noun: "booking", verb: "Open", icon: <CalendarIcon /> },
@@ -65,7 +66,7 @@ const row = "relative flex min-h-16 items-center gap-3 px-1 py-3 transition-colo
 // `mine`: To do's Only mine, on by default for Sales (their report counts their own follow-ups); `todo=all`: every row, not the top few.
 export default async function Page({ searchParams }: { searchParams: Promise<{ mine?: string; todo?: string }> }) {
   const sp = await searchParams;
-  const [leads, drives, reviews, all, settings, source, sales, reservations, orders, mods, me] = await Promise.all([leadsStore.list(), drivesStore.list(), reviewsStore.list(), adminCars(), getSettings(), stockSource(), salesStore.list(), reservationsStore.list(), ordersStore.list(), enabledModules(), currentMember()]);
+  const [leads, drives, reviews, all, settings, source, sales, reservations, orders, claims, mods, me] = await Promise.all([leadsStore.list(), drivesStore.list(), reviewsStore.list(), adminCars(), getSettings(), stockSource(), salesStore.list(), reservationsStore.list(), ordersStore.list(), claimsStore.list(), enabledModules(), currentMember()]);
   const mine = Boolean(me.name) && (sp.mine ? sp.mine === "1" : me.role === "Sales");
   const [{ site: listingSite, url: listingUrl }, { rules }] = await Promise.all([listing(), dealerProfile()]);
   const synced = source === "donedeal";
@@ -73,7 +74,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
   const cars = all.filter((c) => !isSold(c));
   // Only for staff with the margins permission: the costs are not read without it.
   const costs = (await can("margins")) ? new Map([...(await carCosts())].map(([id, c]) => [id, c.total])) : null;
-  const o = overview({ leads: leads.filter(isSalesLead), drives, reviews, rules, listingSite, cars: all, costs: costs ? new Set(costs.keys()) : undefined, sales: new Set(sales.map((s) => s.id)), reservations, orders, syncProblem: Boolean(sync?.problem), slaHours: settings.leadSlaHours, mine: mine ? me.name : undefined });
+  const o = overview({ leads: leads.filter(isSalesLead), drives, reviews, rules, listingSite, cars: all, costs: costs ? new Set(costs.keys()) : undefined, sales: new Set(sales.map((s) => s.id)), reservations, orders, warrantyRequests: openWarrantyRequests(leads, claims).length, syncProblem: Boolean(sync?.problem), slaHours: settings.leadSlaHours, mine: mine ? me.name : undefined });
   // What a module that is off would show goes with it (#173): its buttons, figures and to-dos.
   // Orders and deposits are our version only: with DoneDeal stock their pages are not there, so their to-dos go too.
   const attention = o.attention.filter((a) => (!MODULE_OF[a.key] || mods.has(MODULE_OF[a.key])) && !(synced && (a.key === "orders" || a.key === "deposits")));
@@ -144,7 +145,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
           <ActionTile primary href="/stock/new" icon={<CarIcon />} label="Add a car" text="Photos, price and details" />
         )}
         {drivesOn && <ActionTile href="/test-drives/new" icon={<CalendarIcon />} label="Book a test drive" text="Pick a car and a time" />}
-        {mods.has("social") && <ActionTile href="/marketing/new" icon={<ShareIcon />} label="New post" text="Facebook and Instagram" />}
+        {mods.has("social") && <ActionTile href="/marketing/new" icon={<ShareIcon />} label="New post" text="Facebook, Instagram or TikTok" />}
         {/* The same leads as To do and Leads' To answer now (leadsToAnswer). */}
         <ActionTile href={mine ? "/leads?mine=1" : "/leads"} icon={<InboxIcon />} label="Reply to leads" text={o.answer.length ? `${plural(o.answer.length, "lead")} to answer` : "All answered"} />
       </ActionTiles>
@@ -181,7 +182,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
             )}
             <Panel plain title="Your numbers">
               <StatGrid>
-                <StatCard label="Leads this week" value={fmtNum(thisWeek)} hint={`${fmtNum(o.usualWeek)} in a usual week`} tone={thisWeek > o.usualWeek ? "good" : undefined} />
+                <StatCard href="/leads" label="Leads this week" value={fmtNum(thisWeek)} hint={`${fmtNum(o.usualWeek)} in a usual week`} tone={thisWeek > o.usualWeek ? "good" : undefined} />
                 <StatCard href="/stock" label="Cars for sale" value={fmtNum(cars.filter(forSale).length)} hint={o.oldStock ? `${o.oldStock} for sale ${rules.oldStockDays} days or more` : undefined} tone={o.oldStock ? "warn" : undefined} />
                 {costs && <StatCard href="/margins" label="Expected margin" value={fmtEur(margin)} className={mods.has("reviews") ? "" : "xl:col-span-full"} />}
                 {/* Of three tiles, the third takes the whole row in the two-column side panel, not alone beside a gap. */}

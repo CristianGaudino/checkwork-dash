@@ -9,7 +9,6 @@ export type DealerRules = {
   oldStockDays: number; // a car for sale this long is old stock: the stock list's view, the overview, the reports and the slow-stock alert
   slowDropEur: number; // the price drop the slow-stock alert suggests, and its Drop the price button applies
   soldVisibleDays: number; // days a sold car stays on the dealer's website after its sale
-  saleNudgeDays: number; // a car sold in this many days with no sale recorded is asked about
 };
 export type ListingSite = "DoneDeal" | "CarsIreland";
 export type DealerProfile = {
@@ -43,7 +42,7 @@ export const DEFAULT_PROFILE: DealerProfile = {
   social: [],
   modules: "dashboard",
   stock: { source: "checkwork", listingSite: "DoneDeal", listingUrl: "https://www.donedeal.ie/" },
-  rules: { oldStockDays: 120, slowDropEur: 500, soldVisibleDays: 30, saleNudgeDays: 90 },
+  rules: { oldStockDays: 120, slowDropEur: 500, soldVisibleDays: 30 },
 };
 
 // The demo dealer, a made-up business: every module, and its own website. The phone number is made up; the street is a real one in Dublin
@@ -88,7 +87,7 @@ export const FACTS_SCHEMA = z.object({
   name: z.string().trim().min(1, "Give the business name").max(80),
   siteUrl: z.union([z.literal(""), z.url({ protocol: /^https$/, error: "A full address starting https://" }).max(200)]).transform((u) => u.replace(/\/+$/, "")),
   phone: z.string().trim().max(30),
-  email: z.union([z.literal(""), z.email("An email address").max(120)]),
+  email: z.union([z.literal(""), z.email("Enter a valid email address").max(120)]),
   street: z.string().trim().max(80),
   town: z.string().trim().max(60),
   county: z.string().trim().max(60),

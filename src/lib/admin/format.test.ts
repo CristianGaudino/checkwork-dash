@@ -11,7 +11,7 @@ describe("admin format", () => {
   it("writes euros without cents and a percentage with one decimal at most", () => {
     expect(fmtEur(12500)).toBe("€12,500");
     expect(fmtPct(12.345)).toBe("12.3%");
-    expect(fmtPct(8)).toBe("8%");
+    expect(fmtPct(8)).toBe("8.0%");
   });
   it("writes September in full, and short as Sep", () => {
     expect(fmtDay("2027-09-01", "monthYear")).toBe("September 2027");

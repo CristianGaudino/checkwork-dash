@@ -1,6 +1,6 @@
 import "server-only";
 import { defineCollection } from "@/lib/admin/docs";
-import { addDays, dublinDay } from "@/lib/admin/format";
+import { dublinDay } from "@/lib/admin/format";
 import { getSettings } from "@/lib/admin/collections";
 import { MODULE_IDS } from "@/lib/modules-rules";
 import { enabledModules } from "@/lib/modules";
@@ -36,9 +36,10 @@ export async function billingDetails(): Promise<BillingDetails> {
   return s.billingDetails ?? { company: name, vatNumber: "", address: addressText(profile.address), email: profile.email };
 }
 
-// A year of the demo: the last twelve months, the latest still due, the rest paid. Use grows a little each month.
+// A year of the demo: the last twelve months. A bill is due the day it is issued, by direct debit, so only one issued today is still due. Use grows a little each month.
 function seedBills(): Bill[] {
-  const [y, m] = dublinDay().slice(0, 7).split("-").map(Number);
+  const today = dublinDay();
+  const [y, m] = today.slice(0, 7).split("-").map(Number);
   const modules = planLines(MODULE_IDS); // every module: the Group plan as one line and Service
   const allowance = allowanceFor(MODULE_IDS, BILLING_DEFAULT);
   return Array.from({ length: 12 }, (_, i) => {
@@ -55,6 +56,6 @@ function seedBills(): Bill[] {
       { service: "whatsapp", kind: "reply", count: 40 + grow * 5 },
       { service: "whatsapp", kind: "marketing", count: i % 3 === 0 ? 40 : 0 },
     ];
-    return { id, issuedOn, dueOn: addDays(issuedOn, 30), status: i === 0 ? "due" : "paid", modules, usage: usageLines(counts, allowance) };
+    return { id, issuedOn, dueOn: issuedOn, status: issuedOn < today ? "paid" : "due", modules, usage: usageLines(counts, allowance) };
   });
 }
