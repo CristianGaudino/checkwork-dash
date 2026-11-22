@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { CHANNELS } from "@/lib/visit-rules";
 import { buildAnalytics } from "./analytics";
 import { visitorFigures } from "./visitor-figures";
-import { ratePer100, sourceGroups, sourceTiles, type ChannelCount } from "./visit-sources";
+import { ratePer100, sourceGroups, sourceTiles, visitWindows, type ChannelCount } from "./visit-sources";
 
 const now: ChannelCount[] = [
   { channel: "google", visits: 200, leads: 4 },
@@ -39,13 +39,13 @@ describe("sourceTiles", () => {
     expect(byChannel("google").label).toBe("Google");
     expect(sourceTiles([{ channel: "direct", visits: 1, leads: 0 }], [])[0].label).toBe("Typed in");
   });
-  it("gives the change on the period before, and too few to compare under 5 either side", () => {
-    expect(byChannel("google")).toMatchObject({ change: "Up 25% on the period before", trend: "up" });
-    expect(byChannel("facebook")).toMatchObject({ change: "Down 20% on the period before", trend: "down" });
-    expect(byChannel("bing")).toMatchObject({ change: "The same as the period before", trend: null });
+  it("gives the change in short (the panel names the period), and too few to compare under 5 either side", () => {
+    expect(byChannel("google")).toMatchObject({ change: "Up 25%", trend: "up" });
+    expect(byChannel("facebook")).toMatchObject({ change: "Down 20%", trend: "down" });
+    expect(byChannel("bing")).toMatchObject({ change: "No change", trend: null });
     expect(byChannel("instagram")).toMatchObject({ change: "Too few to compare", trend: null });
-    expect(sourceTiles(now, [...before], "month")[0].change).toBe("Up 25% on the month before");
-    expect(sourceTiles([{ channel: "google", visits: 772, leads: 0 }], [{ channel: "google", visits: 770 }])[0]).toMatchObject({ change: "The same as the period before", trend: null }); // rounds to 0%
+    expect(sourceTiles([{ channel: "google", visits: 5, leads: 0 }], [{ channel: "google", visits: 4 }])[0].change).toBe("Too few to compare");
+    expect(sourceTiles([{ channel: "google", visits: 772, leads: 0 }], [{ channel: "google", visits: 770 }])[0]).toMatchObject({ change: "No change", trend: null }); // rounds to 0%
   });
   it("marks the channel with the most leads as best, the better rate breaking a tie, and none when there are no leads", () => {
     expect(tiles.filter((t) => t.best).map((t) => t.channel)).toEqual(["facebook"]);
@@ -67,10 +67,13 @@ describe("sourceGroups", () => {
     expect(groups[0]).toMatchObject({ visits: 210, leads: 5, rate: 2.4, before: 170 });
   });
   it("compares a group with all its channels the period before, also one with nothing now", () => {
-    expect(groups[1]).toMatchObject({ visits: 83, before: 128, change: "Down 35% on the period before", trend: "down" }); // TikTok's 20 count
+    expect(groups[1]).toMatchObject({ visits: 83, before: 128, change: "Down 35%", trend: "down" }); // TikTok's 20 count
   });
-  it("marks the group holding the best channel", () => {
-    expect(groups.filter((g) => g.best).map((g) => g.id)).toEqual(["social"]);
+  it("marks the group with the most leads, by the same rule as the channels, not the group holding the best channel", () => {
+    const t = sourceTiles([{ channel: "google", visits: 100, leads: 5 }, { channel: "bing", visits: 50, leads: 5 }, { channel: "facebook", visits: 60, leads: 6 }], []);
+    expect(t.find((x) => x.best)?.channel).toBe("facebook");
+    expect(sourceGroups(t, []).filter((g) => g.best).map((g) => g.id)).toEqual(["search"]); // Search 10, Social 6
+    expect(sourceGroups(sourceTiles([{ channel: "google", visits: 9, leads: 0 }], []), []).some((g) => g.best)).toBe(false);
   });
 });
 
@@ -83,5 +86,13 @@ describe("the demo's sample", () => {
     expect(a.previous.channels.map((c) => c.channel).sort()).toEqual([...CHANNELS].sort());
     // Each channel moves on its own, so the tiles do not all say the same change.
     expect(new Set(sourceTiles(a.channels, a.previous.channels).map((t) => t.change)).size).toBeGreaterThan(2);
+  });
+});
+
+describe("visitWindows", () => {
+  it("counts Irish days back from today, also at 00:30 just after the clocks go forward", () => {
+    const t = Date.UTC(2026, 2, 29, 23, 30); // 00:30 Irish summer time on 30 March 2026, the day after the change
+    expect(visitWindows(30, t)).toEqual({ from: "2026-03-01", to: "2026-03-30", beforeFrom: "2026-01-30", beforeTo: "2026-02-28" });
+    expect(visitWindows(7, Date.UTC(2026, 10, 10, 15))).toEqual({ from: "2026-11-04", to: "2026-11-10", beforeFrom: "2026-10-28", beforeTo: "2026-11-03" });
   });
 });

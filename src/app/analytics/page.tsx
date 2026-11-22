@@ -1,5 +1,4 @@
 import { bounds } from "@/lib/reports/monthly";
-import { DAY } from "@/lib/time";
 import { alertsStore, salesStore } from "@/lib/admin/collections";
 import { addDays, dublinDay } from "@/lib/admin/format";
 import { visitorFigures } from "@/lib/admin/visitor-figures";
@@ -20,7 +19,7 @@ import { dealerProfile } from "@/lib/tenancy/current";
 import { NEW_TAB } from "@/components/ui";
 import { forSale } from "@/lib/stock/types";
 import { VisitSources } from "@/components/admin/VisitSources";
-import { sourceTiles } from "@/lib/admin/visit-sources";
+import { sourceTiles, visitWindows } from "@/lib/admin/visit-sources";
 import { realVisitSources } from "@/lib/admin/visit-sources-load";
 
 export const metadata = { title: "Analytics" };
@@ -67,7 +66,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ r
         <StatCard label="Visitors who got in touch" value={fmtPct(a.totals.conversion)} hint={changeText(a.totals.conversion, convBefore, true)} tone={a.totals.conversion >= convBefore ? "good" : "bad"} />
       </StatGrid>
 
-      <Panel plain title="Where visits come from">
+      <Panel plain title="Where visits come from" text={`Last ${range} days, compared with the ${range} before`}>
         <VisitSources now={a.channels} before={a.previous.channels} />
       </Panel>
 
@@ -116,11 +115,11 @@ const none = <p className="text-meta text-text-2">None in this period.</p>;
 
 async function RealAnalytics({ range }: { range: Range }) {
   const now = today();
-  const [from, to] = [dublinDay(now - (range - 1) * DAY), dublinDay(now)];
+  const { from, to } = visitWindows(range, now); // the same Irish days as Where visits come from
   const [start] = bounds(from, to);
   const [{ features }, leads, alerts] = await Promise.all([countsBetween(from, to), leadsStore.list(), alertsStore.list()]);
   const f = visitorFigures({ counts: features, leads: leads.filter((l) => l.createdAt >= start), alerts });
-  const src = await realVisitSources(range, now, leads);
+  const src = await realVisitSources(range, now, leads, features);
 
   return (
     <>
@@ -133,7 +132,7 @@ async function RealAnalytics({ range }: { range: Range }) {
         <StatCard label="Visits that became leads" value={fmtPct(f.totals.conversion)} />
       </StatGrid>
 
-      <Panel plain title="Where visits come from">
+      <Panel plain title="Where visits come from" text={`Last ${range} days, compared with the ${range} before`}>
         <VisitSources now={src.now} before={src.before} />
         {src.unknownLeads > 0 && <p className="text-meta text-text-2">{plural(src.unknownLeads, "website lead")} came with no source known.</p>}
       </Panel>

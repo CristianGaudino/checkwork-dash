@@ -1,12 +1,11 @@
 import "server-only";
 import type { Lead } from "@/lib/admin/collections";
 import { buildAnalytics, type Range } from "@/lib/admin/analytics";
-import { dublinDay } from "@/lib/admin/format";
+import { visitWindows } from "@/lib/admin/visit-sources";
 import { visitorFigures } from "@/lib/admin/visitor-figures";
 import { simulating } from "@/lib/integrations";
 import { countsBetween } from "@/lib/owner-api/counters";
 import { bounds } from "@/lib/reports/monthly";
-import { DAY } from "@/lib/time";
 
 // Each channel's visits and leads over the last `range` days and its visits over the days before, for the Overview's strip: the demo's
 // sample, or the site's own counts. The Analytics page works out the same from what it already loads.
@@ -19,10 +18,11 @@ export async function visitSources(range: Range, leads: Lead[], now = Date.now()
 }
 
 // The site's own counts: this period's visits and the website leads in it, and the visits of the period before (leads are not needed there).
-export async function realVisitSources(range: Range, now: number, leads: Lead[]) {
-  const day = (back: number) => dublinDay(now - back * DAY);
-  const [start] = bounds(day(range - 1), day(0));
-  const [c, pc] = await Promise.all([countsBetween(day(range - 1), day(0)), countsBetween(day(2 * range - 1), day(range))]);
-  const f = visitorFigures({ counts: c.features, leads: leads.filter((l) => l.createdAt >= start), alerts: [] });
+// `counts`: this period's, when the caller has read them already (Analytics), so they are not read twice.
+export async function realVisitSources(range: Range, now: number, leads: Lead[], counts?: Record<string, number>) {
+  const w = visitWindows(range, now);
+  const [start] = bounds(w.from, w.to);
+  const [c, pc] = await Promise.all([counts ?? countsBetween(w.from, w.to).then((x) => x.features), countsBetween(w.beforeFrom, w.beforeTo)]);
+  const f = visitorFigures({ counts: c, leads: leads.filter((l) => l.createdAt >= start), alerts: [] });
   return { now: f.channels, before: visitorFigures({ counts: pc.features, leads: [], alerts: [] }).channels, unknownLeads: f.unknownLeads };
 }
