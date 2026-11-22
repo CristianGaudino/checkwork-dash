@@ -53,8 +53,20 @@ describe("writeWithAI behind the dashboard", () => {
     expect(await count("opus")).toBe(before);
   });
 
+  it("writes Prepare me for a lead with a visit note, counted as one AI action, with no rewording buttons", async () => {
+    const { leadsStore } = await import("@/lib/admin/collections");
+    const lead = (await leadsStore.list()).find((l) => l.journey)!;
+    const before = await count("opus");
+    const r = await writeAction({ task: "leadBrief", leadId: lead.id });
+    expect(r).toMatchObject({ ok: true });
+    expect(r.ok && r.text.split("\n").length).toBeGreaterThanOrEqual(3);
+    expect(await count("opus")).toBe(before + 1);
+    expect(await writeAction({ task: "leadBrief", leadId: lead.id }, "shorter")).toEqual({ ok: false, reason: "failed" });
+  });
+
   it("does not exist for a dealer without the AI module", async () => {
     plan = "dashboard";
     await expect(writeAction({ task: "newsletter" })).rejects.toThrow("not-found");
+    await expect(writeAction({ task: "leadBrief", leadId: "lead-4000" })).rejects.toThrow("not-found");
   });
 });

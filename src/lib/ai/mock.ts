@@ -91,6 +91,26 @@ function reviewReply(f: FactsOf["reviewReply"], a: Adjust | undefined): string {
   return lines(`Thank you, ${f.firstName}, for the kind words.`, "We are glad you were happy with us.", BR, `The team at ${f.dealer}`);
 }
 
+// Prepare me (#34): what they want, the cars to have ready, an opening line, and what their tools call for. Only from the facts.
+function leadBrief(f: FactsOf["leadBrief"]): string {
+  const v = f.visit;
+  const seen = v.cars.filter((c) => !c.askedAbout).map((c) => c.name);
+  const want = v.pattern
+    ? `They mostly looked at ${v.pattern.replace(/^Mostly /, "")}${f.car ? ` and asked about the ${f.car}` : ""}.`
+    : f.car ? `They asked about the ${f.car}${seen.length ? ` and also opened the ${seen.slice(0, 2).join(" and the ")}` : ""}.`
+    : `They sent a ${f.kind.toLowerCase()} message after ${v.minutes} ${v.minutes === 1 ? "minute" : "minutes"} on the site.`;
+  const others = f.closest.map((c) => `the ${c.name}${c.price ? ` (${c.price})` : ""}`);
+  const ready = [f.car && f.carForSale && `the ${f.car}`, ...others].filter(Boolean).join(", ");
+  const sold = f.car && f.carForSale === false ? `The ${f.car} is no longer for sale. ` : ""; // sold or reserved: the facts do not say which
+  const have = ready ? `${sold}Have ready: ${ready}.` : `${sold}Nothing close is in stock right now: ask what would suit them.`;
+  const topic = f.car ?? v.cars[0]?.name;
+  const open = `Open with: "Hi, it's ${f.dealer}. ${topic ? `You were looking at the ${topic} on our site.` : "You were in touch through our site."} Is now a good time for a quick chat about it?"`;
+  const did = v.tools.map((t) => t[0]!.toLowerCase() + t.slice(1).replace(": ", " at "));
+  const figures = v.tools.some((t) => /finance|trade-in/.test(t)) ? " Have the figures to hand." : "";
+  const tools = did.length ? `They also ${[did.slice(0, -1).join(", "), did.at(-1)].filter(Boolean).join(" and ")}.${figures}` : "";
+  return lines(want, have, open, tools);
+}
+
 export function mockText<T extends Task>(task: T, facts: FactsOf[T], adjust?: Adjust, current = ""): string {
   if (adjust && !Object.hasOwn(ADJUSTS, adjust)) adjust = undefined;
   switch (task) {
@@ -98,6 +118,7 @@ export function mockText<T extends Task>(task: T, facts: FactsOf[T], adjust?: Ad
     case "newsletter": return newsletter(facts as FactsOf["newsletter"], adjust);
     case "carDescription": return description(facts as FactsOf["carDescription"], adjust);
     case "leadReply": return leadReply(facts as FactsOf["leadReply"], adjust);
+    case "leadBrief": return leadBrief(facts as FactsOf["leadBrief"]);
     default: return reviewReply(facts as FactsOf["reviewReply"], adjust);
   }
 }
