@@ -11,7 +11,6 @@ export type Person = typeof staff.$inferSelect;
 type Kind = Attempt["kind"];
 
 const at = (ms: number) => new Date(ms);
-const DAY_MS = 86_400_000;
 
 export async function addAttempt(row: Attempt): Promise<void> {
   if (!hasD1()) mem().signInAttempts.push(row);
@@ -28,20 +27,20 @@ export async function endLive(email: string, kinds: Kind[], now: number): Promis
 }
 
 // The gate on emails is the write: a link row (every email sent writes exactly one) goes in only while the address has fewer than `perWindow`
-// in the last `windowMs` and fewer than `perDay` in the last day, counted and inserted in one statement (in memory, in one step with no await),
+// in the last `windowMs` and fewer than `perLong` in the last `longMs`, counted and inserted in one statement (in memory, in one step with no await),
 // so parallel requests cannot all pass. True means this request may send.
-export async function reserveLink(row: Attempt, now: number, windowMs: number, perWindow: number, perDay: number): Promise<boolean> {
+export async function reserveLink(row: Attempt, now: number, windowMs: number, perWindow: number, longMs: number, perLong: number): Promise<boolean> {
   const sent = (since: number) => (x: Attempt) => x.email === row.email && (x.kind === "link" || x.kind === "confirm-code") && x.createdAt.getTime() > since;
   if (!hasD1()) {
     const rows = mem().signInAttempts;
-    if (rows.filter(sent(now - windowMs)).length >= perWindow || rows.filter(sent(now - DAY_MS)).length >= perDay) return false;
+    if (rows.filter(sent(now - windowMs)).length >= perWindow || rows.filter(sent(now - longMs)).length >= perLong) return false;
     rows.push(row);
     return true;
   }
   const t = signInAttempts;
   const count = (since: number) => sql`(select count(*) from ${t} where ${t.email} = ${row.email} and ${t.kind} in ('link', 'confirm-code') and ${t.createdAt} > ${since})`;
   const rows = await quiet(
-    db().all<{ id: string }>(sql`insert into ${t} (id, kind, email, tries, created_at, expires_at, token_hmac) select ${row.id}, ${row.kind}, ${row.email}, 0, ${row.createdAt.getTime()}, ${row.expiresAt.getTime()}, ${row.tokenHmac} where ${count(now - windowMs)} < ${perWindow} and ${count(now - DAY_MS)} < ${perDay} returning id`),
+    db().all<{ id: string }>(sql`insert into ${t} (id, kind, email, tries, created_at, expires_at, token_hmac) select ${row.id}, ${row.kind}, ${row.email}, 0, ${row.createdAt.getTime()}, ${row.expiresAt.getTime()}, ${row.tokenHmac} where ${count(now - windowMs)} < ${perWindow} and ${count(now - longMs)} < ${perLong} returning id`),
     "reserveLink",
   );
   return rows.length > 0;
@@ -94,11 +93,11 @@ export async function markUsed(id: string, now: number): Promise<boolean> {
   return (await quiet(db().update(signInAttempts).set({ usedAt: at(now) }).where(and(eq(signInAttempts.id, id), isNull(signInAttempts.usedAt))).returning({ id: signInAttempts.id }), "markUsed")).length > 0;
 }
 
-// The wrong codes tried for this address in the last 24 hours, whichever code they were made on: the tries on its code rows, less one for
+// The wrong codes tried for this address in the last `windowMs`, whichever code they were made on: the tries on its code rows, less one for
 // each that was used (that try was the right one).
-export async function wrongTries(email: string, now: number): Promise<number> {
-  if (!hasD1()) return mem().signInAttempts.filter((a) => a.email === email && a.kind === "code" && a.createdAt.getTime() > now - DAY_MS).reduce((n, a) => n + a.tries - (a.usedAt ? 1 : 0), 0);
-  const [r] = await quiet(db().select({ n: sql<number>`coalesce(sum(${signInAttempts.tries} - (${signInAttempts.usedAt} is not null)), 0)` }).from(signInAttempts).where(and(eq(signInAttempts.email, email), eq(signInAttempts.kind, "code"), gt(signInAttempts.createdAt, at(now - DAY_MS)))), "wrongTries");
+export async function wrongTries(email: string, now: number, windowMs: number): Promise<number> {
+  if (!hasD1()) return mem().signInAttempts.filter((a) => a.email === email && a.kind === "code" && a.createdAt.getTime() > now - windowMs).reduce((n, a) => n + a.tries - (a.usedAt ? 1 : 0), 0);
+  const [r] = await quiet(db().select({ n: sql<number>`coalesce(sum(${signInAttempts.tries} - (${signInAttempts.usedAt} is not null)), 0)` }).from(signInAttempts).where(and(eq(signInAttempts.email, email), eq(signInAttempts.kind, "code"), gt(signInAttempts.createdAt, at(now - windowMs)))), "wrongTries");
   return Number(r?.n ?? 0);
 }
 

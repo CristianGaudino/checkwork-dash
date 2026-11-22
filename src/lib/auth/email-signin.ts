@@ -13,9 +13,14 @@ const MIN = 60_000;
 export const CODE_MS = 15 * MIN;
 export const TRIES_PER_CODE = 5;
 export const EMAILS_PER_15_MIN = 3;
-export const EMAILS_PER_DAY = 10;
-export const WRONG_PER_DAY = 15;
-export const LOCK_MS = 24 * 60 * MIN;
+export const EMAILS_PER_HOUR = 6;
+// Short throttles, never a long lockout a stranger can trigger by knowing an address (OWASP Authentication Cheat Sheet). A code lives 15 minutes
+// with 5 tries, so wrong tries are counted over the same 15 minutes, and 10 of them pause codes for 15 minutes (the link still works).
+// Guessing stays infeasible: at most 6 emails an hour x 5 tries = 30 guesses an hour of a million codes (1 in 33,000 an hour), and 100 wrong in
+// a row switch codes off altogether until a sign-in. That last one is not a lockout: it leaves the emailed link, which cannot be guessed.
+export const WRONG_WINDOW_MS = 15 * MIN;
+export const WRONG_PER_WINDOW = 10;
+export const LOCK_MS = 15 * MIN;
 export const FAILURES_IN_A_ROW = 100;
 
 const enc = new TextEncoder();
@@ -39,10 +44,10 @@ function sixDigits(): string {
   return String(n % 1_000_000).padStart(6, "0");
 }
 
-// Codes are off for a person who is locked (15 wrong in a day), has had 100 wrong in a row, or whose rows already show 15 wrong tries in
-// the last 24 hours (so a try still in flight when the lock was written cannot get in).
+// Codes are off for a person who is locked (10 wrong in 15 minutes), has had 100 wrong in a row, or whose rows already show 10 wrong tries in
+// the last 15 minutes (so a try still in flight when the lock was written cannot get in).
 async function codesOff(p: Person, now: number): Promise<boolean> {
-  return (p.codeLockedUntil?.getTime() ?? 0) > now || p.codeFailures >= FAILURES_IN_A_ROW || (await wrongTries(p.email, now)) >= WRONG_PER_DAY;
+  return (p.codeLockedUntil?.getTime() ?? 0) > now || p.codeFailures >= FAILURES_IN_A_ROW || (await wrongTries(p.email, now, WRONG_WINDOW_MS)) >= WRONG_PER_WINDOW;
 }
 
 const linkUrl = (token: string, next: string) => `${appUrl()}/sign-in/link${next === "/" ? "" : `?next=${encodeURIComponent(next)}`}#t=${token}`;
@@ -64,7 +69,7 @@ export async function sendSignIn({ email, browserHash, next }: { email: string; 
   const token = random();
   const link: Attempt = { ...base, id: `${id}-link`, kind: "link", email, browserHash: null, tokenHmac: await hmac(`link|${token}`) };
   // The caps are the write: the link row goes in only under them, and only then is anything sent. Over a cap, nothing is sent or ended.
-  if (!(await reserveLink(link, now, 15 * MIN, EMAILS_PER_15_MIN, EMAILS_PER_DAY))) {
+  if (!(await reserveLink(link, now, 15 * MIN, EMAILS_PER_15_MIN, 60 * MIN, EMAILS_PER_HOUR))) {
     await addAttempt(base);
     return "limited";
   }
@@ -97,19 +102,19 @@ export async function checkCode(browserHash: string, code: string, now = Date.no
   const match = same(given, row.codeHmac ?? dummy);
   if (!match || !row.codeHmac || !row.email) return { ok: false, countFor: row.email ?? undefined };
   if (!(await markUsed(row.id, now))) return { ok: false }; // another post got there first
-  // The lock is exact: the tries are on the rows already, so a match after the 15th wrong one is refused even if the lock is not written yet.
+  // The lock is exact: the tries are on the rows already, so a match after the 10th wrong one is refused even if the lock is not written yet.
   const person = await staffByEmail(row.email);
   if (!person || (await codesOff(person, now)) || (await membershipsOf(row.email)).length === 0) return { ok: false };
   return { ok: true, staffId: person.id, email: row.email };
 }
 
-// After the answer to a wrong code: one more wrong in a row, and at the 15th in a day the address locks for 24 hours, its live codes end,
+// After the answer to a wrong code: one more wrong in a row, and at the 10th in 15 minutes the address locks for 15 minutes, its live codes end,
 // and the person gets one warning.
 export async function countWrong(email: string, now = Date.now()): Promise<void> {
   const person = await staffByEmail(email);
   if (!person) return;
   await addFailure(person.id);
-  if ((await wrongTries(email, now)) < WRONG_PER_DAY || !(await lockCodes(person.id, now + LOCK_MS, now))) return;
+  if ((await wrongTries(email, now, WRONG_WINDOW_MS)) < WRONG_PER_WINDOW || !(await lockCodes(person.id, now + LOCK_MS, now))) return;
   await endLive(email, ["code"], now);
   logSignIn({ step: "code", outcome: "locked" });
   await sendSignInMail({ to: email, subject: "Someone tried to sign in to Checkwork", text: "Someone tried to sign in to Checkwork as you. If it was not you, tell your manager." });
