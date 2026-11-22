@@ -13,7 +13,8 @@ export const slugify = (s: string) =>
 // every id still in use, by a car or by a record that names one (a sale, a deposit): an id is never given out twice, so a new car can never
 // take over a deleted car's sale.
 export function nextCarId(existing: { id: string }[]) {
-  return String(Math.max(0, ...existing.map((c) => Number(c.id) || 0)) + 1);
+  // Only a real id (digits, as the site API's carId): a long number at the end of a stored slug would give "1e+21".
+  return String(Math.max(0, ...existing.map((c) => (/^\d{1,12}$/.test(c.id) ? Number(c.id) : 0))) + 1);
 }
 
 // The day a car first went on the website: kept once it has one. A car on the website keeps what it has, so an edit never invents a date
