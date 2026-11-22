@@ -181,7 +181,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
             )}
             <Panel plain title="Your numbers">
               <StatGrid>
-                <StatCard label="Leads this week" value={fmtNum(thisWeek)} hint={`${fmtNum(o.usualWeek)} in a usual week`} tone={thisWeek > o.usualWeek ? "good" : undefined} />
+                <StatCard href="/leads" label="Leads this week" value={fmtNum(thisWeek)} hint={`${fmtNum(o.usualWeek)} in a usual week`} tone={thisWeek > o.usualWeek ? "good" : undefined} />
                 <StatCard href="/stock" label="Cars for sale" value={fmtNum(cars.filter(forSale).length)} hint={o.oldStock ? `${o.oldStock} for sale ${rules.oldStockDays} days or more` : undefined} tone={o.oldStock ? "warn" : undefined} />
                 {costs && <StatCard href="/margins" label="Expected margin" value={fmtEur(margin)} className={mods.has("reviews") ? "" : "xl:col-span-full"} />}
                 {/* Of three tiles, the third takes the whole row in the two-column side panel, not alone beside a gap. */}
