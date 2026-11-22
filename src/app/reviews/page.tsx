@@ -64,8 +64,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ f
         </Panel>
       ) : (
         <>
+          {/* The chosen tile already says it on the unreplied filter. */}
           {waiting.length > 0 && (
-            <Panel title="Needs a reply" count={sorted.filter((r) => !r.reply).length}>
+            <Panel title={filter === "unreplied" ? undefined : "Needs a reply"} count={filter === "unreplied" ? undefined : sorted.filter((r) => !r.reply).length}>
               <ReviewList rows={waiting} label="Needs a reply" filter={filter} />
             </Panel>
           )}
@@ -92,7 +93,7 @@ function ReviewList({ rows, label, filter }: { rows: AdminReview[]; label: strin
             <span data-author className="font-medium">{r.author}</span>
             <Stars rating={r.rating} />
             <span className="text-meta text-text-2">{fmtDate(r.createdAt)}</span>
-            {!r.reply && r.rating <= 3 && <Badge tone="warn" strong>Low rating</Badge>}
+            {!r.reply && r.rating <= 3 && <Badge tone="warn">Low rating</Badge>}
           </div>
           <p className="max-w-measure whitespace-pre-line text-body">{r.text}</p>
           {r.reply && (

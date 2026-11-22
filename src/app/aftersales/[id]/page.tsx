@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ClaimStatusBadge, CoverBadge } from "@/components/admin/badges";
+import { CoverBadge } from "@/components/admin/badges";
 import { ChoiceAct } from "@/components/admin/ActButton";
 import { Facts, PageHeader, Panel } from "@/components/admin/kit";
 import { CostForm } from "@/components/admin/ClaimForms";
@@ -37,7 +37,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
               items={[
                 ["Customer", buyer ? ((await hasModule("sales")) ? <Link key="b" href={`/customers/${buyer.id}`} className="underline">{buyer.name}</Link> : buyer.name) : "Not on file"],
                 ["Sold", sale ? day(sale.soldOn) : "Not on file"],
-                ["Cover until", sale ? day(coverEnds(sale)) : "Not known"],
+                // The Cover panel says it when the sale is on file.
+                ...(ends ? [] : [["Cover until", "Not known"] as const]),
                 ...(claim.leadId ? [["From", <Link key="l" href={`/aftersales/requests/${claim.leadId}`} className="underline">The website request</Link>] as const] : []),
               ] as const}
             />
@@ -45,7 +46,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           <NotesPanel notes={claim.notes} action={addClaimNoteAction.bind(null, claim.id)} />
         </div>
         <div className="flex min-w-0 flex-col gap-6">
-          <Panel title="Status" action={<ClaimStatusBadge status={claim.status} />}>
+          <Panel title="Status">
             <div className="flex flex-wrap gap-2">
               {CLAIM_STATUSES.map((s) => (
                 <ChoiceAct key={s} action={setClaimStatusAction.bind(null, claim.id)} set={{ status: s }} back={{ status: claim.status }} active={claim.status === s} done={`Claim: ${CLAIM_STATUS_LABELS[s]}`}>

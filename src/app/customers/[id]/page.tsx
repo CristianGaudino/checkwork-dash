@@ -72,7 +72,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           </section>
           <section aria-labelledby="open" className="flex min-w-0 flex-col gap-2 lg:border-l lg:border-hairline lg:pl-6">
             <h2 id="open" className="text-meta font-medium text-text-2">
-              Open for them <span className="tabular-nums">{openCount}</span>
+              Open for them <span className="ml-2 font-normal text-text-2 tabular-nums">{openCount}</span>
             </h2>
             {openCount === 0 ? (
               none("Nothing open. Everything they started is finished.")
@@ -131,11 +131,11 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
               <ul className={list}>
                 {pastOrders.map((o) => (
                   <li key={o.id} className={item}>
-                    <Link href={`/orders/${o.id}`} className="flex min-w-0 flex-col">
+                    <Link href={`/orders/${o.id}`} className="flex min-w-0 flex-1 flex-col">
                       <span className="font-medium underline-offset-2 hover:underline">{o.regPeriod} {o.make} {o.model}</span>
                       <span className="text-meta text-text-2">Due {monthLabel(o.expected)}</span>
                     </Link>
-                    <OrderBadge status={o.status} />
+                    <span className="shrink-0"><OrderBadge status={o.status} /></span>
                   </li>
                 ))}
               </ul>
@@ -162,11 +162,11 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
               <ul className={list}>
                 {deposits.map((r) => (
                   <li key={r.id} className={item}>
-                    <span className="flex min-w-0 flex-col">
+                    <span className="flex min-w-0 flex-1 flex-col">
                       <span className="font-medium">{r.carTitle}</span>
                       <span className="text-meta text-text-2">{fmtEur(r.depositEur)}, paid {day(r.paidOn)}</span>
                     </span>
-                    <Badge tone={r.status === "held" ? "info" : "neutral"}>{{ held: "Held", sold: "Part of the sale", refunded: "Refunded", kept: "Kept" }[r.status]}</Badge>
+                    <span className="shrink-0"><Badge tone={r.status === "held" ? "info" : "neutral"}>{{ held: "Held", sold: "Part of the sale", refunded: "Refunded", kept: "Kept" }[r.status]}</Badge></span>
                   </li>
                 ))}
               </ul>
@@ -181,11 +181,11 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
                 <ul className={list}>
                   {theirLeads.map((l) => (
                     <li key={l.id} className={item}>
-                      <Link href={leadHref(l)} className="flex min-w-0 flex-col">
+                      <Link href={leadHref(l)} className="flex min-w-0 flex-1 flex-col">
                         <span className="font-medium underline-offset-2 hover:underline">{LEAD_TYPE_LABELS[l.type]}{l.carTitle ? `, ${l.carTitle}` : ""}</span>
                         <span className="text-meta text-text-2">{fmtDate(l.createdAt)}</span>
                       </Link>
-                      <LeadStatusBadge status={l.status} type={l.type} />
+                      <span className="shrink-0"><LeadStatusBadge status={l.status} type={l.type} /></span>
                     </li>
                   ))}
                 </ul>
@@ -197,17 +197,17 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
                 {theirDrives.map((d) => (
                   <li key={d.id} className={item}>
                     {drivesOn ? (
-                      <Link href={`/test-drives/${d.id}`} className="flex min-w-0 flex-col">
+                      <Link href={`/test-drives/${d.id}`} className="flex min-w-0 flex-1 flex-col">
                         <span className="font-medium underline-offset-2 hover:underline">{d.carTitle}</span>
                         <span className="text-meta text-text-2">{fmtDate(d.startsAt)}</span>
                       </Link>
                     ) : (
-                      <span className="flex min-w-0 flex-col">
+                      <span className="flex min-w-0 flex-1 flex-col">
                         <span className="font-medium">{d.carTitle}</span>
                         <span className="text-meta text-text-2">{fmtDate(d.startsAt)}</span>
                       </span>
                     )}
-                    <DriveStatusBadge status={d.status} />
+                    <span className="shrink-0"><DriveStatusBadge status={d.status} /></span>
                   </li>
                 ))}
               </ul>
