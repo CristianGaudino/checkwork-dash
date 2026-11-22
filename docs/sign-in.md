@@ -541,7 +541,7 @@ for every sign-in by email (section 1).
 | `staff` | `id` (the user handle, 32 random bytes base64url, primary key), `email` (unique, lower case), `code_failures`, `code_locked_until`, `created_at` | One row per person, made the first time they ask for a code or sign in. `members` stays keyed by email |
 | `passkeys` | `id` (credential id, base64url, primary key), `staff_id`, `public_key` (COSE bytes), `alg`, `sign_count`, `backup_eligible`, `backed_up`, `transports`, `label`, `created_at`, `last_used_at` | Index on `staff_id`. At most 10 per person |
 | `sessions` | `id_hash` (hex SHA-256 of the cookie value, primary key), `staff_id`, `method` (`passkey` or `email`), `label` (device kind), `created_at`, `last_seen_at`, `verified_at`, `expires_at` | Index on `staff_id` |
-| `sign_in_attempts` | `id`, `kind` (`passkey-sign-in`, `passkey-register`, `passkey-confirm`, `code`, `confirm-code`, `link`), `email` (code, link and confirm-code rows for a known email only; the link-only email writes its link row with the email too), `staff_id` (registration and confirmation), `challenge` (passkeys), `code_hmac`, `token_hmac` (unique), `browser_hash` (the attempt cookie's hash), `tries`, `created_at`, `expires_at`, `used_at` | A code row is written for every request, with no email and no code when the email is unknown, over a limit or locked; the counts in section 5 come from the rows that have an email |
+| `sign_in_attempts` | `id`, `kind` (`passkey-sign-in`, `passkey-register`, `passkey-confirm`, `code`, `confirm-code`, `link`), `email` (code, link and confirm-code rows for a known email only; the link-only email writes its link row with the email too), `staff_id` (registration and confirmation), `challenge` (passkeys), `code_hmac`, `token_hmac` (unique), `browser_hash` (the attempt cookie's hash), `tries`, `created_at`, `expires_at`, `used_at` | A code row is written for every request, with no email and no code when the email is unknown, over a limit or locked; the counts in section 5 come from the rows that have an email. Indexes on `created_at`, `browser_hash`, (`email`, `created_at`) and `staff_id` |
 
 No IP addresses and no user agents are stored: only the device kind ("iPhone").
 
@@ -555,7 +555,9 @@ With no D1 (`next dev`, the E2E run, unit tests) the same live in the in-memory 
 | `sessions` | when they end (sign-out, sign out everywhere, removal), and nightly once past either lifetime |
 | `passkeys`, `staff` | when the person is at no dealer any more (at removal), and nightly for any `staff` row with no membership |
 
-The nightly job gains one directory step, `purge-sign-in`, which logs counts only, as the other purges do.
+The nightly job gains one directory step, `purge-sign-in`, which logs counts only, as the other purges do. It deletes at most 20 chunks of
+5,000 rows per table a night (`PURGE_LIMITS` in `src/lib/auth/purge.ts`), so a flood of requests can't stop it; the rest goes the next
+night.
 
 ### A data request from a staff member
 
