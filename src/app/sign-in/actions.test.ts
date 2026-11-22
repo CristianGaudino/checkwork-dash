@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { appUrl } from "@/lib/site";
 
 // The sign-in actions (docs/sign-in.md, sections 3 to 5) with Next's request context stood in for: what a browser would send and get back.
 vi.mock("server-only", () => ({}));
@@ -109,7 +110,7 @@ describe("Email me a code", () => {
     const bad = { error: "We could not check this request. Reload the page and try again." };
     expect(await actions.requestCode(undefined, form({ email: "aoife@example.com", "cf-turnstile-response": "tok" }))).toEqual(bad);
     expect(await actions.requestCode(undefined, form({ email: "aoife@example.com" }))).toEqual(bad);
-    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ success: true, action: "sign-in" }))));
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ success: true, action: "sign-in", hostname: new URL(appUrl()).hostname }))));
     expect(await outcome(() => actions.requestCode(undefined, form({ email: "aoife@example.com", "cf-turnstile-response": "tok" })))).toContain("NEXT_REDIRECT");
     vi.unstubAllGlobals();
     set = [];

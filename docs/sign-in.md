@@ -326,7 +326,10 @@ One email carries both. The code is for the device that asked; the link is for w
   does the same work however much matches). A match marks the row used (`UPDATE ... SET used_at = :now WHERE id = :id AND used_at IS NULL RETURNING`), so
   two posts at once cannot both sign in.
 - **Single use, and a new code:** a new email to the same address ends that address's earlier code and link. A request that sends
-  nothing (over a limit) ends nothing, so the last link the person was sent stays valid.
+  nothing (over a limit) ends nothing, so the last link the person was sent stays valid. The send runs after the response (same response time
+  for staff and not), and `endAllButNewest` runs after the send, so a failed send leaves the earlier row live. But only the earlier **link**
+  still works: the request has already replaced the attempt cookie, and a code is bound to the browser hash in that cookie, so the old code
+  can no longer be typed.
 - **The link and the code are separate rows.** Using one does not end the other. So a mail scanner that runs the page's script and clicks
   "Sign in" spends only the link: the code still works where the person asked for it. (Such a scanner would get a session of its own, which
   it never uses; the person gets the "a device signed in" email, section 1.)

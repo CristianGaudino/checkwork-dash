@@ -24,7 +24,7 @@ npm run typecheck
 npm test
 bash scripts/check-migrations.sh main
 npm run stock:redate   # sold cars back inside the 30 day window; restore the two JSON files afterwards
-APP_ENV=production NEXT_PUBLIC_ADMIN_OPEN=1 npm run build
+APP_ENV=production NEXT_PUBLIC_ADMIN_OPEN=1 NEXT_PUBLIC_TURNSTILE_SITE_KEY=1x00000000000000000000BB npm run build
 APP_ENV=production NEXT_PUBLIC_ADMIN_OPEN=1 npm run e2e
 ```
 
@@ -64,7 +64,7 @@ The migrations run before the new code goes live, so they may only add things (`
 | Workflow | Runs | What it does |
 |---|---|---|
 | `ci.yml` | every pull request | lint, typecheck, unit tests, `scripts/check-migrations.sh` against the base branch |
-| `e2e.yml` | every pull request | `stock:redate`, a production build (`APP_ENV=production NEXT_PUBLIC_ADMIN_OPEN=1`), Playwright; the report is kept if it fails |
+| `e2e.yml` | every pull request | `stock:redate`, a production build (`APP_ENV=production NEXT_PUBLIC_ADMIN_OPEN=1 NEXT_PUBLIC_TURNSTILE_SITE_KEY=1x00000000000000000000BB`), Playwright; the report is kept if it fails |
 | `deploy.yml` | a merge to `main` (dev), a manual run, `release.yml`, `preview.yml` | lint and unit tests, then `npm run deploy` (dev) or `deploy:prod`, then checks the site answers |
 | `release.yml` | by hand, from `main` | next version, pre-release with notes, deploy that tag to production, then mark it latest |
 | `preview.yml` | by hand | deploys a chosen branch to dev |

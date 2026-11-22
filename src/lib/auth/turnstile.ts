@@ -1,5 +1,7 @@
 // Cloudflare Turnstile on the sign-in form that sends a code or link (docs/sign-in.md, section 3). Same check as the showroom's lead form.
 // developers.cloudflare.com/turnstile/get-started/server-side-validation/
+import { appUrl } from "@/lib/site";
+
 // Answers true, or why it failed as fixed codes: Cloudflare's own, or ours. Never the token, the IP, the secret or the address.
 export async function verifyTurnstile(token: string, ip: string, secret: string): Promise<true | string[]> {
   if (!token) return ["no-token"];
@@ -9,11 +11,14 @@ export async function verifyTurnstile(token: string, ip: string, secret: string)
     if (ip) body.set("remoteip", ip);
     // A slow Cloudflare answer fails closed after 5 seconds.
     const res = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", { method: "POST", body, signal: AbortSignal.timeout(5000) });
-    const j = (await res.json()) as { success?: boolean; action?: string; "error-codes"?: unknown };
-    if (j.success === true && j.action === "sign-in") return true;
+    const j = (await res.json()) as { success?: boolean; action?: string; hostname?: string; "error-codes"?: unknown };
+    // The hostname must be this deploy's own, so a token from the dev host cannot be used on production.
+    const hostOk = j.hostname === new URL(appUrl()).hostname;
+    if (j.success === true && j.action === "sign-in" && hostOk) return true;
     const given = Array.isArray(j["error-codes"]) ? j["error-codes"] : [];
     const codes = [...new Set(given.map((c): string => (CLOUDFLARE_CODES.includes(c) ? c : "other")))];
-    if (j.success === true) codes.push("action-mismatch"); // a real token, made for another form
+    if (j.success === true && j.action !== "sign-in") codes.push("action-mismatch"); // a real token, made for another form
+    else if (j.success === true) codes.push("hostname-mismatch"); // a real token, made on another site
     return codes.length ? codes : ["rejected"];
   } catch {
     return ["siteverify-failed"]; // fail closed: no answer in time, no connection, or not JSON
