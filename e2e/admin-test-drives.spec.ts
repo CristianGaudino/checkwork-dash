@@ -20,6 +20,22 @@ test("a request is confirmed from the list, and Undo puts it back", async ({ pag
   await expect(waiting.getByText(who, { exact: true })).toBeVisible();
 });
 
+test("a request's row has one strong button, Confirm; on its own page Confirm is the filled one and Cancel is in view", async ({ page }) => {
+  await page.goto("/test-drives");
+  // The last one: the test above confirms (and puts back) the first.
+  const row = page.getByRole("region", { name: /^Still to confirm/ }).getByRole("listitem").last();
+  const who = (await row.locator("[data-name]").textContent())!.trim();
+  // Whole class names: rowButton has hover:bg-accent-soft, rowButtonStrong has bg-accent-soft itself.
+  await expect(row.getByRole("link", { name: `Call ${who}` })).not.toHaveClass(/(^|\s)bg-accent-soft(\s|$)/);
+  await expect(row.getByRole("button", { name: `Confirm: ${who}` })).toHaveClass(/(^|\s)bg-accent-soft(\s|$)/);
+  await row.locator("[data-name]").click();
+  await expect(page).toHaveURL(/\/test-drives\/drive-/);
+  const status = page.getByRole("region", { name: "Status" });
+  await expect(status.getByRole("button", { name: `Cancel: ${who}` })).toBeVisible();
+  // Filled (bg-accent), not tonal (bg-accent-soft).
+  await expect(status.getByRole("button", { name: `Confirm: ${who}` })).toHaveClass(/(^|\s)bg-accent(\s|$)/);
+});
+
 test("the list filters, Only mine keeps the bookings given to me, and a booking opens on its own page", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto("/test-drives?view=list");

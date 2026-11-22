@@ -135,7 +135,7 @@ function Agenda({ drives, gone, empty = "Nothing booked.", withDay = false }: { 
           </span>
           {/* Call them, then the next step, one press each. */}
           <span className="relative z-10 col-span-2 flex flex-wrap gap-2 md:col-span-1 md:col-start-3 md:justify-end">
-            {isOpenDrive(d) && <CallButton phone={d.phone} name={d.name} />}
+            {isOpenDrive(d) && <CallButton phone={d.phone} name={d.name} quiet={d.status === "requested"} />}
             <DriveSteps drive={d} ahead={dublinDay(d.startsAt) > dublinDay()} />
           </span>
         </li>
