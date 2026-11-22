@@ -271,9 +271,9 @@ It can be done with WebCrypto (in Workers) and a small reader in our code, as We
 | The two ceremonies, "Confirm it's you" and their checks | about 130 lines |
 
 About 340 lines plus tests. WebCrypto does the cryptography (Ed25519, ECDSA P-256 with SHA-256, RSASSA-PKCS1-v1_5 with SHA-256); we only
-parse and compare. Importing an Ed25519 key as a JWK (`kty: "OKP"`, `crv: "Ed25519"`) is not yet confirmed in workerd: build step 2 checks
-the import and one verify in `wrangler dev`. If the JWK import fails it tries `importKey("raw", x, { name: "Ed25519" }, ...)` first (the
-COSE `x` is already the raw 32-byte key), and drops -8 from `pubKeyCredParams` only if both fail.
+parse and compare. Importing an Ed25519 key as a JWK (`kty: "OKP"`, `crv: "Ed25519"`) works in workerd: build step 2 ran the verifier in
+`wrangler dev` (wrangler 4.157, compatibility date 2026-10-01) on the recorded fixtures, and the EdDSA registration and sign-in passed and a
+changed signature was refused, so -8 stays in `pubKeyCredParams`.
 
 The library people use is `@simplewebauthn/server` (14.1.0): 870 kB unpacked and ten dependencies (`@peculiar/x509`, five `@peculiar/asn1-*`
 packages, `@hexagon/base64`, `@levischuck/tiny-cbor`, `reflect-metadata`). Nearly all of that is for attestation formats and certificate
