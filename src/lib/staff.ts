@@ -42,7 +42,7 @@ async function accessEmail(): Promise<string | null> {
   return who ? who.email.toLowerCase() : null;
 }
 
-// The sign-in pages and /sign-out, which the proxy does not cover, check the mode themselves: closed (404) under Access alone, so nothing
+// The sign-in pages and /sign-out, which the proxy gates by Access in access and both and lets through in own, check the mode again themselves: closed (404) under Access alone, so nothing
 // of our sign-in is reachable while SIGN_IN is `access`; behind a valid Access token in `both`; open in `own`.
 export async function signInOpen(): Promise<boolean> {
   const mode = signInMode();
@@ -53,7 +53,7 @@ export async function signInOpen(): Promise<boolean> {
 // membership.ts), which every page, layout, store and permission check goes through, so a client-side navigation (which skips the root
 // layout) is caught too. Only where our sign-in is on: under Access alone (the default) nothing changes, since the proxy already refused
 // anyone Access did not let in. Only with a path from the proxy: a POST (a server action, a plain form) has an empty one and is not there
-// (404, never a redirect: the caller is script), whichever page or store asked first; a page outside the proxy (the sign-in pages) has
+// (404, never a redirect: the caller is script), whichever page or store asked first; a page the proxy gives no path (the sign-in pages) has
 // none, so it never loops. The path is the proxy's header, never the browser's (the proxy strips any other).
 export async function toSignIn(): Promise<void> {
   if (signInMode() === "access" || appOpen()) return;
@@ -62,7 +62,7 @@ export async function toSignIn(): Promise<void> {
   if (path === "") notFound();
 }
 
-// What the root layout draws (src/app/layout.tsx). "bare": a page outside the proxy (the sign-in pages, and the proxy's own 404), which
+// What the root layout draws (src/app/layout.tsx). "bare": a page the proxy gives no path (the sign-in pages, and the proxy's own 404), which
 // has no PATH_HEADER: its own content with no dashboard frame, so a notFound() there answers 404 in every mode. "frame": as before.
 export async function pageGate(): Promise<"bare" | "frame"> {
   return (await headers()).get(PATH_HEADER) === null ? "bare" : "frame";

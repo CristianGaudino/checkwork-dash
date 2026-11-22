@@ -59,7 +59,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // Which dealer this is, from the directory (src/lib/tenancy). With none open, the page is the chooser or "No access" and nothing else: no
   // menu, no page. Every store refuses without a dealer too, and every action (requireStaff), so this is not the only lock.
   const access = await dealerAccess();
-  // A page outside the proxy (the sign-in pages, the proxy's own 404) is drawn bare, with its own content. A signed-out page load under our
+  // A page the proxy gives no path (the sign-in pages, the proxy's own 404) is drawn bare, with its own content. A signed-out page load under our
   // sign-in has already gone to sign in (dealerAccess).
   const gate = await pageGate();
   // Signed out anywhere else (a POST with a dead session, which is never redirected): not there, as the proxy answers. "No access" below

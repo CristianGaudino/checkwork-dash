@@ -226,13 +226,13 @@ describe("SIGN_IN: the sign-in pages, and a signed-out page", () => {
       await expect(dealerAccess()).rejects.toThrow(/NEXT_HTTP_ERROR_FALLBACK;404/); // not there, never a redirect
       await expect(currentDealer()).rejects.toThrow(/NEXT_HTTP_ERROR_FALLBACK;404/); // whichever store asks first
       await expect(requireStaff()).rejects.toThrow(/NEXT_HTTP_ERROR_FALLBACK;404/);
-      const { "x-cw-path": _, ...outside } = sent; // a page outside the proxy (the sign-in pages): no path, so no loop
+      const { "x-cw-path": _, ...outside } = sent; // a page the proxy gives no path (the sign-in pages): no path, so no loop
       sent = outside;
       expect(await dealerAccess()).toEqual({ state: "signed-out" });
     }
   });
 
-  it("the root layout draws a page outside the proxy bare, in every mode, so its own notFound() answers 404", async () => {
+  it("the root layout draws a page the proxy gives no path bare, in every mode, so its own notFound() answers 404", async () => {
     for (const mode of ["", "both", "own"]) {
       vi.stubEnv("SIGN_IN", mode);
       sent = {};
