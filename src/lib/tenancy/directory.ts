@@ -1,7 +1,7 @@
 import { and, asc, desc, eq, isNull, lt, or, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import { getBindings } from "@/lib/leads/bindings";
-import { dealers, members, siteKeys } from "@/lib/db/directory-schema";
+import { dealers, members, passkeys, sessions, signInAttempts, siteKeys, staff } from "@/lib/db/directory-schema";
 import { same } from "@/lib/cron";
 import type { Role } from "@/lib/permission-rules";
 import { DEMO_NAME, DEMO_PROFILE, parseProfile, type DealerProfile } from "./profile";
@@ -45,7 +45,16 @@ const DEMO_SITE_KEY_HASH = "78630084e15e7eb9948b4531f317f2860bdfc95d41d07ed2431d
 type KeyRow = SiteKey & { hash: string };
 // shortcut: memory is per server instance, like the record store (src/lib/admin/docs.ts). Fine for dev and tests; the Worker uses D1. Kept on
 // globalThis so the route handlers (the site API) and the pages, which `next start` bundles apart, share one copy.
-type Mem = { dealers: Row[]; members: Member[]; siteKeys: KeyRow[] };
+// Our own sign-in's tables (docs/sign-in.md, section 6), as D1 returns their rows; empty until someone signs in.
+type Mem = {
+  dealers: Row[];
+  members: Member[];
+  siteKeys: KeyRow[];
+  staff: (typeof staff.$inferSelect)[];
+  passkeys: (typeof passkeys.$inferSelect)[];
+  sessions: (typeof sessions.$inferSelect)[];
+  signInAttempts: (typeof signInAttempts.$inferSelect)[];
+};
 const held = globalThis as { __checkworkDirectory?: Mem | null };
 const mem = () => {
   // A production build with no DIRECTORY bound is a broken deploy, not the E2E run: fail loudly instead of answering from memory and losing
@@ -55,6 +64,10 @@ const mem = () => {
     dealers: SEED_DEALERS.map((d) => ({ ...d })),
     members: SEED_MEMBERS.map((m) => ({ ...m })),
     siteKeys: [{ id: "demo-site-key", dealerId: DEMO_DEALER, hash: DEMO_SITE_KEY_HASH, label: "Demo website", createdAt: Date.now(), lastUsedAt: null, revokedAt: null }],
+    staff: [],
+    passkeys: [],
+    sessions: [],
+    signInAttempts: [],
   });
 };
 // Tests: back to the two seeded dealers.
