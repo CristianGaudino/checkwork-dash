@@ -17,7 +17,7 @@ export function OpenClaimForm({ sales, today, defaults }: { sales: { id: string;
         <Select name="saleId" label="Car they bought" defaultValue={defaults.saleId ?? ""} options={[["", "Choose the car"], ...sales.map((s) => [s.id, s.label] as const)]} />
       </Field>
       <Field label="The fault" hint="What it is and when it started" error={e.fault} className="sm:col-span-2">
-        <textarea name="fault" aria-label="The fault" maxLength={1000} defaultValue={defaults.fault} className={`${adminInput} h-auto min-h-28 py-2`} />
+        <textarea name="fault" maxLength={1000} defaultValue={defaults.fault} className={`${adminInput} h-auto min-h-28 py-2`} />
       </Field>
       <Field label="Day they told us" error={e.openedOn}>
         <input name="openedOn" type="date" max={today} defaultValue={today} className={adminInput} />
