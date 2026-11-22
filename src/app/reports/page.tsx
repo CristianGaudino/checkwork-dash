@@ -81,7 +81,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ p
         </Panel>
       </div>
 
-      <Panel title="By salesperson">
+      <Panel title="By salesperson" text="Cars sold is every sale in their name. Leads won is their leads marked won, out of all their leads.">
         <DataTable
           bare
           label="By salesperson"
@@ -90,7 +90,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ p
           empty={<p className="text-body text-text-2">No sales or leads in this period.</p>}
           columns={[
             { key: "name", header: "Name", cell: (p) => <span className="font-medium">{p.name}</span>, nowrap: true },
-            { key: "sold", header: "Sold", align: "right", cell: (p) => fmtNum(p.sold) },
+            { key: "sold", header: "Cars sold", align: "right", cell: (p) => fmtNum(p.sold) },
             { key: "value", header: "Sales", align: "right", hide: "sm", cell: (p) => fmtEur(p.value) },
             { key: "profit", header: "Profit", align: "right", hide: "md", cell: (p) => (p.costed ? fmtEur(p.profit) : <span className="text-text-2">-</span>) },
             { key: "won", header: "Leads won", align: "right", hide: "sm", cell: (p) => `${p.won} of ${p.leads}` },

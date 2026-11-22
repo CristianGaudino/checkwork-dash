@@ -104,7 +104,7 @@ export function countChange(now: number, before: number): CountChange {
 export function compare(now: number, before: number): string {
   const c = countChange(now, before);
   if (c.kind === "few") return "Too few to compare";
-  if (c.kind === "from") return `${c.up ? "Up" : "Down"} from ${c.before} the month before`;
+  if (c.kind === "from") return `${c.before} the month before`; // not "Up from 6", which reads as a rise of 6
   const pct = Math.round(c.pct);
   return pct === 0 ? "The same as the month before" : `${pct > 0 ? "Up" : "Down"} ${Math.abs(pct)}% on the month before`;
 }
