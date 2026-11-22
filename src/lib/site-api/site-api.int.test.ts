@@ -407,6 +407,11 @@ describe("car photos on the website", () => {
       const sig = new URL(link).searchParams.get("sig")!;
       const flipped = (sig[0] === "A" ? "B" : "A") + sig.slice(1);
       expect((await open(link.replace(sig, flipped))).status).toBe(404);
+      // The last character has two spare bits: a variant that decodes to the same bytes is refused too.
+      const AB = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+      const spare = sig.slice(0, 42) + AB[AB.indexOf(sig[42]) ^ 1];
+      expect(Buffer.from(spare, "base64url").equals(Buffer.from(sig, "base64url"))).toBe(true);
+      expect((await open(link.replace(sig, spare))).status).toBe(404);
       expect((await open(link.replace(/\?sig=.*/, ""))).status).toBe(404);
       expect((await open(link.replace(/\/[0-9a-f-]{36}\.jpg/, `/${crypto.randomUUID()}.jpg`))).status).toBe(404);
       // Dealer A has a car of the same id with a photo at the same key, on its website: B's signature still opens nothing of A's.

@@ -108,6 +108,15 @@ code path reaches another dealer's (#3, #4, #6; `src/lib/tenancy/`).
   website (`docs/site-api.md`, "Car photos").
 - **The site API** (`/api/site/v1`, `docs/site-api.md`): a dealer's website sends leads and reads its cars with a key made in Settings.
   The key decides the dealer, and the work runs inside `runAsDealer`; nothing in a request can name another dealer.
+- **The public unsubscribe** (`/api/site/unsubscribe`, #70, `src/lib/unsubscribe.ts`, `src/lib/site-api/unsubscribe.ts`): every newsletter and stock alert
+  email carries a link made by `unsubscribeParts(dealerId, kind, recordId)` and the RFC 8058 headers `List-Unsubscribe` and
+  `List-Unsubscribe-Post: List-Unsubscribe=One-Click`. The link is `?d=<dealer>&k=newsletter|alert&id=<record>&sig=<HMAC-SHA256, base64url>` on this app, signed with
+  `UNSUBSCRIBE_SECRET` over the three values. It holds no email address, needs no sign-in and names the dealer, so their own store opens.
+  It sits under `/api/site/`, which Cloudflare Access leaves open and the proxy never runs on, so no owner setup is needed. GET shows
+  "Stop these emails?" and changes nothing (a mail scanner opens links); POST (the button, or a mail provider's one-click) turns the
+  subscriber to `unsubscribed`, or pauses the alert, and says "You won't get these emails again". Done twice is fine. A bad, tampered,
+  other-dealer or unknown link is the same plain page with a 404 and no reason. 60 a minute per visitor address on `SITE_LIMITER` (the binding's limit). The activity log
+  gets one line by "The subscriber", with the record's kind and id and never the email. Changing the secret ends every link already sent.
 - **A demo dealer** (the directory's `demo` flag) behaves as the demo on any deploy, the one shared production deploy included: its
   made-up records are seeded (`demoRecordsFor` in `src/lib/admin/docs.ts`), its outward services are simulated (`src/lib/integrations.ts`),
   its reviews are the made-up ones, its lead emails say DEMO, and the morning cron and Settings put it back to its seed. A dealer that is

@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { logActivity } from "@/lib/admin/activity";
-import { alertsStore, subscribersStore } from "@/lib/admin/collections";
+import { alertsStore } from "@/lib/admin/collections";
+import { pauseAlert, unsubscribeSubscriber } from "@/lib/admin/customers-stop";
 import { requireModule } from "@/lib/modules";
 import { requireStaff } from "@/lib/staff";
 
@@ -12,10 +13,7 @@ import { requireStaff } from "@/lib/staff";
 export async function pauseAlertAction(id: string) {
   await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
   await requireModule("newsletter"); // alerts and the newsletter are the newsletter module, where visitors sign up (#173)
-  const a = await alertsStore.get(id);
-  if (!a?.active) return;
-  await alertsStore.put({ ...a, active: false });
-  await logActivity("customers", "Paused the stock alert", { kind: "alert", id });
+  await pauseAlert(id);
   revalidatePath("/customers");
 }
 
@@ -31,9 +29,6 @@ export async function removeAlertAction(id: string) {
 export async function unsubscribeAction(id: string) {
   await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
   await requireModule("newsletter"); // alerts and the newsletter are the newsletter module, where visitors sign up (#173)
-  const s = await subscribersStore.get(id);
-  if (s?.status !== "subscribed") return;
-  await subscribersStore.put({ ...s, status: "unsubscribed" });
-  await logActivity("customers", "Unsubscribed from the newsletter", { kind: "subscriber", id });
+  await unsubscribeSubscriber(id);
   revalidatePath("/customers");
 }

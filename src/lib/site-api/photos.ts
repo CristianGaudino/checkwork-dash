@@ -53,7 +53,7 @@ const edgeCache = () => (globalThis.caches as unknown as { default?: EdgeCache }
 // Everything else is the same bare 404. A failure is logged with the dealer's id only, never the key or the signature.
 export async function sitePhoto(url: string, dealerId: string, key: string, sig: string): Promise<Response> {
   const secret = process.env.SITE_PHOTO_SECRET;
-  if (!secret || !DEALER_ID.test(dealerId) || !CAR_PHOTO_KEY.test(key) || !/^[A-Za-z0-9_-]{43}$/.test(sig)) return notFound();
+  if (!secret || !DEALER_ID.test(dealerId) || !CAR_PHOTO_KEY.test(key) || !/^[A-Za-z0-9_-]{43}$/.test(sig) || Buffer.from(sig, "base64url").toString("base64url") !== sig) return notFound(); // not canonical: a spare-bit variant
   try {
     if (!(await crypto.subtle.verify("HMAC", await hmacKey(secret), Buffer.from(sig, "base64url"), message(dealerId, key)))) return notFound();
     const cache = edgeCache();
