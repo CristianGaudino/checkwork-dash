@@ -22,7 +22,7 @@ const RANK: Record<Urgency, number> = { now: 0, soon: 1, info: 2 };
 // `sales`: the car ids with a sale recorded. `reservations`: the deposits, for the ones past their date. `rules` and `listingSite`: the
 // dealer's, from their profile. `mine`: a person's name, for To do's Only mine: the leads and test drives given to them or to nobody yet
 // (forPerson; their own follow-ups only, as in their report). The rest (stock, reviews) is nobody's, so it stays.
-export function overview(input: { leads: Lead[]; drives: TestDrive[]; reviews: AdminReview[]; rules: DealerRules; listingSite: string; cars?: Car[]; costs?: Set<string>; sales?: Set<string>; reservations?: Reservation[]; orders?: Order[]; syncProblem?: boolean; now?: number; slaHours?: number; mine?: string }) {
+export function overview(input: { leads: Lead[]; drives: TestDrive[]; reviews: AdminReview[]; rules: DealerRules; listingSite: string; cars?: Car[]; costs?: Set<string>; sales?: Set<string>; reservations?: Reservation[]; orders?: Order[]; warrantyRequests?: number; syncProblem?: boolean; now?: number; slaHours?: number; mine?: string }) {
   const now = input.now ?? Date.now();
   const slaHours = input.slaHours ?? 24;
   const { leads, drives, reviews, rules, listingSite } = input;
@@ -51,6 +51,8 @@ export function overview(input: { leads: Lead[]; drives: TestDrive[]; reviews: A
     // Where Reply to leads goes: Leads' To answer now, the same leads.
     { key: "reply", label: "New leads to answer", count: reply.length, href: input.mine === undefined ? "/leads" : "/leads?mine=1", urgency: reply.some((t) => t.urgency === "now") ? "now" : "soon" },
     { key: "drives", label: "Test drives to confirm", count: toConfirm.length, href: "/test-drives?view=list&status=requested&when=ahead", urgency: "soon" },
+    // Warranty requests from the website with no claim opened yet (openWarrantyRequests), as Aftersales' Requests.
+    { key: "warranty", label: "Warranty requests to answer", count: input.warrantyRequests ?? 0, href: "/aftersales?view=requests", urgency: "soon" },
     { key: "reviews", label: "Reviews without a reply", count: reviews.filter((r) => !r.reply).length, href: "/reviews?filter=unreplied", urgency: "info" },
     { key: "sync", label: `${listingSite} stock is not updating`, count: input.syncProblem ? 1 : 0, href: "/stock", urgency: "now" },
     { key: "sold-drives", label: "Test drives booked on a car no longer for sale", count: ownDrives.filter((d) => d.startsAt >= now && isOpenDrive(d) && offSale.has(slugId(d.carSlug))).length, href: "/test-drives?view=list&car=gone&when=ahead", urgency: "now" },

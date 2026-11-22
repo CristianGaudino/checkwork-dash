@@ -84,16 +84,16 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
   const alertColumns: Column<StockAlert>[] = [
     { key: "kind", header: "Alert", sort: (a) => ALERT_KIND_LABELS[a.kind], cell: (a) => ALERT_KIND_LABELS[a.kind] },
     { key: "criteria", header: "Looking for", sort: (a) => a.criteria, cell: (a) => (<span className="flex min-w-0 flex-col"><span>{a.criteria}</span><span className="truncate text-meta text-text-2">{a.email}</span></span>) },
-    { key: "status", header: "Status", sort: (a) => (a.active ? 0 : 1), cell: (a) => (a.active ? <Badge tone="good">Active</Badge> : <Badge>Paused</Badge>) },
+    { key: "status", header: "Status", sort: (a) => (a.active ? 0 : 1), cell: (a) => (a.active ? <Badge tone="good">Active</Badge> : <Badge>Stopped</Badge>) },
     { key: "since", header: "Since", sort: (a) => a.createdAt, cell: (a) => fmtDate(a.createdAt), hide: "md", nowrap: true },
     {
       key: "actions",
       header: "",
       cell: (a) => (
         <div className="flex justify-end gap-2">
-          {/* Pause only: an alert starts again only when the person signs up again (actions.ts). */}
+          {/* Stop only: an alert starts again only when the person signs up again (actions.ts). */}
           {a.active && (
-            <ActButton act={pauseAlertAction.bind(null, a.id)} confirm={{ title: "Pause this stock alert?", text: "Only the customer can start it again, by signing up on the website.", yes: "Pause" }} className={rowButton}>Pause</ActButton>
+            <ActButton act={pauseAlertAction.bind(null, a.id)} confirm={{ title: "Stop this stock alert?", text: "Only the customer can start it again, by signing up on the website.", yes: "Stop" }} className={rowButton}>Stop</ActButton>
           )}
           <ActButton act={removeAlertAction.bind(null, a.id)} confirm={{ title: "Remove this stock alert?", text: "This cannot be undone.", yes: "Remove" }} className={rowDanger}>Remove</ActButton>
         </div>
@@ -133,7 +133,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
     ],
     alerts: [
       { name: "kind", label: "Alert", any: "Every alert", options: ALERT_KINDS.map((k) => [k, ALERT_KIND_LABELS[k]] as const) },
-      { name: "state", label: "Status", any: "Active and paused", options: [["active", "Active"], ["paused", "Paused"]] },
+      { name: "state", label: "Status", any: "Active and stopped", options: [["active", "Active"], ["paused", "Stopped"]] },
     ],
     newsletter: [{ name: "state", label: "Status", any: "Subscribed or not", options: [["subscribed", "Subscribed"], ["unsubscribed", "Unsubscribed"]] }],
   };

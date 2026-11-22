@@ -71,7 +71,7 @@ describe("/api/site/unsubscribe", () => {
     expect((await runAsDealer(A, () => alertsStore.get(a.id)))?.active).toBe(false);
     const log = await runAsDealer(A, () => listActivity({ area: "customers" }, 1, 50));
     const mine = log.rows.filter((r) => r.refId === a.id);
-    expect(mine).toMatchObject([{ actor: "The subscriber", summary: "Paused the stock alert" }]);
+    expect(mine).toMatchObject([{ actor: "The subscriber", summary: "Stopped the stock alert" }]);
     for (const r of log.rows) expect(JSON.stringify(r)).not.toContain("@");
   });
 

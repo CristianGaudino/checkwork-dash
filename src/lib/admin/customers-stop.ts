@@ -19,7 +19,7 @@ export async function pauseAlert(id: string, actor?: string): Promise<boolean> {
   if (!a) return false;
   if (a.active) {
     await alertsStore.put({ ...a, active: false });
-    await logActivity("customers", "Paused the stock alert", { kind: "alert", id }, actor);
+    await logActivity("customers", "Stopped the stock alert", { kind: "alert", id }, actor);
   }
   return true;
 }
