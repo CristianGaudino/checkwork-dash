@@ -5,6 +5,7 @@ import { INTEGRATIONS, integrationText } from "@/lib/integrations";
 import { listing } from "@/lib/stock-source";
 import { runAsDealerRow } from "@/lib/tenancy/current";
 import { dealerById } from "@/lib/tenancy/directory";
+import { readCapped } from "@/lib/site-api/request";
 import { ownerAuth } from "./auth";
 
 // Checkwork, not the dealer, sets a dealer's outside-service keys (#80), with the owner token. A value is sealed on the Worker and never
@@ -37,10 +38,10 @@ export async function ownerKeys(req: Request, dealerId: string, service?: string
     return say(204);
   }
   if (!secretsKeyReady()) { log("no sealing key"); return say(503, "Keys cannot be saved yet: DEALER_SECRETS_KEY is not set on this app"); }
-  const text = await req.text();
+  const text = await readCapped(req, MAX_BODY);
   let body: unknown;
   try {
-    body = text.length <= MAX_BODY ? JSON.parse(text) : null;
+    body = text === null ? null : JSON.parse(text);
   } catch {
     body = null;
   }
