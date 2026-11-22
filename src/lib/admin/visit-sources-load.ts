@@ -18,11 +18,12 @@ export async function visitSources(range: Range, leads: Lead[], now = Date.now()
 }
 
 // The site's own counts: this period's visits and the website leads in it, and the visits of the period before (leads are not needed there).
-// `counts`: this period's, when the caller has read them already (Analytics), so they are not read twice.
-export async function realVisitSources(range: Range, now: number, leads: Lead[], counts?: Record<string, number>) {
+// `counts` and `before`: this period's and the one before's, when the caller has read them already (Analytics), so nothing is read twice.
+export async function realVisitSources(range: Range, now: number, leads: Lead[], counts?: Record<string, number>, before?: Record<string, number>) {
   const w = visitWindows(range, now);
   const [start] = bounds(w.from, w.to);
-  const [c, pc] = await Promise.all([counts ?? countsBetween(w.from, w.to).then((x) => x.features), countsBetween(w.beforeFrom, w.beforeTo)]);
+  const read = (from: string, to: string) => countsBetween(from, to).then((x) => x.features);
+  const [c, pc] = await Promise.all([counts ?? read(w.from, w.to), before ?? read(w.beforeFrom, w.beforeTo)]);
   const f = visitorFigures({ counts: c, leads: leads.filter((l) => l.createdAt >= start), alerts: [] });
-  return { now: f.channels, before: visitorFigures({ counts: pc.features, leads: [], alerts: [] }).channels, unknownLeads: f.unknownLeads };
+  return { now: f.channels, before: visitorFigures({ counts: pc, leads: [], alerts: [] }).channels, unknownLeads: f.unknownLeads };
 }

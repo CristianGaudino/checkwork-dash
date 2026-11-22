@@ -16,6 +16,12 @@ describe("realVisitSources", () => {
     expect(r.now.find((c) => c.channel === "google")?.visits).toBe(12);
     expect(r.before.find((c) => c.channel === "google")?.visits).toBe(30);
   });
+  it("reads nothing when given both periods' counts (Analytics reads them alongside its own)", async () => {
+    countsBetween.mockClear();
+    const r = await realVisitSources(30, now, [], { "visit:google": 12 }, { "visit:google": 7 });
+    expect(countsBetween).not.toHaveBeenCalled();
+    expect(r.before.find((c) => c.channel === "google")?.visits).toBe(7);
+  });
   it("reads both windows when it has no counts", async () => {
     countsBetween.mockClear();
     const r = await realVisitSources(30, now, []);

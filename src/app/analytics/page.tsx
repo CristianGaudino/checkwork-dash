@@ -115,11 +115,13 @@ const none = <p className="text-meta text-text-2">None in this period.</p>;
 
 async function RealAnalytics({ range }: { range: Range }) {
   const now = today();
-  const { from, to } = visitWindows(range, now); // the same Irish days as Where visits come from
+  const w = visitWindows(range, now); // the same Irish days as Where visits come from
+  const { from, to } = w;
   const [start] = bounds(from, to);
-  const [{ features }, leads, alerts] = await Promise.all([countsBetween(from, to), leadsStore.list(), alertsStore.list()]);
+  // The window before is read at the same time; this period's counts are passed in, so nothing is read twice.
+  const [{ features }, leads, alerts, before] = await Promise.all([countsBetween(from, to), leadsStore.list(), alertsStore.list(), countsBetween(w.beforeFrom, w.beforeTo)]);
   const f = visitorFigures({ counts: features, leads: leads.filter((l) => l.createdAt >= start), alerts });
-  const src = await realVisitSources(range, now, leads, features);
+  const src = await realVisitSources(range, now, leads, features, before.features);
 
   return (
     <>
