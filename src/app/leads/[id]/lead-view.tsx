@@ -29,6 +29,7 @@ import { dealerProfile } from "@/lib/tenancy/current";
 import { stockSource } from "@/lib/stock-source";
 import { NotesPanel } from "@/components/admin/NotesPanel";
 import { VisitPanel } from "@/components/admin/VisitPanel";
+import { askedCar } from "@/lib/leads/journey";
 import { ContactButtons } from "@/components/admin/ContactButtons";
 import { LeadKind, LeadTags, leadChips } from "@/components/admin/LeadKind";
 import { SubmitButton } from "@/components/admin/SubmitButton";
@@ -44,7 +45,7 @@ export async function LeadView({ id }: { id: string }) {
   if (!lead) notFound();
   // The car the lead asked about has sold since (here, or on DoneDeal): the salesperson offers something like it.
   const stock = lead.carSlug || lead.journey ? await adminCars() : [];
-  const car = lead.carSlug ? stock.find((c) => c.slug === lead.carSlug) : undefined;
+  const car = askedCar(stock, lead.carSlug); // by its id: an edit to the make, model or year gives the car a new slug
   const carSold = car !== undefined && isSold(car);
   const today = dublinDay();
   // Their next test drive, today or later, found by their email or phone: shown in place of Book a test drive.
@@ -81,7 +82,7 @@ export async function LeadView({ id }: { id: string }) {
               <CarIcon className="size-5 shrink-0 text-accent-text" />
                 {/* A link only while the car has a page on the site: not hidden, a draft or sold long ago, and its kind on the plan. */}
                 {lead.carSlug && car && siteUrl && onPublicSite(car, rules.soldVisibleDays) && conditionShown(await enabledModules(), car.condition) ? (
-                  <a href={siteCarUrl(siteUrl, lead.carSlug)} {...NEW_TAB} className="underline-offset-4 hover:underline">
+                  <a href={siteCarUrl(siteUrl, car.slug)} {...NEW_TAB} className="underline-offset-4 hover:underline">
                     {lead.carTitle}
                   </a>
                 ) : (

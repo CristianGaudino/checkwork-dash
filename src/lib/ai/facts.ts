@@ -64,7 +64,8 @@ export async function buildFacts(req: WriteRequest, dealer: string, siteUrl: str
         // Only cars with a name: an id means nothing to the writer.
         cars: cars.flatMap((v) => (v.name ? [{ name: v.name, views: v.views, ...(v.asked && { askedAbout: true as const }), ...(v.car && isSold(v.car) && { sold: true as const }) }] : [])),
         ...(pattern && { pattern }),
-        searches,
+        // A make or model from an edited address could be a phone number: such a word is left out.
+        searches: searches.map((w) => w.filter((x) => noContacts(x) === x)).filter((w) => w.length > 0),
         tools,
       };
       // The few specs a call needs, not the whole listing.

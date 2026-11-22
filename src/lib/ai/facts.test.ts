@@ -22,7 +22,8 @@ describe("buildFacts for Prepare me", () => {
     const { CHANNEL_LABELS } = await import("@/lib/visit-rules");
     const seeded = (await leadsStore.list()).find((l) => l.journey && l.carSlug)!;
     const message = `Call me on 087 123 4567 or ${seeded.email}. ${"Long words. ".repeat(80)}`;
-    await leadsStore.put({ ...seeded, id: "lead-brief", message, notes: [{ at: 1, text: "Private note" }] });
+    // A make taken from an edited address can be any slug, a phone number too.
+    await leadsStore.put({ ...seeded, id: "lead-brief", message, notes: [{ at: 1, text: "Private note" }], journey: { ...seeded.journey!, searches: [{ make: "0871234567" }, ...seeded.journey!.searches].slice(0, 8) } });
     const built = await buildFacts({ task: "leadBrief", leadId: "lead-brief" }, "Checkwork Motors", "");
     expect(built?.task).toBe("leadBrief");
     const f = built!.facts as import("./tasks").FactsOf["leadBrief"];
@@ -46,7 +47,7 @@ describe("buildFacts for Prepare me", () => {
       else expect(v, s).toMatch(/^[\w€ ,.:'·-]{1,60}$/u); // a label, a chip, a spec or a pattern: short fixed words
     }
     const all = JSON.stringify(f);
-    for (const gone of [seeded.name, seeded.email, seeded.phone, "087 123 4567", "Private note"]) expect(all).not.toContain(gone);
+    for (const gone of [seeded.name, seeded.email, seeded.phone, "087 123 4567", "0871234567", "Private note"]) expect(all).not.toContain(gone);
   });
 
   it("finds the car they asked about by its id, after an edit gave it a new slug", async () => {
