@@ -9,7 +9,6 @@ export type DealerRules = {
   oldStockDays: number; // a car for sale this long is old stock: the stock list's view, the overview, the reports and the slow-stock alert
   slowDropEur: number; // the price drop the slow-stock alert suggests, and its Drop the price button applies
   soldVisibleDays: number; // days a sold car stays on the dealer's website after its sale
-  saleNudgeDays: number; // a car sold in this many days with no sale recorded is asked about
 };
 export type ListingSite = "DoneDeal" | "CarsIreland";
 export type DealerProfile = {
@@ -43,7 +42,7 @@ export const DEFAULT_PROFILE: DealerProfile = {
   social: [],
   modules: "dashboard",
   stock: { source: "checkwork", listingSite: "DoneDeal", listingUrl: "https://www.donedeal.ie/" },
-  rules: { oldStockDays: 120, slowDropEur: 500, soldVisibleDays: 30, saleNudgeDays: 90 },
+  rules: { oldStockDays: 120, slowDropEur: 500, soldVisibleDays: 30 },
 };
 
 // The demo dealer, a made-up business: every module, and its own website. The phone number is made up; the street is a real one in Dublin

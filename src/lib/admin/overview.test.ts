@@ -46,6 +46,13 @@ describe("overview", () => {
     // Without the margins permission there is no cost item at all, and a sold car is never old stock.
     expect(overview({ rules: DEMO_PROFILE.rules, listingSite: "DoneDeal", leads: [], drives: [], reviews: [], cars: [car("gone", "2026-01-01", { soldAt: "2026-02-01" })], now }).attention).toEqual([]);
   });
+  it("counts every sold car with no sale recorded, however long ago, oldest first", () => {
+    const car = (id: string, soldAt?: string) => ({ id, slug: id, photos: [], soldAt }) as unknown as import("@/lib/stock/types").Car;
+    const cars = [car("recent", "2026-11-01"), car("long-ago", "2026-03-01"), car("recorded", "2026-10-01"), car("for-sale")];
+    const o = overview({ rules: DEMO_PROFILE.rules, listingSite: "DoneDeal", leads: [], drives: [], reviews: [], cars, sales: new Set(["recorded"]), now });
+    expect(o.unrecorded.map((c) => c.id)).toEqual(["long-ago", "recent"]); // as many as the Sold view's Record sale buttons
+    expect(o.attention.find((a) => a.key === "sales")?.count).toBe(2);
+  });
   it("lists the records behind the to-dos in the order to work them, and today's open drives", () => {
     const o = overview({ rules: DEMO_PROFILE.rules, listingSite: "DoneDeal", leads: [lead("newer", 30 * HOUR), lead("older", 50 * HOUR), lead("fresh", HOUR)], drives: [drive("later", 2 * DAY, "requested"), drive("sooner", HOUR, "requested"), drive("past", -HOUR, "confirmed"), drive("off", 2 * HOUR, "cancelled")], reviews: [], now });
     expect(o.reply.map((t) => t.lead.id)).toEqual(["older", "newer", "fresh"]); // the late ones first, the longest waiting first
