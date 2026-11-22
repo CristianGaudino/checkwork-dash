@@ -182,7 +182,7 @@ export default async function Page() {
             </Panel>
             {/* The busiest channels by name and mark: quicker to read at a glance than Search or Social. Analytics has the groups. */}
             {visits && (
-              <Panel plain title="Where visits come from" text="Last 30 days" action={<PanelLink href="/analytics">Analytics</PanelLink>}>
+              <Panel plain title="Where visits come from" text="Last 30 days, compared with the 30 before" action={<PanelLink href="/analytics">Analytics</PanelLink>}>
                 <VisitSources now={visits.now} before={visits.before} top={4} />
               </Panel>
             )}

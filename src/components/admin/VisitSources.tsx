@@ -7,10 +7,11 @@ import { sourceGroups, sourceTiles, type ChannelCount, type SourceFigures, type 
 // "Where visits come from" (#35), one tile per channel: its mark, visits and the change on the period before, the leads it brought and
 // leads per 100 visits. The channel with the most leads has an indigo edge and says so in words. With `top`, the busiest few channels
 // (the Overview); without, the groups (Search, Social, Listing sites...), each opening into its networks (Analytics, the monthly report).
-type Props = { now: ChannelCount[]; before: Pick<ChannelCount, "channel" | "visits">[]; top?: number; period?: string };
+// The panel around it names the period ("Last 30 days, compared with the 30 before"), so a tile says only "Up 6%".
+type Props = { now: ChannelCount[]; before: Pick<ChannelCount, "channel" | "visits">[]; top?: number };
 
-export function VisitSources({ now, before, top, period = "period" }: Props) {
-  const tiles = sourceTiles(now, before, period);
+export function VisitSources({ now, before, top }: Props) {
+  const tiles = sourceTiles(now, before);
   if (!tiles.length) return <p className="text-meta text-text-2">No visits in this period.</p>;
   if (top) {
     const shown = tiles.slice(0, top);
@@ -20,7 +21,7 @@ export function VisitSources({ now, before, top, period = "period" }: Props) {
   }
   return (
     <StatGrid>
-      {sourceGroups(tiles, before, period).map((g) =>
+      {sourceGroups(tiles, before).map((g) =>
         // A group with one network this period is that network's tile: nothing to open.
         g.channels.length === 1 ? (
           <Tile key={g.id} f={g.channels[0]} best={g.best} icon={<ChannelIcon channel={g.channels[0].channel} />} />
@@ -64,9 +65,15 @@ function Tile({ f, best, icon, more }: { f: SourceFigures; best: boolean; icon: 
         <span className="text-[min(2rem,20cqi)]">{fmtNum(f.visits)}</span> <span className="text-meta font-normal text-text-2">{f.visits === 1 ? "visit" : "visits"}</span>
       </p>
       <p className={`text-meta ${f.trend === "up" ? "text-ok" : f.trend === "down" ? "text-bad" : "text-text-2"}`}>{f.change}</p>
+      {/* Wraps only at the dot, never inside a half. */}
       <p className="text-meta text-text-2 tabular-nums">
-        {plural(f.leads, "lead")}
-        {f.rate !== null && `, ${f.rate.toFixed(1)} per 100 visits`}
+        <span className="whitespace-nowrap">{plural(f.leads, "lead")}</span>
+        {f.rate !== null && (
+          <>
+            {" · "}
+            <span className="whitespace-nowrap">{f.rate.toFixed(1)} per 100</span>
+          </>
+        )}
       </p>
       {best && <p className="text-meta font-medium text-accent-text">Most leads</p>}
       {more}
