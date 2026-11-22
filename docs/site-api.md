@@ -78,6 +78,31 @@ IP address, nothing about the device.
 | 429 | Over the key's rate limit | none |
 | 500 | Something failed here; the website may retry with the same `clientRef` | none |
 
+## `POST /api/site/v1/counts`
+
+A day's anonymous visitor counts from the website (#71), so a real dealer's Analytics, Where visits come from, the Overview strip and the
+monthly report show their website's figures. Same key, auth, 64 KB cap and rate limit as the leads POST. Code: `src/lib/site-api/counts.ts`.
+
+```json
+{ "day": "2026-11-21", "counts": { "visit:google": 12, "saved": 3, "filter:make": 5 } }
+```
+
+- `day` is an Irish calendar day, not in the future and not older than 35 days.
+- Names are only the buyer's events, from a fixed list (`BUYER_EVENTS` in `src/lib/owner-api/counter-rules.ts`, the same list the website
+  records): `saved`, `compare`, `finance`, `units`, `no-results`, `contact-topic`, `filter:make|model|body|fuel|price|year|km|gearbox`, and
+  the visit events `visit:<channel>`, `band:<price band>`, `missed:<make slug or other>` (`VISIT_EVENTS` in `src/lib/visit-rules.ts`). Any
+  other name, the dashboard's own `dash:` ones included, is dropped and the rest of the day is stored. At most 200 names, each a whole number from 0 to 1,000,000. No visitor
+  id, IP or anything else is accepted.
+- **It replaces that day's website counts for the dealer**, so the website can send a day again as its numbers grow. A name left out of a
+  resend is cleared, and a 0 stores nothing. Other days and the dashboard's own counts are untouched.
+- Kept in the dealer's store, in the `feature-counts` records that `countsBetween` reads (one per day per name, purged after 13 months). A website key can write or wipe the last 35 days of counts, so a stolen key can too; revoking the key stops it.
+
+| Status | When | Body |
+|---|---|---|
+| 204 | Stored (or replaced) | none |
+| 400 | Not JSON, not the contract, a bad day or a count out of range (a name off the list is dropped, not refused). Nothing is stored and no detail is given | none |
+| 401, 413, 429, 500 | As for leads | none |
+
 ## `GET /api/site/v1/stock`
 
 Same key. For a dealer whose stock is kept here (`stock.source` `checkwork` in their profile): `{ "cars": Car[] }`, the cars on their
@@ -87,6 +112,16 @@ private, max-age=60` and `Vary: Authorization`: the address is the same for ever
 dealer (DoneDeal or CarsIreland) gets 404: their website reads the listing site. 401 and 429 as above.
 
 Each car's `photos` are links the website can put straight in an `<img>` (next section). A photo it could not open is left out.
+
+## `GET /api/site/v1/drives/taken?carId=<1-12 digits>`
+
+Same key and errors as the stock read; the rate limit (60 a minute) is kept per key and route, so drives reads never use up the leads'. Answers 200
+`{"times":["YYYY-MM-DD HH:MM", ...]}` (Irish time): for each open booking (requested or confirmed) of that car, matched by car id (`slugId`), so one
+made under an old slug still counts, that has not finished (`startsAt` within the last hour or later), every :00 and :30 slot start on its day
+within the dealer's drive slot length of it (the window `clashes` uses). It does not depend on opening hours, so the website's hours need not
+match the dashboard's. Only times, never a name or any booking detail. A car id that matches nothing gets `{"times":[]}`, so the answer does not
+say whether a car exists. A missing or malformed `carId` gets 400 with no body, as a malformed lead does. `Cache-Control: no-store`. The website's
+form hides these times (#72); a double booking that still gets through is caught here as before ("Clashes with another booking for this car").
 
 ## Car photos (`GET /api/site/v1/photos/<dealer>/<key>?sig=<signature>`)
 

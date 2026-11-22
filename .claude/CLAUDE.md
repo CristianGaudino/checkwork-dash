@@ -29,7 +29,7 @@ The `vintage` repo (`~/Developer/vintage`, GitHub `CristianGaudino/vintage`) is 
 ## Before opening a PR
 1. Run the ponytail audit (`/ponytail:ponytail-audit`) on what the branch changed: the changed files plus their callers and tests.
 2. Fix what it raises on the same branch. A real trade-off goes in the PR description for the owner to decide.
-3. Run lint, typecheck, unit tests, `bash scripts/check-migrations.sh main` and the E2E suite against a production build. Open the PR only if they pass. Say what the audit found and the E2E result in the PR; CI and E2E then run on the PR itself.
+3. Run lint, typecheck, unit tests, `bash scripts/check-migrations.sh main` and the E2E suite against a production build (`APP_ENV=production NEXT_PUBLIC_ADMIN_OPEN=1 NEXT_PUBLIC_TURNSTILE_SITE_KEY=1x00000000000000000000BB npm run build`: the key is Cloudflare's test key, inlined at build, and the sign-in bot-check specs need it). Open the PR only if they pass. Say what the audit found and the E2E result in the PR; CI and E2E then run on the PR itself.
 4. Skip steps 1 and 3 for docs-only, workflow-only or copy-only changes, and say so in the PR.
 
 Check by exit code, not by reading output for "error": `npm run lint; echo $?`, `npm test`, `npm run build`. Typecheck with `npx tsc --noEmit`.

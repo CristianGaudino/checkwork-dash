@@ -108,6 +108,15 @@ code path reaches another dealer's (#3, #4, #6; `src/lib/tenancy/`).
   website (`docs/site-api.md`, "Car photos").
 - **The site API** (`/api/site/v1`, `docs/site-api.md`): a dealer's website sends leads and reads its cars with a key made in Settings.
   The key decides the dealer, and the work runs inside `runAsDealer`; nothing in a request can name another dealer.
+- **The public unsubscribe** (`/api/site/unsubscribe`, #70, `src/lib/unsubscribe.ts`, `src/lib/site-api/unsubscribe.ts`): every newsletter and stock alert
+  email carries a link made by `unsubscribeParts(dealerId, kind, recordId)` and the RFC 8058 headers `List-Unsubscribe` and
+  `List-Unsubscribe-Post: List-Unsubscribe=One-Click`. The link is `?d=<dealer>&k=newsletter|alert&id=<record>&sig=<HMAC-SHA256, base64url>` on this app, signed with
+  `UNSUBSCRIBE_SECRET` over the three values. It holds no email address, needs no sign-in and names the dealer, so their own store opens.
+  It sits under `/api/site/`, which Cloudflare Access leaves open and the proxy never runs on, so no owner setup is needed. GET shows
+  "Stop these emails?" and changes nothing (a mail scanner opens links); POST (the button, or a mail provider's one-click) turns the
+  subscriber to `unsubscribed`, or pauses the alert, and says "You won't get these emails again". Done twice is fine. A bad, tampered,
+  other-dealer or unknown link is the same plain page with a 404 and no reason. 60 a minute per visitor address on `SITE_LIMITER` (the binding's limit). The activity log
+  gets one line by "The subscriber", with the record's kind and id and never the email. Changing the secret ends every link already sent.
 - **A demo dealer** (the directory's `demo` flag) behaves as the demo on any deploy, the one shared production deploy included: its
   made-up records are seeded (`demoRecordsFor` in `src/lib/admin/docs.ts`), its outward services are simulated (`src/lib/integrations.ts`),
   its reviews are the made-up ones, its lead emails say DEMO, and the morning cron and Settings put it back to its seed. A dealer that is
@@ -496,6 +505,7 @@ app store and no outside service.
 | Activity history (write, list, purge) | `src/lib/admin/activity.ts`, `activity-refs.ts`, `activity-purge.ts` |
 | Cost prices and margin maths | `costsStore` in `collections.ts`, `src/lib/admin/margins.ts` |
 | Outside services and the settings each needs | `src/lib/integrations.ts` |
+| A dealer's own service keys, sealed | `src/lib/dealer-secrets.ts` |
 | Admin kit (tables, stat cards, forms, charts) | `src/components/admin/` |
 | Stock the admin edits (the table the site reads) | `src/lib/admin/stock-admin.ts` |
 | Navigation of each area | `src/lib/admin/nav.ts` |
@@ -507,7 +517,17 @@ app store and no outside service.
 
 ## Connecting a service
 
-Each service in `integrations.ts` lists the Cloudflare variables it needs. Settings, Connected services shows which are missing. When they are set, the matching feature unlocks on the next request. The sending and publishing code for Meta, Google Ads and the newsletter provider is not written: the place for it is marked in `publishers.ts`.
+Each service in `integrations.ts` lists the settings it needs. Settings, Connected services shows which are on. The sending and publishing code for Meta, Google Ads and the newsletter provider is not written: the place for it is marked in `publishers.ts`.
+
+**Whose key it is** (#26). `perDealer` on a service names the settings that are the dealer's own accounts; the rest of `env` is ours and stays a Worker secret.
+- Per dealer: the listing site key (`DONEDEAL_API_KEY`), Google Business (`GOOGLE_BUSINESS_LOCATION`, `GOOGLE_BUSINESS_REFRESH_TOKEN`), Meta posting (`META_PAGE_ID`, `META_PAGE_ACCESS_TOKEN`, `META_INSTAGRAM_ID`), ads (`META_AD_ACCOUNT_ID`, `GOOGLE_ADS_CUSTOMER_ID`), WhatsApp (`WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_ACCESS_TOKEN`) and the newsletter's sending address (`NEWSLETTER_FROM_EMAIL`).
+- Ours, always the Worker secret: `ANTHROPIC_API_KEY`, `GOOGLE_PLACES_API_KEY` (their place is their profile's `placeId`), `CARTELL_API_KEY`, `GOOGLE_ADS_DEVELOPER_TOKEN`, `NEWSLETTER_API_KEY`, `UNSUBSCRIBE_SECRET`, `WHATSAPP_APP_SECRET`, the email binding. We bill these through usage.
+
+**Where a dealer's keys live.** `src/lib/dealer-secrets.ts`: a `secrets` collection in the dealer's own store. Each value is sealed with AES-GCM, under a key HKDF-derived from the Worker secret `DEALER_SECRETS_KEY` with the dealer's id as info, a random 12-byte iv, and the dealer and the setting's name as AAD, so a value read under another dealer or name fails. Stored as `v1.<iv>.<ciphertext>`; a new key version is added there to rotate (read the old, reseal under the new). The plaintext is never stored, returned to a browser, logged or put in Activity. Adapters and `isConnected` ask `secretFor(name)` / `missingEnv`: for a per-dealer setting only the dealer's own saved value counts, never an app-wide variable (one leftover token would be every dealer's account), so a service that was a Worker secret must be pasted in Settings per dealer. A value that cannot be opened (no `DEALER_SECRETS_KEY`, or a different one) makes `secretFor` give nothing, and the service reads as not connected. Our settings stay Worker secrets.
+
+**In Settings** (Connected services, "Your accounts"): the owner only (the directory's role, `realRole`), never on a demo dealer (it simulates and needs no keys). Connect (password boxes), then "Saved" with Replace and Remove. Every change is in Activity with the service's name and no value. Without `DEALER_SECRETS_KEY` saving is refused with a plain message and nothing changes. Manager and others cannot see or change them. Scripts may write the same way through `saveSecret` inside `runAsDealer`.
+
+**Owner step, once per environment:** `openssl rand -base64 32 | npx wrangler secret put DEALER_SECRETS_KEY` (dev), and the same with `--env production`. Keep a copy somewhere safe: without it every saved key is lost and must be pasted again. Changing it does the same, so rotate only with the reseal step.
 
 ## Testing notes
 

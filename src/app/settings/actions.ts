@@ -19,6 +19,9 @@ import { FACTS_SCHEMA } from "@/lib/tenancy/profile";
 import { requireStaff } from "@/lib/staff";
 import { staffStore } from "@/lib/whatsapp/store";
 import { removePushOf } from "@/lib/push";
+import { INTEGRATIONS, integrationText } from "@/lib/integrations";
+import { listing } from "@/lib/stock-source";
+import { removeSecrets, saveSecrets, savedNamesNow, secretsKeyReady } from "@/lib/dealer-secrets";
 
 export type SettingsState = { errors?: Record<string, string>; saved?: boolean } | undefined;
 
@@ -227,5 +230,42 @@ export async function revokeSiteKeyAction(id: string) {
   if (!(await realCan("settings"))) return { error: await refusal("settings", NOT_ALLOWED) };
   const gone = await revokeSiteKey((await currentDealer()).id, id); // another dealer's key is not found
   if (gone) await logActivity("settings", `Revoked the website key: ${gone.label}`);
+  revalidatePath("/settings");
+}
+
+// A dealer's own outside-service keys (#26, src/lib/dealer-secrets.ts): owners only, on a dealer that is not the demo (the demo simulates and
+// never needs keys). A value is sealed on arrival and never comes back, and the activity history names the service, never a value.
+const perDealerService = (id: string) => INTEGRATIONS.find((i) => i.id === id && i.perDealer);
+const nameOf = async (i: (typeof INTEGRATIONS)[number]) => integrationText(i, { name: (await currentDealer()).name, site: (await listing()).site }).name;
+async function refusedKeys(): Promise<string | null> {
+  if ((await currentDealer()).demo) return "The demo never needs keys";
+  if ((await realRole()) !== "Owner") return "Only an owner can change this";
+  return null;
+}
+export async function saveKeysAction(id: string, _p: SettingsState, data: FormData): Promise<SettingsState> {
+  await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
+  const no = await refusedKeys();
+  if (no) return { errors: { form: no } };
+  const service = perDealerService(id);
+  if (!service) return { errors: { form: "Not found" } };
+  if (!secretsKeyReady()) return { errors: { form: "Keys cannot be saved yet. Ask us to switch this on." } };
+  const names = Object.keys(service.perDealer!);
+  const values = names.map((n) => String(data.get(n) ?? "").trim());
+  if (values.some((v) => !v || v.length > 4000)) return { errors: { form: "Fill in every box" } };
+  const saved = await savedNamesNow();
+  const had = names.every((n) => saved.has(n));
+  await saveSecrets(Object.fromEntries(names.map((n, i) => [n, values[i]])));
+  await logActivity("settings", `${had ? "Replaced" : "Connected"} ${await nameOf(service)}`);
+  revalidatePath("/settings");
+  return { saved: true };
+}
+export async function removeKeysAction(id: string): Promise<{ error: string } | undefined> {
+  await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
+  const no = await refusedKeys();
+  if (no) return { error: no };
+  const service = perDealerService(id);
+  if (!service) return { error: "Not found" };
+  await removeSecrets(Object.keys(service.perDealer!));
+  await logActivity("settings", `Removed the keys for ${await nameOf(service)}`);
   revalidatePath("/settings");
 }

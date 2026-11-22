@@ -20,7 +20,7 @@ export interface PhotoBucket {
 
 // No DB here: each dealer has a D1 database of its own, reached only through getDb() (src/lib/db), which picks the current dealer's.
 // LEAD_PHOTOS is read only by dealerBucket (src/lib/tenancy/current.ts), which keeps each dealer under its own prefix.
-type LeadBindings = { EMAIL?: SendEmail; LEAD_LIMITER?: RateLimit; AI_LIMITER?: RateLimit; SITE_LIMITER?: RateLimit; LEAD_PHOTOS?: PhotoBucket; DIRECTORY?: AnyD1Database };
+type LeadBindings = { EMAIL?: SendEmail; LEAD_LIMITER?: RateLimit; AI_LIMITER?: RateLimit; SITE_LIMITER?: RateLimit; SIGN_IN_LIMITER?: RateLimit; LEAD_PHOTOS?: PhotoBucket; DIRECTORY?: AnyD1Database };
 
 // The one place that reads Cloudflare bindings. Outside the Worker (next start, tests) there is no context, so this returns {}.
 export function getBindings(): LeadBindings {

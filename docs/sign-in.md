@@ -32,7 +32,8 @@ A dealer's first owner, added by our script, gets the same words from us.
 
 1. **Sign in** (`/sign-in`). Title "Sign in to Checkwork". A button "Sign in with a passkey", then "or", an Email field and a button
    "Email me a code". Nothing else: no sign-up link, no "forgot password" (there are no passwords).
-2. They type their email and tap "Email me a code".
+2. They type their email and tap "Email me a code". A Cloudflare Turnstile check runs behind the button without a puzzle (a challenge only
+   when Cloudflare is unsure); the button waits until it has passed (section 3, "The bot check").
 3. **Check your email** (`/sign-in/code`). "If that email is on a team, we have sent a code to it. It works for 15 minutes." A Code field
    (six digits) and a button "Sign in". Under it: "Send a new code" (after a minute) and "Use a different email". The page says the same
    for an email that is on no team, so it never tells anyone whether an address is known.
@@ -321,11 +322,14 @@ One email carries both. The code is for the device that asked; the link is for w
 - **Checking a code** (`/sign-in/code`): the attempt is found only through the `__Host-cw_attempt` cookie's row, never by an id or email
   in the form. One statement spends a try before anything is compared: `UPDATE sign_in_attempts SET tries = tries + 1 WHERE browser_hash =
   :h AND kind = 'code' AND used_at IS NULL AND expires_at > :now AND tries < 5 RETURNING id, email, code_hmac`. No row back means the code
-  is dead. Then the HMAC of what was typed is compared with `code_hmac` in constant time (`crypto.subtle.timingSafeEqual` in Workers,
-  `node:crypto` in tests). A match marks the row used (`UPDATE ... SET used_at = :now WHERE id = :id AND used_at IS NULL RETURNING`), so
+  is dead. Then the HMAC of what was typed is compared with `code_hmac` in constant time (the equal-length `same()` in `src/lib/cron.ts`, which
+  does the same work however much matches). A match marks the row used (`UPDATE ... SET used_at = :now WHERE id = :id AND used_at IS NULL RETURNING`), so
   two posts at once cannot both sign in.
 - **Single use, and a new code:** a new email to the same address ends that address's earlier code and link. A request that sends
-  nothing (over a limit) ends nothing, so the last link the person was sent stays valid.
+  nothing (over a limit) ends nothing, so the last link the person was sent stays valid. The send runs after the response (same response time
+  for staff and not), and `endAllButNewest` runs after the send, so a failed send leaves the earlier row live. But only the earlier **link**
+  still works: the request has already replaced the attempt cookie, and a code is bound to the browser hash in that cookie, so the old code
+  can no longer be typed.
 - **The link and the code are separate rows.** Using one does not end the other. So a mail scanner that runs the page's script and clicks
   "Sign in" spends only the link: the code still works where the person asked for it. (Such a scanner would get a session of its own, which
   it never uses; the person gets the "a device signed in" email, section 1.)
@@ -382,7 +386,7 @@ value, sets the `__Host-cw_attempt` cookie, and answers. Everything that depends
 2. On a team, not over its limits and not locked: write the code row and the link row (and the `staff` row if this is their first time),
    and send the email.
 3. On a team, not over its limits, but locked or with codes off (section 5): write the link row with the email (so it counts towards the
-   3 in 15 minutes and 10 a day like any other email), and send the link-only email. Its first line says why there is no code: "Codes
+   3 in 15 minutes and 6 an hour like any other email), and send the link-only email. Its first line says why there is no code: "Codes
    are paused for your address after wrong tries. Use this link to sign in." So a lookalike email asking for a code stands out.
 4. In every case but 2, also write a code row with no email and no code, so the code page still dies after 5 tries and behaves exactly
    as for a known email. Unknown or over a limit: that row is all, and nothing is sent or ended.
@@ -424,6 +428,30 @@ staff address.
   idle for 12 hours is refused and deleted.
 - **Rotation:** every sign-in makes a new session id. An id is never accepted unless we issued it at a sign-in, so it cannot be fixed in
   advance. A session already on the device is ended at sign-in.
+
+### The bot check
+
+Scripts that post the Email form can fill an inbox or burn an address's send cap, so "Email me a code" carries a Cloudflare Turnstile token
+(`src/lib/auth/turnstile.ts`, `src/app/sign-in/useTurnstile.ts`; the same pattern as the showroom's lead form).
+
+- **Browser:** the script from `challenges.cloudflare.com` loads on `/sign-in` only. The widget is Managed with interaction-only appearance (no
+  puzzle unless Cloudflare is unsure) and action `sign-in`. The button waits for the token, which works once, so a refused send asks for a fresh one.
+- **Server:** `requestCode` checks the token with `siteverify` (secret, token and the visitor's IP, 5 second limit) after the origin, the per-IP
+  limit and the address check, and before the attempt cookie is set or anything is reserved or sent. A bad, missing, reused, over-long or
+  other-form token, a token from another host than this environment's `APP_URL`, or no answer from Cloudflare, is refused with "We could not check this request. Reload the page and try again." The log
+  line is the step and `bot-check`, never the token, the address or the IP.
+- **Policy:** the sign-in pages' content policy allows `https://challenges.cloudflare.com` in `script-src`, `connect-src` and `frame-src`, and
+  no other page does (`next.config.ts`).
+- **No keys:** with `TURNSTILE_SECRET_KEY` set, the check always runs. With none, it is skipped in `next dev`, the unit tests and the E2E run
+  (`E2E_FAKE_BACKENDS`), and on a deployed Worker "Email me a code" is refused ("Sign-in by email is not available right now.", log outcome
+  `bot-check-off`): a missing secret never leaves the form open. With no site key at build there is no widget, so a deploy with the secret
+  but no site key refuses everyone: set both.
+- **Setup, per environment:** Cloudflare dashboard, Turnstile, Add widget, hostnames `www.dash.checkwork.ie` and `dev.dash.checkwork.ie`
+  (one widget serves both), Managed. The site key (public) is the GitHub repo variable `TURNSTILE_SITE_KEY`, used as
+  `NEXT_PUBLIC_TURNSTILE_SITE_KEY` by `deploy.yml` at build. The secret key is the Worker secret `TURNSTILE_SECRET_KEY`
+  (`npx wrangler secret put TURNSTILE_SECRET_KEY`, and again with `--env production`). Cloudflare's test keys (site
+  `1x00000000000000000000BB`, secret `1x0000000000000000000000000000000AA`) are for local builds and the E2E run only: never set the test
+  secret on a deployed Worker, since its answer does not name this host and every send would be refused.
 
 ### Each request, and a dead cookie
 
@@ -480,7 +508,7 @@ POSTs too. Only the Origin check tells them apart.
 | Limit | Where | Value |
 |---|---|---|
 | Sign-in requests per IP | New `SIGN_IN_LIMITER` rate limit binding (namespace 4005 dev, 3005 production), keyed by an HMAC of the IP | 30 a minute: every sign-in step, and every challenge row written for someone signed out |
-| Emails per address | D1: the `link` and `confirm-code` rows with that email (every email we send writes exactly one) | 3 in 15 minutes, 10 a day. Over either, nothing is sent and nothing is ended |
+| Emails per address | D1: the `link` and `confirm-code` rows with that email (every email we send writes exactly one) | 3 in 15 minutes, 6 an hour. Over either, nothing is sent and nothing is ended |
 | Tries per code | D1, on the code's row | 5, then the code is dead |
 | Wrong codes per email | D1: the `tries` on the email's code rows from the last 24 hours, less one for each that was used, whichever code they were made on | 15, then the email is **locked** for 24 hours (`staff.code_locked_until`) |
 | Wrong codes in a row | D1, `staff.code_failures`, back to 0 at any sign-in | 100, then codes are off for that person until they sign in by link or passkey |
@@ -489,7 +517,7 @@ What "locked" and "codes off" do:
 - No code is accepted for that email, and its live codes end at once (the step that counts the 15th wrong try ends them).
 - "Email me a code" still answers as usual (section 3), and sends an email with **only the link**, which says that codes are paused. The
   link cannot be guessed, so it is safe to keep, and the person is not shut out by someone else's guessing. That email is counted
-  and capped like any other (3 in 15 minutes, 10 a day), so the lock cannot be used to flood a mailbox.
+  and capped like any other (3 in 15 minutes, 6 an hour), so the lock cannot be used to flood a mailbox.
 - At the lock, one warning email: "Someone tried to sign in to Checkwork as you. If it was not you, tell your manager."
 - A lock never blocks a passkey. Passkey sign-in needs no email.
 
@@ -506,12 +534,15 @@ code, before a session starts, the check reads `code_locked_until` and `code_fai
 hours from the rows; if any of them says locked or off, the match is refused as a wrong code. A correct guess after the 15th wrong one
 never signs in.
 
-**Spending someone's emails.** Anyone can use up a person's 10 emails a day by asking for codes for their address. That denies them email
-sign-in for the rest of the day, except the last link they were sent, which an over-limit request does not end, and only for that link's
-15 minutes: after that they have no working email sign-in until the next day. Their passkey still works. Open question 2 is the lasting answer.
+**Spending someone's emails.** Anyone who knows an address can use up its emails for a while (3 in 15 minutes, 6 an hour) by asking for codes
+for it. The person still gets each email, with its working link, and a passkey is the way in that this cannot touch. At worst they have no
+new email for the rest of the hour, apart from the last link they were sent, which an over-limit request does not end. Nothing a stranger
+can do blocks an address for longer than an hour, so there is no day-long lockout to trigger (OWASP Authentication Cheat Sheet:
+throttle, and avoid long hard lockouts that a stranger can trigger; magic-link services keep short per-address windows).
 
 **Guessing a code.** The 6-digit code has a million values.
-- Per day: at most 15 wrong tries per email, whichever code they were made on, so about 1 in 67,000 a day.
+- Per day: at most 15 wrong tries per email, whichever code they were made on, so about 1 in 67,000 a day. The lock lasts a day because it
+  is not a lockout: a locked person still gets an emailed link and their passkey works.
 - NIST SP 800-63B-4 §3.2.2 ("Rate Limiting (Throttling)") limits consecutive failed attempts using a specific authenticator to no more
   than 100. Ours stop at 100 in a row: against someone who never signs in, an attacker gets 100 guesses in all, 1 in 10,000.
 - Against someone who signs in every day (which resets the run, as NIST's rule allows), the daily cap is the bound: a year of trying every
@@ -556,7 +587,7 @@ With no D1 (`next dev`, the E2E run, unit tests) the same live in the in-memory 
 
 | What | Deleted |
 |---|---|
-| `sign_in_attempts` | 24 hours after they were made (the daily counts need a day; the lock lives on `staff`) |
+| `sign_in_attempts` | 24 hours after they were made (the daily wrong-code count needs a day; the lock lives on `staff`) |
 | `sessions` | when they end (sign-out, sign out everywhere, removal), and nightly once past either lifetime |
 | `passkeys`, `staff` | when the person is at no dealer any more (at removal), and nightly for any `staff` row with no membership |
 
@@ -608,7 +639,8 @@ Between the two halves of the right order the app is stricter, never looser: wit
 ### Dev first
 
 1. Merge the build plan's steps 1 to 6 (each changes nothing while `SIGN_IN` is `access`).
-2. Owner: `npx wrangler secret put SIGN_IN_SECRET` (dev), a random 32-byte value. Set up `noreply@checkwork.ie` as a sending address
+2. Owner: `npx wrangler secret put SIGN_IN_SECRET` (dev), a random 32-byte value, and the bot check (section 3, "The bot check"): the
+   Turnstile widget, the repo variable `TURNSTILE_SITE_KEY` and `npx wrangler secret put TURNSTILE_SECRET_KEY` (dev). Set up `noreply@checkwork.ie` as a sending address
    (open question 3). Dev's `EMAIL` binding can only send to `contact@checkwork.ie` today: add our own team's addresses to its
    `allowed_destination_addresses`. If the zone's Web Analytics is on, also exclude `/sign-in/*` there (the CSP already blocks it).
 3. PR: dev's `SIGN_IN` to `both`. Deploy. Each of us signs in through Access, then through our sign-in (email code, then add a passkey) on
@@ -621,7 +653,7 @@ Between the two halves of the right order the app is stricter, never looser: wit
 
 ### Then production
 
-6. Owner: `SIGN_IN_SECRET` for production.
+6. Owner: `SIGN_IN_SECRET` and `TURNSTILE_SECRET_KEY` (`--env production`) for production.
 7. PR: production's `SIGN_IN` to `both`. Every real person signs in once through our sign-in and adds a passkey while Access still guards
    the app. We check in the directory that each has one.
 8. PR: production's `SIGN_IN` to `own`. Deploy, then the owner adds Bypass, Everyone on production's Access application.
@@ -643,6 +675,7 @@ Between the two halves of the right order the app is stricter, never looser: wit
 | When | What |
 |---|---|
 | Step 2 and 6 | `SIGN_IN_SECRET` per environment |
+| Step 2 | Cloudflare dashboard, Turnstile, Add widget: name "Checkwork dash sign-in", hostnames `www.dash.checkwork.ie` and `dev.dash.checkwork.ie`, mode Managed. Its site key goes in the GitHub repo variable `TURNSTILE_SITE_KEY` (Settings, Secrets and variables, Actions, Variables), then redeploy; its secret key is `TURNSTILE_SECRET_KEY` on each Worker (dev, then `--env production`) |
 | Step 2 | The sending address `noreply@checkwork.ie`, dev's allowed addresses, and Web Analytics off for `/sign-in/*` if it is on |
 | Step 4 and 8 | Bypass, Everyone on the Access application (dev, then production), after the deploy |
 | Step 9 | Delete the Access applications |
@@ -659,8 +692,8 @@ The rate limit namespaces are config in `wrangler.jsonc`, in a PR, not a dashboa
 | A passkey added by someone else | Adding one needs a confirmation within 10 minutes, scoped to the session's own person, and emails the person. Sign out everywhere points them at their passkey list | A passkey survives sign out everywhere until the person removes it |
 | Email account takeover | Codes and links need the mailbox; the lockout email, the sign-in emails and the activity log entries show changes | Whoever holds the mailbox can sign in by email. Open question 2 |
 | An insider at dealer A reaching dealer B | Sign-in says only who someone is. Which dealer is the directory's, checked on every request and action (`dealerAccess`, `requireStaff`); a cookie, form or header naming dealer B opens nothing. Unchanged by this work, and `e2e/dealers.spec.ts` keeps proving it | Dealer A's owner can sign one of their people out, which also signs that person out at dealer B (sessions are per person). They sign in again; it is written in both dealers' activity |
-| Brute force | Codes: 5 tries each, 15 wrong in a day per email whichever code, 100 in a row, 3 emails in 15 minutes and 10 a day, per-IP limits. Links: 256 bits. Passkeys: nothing to guess | About 1 in 183 over a year of daily attempts on one person who signs in daily (section 5). Rate limit bindings count per location, so a spread-out attack gets a little more; the D1 counts are exact |
-| Spending a person's emails | 10 a day per address; an over-limit request ends nothing, so their last link stays valid | Someone can use up a person's 10 emails a day; their passkey still works. Open question 2 |
+| Brute force | Codes: 5 tries each, 15 wrong in a day per email whichever code (then locked a day), 100 in a row, 3 emails in 15 minutes and 6 an hour, per-IP limits. Links: 256 bits. Passkeys: nothing to guess | About 1 in 183 over a year of daily attempts on one person who signs in daily (section 5). Rate limit bindings count per location, so a spread-out attack gets a little more; the D1 counts are exact |
+| Spending a person's emails | 6 an hour per address; an over-limit request ends nothing, so their last link stays valid | Someone can use up a person's emails for up to an hour; their passkey still works. Open question 2 |
 | Telling known emails from unknown | Every per-email step runs after the answer; the same cookie, page and tries for all | None known. The step 4 tests compare known and unknown |
 | Replay | Challenges, codes and links are single use, marked used in the same statement that checks them, and expire (5 and 15 minutes). The passkey's signature covers our challenge and origin. The counter catches a cloned hardware key | Synced passkeys send no counter, so cloning one is not detectable; that is the platform's (Apple's, Google's) to protect |
 | CSRF and login CSRF | Server actions: Next's Origin check, plus our own where Next lets a missing Origin through (section 4). No GET changes state. The link page names the email it signs in | None known |
@@ -679,7 +712,7 @@ Each step is one PR, ready for review, with the house checks (`docs`-only steps 
 | 1 | **Tables.** The four directory tables and their migration; the in-memory copies; `purge-sign-in` in the nightly job | Integration test on SQLite with the real migrations (`*.int.test.ts`); purge deletes only what is due; `bash scripts/check-migrations.sh main` |
 | 2 | **The WebAuthn verifier.** `src/lib/auth/cbor.ts` and `webauthn.ts`: CBOR, COSE to JWK, DER to raw, `packed` self attestation, both ceremonies and the confirmation | RFC 8949 Appendix A vectors. CBOR: a length past the end, 8-byte lengths, duplicate map keys, nesting past the limit, tags and floats refused. ES256 DER: r or s of 31 bytes, and of 33 with a leading 0x00, both accepted; non-minimal DER and trailing bytes refused. Authenticator data: ED with extensions after the key accepted, ED set with nothing after it refused, extra bytes with ED clear refused. `packed` self attestation accepted, with a wrong `alg` or a bad signature refused, with `x5c` refused. Keys: `kty` not matching `alg`, a short EC coordinate, a 1024-bit RSA key. A missing user handle in a sign-in, and a confirmation with another person's passkey. The counter: written only where `sign_count < new`, and two sign-ins with the same count, one refused. One failing test per check in section 2; fixtures recorded from Chrome's virtual authenticator; a test authenticator made with `node:crypto` for the negative cases and `credProtect`; once in `wrangler dev`, an Ed25519 JWK import and verify in workerd |
 | 3 | **Sessions and the switch.** `src/lib/auth/session.ts`; `SIGN_IN` modes in `staffIdentity()` and `src/proxy.ts`; `sameOrigin`; the `/sign-out` route; the redirect to sign-in with `next`; the dealer cookie to `__Host-` | Each mode against each of: no cookie, a good one, an idle one, an expired one, an ended one, a mismatched Access email in `both`; an unset and an unknown `SIGN_IN` act as `access`; the open shortcut still refused with a directory bound; the cookie's attributes; a dead cookie redirects a page and 404s an action; `next` refuses `//`, `\`, another site and a client-sent `x-cw-path`; `/sign-out` refuses a missing and a foreign Origin and sends `Clear-Site-Data` |
-| 4 | **Email code and link.** The request, code and link screens; the stricter CSP on `/sign-in/*`; HMACs; the limits and lockout; the emails; the attempt cookie; an outbox in memory for the E2E run (only with `E2E_FAKE_BACKENDS=1` and no directory bound, like the in-memory directory) | Same answer, cookie and work in front of the answer for known, unknown, locked and limited emails; 5 tries on an unknown email's page; tries spent before comparing, under two posts at once; a code HMAC from one row refused on another; expiry; the caps; 15 wrong across three codes locks; 100 in a row turns codes off and a sign-in resets it; a locked email still gets a working link, counted in the caps, and nothing past them; an over-limit request ends no earlier link; a matching code after the 15th wrong try is refused; the link does not spend the code; `/sign-in/link` sends `frame-ancestors 'none'` and no `cloudflareinsights`, and never redirects, signed in or not; the link page clears the fragment and shows the masked email; sign-in actions refuse a missing Origin; the log lines hold no email (a test watches `console`) |
+| 4 | **Email code and link.** The request, code and link screens; the stricter CSP on `/sign-in/*`; HMACs; the limits and lockout; the emails; the attempt cookie; an outbox in memory for the E2E run (only with `E2E_FAKE_BACKENDS=1` and no directory bound, like the in-memory directory) | Same answer, cookie and work in front of the answer for known, unknown, locked and limited emails; 5 tries on an unknown email's page; tries spent before comparing, under two posts at once; a code HMAC from one row refused on another; expiry; the caps; 15 wrong across three codes locks for a day; 100 in a row turns codes off and a sign-in resets it; a locked email still gets a working link, counted in the caps, and nothing past them; an over-limit request ends no earlier link; a matching code after the 15th wrong try is refused; the link does not spend the code; `/sign-in/link` sends `frame-ancestors 'none'` and no `cloudflareinsights`, and never redirects, signed in or not; the link page clears the fragment and shows the masked email; sign-in actions refuse a missing Origin; the log lines hold no email (a test watches `console`) |
 | 5 | **Passkeys in the app.** "Sign in with a passkey" with autofill (renewal and abort); "Sign in faster next time"; Settings, Your sign-in (passkeys, devices, sign out everywhere, the passkey review prompt); "Confirm it's you"; the signal calls; the email when a passkey is added | E2E with Playwright's CDP virtual authenticator (`WebAuthn.enable`, then `WebAuthn.addVirtualAuthenticator` with `protocol: "ctap2"`, `transport: "internal"`, `hasResidentKey`, `hasUserVerification`, `isUserVerified`, `automaticPresenceSimulation`): add a passkey after an email sign-in, sign out, sign in with it, remove it; adding one after 10 minutes asks for confirmation. A manual check on a real iPhone (the browser and the home screen app) and Android phone, which also records fixtures for `src/lib/auth/webauthn-fixtures.json` from an iPhone, an Android phone, Windows Hello (RS256) and a security key (Ed25519 and `credProtect`) |
 | 6 | **The team.** The invitation email; removal ends sessions (and passkeys when at no dealer), only for `role === null` and only after `details()` succeeds; "Sign out on all devices" with the owner and manager rule; sign out everywhere turns notifications off; activity entries | `src/lib/admin/team.test.ts` grows: a role change ends no session; a removal whose `details()` throws keeps sessions, passkeys and the staff row; a manager cannot sign out an owner. E2E: someone removed is signed out at their next click |
 | 7 | **Dev cut-over** (section 7, steps 2 to 5): `SIGN_IN` to `both`, then `own` | The E2E suite and the week of checks |

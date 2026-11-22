@@ -154,3 +154,31 @@ test("Settings makes a website key, shows it once, and revokes it", async ({ pag
   await page.getByRole("dialog").getByRole("button", { name: "Revoke" }).click();
   await expect(row).toContainText("Revoked");
 });
+
+// #72: the times already booked for a car, for the website's form. Times only.
+test("the taken times for a car come from its open bookings, as times only, and need the website's key", async ({ request }) => {
+  const day = openDay(7);
+  const time = driveTimes(day, DEMO_PROFILE.hours)[2];
+  const carId = "9400001";
+  const name = who("Taken buyer");
+  const booking = lead({ name, type: "test_drive", carId, carSlug: `skoda-octavia-2021-${carId}`, carTitle: "2021 Skoda Octavia", details: { driveDate: day, driveTime: time } });
+  expect((await send(request, booking)).status()).toBe(201);
+  const res = await request.get(`/api/site/v1/drives/taken?carId=${carId}`, { headers: auth() });
+  expect(res.status()).toBe(200);
+  const text = await res.text();
+  expect((JSON.parse(text) as { times: string[] }).times).toContain(`${day} ${time}`);
+  expect(text).not.toContain(name);
+  expect(await (await request.get("/api/site/v1/drives/taken?carId=9400999", { headers: auth() })).json()).toEqual({ times: [] });
+  expect((await request.get("/api/site/v1/drives/taken?carId=x", { headers: auth() })).status()).toBe(400);
+  expect((await request.get(`/api/site/v1/drives/taken?carId=${carId}`)).status()).toBe(401);
+});
+
+test("a day's visitor counts sent with the website's key are accepted and replaced, and a bad count or date is turned away", async ({ request }) => {
+  const day = new Date().toLocaleDateString("en-CA", { timeZone: "Europe/Dublin" });
+  const post = (data: object, key?: string) => request.post("/api/site/v1/counts", { headers: auth(key), data });
+  expect((await post({ day, counts: { "no-results": 4 } }, "cw_site_nope")).status()).toBe(401);
+  expect((await post({ day, counts: { "no-results": "x" } })).status()).toBe(400);
+  expect((await post({ day: "2026-13-45", counts: {} })).status()).toBe(400);
+  expect((await post({ day, counts: { "no-results": 4 } })).status()).toBe(204);
+  expect((await post({ day, counts: { "no-results": 6 } })).status()).toBe(204);
+});

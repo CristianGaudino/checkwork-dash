@@ -9,7 +9,8 @@ export function logLead({ leadId, type, outcome }: { leadId?: string; type: Lead
 // The site API's one line per request (src/lib/site-api): the route, the dealer's id (once the key named one), what happened and the answer's
 // status. Built from those keys by name, so a key, a lead or anything personal can never reach Workers Logs.
 export type SiteOutcome = "stored" | "duplicate" | "listed" | "no-key" | "rate" | "too-large" | "invalid" | "not-here" | "error";
-export function logSite({ route, dealerId, outcome, status }: { route: "leads" | "stock" | "photos"; dealerId?: string; outcome: SiteOutcome; status: number }): void {
+export type SiteRoute = "leads" | "stock" | "drives" | "counts" | "photos";
+export function logSite({ route, dealerId, outcome, status }: { route: SiteRoute; dealerId?: string; outcome: SiteOutcome; status: number }): void {
   const line = JSON.stringify({ site: route, dealerId, outcome, status });
   if (status >= 500) console.error(line);
   else console.log(line);
@@ -17,8 +18,8 @@ export function logSite({ route, dealerId, outcome, status }: { route: "leads" |
 
 // Our sign-in's one line (docs/sign-in.md, section 5): a step and an outcome from fixed words, built by name, so an email, an IP, a code, a
 // token, a cookie or a credential id can never reach Workers Logs. Steps 4 to 6 add their steps and outcomes here.
-export type SignInStep = "sign-out";
-export type SignInOutcome = "ok" | "bad-origin";
+export type SignInStep = "sign-out" | "email" | "code" | "link" | "session";
+export type SignInOutcome = "ok" | "bad-origin" | "wrong-code" | "expired" | "rate" | "locked" | "bad-data" | "no-dealer" | "send-failed" | "bot-check" | "bot-check-off";
 export function logSignIn({ step, outcome }: { step: SignInStep; outcome: SignInOutcome }): void {
   console.log(JSON.stringify({ signIn: step, outcome }));
 }

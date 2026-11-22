@@ -45,7 +45,7 @@ deploy fails its tests while it is false.
 ### Stock, modules and the dashboard (this app)
 - Where the stock comes from (`stock.source`, `stock.listingSite`, `stock.listingUrl`), the modules the dealer pays for (`modules`) and
   the business rules (`rules`) are the dealer's profile: `docs/new-dealer.md` sets them, and Billing shows them read only. A synced
-  dealer (DoneDeal or CarsIreland) also needs DoneDeal's written consent and their API key (a follow-up: per dealer, not built yet), and
+  dealer (DoneDeal or CarsIreland) also needs DoneDeal's written consent and their API key (per dealer: the owner sets it in Settings, Your accounts, #26), and
   `CRON_KEY`. The sync runs every 15 minutes (`docs/dealer-admin.md`, DoneDeal stock).
 - The registration lookup is two modules: `lookupWebsite` and `lookupDashboard` (#180).
 - The prices on the Billing page are the demo's (`src/lib/billing/rules.ts`). Before a real dealer goes live, choose the payment
@@ -63,7 +63,7 @@ deploy fails its tests while it is false.
 Each is optional and listed in the dashboard (Settings, Connected services) with the variables still missing: lead email,
 Google reviews, registration lookup (Cartell), Facebook and Instagram, ads, newsletters. Lead email is
 the one a real site needs before it takes a lead.
-Newsletters and stock alerts also need `UNSUBSCRIBE_SECRET` (a random secret: `node -e "process.stdout.write(require('crypto').randomBytes(32).toString('base64url'))" | npx wrangler secret put UNSUBSCRIBE_SECRET`): each email carries a signed link to `/unsubscribe` and the `List-Unsubscribe` headers (`src/lib/unsubscribe.ts`).
+Newsletters and stock alerts also need `UNSUBSCRIBE_SECRET` (a random secret: `node -e "process.stdout.write(require('crypto').randomBytes(32).toString('base64url'))" | npx wrangler secret put UNSUBSCRIBE_SECRET`): each email carries a signed link to the dashboard's `/api/site/unsubscribe` and the `List-Unsubscribe` headers (`src/lib/unsubscribe.ts`, `docs/dealer-admin.md`). The dealer's website needs no unsubscribe page of its own.
 Each subscription has one link that never changes. Changing the secret stops every link already sent, so set it once.
 AI writing uses Claude once `ANTHROPIC_API_KEY` is set as a Worker secret (`npx wrangler secret put ANTHROPIC_API_KEY`). Without it the
 demo uses the built-in writer (`src/lib/ai/mock.ts`), and a real site shows AI writing as not connected.

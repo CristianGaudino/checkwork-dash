@@ -11,6 +11,8 @@ export const SITE_SLUG = "checkwork-demo";
 export const TIME_ZONE = "Europe/Dublin";
 // Placeholder until 03-02 onboards the sending domain and records the address; must be on that domain. Swap at handover.
 export const LEAD_FROM_EMAIL = "leads@checkwork.ie";
+// Sign-in emails (docs/sign-in.md, section 3): owner-confirmed sending address, 2026-11-22.
+export const SIGN_IN_FROM_EMAIL = "noreply@checkwork.ie";
 // The only reader of APP_ENV: the deploy job's test run fails while the finance figures are placeholders (finance.config.test.ts). What a
 // dealer sees (simulated services, made-up records, the demo reset) follows the dealer's demo flag in the directory, never the deploy.
 export const isProduction = () => process.env.APP_ENV === "production";
