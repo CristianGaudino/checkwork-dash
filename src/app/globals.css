@@ -86,6 +86,7 @@
   --color-facebook: #1877f2;
   --color-instagram: #d62976;
   --color-google: #1a73e8;
+  --color-bing: #00757a;
   /* The WhatsApp panel on the dashboard (header, chat paper, the two bubbles, the text on them, the button text) */
   --color-wa-bar: #075e54;
   --color-wa-chat: #efe7dd;
@@ -118,6 +119,7 @@
   --color-facebook: #5b9cf6; /* lighter on the dark surface, so the marks still read */
   --color-instagram: #f0679e;
   --color-google: #8ab4f8;
+  --color-bing: #4fc3c7;
   --color-surface: #0b0f1f; /* Midnight */
   --color-accent: #5a5deb; /* white button text on it reaches 5:1 */
   --color-accent-text: #a78bfa; /* lavender: accent text on Midnight */
