@@ -1,12 +1,11 @@
 import Link from "next/link";
-import { LeadStatusBadge } from "@/components/admin/badges";
 import { ActButton } from "@/components/admin/ActButton";
-import { ActionTile, ActionTiles, Avatar, Columns, EmptyState, PageHeader, Panel, PanelLink, StatCard, StatGrid, Task, TaskList, adminButtonQuiet, rowButton, rowButtonStrong, type TaskUrgency } from "@/components/admin/kit";
+import { ActionTile, ActionTiles, Columns, EmptyState, PageHeader, Panel, PanelLink, StatCard, StatGrid, Task, TaskList, adminButtonQuiet, choicePill, rowButton, rowButtonStrong, type TaskUrgency } from "@/components/admin/kit";
 import { AlertIcon, CalendarIcon, CarIcon, CheckIcon, ExternalIcon, InboxIcon, PercentIcon, PhoneIcon, ReceiptIcon, ShareIcon, StarIcon, SyncIcon, TruckIcon } from "@/components/stock/icons";
 import { carCosts } from "@/lib/admin/costs";
 import { drivesStore, getSettings, leadsStore, ordersStore, reservationsStore, reviewsStore, salesStore, type Lead } from "@/lib/admin/collections";
 import { marginOf } from "@/lib/admin/margins";
-import { can } from "@/lib/permissions";
+import { can, currentMember } from "@/lib/permissions";
 import { dublinDay, fmtAgo, fmtDateTime, fmtDay, fmtEur, fmtNum, fmtTime, plural } from "@/lib/admin/format";
 import { overview } from "@/lib/admin/overview";
 import { SyncPanel } from "@/components/admin/SyncPanel";
@@ -30,6 +29,8 @@ export const metadata = { title: { absolute: "Overview | Dealer dashboard" } };
 
 // How many of one kind of to-do are listed one by one; the rest are one row that opens the whole list.
 const EACH = 3;
+// How many rows To do shows before See all: about one phone screen.
+const TOP = 8;
 const MODULE_OF: Record<string, ModuleId> = { drives: "testDrives", "sold-drives": "testDrives", reviews: "reviews", deposits: "sales", orders: "newCars", costs: "margins" };
 // The to-dos that stay one row each: what they count (`noun`), the button's word and the icon.
 const GROUPED: Record<string, { noun: string; verb: string; icon: React.ReactNode }> = {
@@ -58,26 +59,28 @@ const ConfirmDrive = ({ id, name, status }: { id: string; name: string; status: 
 );
 const row = "relative flex min-h-16 items-center gap-3 px-1 py-3 transition-colors has-[>a:hover]:bg-surface";
 
-// Where the day starts: the main jobs as big buttons, then what needs doing (each with the button that does it), today's test drives and
-// the newest leads with Call and Reply in the row, and a few numbers last. No chart (docs/dashboard-polish.md #72): Analytics has them.
-export default async function Page() {
-  const [leads, drives, reviews, all, settings, source, sales, reservations, orders, mods] = await Promise.all([leadsStore.list(), drivesStore.list(), reviewsStore.list(), adminCars(), getSettings(), stockSource(), salesStore.list(), reservationsStore.list(), ordersStore.list(), enabledModules()]);
+// Where the day starts: the main jobs as big buttons, then what needs doing (each with the button that does it; new leads are in it with
+// Call and Reply), today's test drives, and a few numbers last. No chart (docs/dashboard-polish.md #72): Analytics has them.
+// `mine`: To do's Only mine, on by default for Sales (their report counts their own follow-ups); `todo=all`: every row, not the top few.
+export default async function Page({ searchParams }: { searchParams: Promise<{ mine?: string; todo?: string }> }) {
+  const sp = await searchParams;
+  const [leads, drives, reviews, all, settings, source, sales, reservations, orders, mods, me] = await Promise.all([leadsStore.list(), drivesStore.list(), reviewsStore.list(), adminCars(), getSettings(), stockSource(), salesStore.list(), reservationsStore.list(), ordersStore.list(), enabledModules(), currentMember()]);
+  const mine = Boolean(me.name) && (sp.mine ? sp.mine === "1" : me.role === "Sales");
   const [{ site: listingSite, url: listingUrl }, { rules }] = await Promise.all([listing(), dealerProfile()]);
   const synced = source === "donedeal";
   const sync = synced ? await syncStatus() : null;
   const cars = all.filter((c) => !isSold(c));
   // Only for staff with the margins permission: the costs are not read without it.
   const costs = (await can("margins")) ? new Map([...(await carCosts())].map(([id, c]) => [id, c.total])) : null;
-  const o = overview({ leads: leads.filter(isSalesLead), drives, reviews, rules, listingSite, cars: all, costs: costs ? new Set(costs.keys()) : undefined, sales: new Set(sales.map((s) => s.id)), reservations, orders, syncProblem: Boolean(sync?.problem), slaHours: settings.leadSlaHours });
+  const o = overview({ leads: leads.filter(isSalesLead), drives, reviews, rules, listingSite, cars: all, costs: costs ? new Set(costs.keys()) : undefined, sales: new Set(sales.map((s) => s.id)), reservations, orders, syncProblem: Boolean(sync?.problem), slaHours: settings.leadSlaHours, mine: mine ? me.name : undefined });
   // What a module that is off would show goes with it (#173): its buttons, figures and to-dos.
   // Orders and deposits are our version only: with DoneDeal stock their pages are not there, so their to-dos go too.
   const attention = o.attention.filter((a) => (!MODULE_OF[a.key] || mods.has(MODULE_OF[a.key])) && !(synced && (a.key === "orders" || a.key === "deposits")));
   const margin = costs ? cars.filter((c) => costs.has(c.id) && !onRequest(c)).reduce((s, c) => s + marginOf(c.priceEur, costs.get(c.id)!).eur, 0) : 0;
   const drivesOn = mods.has("testDrives");
   const today = dublinDay();
+  // One count for the headline and To do: everything listed in it.
   const toDo = attention.reduce((n, a) => n + a.count, 0);
-  // The header counts only what is late or due now; reviews to answer and old stock are in the list, not in the headline.
-  const urgent = attention.filter((a) => a.urgency !== "info").reduce((n, a) => n + a.count, 0);
   const thisWeek = o.weeks[o.weeks.length - 1];
   const visits = mods.has("analytics") ? await visitSources(30, leads) : null;
 
@@ -86,16 +89,16 @@ export default async function Page() {
     n > EACH ? [<Task key={`${key}-more`} title={`${n - EACH} more ${n - EACH === 1 ? one : many}`} urgency={urgency} action={<Link href={href} className={rowButton}>{key === "sales" ? "Record the next" : "See all"}</Link>} />] : []; // sales: Stock opens them one at a time
   const tasks = attention.flatMap((a) => {
     switch (a.key) {
-      case "slow":
+      case "reply":
         return [
-          ...o.late.slice(0, EACH).map((l) => (
-            <Task key={`slow-${l.id}`} urgency="now" icon={<InboxIcon />} title={`Reply to ${l.name}`} detail={[about(l), `came in ${fmtAgo(l.createdAt)}`].filter(Boolean).join(" · ")} action={<><CallButton phone={l.phone} name={l.name} /><ReplyButton id={l.id} name={l.name} /></>} />
+          ...o.reply.slice(0, EACH).map(({ lead: l, urgency, late }) => (
+            <Task key={`reply-${l.id}`} urgency={urgency} icon={<InboxIcon />} title={`Reply to ${l.name}`} detail={[about(l), `came in ${fmtAgo(l.createdAt)}${late ? ", past your reply time" : ""}`].filter(Boolean).join(" · ")} action={<><CallButton phone={l.phone} name={l.name} /><ReplyButton id={l.id} name={l.name} /></>} />
           )),
-          ...rest(a.key, o.late.length, "lead past your reply target", "leads past your reply target", a.href, "now"),
+          ...rest(a.key, o.reply.length, "new lead to answer", "new leads to answer", a.href, a.urgency),
         ];
       case "follow":
         return [
-          ...o.due.slice(0, EACH).map((l) => {
+          ...o.due.slice(0, EACH).map(({ lead: l }) => {
             const late = l.followUpOn! < today;
             return (
               <Task key={`follow-${l.id}`} urgency={late ? "now" : "soon"} icon={<PhoneIcon />} title={`Follow up with ${l.name}`} detail={[late ? `Was due ${fmtDay(l.followUpOn!, "dayMonth")}` : "Due today", about(l)].filter(Boolean).join(" · ")} action={<><CallButton phone={l.phone} name={l.name} /><Link href={`/leads/${l.id}`} aria-label={`Open ${l.name}'s lead`} className={rowButton}>Open</Link></>} />
@@ -124,11 +127,13 @@ export default async function Page() {
     }
   });
 
-  // A request already in To do keeps its Confirm there; here it gets Call, so one drive never shows two Confirm buttons.
-  const confirmInToDo = new Set(o.toConfirm.slice(0, EACH).map((d) => d.id));
+  const shown = sp.todo === "all" ? tasks : tasks.slice(0, TOP);
+  const link = (q: { mine?: boolean; todo?: string }) => `/?${new URLSearchParams({ mine: (q.mine ?? mine) ? "1" : "0", ...(q.todo && { todo: q.todo }) })}`;
+  // A request shown in To do keeps its Confirm there; here it gets Call, so one drive never shows two Confirm buttons.
+  const confirmInToDo = new Set(shown.map((t) => t.key));
   return (
     <>
-      <PageHeader title="Overview" text={`${fmtDay(today)}. ${urgent ? `${plural(urgent, "thing")} need${urgent === 1 ? "s" : ""} you.` : "Nothing urgent."}`} />
+      <PageHeader title="Overview" text={`${fmtDay(today)}. ${toDo ? `${plural(toDo, "thing")} need${toDo === 1 ? "s" : ""} you.` : "Nothing urgent."}`} />
 
       <ActionTiles>
         {/* Stock from DoneDeal is added there, never here. */}
@@ -139,7 +144,8 @@ export default async function Page() {
         )}
         {drivesOn && <ActionTile href="/test-drives/new" icon={<CalendarIcon />} label="Book a test drive" text="Pick a car and a time" />}
         {mods.has("social") && <ActionTile href="/marketing/new" icon={<ShareIcon />} label="New post" text="Facebook and Instagram" />}
-        <ActionTile href="/leads?status=new" icon={<InboxIcon />} label="Reply to leads" text={o.newLeads ? `${plural(o.newLeads, "new lead")} waiting` : "No new leads"} />
+        {/* The same leads as To do and Leads' To answer now (leadsToAnswer). */}
+        <ActionTile href={mine ? `/leads?with=${encodeURIComponent(me.name)}` : "/leads"} icon={<InboxIcon />} label="Reply to leads" text={o.answer.length ? `${plural(o.answer.length, "lead")} to answer` : "All answered"} />
       </ActionTiles>
 
       <Columns
@@ -165,7 +171,7 @@ export default async function Page() {
                           <span className="truncate text-meta text-text-2">{d.carTitle}</span>
                         </span>
                         <Link href={`/test-drives/${d.id}`} aria-label={`${d.name}, ${fmtTime(d.startsAt)}`} className="absolute inset-0" />
-                        <span className="relative z-10 flex shrink-0 gap-2">{d.status === "requested" && !confirmInToDo.has(d.id) && d.startsAt > o.now ? <ConfirmDrive id={d.id} name={d.name} status={d.status} /> : <CallButton phone={d.phone} name={d.name} />}</span>
+                        <span className="relative z-10 flex shrink-0 gap-2">{d.status === "requested" && !confirmInToDo.has(`drive-${d.id}`) && d.startsAt > o.now ? <ConfirmDrive id={d.id} name={d.name} status={d.status} /> : <CallButton phone={d.phone} name={d.name} />}</span>
                       </li>
                     ))}
                   </ul>
@@ -189,41 +195,24 @@ export default async function Page() {
           </>
         }
       >
-        <Panel title="To do" count={toDo || undefined} text={toDo ? "The most urgent first. Each button does the job." : undefined}>
-          {tasks.length === 0 ? <EmptyState compact icon={<CheckIcon />} title="All done" text="Nothing is waiting on you. New leads and bookings show here as they come in." /> : <TaskList label="To do">{tasks}</TaskList>}
-        </Panel>
-
-        <Panel title="Newest leads" action={<PanelLink href="/leads">All leads</PanelLink>}>
-          {o.recentLeads.length === 0 ? (
-            <EmptyState compact icon={<InboxIcon />} title="No leads yet" text="When someone asks about a car on your site, they show here." />
-          ) : (
-            <ul className="-mx-1 flex flex-col divide-y divide-hairline">
-              {o.recentLeads.map((l) => (
-                <li key={l.id} className={row}>
-                  <Avatar name={l.name} className="max-sm:hidden" />
-                  <span className="flex min-w-0 flex-1 flex-col">
-                    <span className="flex min-w-0 items-center gap-2">
-                      <span className="truncate font-medium">{l.name}</span>
-                      <span className="max-sm:hidden">
-                        <LeadStatusBadge status={l.status} type={l.type} />
-                      </span>
-                    </span>
-                    <span className="flex min-w-0 gap-1 text-meta text-text-2">
-                      {about(l) && <span className="truncate">{about(l)}</span>}
-                      <span className="shrink-0">
-                        {about(l) && "· "}
-                        {fmtAgo(l.createdAt)}
-                      </span>
-                    </span>
-                  </span>
-                  <Link href={`/leads/${l.id}`} aria-label={l.name} className="absolute inset-0" />
-                  <span className="relative z-10 flex shrink-0 gap-2">
-                    <CallButton phone={l.phone} name={l.name} />
-                    <ReplyButton id={l.id} name={l.name} />
-                  </span>
-                </li>
-              ))}
-            </ul>
+        <Panel
+          title="To do"
+          count={toDo || undefined}
+          text={toDo ? "The most urgent first. Each button does the job." : undefined}
+          action={
+            me.name && (
+              <Link href={link({ mine: !mine })} aria-current={mine ? "true" : undefined} className={choicePill(mine)}>
+                {mine && <CheckIcon className="shrink-0 size-4" />}
+                Only mine
+              </Link>
+            )
+          }
+        >
+          {tasks.length === 0 ? <EmptyState compact icon={<CheckIcon />} title="All done" text="Nothing is waiting on you. New leads and bookings show here as they come in." /> : <TaskList label="To do">{shown}</TaskList>}
+          {shown.length < tasks.length && (
+            <Link href={link({ todo: "all" })} className="w-fit text-meta font-medium underline">
+              See all {toDo}
+            </Link>
           )}
         </Panel>
       </Columns>

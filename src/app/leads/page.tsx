@@ -1,13 +1,13 @@
 import { sourceText } from "@/lib/visit-rules";
 import Link from "next/link";
 import { LeadStatusBadge } from "@/components/admin/badges";
-import { Avatar, Badge, DataTable, EmptyState, PageHeader, Panel, SummaryTabs, TableFooter, TableToolbar, Task, TaskList, pageOf, sortRows, type Column, type FilterGroup, type TaskUrgency } from "@/components/admin/kit";
+import { Avatar, Badge, DataTable, EmptyState, PageHeader, Panel, SummaryTabs, TableFooter, TableToolbar, Task, TaskList, pageOf, sortRows, type Column, type FilterGroup } from "@/components/admin/kit";
 import { NextStatusButton, ReachButton } from "@/components/admin/LeadActions";
 import { AlertIcon, CalendarIcon, InboxIcon } from "@/components/stock/icons";
 import { can } from "@/lib/permissions";
 import { LEAD_SOURCES, LEAD_STATUSES, LEAD_STATUS_LABELS, LEAD_TYPE_LABELS, getSettings, leadsStore, type Lead } from "@/lib/admin/collections";
 import { dublinDay, fmtAgo, fmtDate } from "@/lib/admin/format";
-import { SALES_LEAD_TYPES, countByStatus, filterLeads, followUpDue, isHotLead, isOpenLead, isSalesLead, parseLeadFilter, urgentFirst } from "@/lib/admin/leads";
+import { SALES_LEAD_TYPES, countByStatus, filterLeads, followUpDue, isHotLead, isOpenLead, isSalesLead, leadsToAnswer, parseLeadFilter, urgentFirst } from "@/lib/admin/leads";
 import { TOPICS, isUrgent, leadTags } from "@/lib/leads/contact-topics";
 import { LeadKind, LeadTags, leadChips } from "@/components/admin/LeadKind";
 import { enabledModules } from "@/lib/modules";
@@ -15,6 +15,8 @@ import { BrandIcon } from "@/components/admin/BrandIcon";
 
 export const metadata = { title: "Leads" };
 
+// The time, read once a request (a plain Date.now() in the render trips the purity lint), as on Reports.
+const now = () => Date.now();
 // What each status means, in a few words under it.
 const STATUS_HINTS = { new: "Not answered yet", contacted: "Answered", appointment: "Coming in", won: "Bought", lost: "Did not buy" } as const;
 
@@ -116,23 +118,12 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
     return `/leads${qs ? `?${qs}` : ""}`;
   };
 
-  // What to answer now, worked down from the top: new leads waiting too long or in a hurry and follow-ups overdue, then the other new
-  // ones and today's follow-ups. On the plain list only: a filter or a search is looking for something else.
-  const filtered = Boolean(f.status || f.type || f.topic || f.q || f.due || f.late || f.with || f.source || (sp.page && sp.page !== "1"));
-  // The longest waiting first, as on the Overview: a new lead since it came in, a follow-up since the day it was due.
-  const waitingSince = (l: Lead) => (l.status === "new" ? l.createdAt : Date.parse(`${l.followUpOn}T00:00:00Z`));
-  const todo = all
-    .flatMap((l): { lead: Lead; why: string; urgency: TaskUrgency }[] => {
-      if (l.status === "new") {
-        const now = lateIds.has(l.id) || isHotLead(l);
-        const why = lateIds.has(l.id) ? `Came in ${fmtAgo(l.createdAt)}, past your reply time` : isHotLead(l) ? `In a hurry: ${leadTags(l.topic!, l.answers ?? {}).join(", ")}` : `New, came in ${fmtAgo(l.createdAt)}`;
-        return [{ lead: l, why, urgency: now ? "now" : "soon" }];
-      }
-      if (!followUpDue(l, today)) return [];
-      const late = l.followUpOn! < today;
-      return [{ lead: l, why: late ? `Follow-up was due ${fmtDate(`${l.followUpOn}T12:00:00Z`)}` : "Follow up today", urgency: late ? "now" : "soon" }];
-    })
-    .sort((a, b) => (a.urgency === b.urgency ? waitingSince(a.lead) - waitingSince(b.lead) : a.urgency === "now" ? -1 : 1));
+  // What to answer now, worked down from the top, by the same rule as the Overview's To do (leadsToAnswer). On the plain list, or one
+  // person's (the Overview's Reply to leads opens it with Only mine): any other filter or a search is looking for something else.
+  const filtered = Boolean(f.status || f.type || f.topic || f.q || f.due || f.late || f.source || (sp.page && sp.page !== "1"));
+  const why = ({ lead: l, kind, late }: { lead: Lead; kind: string; late: boolean }) =>
+    kind === "follow" ? (l.followUpOn! < today ? `Follow-up was due ${fmtDate(`${l.followUpOn}T12:00:00Z`)}` : "Follow up today") : late ? `Came in ${fmtAgo(l.createdAt)}, past your reply time` : isHotLead(l) ? `In a hurry: ${leadTags(l.topic!, l.answers ?? {}).join(", ")}` : `New, came in ${fmtAgo(l.createdAt)}`;
+  const todo = leadsToAnswer(f.with ? filterLeads(all, { q: "", with: f.with }) : all, now(), today, leadSlaHours).map((t) => ({ ...t, why: why(t) }));
   const SHOWN = 8;
 
   return (
@@ -144,12 +135,12 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
             <p className="text-body text-text-2">All caught up. No new leads and no follow-ups due.</p>
           ) : (
             <TaskList label="Leads to answer now">
-              {todo.slice(0, SHOWN).map(({ lead: l, why, urgency }) => (
+              {todo.slice(0, SHOWN).map(({ lead: l, why, urgency, kind }) => (
                 <Task
                   key={l.id}
                   href={`/leads/${l.id}`}
                   urgency={urgency}
-                  icon={l.status !== "new" ? <CalendarIcon /> : urgency === "now" ? <AlertIcon /> : <InboxIcon />}
+                  icon={kind === "follow" ? <CalendarIcon /> : urgency === "now" ? <AlertIcon /> : <InboxIcon />}
                   title={l.name}
                   detail={
                     <span className="flex flex-col gap-0.5">

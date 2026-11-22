@@ -198,6 +198,11 @@ with no D1). The actor is the signed-in person (`currentMember`), or a named one
 - **A follow-up** (`followUpOn` on a lead): Tomorrow, In 3 days, Next week or a day, on the lead. Cleared when the lead is won or lost.
   Overview counts the ones due (today and overdue); the leads list filters by them. The morning email (Settings, Notifications, off by
   default) sends each salesperson theirs, and the unassigned ones to owners and managers, at 07:00 UTC (`/api/follow-ups/digest`).
+- **What needs doing is one count** (#38). The leads waiting on you come from one rule, `leadsToAnswer` (`src/lib/admin/follow-ups.ts`):
+  each lead once, as a follow-up due, else as a new lead. The Overview's headline, its To do and its Reply to leads button, Leads' To
+  answer now and a salesperson's report all count from it, so they agree. To do shows its top 8 rows, then See all. Its Only mine
+  keeps the leads and test drives given to you (the rest, such as stock and reviews, is nobody's and stays); it is on by default for
+  Sales. The bell counts something else on purpose: notices not yet read, of what came in, not the work still to do.
 
 ## Customers and aftersales
 

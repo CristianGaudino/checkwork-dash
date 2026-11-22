@@ -39,8 +39,9 @@ describe("demo records", () => {
     const leads = (await (await fresh()).leadsStore.list()).filter(isSalesLead);
     for (const now of [Date.now(), Date.now() + 10 * HOUR]) {
       const o = overview({ rules: DEMO_PROFILE.rules, listingSite: "DoneDeal", leads, drives: [], reviews: [], now, slaHours: 24 });
-      expect(o.late.length).toBeGreaterThan(0);
-      expect(o.late.length).toBeLessThan(o.newLeads / 2);
+      const late = o.answer.filter((t) => t.late).length;
+      expect(late).toBeGreaterThan(0);
+      expect(late).toBeLessThan(leads.filter((l) => l.status === "new").length / 2);
     }
   });
 });

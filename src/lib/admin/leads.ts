@@ -1,7 +1,7 @@
 import { LEAD_SOURCES, LEAD_STATUSES, LEAD_TYPES, type Claim, type Lead, type LeadStatus, type LeadType } from "./collections";
-import { TOPIC_IDS, isUrgent, type TopicId } from "@/lib/leads/contact-topics";
-import { followUpDue, pastReplyTarget } from "./follow-ups";
-export { followUpDue, isOpenLead } from "./follow-ups";
+import { TOPIC_IDS, type TopicId } from "@/lib/leads/contact-topics";
+import { followUpDue, isHotLead, pastReplyTarget } from "./follow-ups";
+export { followUpDue, isHotLead, isOpenLead, leadsToAnswer, type LeadTask } from "./follow-ups";
 
 // A warranty message from the website is aftersales work, not a sale: it is listed in Aftersales as a request, and left out of Leads, its
 // counts, the overview and the reports. A person's own page and their data requests still show everything.
@@ -56,6 +56,5 @@ export function countByStatus(leads: Lead[]): Record<LeadStatus, number> {
   return out;
 }
 
-// New leads that need an answer first: "this week" ("can't be driven" is a car bought here, filed in Aftersales). The rest keep their order.
-export const isHotLead = (l: Lead) => l.status === "new" && Boolean(l.topic) && isUrgent(l.answers ?? {});
+// The hot new leads (isHotLead) first; the rest keep their order.
 export const urgentFirst = (leads: Lead[]): Lead[] => [...leads.filter(isHotLead), ...leads.filter((l) => !isHotLead(l))];
