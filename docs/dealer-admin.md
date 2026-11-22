@@ -207,11 +207,12 @@ with no D1). The actor is the signed-in person (`currentMember`), or a named one
   every to-do, count, chart and report (`counted` in `src/lib/admin/reports.ts`) and the Leads list, except its own Spam tab, which
   lists spam of every kind (a warranty request too, `onLeadsList`), where Not spam puts it back. Leads are checked as they arrive
   (`spamCheck`, `src/lib/leads/spam.ts`), once per lead by the site API (`src/lib/site-api/leads.ts`, the only way in) before its
-  fallback lead email: rules only, no outside service, nothing logged. Clear spam needs strong evidence: forum or web page link markup,
-  a web address for a name, or two pitch words or more (SEO, backlinks, crypto and the like, read in the message only) with a link to an
-  unknown site. It is filed as spam, with no email, booking, customer, bell notice or WhatsApp alert, and is never linked to a sale or a
+  fallback lead email: rules only, no outside service, nothing logged. Clear spam is only what no person types into a contact form:
+  forum or web page link markup. Words and links are only ever a hint, because real buyers sign off with job titles, mention crypto,
+  link another dealer or give their company site as their name. Clear spam is filed as spam, with no email, booking, customer, bell notice or WhatsApp alert, and is never linked to a sale or a
   factory order. A test drive booking or a warranty request is never filed as spam, only as possible spam (`arrivalSpam`). When unsure
-  (one pitch word, or a link to a site that is not a car, photo or chat site or the dealer's own) the lead stays new with `maybeSpam`:
+  (a pitch word such as SEO services, backlinks or crypto, read in the message only; a link to a site that is not a car, photo or chat
+  site or the dealer's own; or a web address in the name) the lead stays new with `maybeSpam`:
   "Possible spam" on the list and To answer now, with Spam and Not spam. Careful by design: a name in any language, a short or empty
   message, no phone, or a link to a car or photos never count against a lead.
 - **Test drives** still to happen can move to another time, by the same rules as a new booking.

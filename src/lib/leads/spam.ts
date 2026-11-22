@@ -35,20 +35,19 @@ const TERMS = [
 const MARKUP = /\[url=|<a\s+href/i;
 const LINK = /\bhttps?:\/\/[^\s<>"\]]+|\bwww\.[^\s<>"\]]+|\b[a-z0-9-]+\.(?:com|net|org|info|biz|xyz|top|site|online|shop|store|io|ru|cn)\b[^\s<>"\]]*/gi;
 
-const hostOf = (link: string) => link.replace(/^https?:\/\//i, "").replace(/^www\./i, "").split(/[/?#:]/)[0].toLowerCase();
+// The host a browser would open: past any "name:password@" in front of it, so "https://wa.me:x@evil.xyz" is evil.xyz.
+const hostOf = (link: string) => link.replace(/^https?:\/\//i, "").split(/[/?#]/)[0].replace(/^.*@/, "").split(":")[0].replace(/^www\./i, "").toLowerCase();
 const safe = (host: string, own: string[]) => [...SAFE_SITES, ...own].some((s) => host === s || host.endsWith(`.${s}`));
-const noEmails = (s: string) => s.replace(/(?<![/\w])[\w.+-]+@[\w-]+(\.[\w-]+)+/g, " "); // "my email is mary@gmail.com" is no link; "https://x@evil.xyz" still is
+const noEmails = (s: string) => s.replace(/(?<![/:\w])[\w.+-]+@[\w-]+(\.[\w-]+)+/g, " "); // "my email is mary@gmail.com" is no link; "https://x@evil.xyz" still is
 
-// Clear spam: forum or web page link markup; a name that is only a web address ("Pat Kelly, KellyAuto.com" is a trade buyer: maybe); or a pitch, two of its words or more, with a link to an unknown
-// site. Possible spam: one pitch word, or a link to an unknown site. `ownSite`: the dealer's website, so a link to their car is fine.
+// Clear spam only on what no person types into a contact form: forum or web page link markup. Words and links are only ever a hint
+// (Possible spam): a real buyer signs off with a job title, mentions crypto, links another dealer or puts their company site as their
+// name, and a person decides in one tap. `ownSite`: the dealer's website, so a link to their car is no hint.
 export function spamCheck(lead: { name: string; message: string }, ownSite?: string): SpamVerdict {
   const own = ownSite ? [hostOf(ownSite)] : [];
   const message = noEmails(lead.message);
   if (MARKUP.test(`${lead.name}\n${message}`)) return "spam";
-  const name = noEmails(lead.name).trim();
-  if (/^\S+$/.test(name) && name.match(LINK)) return "spam"; // a name is never only a web address
   const links = (message.match(LINK) ?? []).map(hostOf).filter((h) => !safe(h, own));
   const hits = TERMS.filter((t) => t.test(message.toLowerCase())).length;
-  if (hits >= 2 && links.length >= 1) return "spam";
-  return links.length >= 1 || hits >= 1 || name.match(LINK) ? "maybe" : undefined;
+  return links.length >= 1 || hits >= 1 || noEmails(lead.name).match(LINK) ? "maybe" : undefined;
 }

@@ -48,7 +48,7 @@ test("a lead sent with the website's key reaches the inbox once, and a wrong key
 
 test("the spam check: clear spam goes to the Spam tab only; a possible one is flagged, and Not spam clears it (#56)", async ({ page, request }) => {
   const spam = who("Spam check");
-  expect((await send(request, lead({ name: spam, message: "We sell backlinks and guest posts for your website: https://linkfarm.example.top" }))).status()).toBe(201);
+  expect((await send(request, lead({ name: spam, message: "Cheap backlinks [url=https://linkfarm.example.top]here[/url]" }))).status()).toBe(201);
   await page.goto(`/leads?q=${encodeURIComponent(spam)}`);
   await expect(page.getByText("No leads match")).toBeVisible();
   await page.goto(`/leads?status=spam&q=${encodeURIComponent(spam)}`);

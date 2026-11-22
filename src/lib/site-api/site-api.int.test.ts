@@ -275,7 +275,7 @@ describe("a spam lead the website could not email (#56)", () => {
     e.EMAIL = { send: sent };
     await patchDealer(B, "Test Motors", { leadEmail: "sales@test-motors.example.ie" });
     try {
-      const spam = lead({ message: "We sell backlinks and guest posts for your website: https://linkfarm.example.top" });
+      const spam = lead({ message: "Cheap backlinks [url=https://linkfarm.example.top]here[/url]" });
       const res = await send(keyB, body(spam, { emailed: false }));
       expect(res.status).toBe(201);
       expect(sent).not.toHaveBeenCalled();

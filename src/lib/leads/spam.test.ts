@@ -48,17 +48,24 @@ describe("the spam check on a lead as it arrives (#56)", () => {
     for (const [message, name] of maybe) expect(check(message, name), message).toBe("maybe");
   });
 
-  it("files clear spam: link markup, a web address for a name, a pitch of two words or more with a link", () => {
-    const spam: [string, string?][] = [
+  it("at most asks a person about a pitch, however strong, and a real buyer with two odd words (Possible spam)", () => {
+    const maybe: [string, string?][] = [
       ["Hi website owner, we can get your site to the first page of Google. Free SEO audit: https://best-seo-agency.xyz/audit"],
       ["Cheap backlinks and guest posts: https://linkfarm.top"],
       ["Earn 5000 USDT a day, guaranteed profits: http://quick-profit.top"],
-      ["[url=http://casino-wins.example]best casino bonus[/url]"],
-      ['<a href="http://cheap-pills.example">cheap</a>'],
-      ["Interested?", "www.cheap-seo.com"], // a name that is only a web address
-      ["Check this out https://goo.gl/abcd backlinks and guest posts cheap"], // a shortener is no safe site
-      ["Backlinks and guest posts: https://user@evil.xyz/path"], // an @ in a link does not hide it
+      ["Interested?", "www.cheap-seo.com"],
+      ["Trade buyer here", "KellyAuto.com"],
+      ["Check this out https://goo.gl/abcd backlinks and guest posts cheap"],
+      ["Get more leads https://wa.me:x@evil.xyz backlinks guest posts"], // the host is evil.xyz, not wa.me
+      ["Backlinks and guest posts: https://user@evil.xyz/path"],
+      ["Can I pay part of the deposit in bitcoin?\nAoife Kelly, Digital Marketing Manager, kellyco.com"],
+      ["I hit the jackpot finding this one! Similar to https://www.otherdealer.ie/cars/123 - do you take crypto at all?"],
     ];
-    for (const [message, name] of spam) expect(check(message, name), message).toBe("spam");
+    for (const [message, name] of maybe) expect(check(message, name), message).toBe("maybe");
+  });
+
+  it("files clear spam only on link markup, which no person types into a contact form", () => {
+    expect(check("[url=http://casino-wins.example]best casino bonus[/url]")).toBe("spam");
+    expect(check('<a href="http://cheap-pills.example">cheap</a>')).toBe("spam");
   });
 });
