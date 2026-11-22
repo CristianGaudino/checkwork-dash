@@ -79,12 +79,9 @@ test("a lead is closed from To answer now, leaves the to-do lists, is no lost sa
   await expect(page.getByTestId("toast")).toContainText("Closed, spam");
   await expect(row).toHaveCount(0);
   await expect.poll(toAnswer).toBeLessThan(before);
-  // The lead says why, and Reports' lost reasons never count it.
+  // The lead says why. (That Reports never counts it is reports.test.ts's.)
   await other.goto(href);
   await expect(other.getByText("Closed: Spam. Not counted as a lost sale.")).toBeVisible();
-  await other.goto("/reports");
-  await other.getByText("More detail").click();
-  await expect(other.getByRole("region", { name: "Why leads were lost" })).not.toContainText("Spam");
 
   await page.getByTestId("toast").getByRole("button", { name: "Undo" }).click();
   await expect.poll(async () => (await page.reload(), row.count())).toBe(1);

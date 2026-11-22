@@ -7,7 +7,7 @@ import { carCosts } from "@/lib/admin/costs";
 import { addMonths, dublinDay, fmtEur, fmtNum, fmtPct, isIsoMonth, plural } from "@/lib/admin/format";
 import { visitorFigures } from "@/lib/admin/visitor-figures";
 import { countsBetween } from "@/lib/owner-api/counters";
-import { monthLabel } from "@/lib/admin/reports";
+import { counted, monthLabel } from "@/lib/admin/reports";
 import { simulating } from "@/lib/integrations";
 import { hasModule } from "@/lib/modules";
 import { can, currentMember } from "@/lib/permissions";
@@ -57,9 +57,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
 
   const sim = await simulating();
   // shortcut: the demo's visitor figures are generated for the 30 days to the month's end, not the calendar month; real analytics replaces it.
-  const a = whole && hasAnalytics && sim ? buildAnalytics({ range: 30, cars: data.cars.filter(forSale).map((c) => ({ slug: c.slug, title: carName(c) })), now: bounds(from, to)[1] - 1, leadTimes: data.leads.map((l) => l.createdAt) }) : undefined;
+  const a = whole && hasAnalytics && sim ? buildAnalytics({ range: 30, cars: data.cars.filter(forSale).map((c) => ({ slug: c.slug, title: carName(c) })), now: bounds(from, to)[1] - 1, leadTimes: data.leads.filter(counted).map((l) => l.createdAt) }) : undefined;
   // A dealer's own site: the visits its visitors really made, from the site's anonymous counts, and where its website leads came from.
-  const inMonth = (r: { from: string; to: string }) => data.leads.filter((l) => l.createdAt >= bounds(r.from, r.to)[0] && l.createdAt < bounds(r.from, r.to)[1]);
+  const inMonth = (r: { from: string; to: string }) => data.leads.filter((l) => counted(l) && l.createdAt >= bounds(r.from, r.to)[0] && l.createdAt < bounds(r.from, r.to)[1]);
   const real =
     whole && hasAnalytics && !sim
       ? await Promise.all([countsBetween(from, to), countsBetween(prevRange.from, prevRange.to)]).then(([c, pc]) => ({
