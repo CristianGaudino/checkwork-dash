@@ -72,21 +72,24 @@ The migrations run before the new code goes live, so they may only add things (`
 The flow: a pull request runs CI and E2E. A merge deploys **dev**. A **release** puts `main` into production: Actions,
 Release, Run workflow, pick major, minor or patch (the first is `v1.0.0`). The release stays a pre-release until its deploy and the check
 pass, then becomes the latest. **Roll back** with Actions, Deploy, Run workflow, environment `production`, ref an older tag. Production
-deploys only a release tag from there, and `scripts/deploy.mjs` also refuses a commit that is not on `main`. Deploys to one environment
-queue, never overlap. By hand, `npm run deploy:prod` from a laptop with a logged-in wrangler does the same steps, for when Actions is down.
+deploys only a release tag from there, and the workflow (and `scripts/deploy.mjs`) refuse a commit that is not on `main`. After a rollback, mark the older release as the latest: `gh release edit vX.Y.Z --latest`. If a release's deploy fails, fix the cause and use "Re-run failed jobs" on that Release run (the tag stays, so the next version is not skipped); the release becomes the latest when it passes. Deploys to one environment
+queue, never overlap. The Cloudflare secrets reach only the migrate and deploy step and the live-version check: never install, lint, the tests or the build. The check reads the Worker's live deployment and fails unless one version has 100% and is tagged with the deployed commit. By hand, `npm run deploy:prod` from a laptop with a logged-in wrangler does the same steps, for when Actions is down.
 
 Owner checklist, once (Settings of the repo on GitHub):
 1. Secrets and variables, Actions, New repository secret: `CLOUDFLARE_ACCOUNT_ID` = `bae1b8428c712c6a44a214e2b25b674c` (not secret, kept
    as one like the other repos), and `CLOUDFLARE_API_TOKEN` (below). Nothing else is needed: the E2E run uses no Cloudflare account, and
    the Worker's own secrets (`CRON_KEY` and so on) live on the Workers.
-2. The token: Cloudflare dashboard, My Profile, API Tokens, Create Token, template **Edit Cloudflare Workers**. Check it lists, for the
-   account: Workers Scripts Edit, D1 Edit, Workers R2 Storage Edit (the Worker binds the photo buckets), Account Settings Read; and for the
-   zone `checkwork.ie`: Workers Routes Edit (the custom domains), plus DNS Edit if a deploy fails creating a custom domain's record. Set
-   Account Resources to this account and Zone Resources to `checkwork.ie`. Remove what is not needed. If a deploy fails with an
-   authentication error naming a permission, add that one.
+2. The token: Cloudflare dashboard, My Profile, API Tokens, Create Token, template **Edit Cloudflare Workers**, then change it. Add:
+   Account D1 Edit. Keep: Workers Scripts Edit, Account Settings Read, Workers R2 Storage Edit. Zone `checkwork.ie`: Workers Routes Edit
+   (plus Zone Read if wrangler fails looking up the zone). Remove from the template: KV, Pages, Tail, User Details, Memberships. Set
+   Account Resources to this account and Zone Resources to `checkwork.ie`. If a deploy fails with an error naming a permission, add that one.
 3. Optional: Branches, add a rule for `main`: require a pull request and the status checks `check` (CI) and `e2e` (E2E). Under
    Environments nothing is needed (the workflows use none).
-4. First check: Actions, Deploy, Run workflow, environment dev. Then, when ready, Release, minor (`v1.0.0`).
+4. Settings, Rules, Rulesets, New tag ruleset: target tags `v*`, restrict updates and deletions (so a release tag cannot be moved), and
+   let only repository admins bypass. Restricting creations too would block the Release workflow's own `GITHUB_TOKEN`, so leave that
+   off. The deploy checks that a production tag is a commit on `main`, but a ruleset also keeps a release tag where it was made. Remember that anyone with write access can run Deploy by hand, so they can put any branch
+   on dev (Preview) and any release tag on production: give write access only to people you trust with both.
+5. First check: Actions, Deploy, Run workflow, environment dev. Then, when ready, Release, minor (`v1.0.0`).
 
 ### Going live (#9)
 

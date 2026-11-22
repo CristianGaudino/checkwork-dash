@@ -65,9 +65,15 @@ jobs:
           esac
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.ref }}
-          # Every commit and tag: scripts/deploy.mjs checks that a production commit is on main
+          # A production ref is a tag, spelled out so a branch of the same name cannot be picked
+          ref: ${{ inputs.environment == 'production' && format('refs/tags/{0}', inputs.ref) || inputs.ref }}
+          # Every commit and tag, to check below that a production commit is on main
           fetch-depth: 0
+      # Here, from this workflow on main, not only in scripts/deploy.mjs of the checked-out code: a tag pushed on any commit would
+      # carry its own deploy.mjs. The release workflow tags main, and a rollback tag was on main when it was made.
+      - name: Production is a commit on main
+        if: inputs.environment == 'production'
+        run: git merge-base --is-ancestor HEAD origin/main || { echo "::error::$REF is not on main"; exit 1; }
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
@@ -76,15 +82,19 @@ jobs:
       # APP_ENV is not set: the tests fail on a production setting while the finance figures are placeholders (.env.example)
       - run: npm run lint
       - run: npm test
-      # The OpenNext build, the directory and dealer migrations (before the new code is live, so additive only), then the Worker.
-      # Production refuses a commit that is not on main, or a dirty tree (scripts/deploy.mjs); a release tag on main passes.
-      - name: Deploy ${{ inputs.environment || 'dev' }}
-        run: npm run ${{ inputs.environment == 'production' && 'deploy:prod' || 'deploy' }}
+      # The OpenNext build, with no Cloudflare credentials in its environment. --build-only and --built are for this workflow (scripts/deploy.mjs).
+      - name: Build ${{ inputs.environment || 'dev' }}
+        run: npm run ${{ inputs.environment == 'production' && 'deploy:prod' || 'deploy' }} -- --build-only
+      # The directory and dealer migrations (before the new code is live, so additive only), then the Worker, its version tagged with the
+      # commit. Production also refuses a dirty tree or a commit not on main (scripts/deploy.mjs).
+      - name: Migrate and deploy ${{ inputs.environment || 'dev' }}
+        run: npm run ${{ inputs.environment == 'production' && 'deploy:prod' || 'deploy' }} -- --built
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      # Behind Access most addresses answer a visitor without a token with a redirect or a 404: what counts is that Cloudflare reaches the
-      # new Worker and it does not fail (a 5xx, or no answer at all). A first deploy of a domain waits for its certificate.
+      # Cloudflare's edge reaches the Worker and it does not fail (a 5xx, or no answer). Behind Access most addresses answer a visitor
+      # without a token with a redirect or a 404, so this alone does not prove the new code runs: the next step does. A first deploy of
+      # a domain waits for its certificate.
       - name: Check the site answers
         run: |
           host=dev.dash.checkwork.ie
@@ -98,3 +108,9 @@ jobs:
           done
           echo "::error::$host still answers $code after 5 minutes"
           exit 1
+      # The Worker's live deployment is one version at 100%, tagged with this commit (read from Cloudflare, so it needs the token)
+      - name: Check the new version is live
+        run: node scripts/live-version.mjs ${{ inputs.environment == 'production' && '--env production' || '' }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
