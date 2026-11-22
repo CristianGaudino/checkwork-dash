@@ -88,6 +88,16 @@ dealer (DoneDeal or CarsIreland) gets 404: their website reads the listing site.
 
 Each car's `photos` are links the website can put straight in an `<img>` (next section). A photo it could not open is left out.
 
+## `GET /api/site/v1/drives/taken?carId=<1-12 digits>`
+
+Same key, same rate limit, same errors as the stock read. Answers 200 `{"times":["YYYY-MM-DD HH:MM", ...]}` (Irish time): every slot start on
+the website's bookable days (`driveDays` and `driveTimes` in `src/lib/leads/constants.ts`, the dealer's opening hours) that the dashboard's
+own slot rule (`slotState` in `src/lib/admin/slots.ts`, the dealer's drive slot length) marks taken for that car, from open bookings
+(requested or confirmed) matched by car id (`slugId`), so a booking made under an old slug still counts. Only times, never a name or any
+booking detail. A car id that matches nothing gets `{"times":[]}`, so the answer does not say whether a car exists. A missing or malformed
+`carId` gets 400 with no body, as a malformed lead does. `Cache-Control: no-store`. The website's form hides these times (#72); a double
+booking that still gets through is caught here as before ("Clashes with another booking for this car").
+
 ## Car photos (`GET /api/site/v1/photos/<dealer>/<key>?sig=<signature>`)
 
 An `<img>` cannot send the site key, so the stock answer gives every photo as a link that needs no key

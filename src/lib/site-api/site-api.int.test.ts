@@ -12,12 +12,15 @@ vi.mock("@opennextjs/cloudflare", async () => {
 const { drizzle, env, objects } = await import("@/test/sqlite-d1");
 const { POST } = await import("@/app/api/site/v1/leads/route");
 const { GET } = await import("@/app/api/site/v1/stock/route");
+const { GET: TAKEN } = await import("@/app/api/site/v1/drives/taken/route");
 const { GET: PHOTO } = await import("@/app/api/site/v1/photos/[dealer]/[...key]/route");
 const { NextRequest } = await import("next/server");
 const { storeCarPhoto } = await import("@/lib/admin/car-photos");
 const { makeSiteKey, revokeSiteKey, dealerOfSiteKey, siteKeysOf, patchDealer } = await import("@/lib/tenancy/directory");
-const { runAsDealer } = await import("@/lib/tenancy/current");
-const { leadsStore, costsStore } = await import("@/lib/admin/collections");
+const { runAsDealer, dealerProfile } = await import("@/lib/tenancy/current");
+const { driveDays, driveTimes } = await import("@/lib/leads/constants");
+const { dublinMs } = await import("@/lib/admin/format");
+const { leadsStore, costsStore, drivesStore, settingsStore, getSettings } = await import("@/lib/admin/collections");
 const { saveCar, updateCar } = await import("@/lib/admin/stock-admin");
 const { leads } = await import("@/lib/db/schema");
 const { siteKeys } = await import("@/lib/db/directory-schema");
@@ -216,6 +219,54 @@ describe("GET /api/site/v1/stock", () => {
       await patchDealer(B, "Test Motors", null);
     }
     expect((await get("nope")).status).toBe(401);
+  });
+});
+
+describe("GET /api/site/v1/drives/taken", () => {
+  const get = (key: string | null, q = "carId=9300001") => TAKEN(new Request(`https://x.test/api/site/v1/drives/taken?${q}`, { headers: key === null ? {} : { Authorization: `Bearer ${key}` } }));
+  const drive = (over: object) => ({ id: crypto.randomUUID(), name: NAME, email: EMAIL, phone: PHONE, carSlug: "audi-a3-2019-9300001", carTitle: "2019 Audi A3", startsAt: 0, status: "confirmed", notes: "", createdAt: 1, ...over }) as never;
+  let day = "";
+  let times: string[] = [];
+  beforeAll(async () => {
+    await runAsDealer(A, async () => {
+      const hours = (await dealerProfile()).hours;
+      day = driveDays(hours)[3];
+      times = driveTimes(day, hours);
+    });
+  });
+  const at = (t: string) => dublinMs(day, t);
+
+  it("gives the slots clashing with an open booking of that car id, even one made under an old slug, and no others", async () => {
+    const mid = times[2];
+    await runAsDealer(A, async () => {
+      await drivesStore.put(drive({ startsAt: at(mid) }));
+      await drivesStore.put(drive({ carSlug: "audi-a3-9300002", startsAt: at(times[0]) })); // another car
+      await drivesStore.put(drive({ startsAt: at(times[5]), status: "cancelled" }));
+    });
+    const res = await get(keyA);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Cache-Control")).toBe("no-store");
+    const m = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3));
+    expect(((await res.json()) as { times: string[] }).times).toEqual(times.filter((t) => Math.abs(m(t) - m(mid)) < 60).map((t) => `${day} ${t}`));
+  });
+
+  it("follows the dealer's slot length, and puts nothing but times in the body", async () => {
+    await runAsDealer(A, async () => settingsStore.put({ ...(await getSettings()), driveSlotMinutes: 30 } as never));
+    try {
+      const body = await (await get(keyA)).text();
+      expect(JSON.parse(body)).toEqual({ times: [`${day} ${times[2]}`] });
+      for (const s of [NAME, EMAIL, PHONE, "Audi"]) expect(body).not.toContain(s);
+    } finally {
+      await runAsDealer(A, async () => settingsStore.put({ ...(await getSettings()), driveSlotMinutes: 60 } as never));
+    }
+  });
+
+  it("gives an empty list for a car with nothing booked, 400 for a malformed car id, and 401 with no key", async () => {
+    expect(await (await get(keyA, "carId=9999999")).json()).toEqual({ times: [] });
+    expect(await (await get(keyB)).json()).toEqual({ times: [] }); // another dealer's bookings are not here
+    for (const q of ["", "carId=", "carId=abc", "carId=1234567890123", "carId=1%20OR%201"]) expect((await get(keyA, q)).status).toBe(400);
+    expect((await get(null)).status).toBe(401);
+    expect((await get("cw_site_nope")).status).toBe(401);
   });
 });
 

@@ -11,7 +11,7 @@ export type Answer = { status: number; outcome: SiteOutcome; body?: unknown; hea
 const HEADERS = { "Cache-Control": "no-store", "X-Robots-Tag": "noindex" };
 export const MAX_BODY = 64 * 1024;
 
-export async function siteRequest(req: Request, route: "leads" | "stock", run: () => Promise<Answer>): Promise<Response> {
+export async function siteRequest(req: Request, route: "leads" | "stock" | "drives", run: () => Promise<Answer>): Promise<Response> {
   let dealerId: string | undefined;
   const answer = await (async (): Promise<Answer> => {
     const key = /^Bearer (\S+)$/.exec(req.headers.get("authorization") ?? "")?.[1];
