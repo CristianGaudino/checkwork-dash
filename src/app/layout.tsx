@@ -58,9 +58,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // Which dealer this is, from the directory (src/lib/tenancy). With none open, the page is the chooser or "No access" and nothing else: no
   // menu, no page. Every store refuses without a dealer too, and every action (requireStaff), so this is not the only lock.
   const access = await dealerAccess();
-  // Our sign-in (SIGN_IN both or own): a signed-out page load goes to sign in, and the sign-in pages get no dashboard frame. Under Access
-  // alone (the default) this is always "frame" and changes nothing.
-  const gate = await pageGate(access.state === "signed-out");
+  // A page outside the proxy (the sign-in pages, the proxy's own 404) is drawn bare, with its own content. A signed-out page load under our
+  // sign-in has already gone to sign in (dealerAccess).
+  const gate = await pageGate();
   if (gate === "bare" || access.state !== "ok")
     return (
       <html lang="en-IE" className={`${sora.variable} ${inter.variable}`} suppressHydrationWarning>

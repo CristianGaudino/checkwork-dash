@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { accessConfig, verifyAccessJwt } from "@/lib/access";
-import { PATH_HEADER, SESSION_COOKIE, appOpen, signInMode, signInPath } from "@/lib/auth/gate";
+import { PATH_HEADER, SESSION_COOKIE, SESSION_VALUE, appOpen, signInMode, signInPath } from "@/lib/auth/gate";
 
 // The app's own not found page, not a bare line. A path no route matches renders app/not-found.tsx.
 const notThere = (req: NextRequest) => NextResponse.rewrite(new URL("/not-found-closed-area", req.url), { status: 404, headers: { "X-Robots-Tag": "noindex" } });
@@ -24,14 +24,14 @@ const pass = (req: NextRequest) => {
 // default and any unknown value, and `both`), or only that our session cookie is there (`own`). Nothing per dealer: which dealer, and what
 // their plan has, is the server's (src/lib/tenancy): the root layout and each module's layout answer a module that is off
 // (src/components/admin/PlanGate.tsx), and every action checks it again (requireModule). Proxy is not for data fetching (Next 16 docs), so
-// it reads no directory and no session: the server checks the session (src/lib/staff.ts), and a dead one goes to sign in from the root layout.
+// it reads no directory and no session: the server checks the session (src/lib/staff.ts), and a dead one goes to sign in from dealerAccess.
 export async function proxy(req: NextRequest) {
   // A closed area looks like a page that is not there. Server actions post to the page itself, so this covers them too.
   // Open in development and when the build says so, but never with a real directory bound (the Worker, where OpenNext gives the proxy the
   // bindings too). staffIdentity checks the same again.
   if (appOpen()) return pass(req);
   if (signInMode() === "own") {
-    if (req.cookies.get(SESSION_COOKIE)?.value) return pass(req);
+    if (SESSION_VALUE.test(req.cookies.get(SESSION_COOKIE)?.value ?? "")) return pass(req); // its shape only: the server looks it up
     // A page load with no session goes to sign in and back; anything else (a server action) is not there.
     return isPageLoad(req) ? NextResponse.redirect(new URL(signInPath(pathOf(req)), req.url)) : notThere(req);
   }

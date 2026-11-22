@@ -49,21 +49,21 @@ export async function signInOpen(): Promise<boolean> {
   return mode === "own" || (mode === "both" && (await accessEmail()) !== null);
 }
 
-// A page with no live session goes to sign in, and comes back to where it was after. Only where our sign-in is on: under Access alone (the
-// default) nothing changes, since the proxy already refused anyone Access did not let in. The path is the proxy's header, never the browser's.
+// A page load with no live session goes to sign in, and comes back to where it was after. Called by dealerAccess() (src/lib/tenancy/
+// membership.ts), which every page, layout, store and permission check goes through, so a client-side navigation (which skips the root
+// layout) is caught too. Only where our sign-in is on: under Access alone (the default) nothing changes, since the proxy already refused
+// anyone Access did not let in. Only with a path from the proxy: a POST (a server action) has an empty one and answers 404 instead, and
+// a page outside the proxy (the sign-in pages) has none, so it never loops. The path is the proxy's header, never the browser's.
 export async function toSignIn(): Promise<void> {
-  if (signInMode() !== "access" && !appOpen()) redirect(signInPath((await headers()).get(PATH_HEADER)));
+  if (signInMode() === "access" || appOpen()) return;
+  const path = (await headers()).get(PATH_HEADER);
+  if (path) redirect(signInPath(path));
 }
 
-// What the root layout draws (src/app/layout.tsx). "bare": a page outside the proxy (the sign-in pages, which have no PATH_HEADER), with no
-// dashboard frame and no redirect, so a signed-out visit never loops. "frame": as before; a signed-out page load goes to sign in first. A
-// POST (a server action) has an empty PATH_HEADER and is never redirected: its requireStaff() answers 404.
-export async function pageGate(signedOut: boolean): Promise<"bare" | "frame"> {
-  if (signInMode() === "access" || appOpen()) return "frame";
-  const path = (await headers()).get(PATH_HEADER);
-  if (path === null) return "bare";
-  if (signedOut && path) await toSignIn();
-  return "frame";
+// What the root layout draws (src/app/layout.tsx). "bare": a page outside the proxy (the sign-in pages, and the proxy's own 404), which
+// has no PATH_HEADER: its own content with no dashboard frame, so a notFound() there answers 404 in every mode. "frame": as before.
+export async function pageGate(): Promise<"bare" | "frame"> {
+  return (await headers()).get(PATH_HEADER) === null ? "bare" : "frame";
 }
 
 // The first line of every dashboard action: anyone not signed in, or who has no dealer open (no membership, or not picked yet), gets

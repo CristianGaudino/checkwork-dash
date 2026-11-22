@@ -51,7 +51,7 @@ describe("where to go after signing in (next)", () => {
     expect(safeNext("/leads?x=1#frag")).toBe("/leads?x=1");
   });
   it("refuses //, \\, another site, and anything not a plain path", () => {
-    for (const bad of ["//evil.example", "//evil.example/leads", "/\\evil.example", "\\\\evil.example", "/leads\\x", "https://evil.example", "http://localhost/leads", "javascript:alert(1)", "leads", "", " /leads", "/\t/evil.example", "/le ads", "/%2F%2Fevil.example", "/leads#x", null, undefined, 42])
+    for (const bad of ["//evil.example", "//evil.example/leads", "/\\evil.example", "\\\\evil.example", "/leads\\x", "https://evil.example", "http://localhost/leads", "javascript:alert(1)", "leads", "", " /leads", "/\t/evil.example", "/le ads", "/%2F%2Fevil.example", "/leads#x", "/.//evil.com", "/a/..//evil.com", "/leads//x", "/a/../b", "/./leads", "/..", "/leads/.", null, undefined, 42])
       expect(safeNext(bad), String(bad)).toBe("/");
   });
   it("is carried to the sign-in page as one encoded parameter", () => {

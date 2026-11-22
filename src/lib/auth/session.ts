@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { and, desc, eq, lte, notInArray } from "drizzle-orm";
 import { sessions, staff } from "@/lib/db/directory-schema";
 import { directoryDb, hashSiteKey as sha256Hex, hasD1, memoryDirectory, quietDirectory as quiet } from "@/lib/tenancy/directory";
-import { SESSION_COOKIE } from "./gate";
+import { SESSION_COOKIE, SESSION_VALUE as VALUE } from "./gate";
 import { SESSION_IDLE_MS } from "./purge";
 
 // Our own sessions (docs/sign-in.md, section 4). The cookie holds 32 random bytes; the directory keeps only their SHA-256, so someone who
@@ -14,7 +14,6 @@ import { SESSION_IDLE_MS } from "./purge";
 export const SESSION_MAX_MS = 7 * 24 * 3_600_000;
 const TOUCH_MS = 5 * 60_000;
 export const SESSIONS_PER_PERSON = 20; // the oldest ends when a 21st starts
-const VALUE = /^[A-Za-z0-9_-]{43}$/; // 32 bytes, base64url: anything else is not ours and costs no lookup
 
 // __Host-: the browser keeps it only if Secure, Path=/ and no Domain, so no other checkwork.ie host can set or read it.
 export const sessionCookie = (value: string) => ({ name: SESSION_COOKIE, value, httpOnly: true, secure: true, sameSite: "lax" as const, path: "/", maxAge: SESSION_MAX_MS / 1000 });

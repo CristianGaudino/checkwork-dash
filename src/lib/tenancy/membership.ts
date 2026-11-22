@@ -1,6 +1,6 @@
 import { cache } from "react";
 import { cookies } from "next/headers";
-import { staffIdentity } from "@/lib/staff";
+import { staffIdentity, toSignIn } from "@/lib/staff";
 import type { Role } from "@/lib/permission-rules";
 import { DEMO_DEALER, DEV_EMAIL, membershipsOf, type Dealer } from "./directory";
 
@@ -14,7 +14,7 @@ export const OLD_DEALER_COOKIE = "checkwork-dealer";
 const DEALER_COOKIE_OPTIONS = { path: "/", maxAge: 31_536_000, sameSite: "lax", httpOnly: true, secure: true } as const;
 export type Choice = { id: string; name: string };
 export type DealerAccess =
-  | { state: "signed-out" } // not signed in (src/lib/staff.ts): the proxy already answered, or the page goes to sign in
+  | { state: "signed-out" } // not signed in (src/lib/staff.ts): the proxy already answered, a page load went to sign in, or an action 404s
   | { state: "no-access" } // signed in, but at no dealer (or only at a paused one)
   | { state: "choose"; choices: Choice[] } // at several, none picked yet
   | { state: "ok"; dealer: Dealer; role: Role; email: string; choices: Choice[] };
@@ -22,11 +22,15 @@ export type DealerAccess =
 // Once a request (React cache), server side only.
 export const dealerAccess = cache(async (): Promise<DealerAccess> => {
   const who = await staffIdentity();
-  if (!who.ok) return { state: "signed-out" };
+  if (!who.ok) {
+    await toSignIn(); // under our sign-in, a page load goes to sign in here, whichever page, layout or store asked first
+    return { state: "signed-out" };
+  }
   const mine = await membershipsOf(who.email);
   if (!mine.length) return { state: "no-access" };
   const choices = mine.map((m) => ({ id: m.dealer.id, name: m.dealer.name }));
   const jar = await cookies();
+  // shortcut: old dealer cookie name read until 2027-11-22, then delete OLD_DEALER_COOKIE
   const picked = jar.get(DEALER_COOKIE)?.value ?? jar.get(OLD_DEALER_COOKIE)?.value;
   // With no pick: their one dealer, or the chooser. The open app's person (next dev, the E2E run) starts at the demo dealer, as before.
   const m = mine.find((x) => x.dealer.id === picked) ?? (mine.length === 1 ? mine[0] : who.email === DEV_EMAIL ? mine.find((x) => x.dealer.id === DEMO_DEALER) : undefined);

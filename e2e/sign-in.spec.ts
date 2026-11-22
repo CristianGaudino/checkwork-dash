@@ -5,6 +5,7 @@ import { expect, request as http, test, type APIRequestContext } from "@playwrig
 // SIGN_IN=own: a page with no session or a dead one goes to sign in. There is no sign-in yet (steps 4 and 5), so no live session here: the
 // unit tests cover those (src/lib/staff.test.ts, src/lib/auth/session.test.ts).
 const CLOSED = `http://localhost:${Number(process.env.PORT ?? 3000) + 2}`;
+const CLOSED_ACCESS = `http://localhost:${Number(process.env.PORT ?? 3000) + 3}`; // closed, SIGN_IN unset, no Access set up
 const DEAD = { cookie: `__Host-cw_session=${"a".repeat(43)}` }; // the shape of ours, but no session behind it
 
 test.describe("SIGN_IN unset (the open app, and production today)", () => {
@@ -15,6 +16,20 @@ test.describe("SIGN_IN unset (the open app, and production today)", () => {
     expect(page.status()).toBe(200);
     expect(page.headers()["cache-control"]).toContain("no-store"); // a signed-in page is never kept by a cache
   });
+});
+
+test("SIGN_IN unset on a closed server: the sign-in page and /sign-out are 404s, as every page is without Access", async () => {
+  test.skip(!!process.env.E2E_BASE_URL, "needs the run's own closed server");
+  const api = await http.newContext({ baseURL: CLOSED_ACCESS });
+  for (const headers of [{}, DEAD]) {
+    expect((await api.get("/sign-in", { headers, maxRedirects: 0 })).status()).toBe(404);
+    expect((await api.get("/sign-in?next=%2Fleads", { headers, maxRedirects: 0 })).status()).toBe(404);
+    expect((await api.post("/sign-out", { headers: { ...headers, origin: CLOSED_ACCESS }, maxRedirects: 0 })).status()).toBe(404);
+    const page = await api.get("/leads", { headers, maxRedirects: 0 });
+    expect(page.status()).toBe(404);
+    expect(page.headers()["location"]).toBeUndefined(); // never sent to sign in
+  }
+  await api.dispose();
 });
 
 test.describe("SIGN_IN=own on a closed server", () => {
@@ -64,6 +79,23 @@ test.describe("SIGN_IN=own on a closed server", () => {
     expect(res.headers()["clear-site-data"]).toBe('"cache"');
     expect(res.headers()["set-cookie"]).toMatch(/^__Host-cw_session=; Path=\/; .*Max-Age=0/);
     expect((await api.get("/sign-out", { maxRedirects: 0 })).status()).toBe(405); // no GET changes anything
+  });
+
+  test("a client-side navigation (an RSC request) with a dead cookie goes to sign in too, not into the page", async ({ page }) => {
+    // A real navigation's RSC headers, from the open app (the same build), replayed against the closed server with a dead cookie.
+    await page.goto("/leads");
+    const rsc = page.waitForRequest((r) => r.headers()["rsc"] === "1" && new URL(r.url()).pathname === "/settings" && !r.headers()["next-router-prefetch"]);
+    await page.evaluate(() => (window as unknown as { next: { router: { push: (h: string) => void } } }).next.router.push("/settings"));
+    const req = await rsc;
+    const sent = await req.allHeaders();
+    const headers = Object.fromEntries(Object.entries(sent).filter(([k]) => k === "rsc" || k.startsWith("next-")));
+    const url = new URL(req.url());
+    const res = await api.get(url.pathname + url.search, { headers: { ...headers, ...DEAD }, maxRedirects: 0 });
+    // Next's form for a redirect during an RSC request: a 200 flight payload whose page segment is the redirect, which the client router
+    // follows. Before the fix the page itself ran (and failed with "No current dealer").
+    expect(res.status()).toBe(200);
+    expect(res.headers()["content-type"]).toContain("text/x-component");
+    expect(await res.text()).toContain('{"digest":"NEXT_REDIRECT;replace;/sign-in?next=%2Fsettings;307;"}');
   });
 
   test("in the browser, opening a page lands on sign in", async ({ page }) => {

@@ -117,6 +117,8 @@ describe("SIGN_IN in the proxy (docs/sign-in.md, sections 4 and 7)", () => {
     const res = await send("/leads?status=new&_rsc=abc");
     expect(res.status).toBe(307);
     expect(res.headers.get("location")).toBe("https://demo.example/sign-in?next=%2Fleads%3Fstatus%3Dnew");
+    for (const value of ["", "x", "a".repeat(42), `${"a".repeat(42)}=`, "a".repeat(44)]) // not the shape of one of ours: as if there were none
+      expect((await send("/leads", { headers: { cookie: `__Host-cw_session=${value}` } })).status, value).toBe(307);
     expect((await send("/", { method: "POST" })).status).toBe(404); // a server action: never a redirect
     expect((await send("/", { method: "POST", headers: { "next-action": "x" } })).status).toBe(404);
     verify.mockResolvedValue({ email: "owner@dealer.example" });

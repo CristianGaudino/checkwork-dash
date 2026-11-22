@@ -14,16 +14,19 @@ export const signInMode = (v: string | undefined = process.env.SIGN_IN): SignInM
 export const appOpen = () => adminReachable() && !getBindings().DIRECTORY && process.env.E2E_SIGN_IN !== "1";
 
 export const SESSION_COOKIE = "__Host-cw_session";
+export const SESSION_VALUE = /^[A-Za-z0-9_-]{43}$/; // 32 bytes, base64url: anything else is not one of ours
 // The page's path and query, set by the proxy (overwriting any the browser sent), so a layout can say where to come back to after sign-in.
 export const PATH_HEADER = "x-cw-path";
 
 // Where to go after signing in: one rule, used everywhere (the sign-in redirect, a notification's link). A path on this site only: a single
-// leading "/", no "\", letters, digits, "-", "_", "/" and "." in the path, the query read and written again. Anything else is the overview.
+// leading "/", no "\", letters, digits, "-", "_", "/" and "." in the path, no "//" and no "." or ".." segment, the query read and written
+// again. Anything else is the overview.
 export function safeNext(raw: unknown): string {
   if (typeof raw !== "string" || raw.startsWith("//") || raw.includes("\\")) return "/";
   const q = raw.indexOf("?");
   const path = q < 0 ? raw : raw.slice(0, q);
   if (!/^\/[A-Za-z0-9\-_/.]*$/.test(path)) return "/";
+  if (path.includes("//") || /(^|\/)\.\.?(\/|$)/.test(path)) return "/"; // a browser resolves "/a/..//x" to "//x", another site
   const query = q < 0 ? "" : new URLSearchParams(raw.slice(q + 1).split("#")[0]).toString();
   return query ? `${path}?${query}` : path;
 }

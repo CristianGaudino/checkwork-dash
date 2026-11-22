@@ -14,6 +14,8 @@ const verify = vi.fn();
 vi.mock("@/lib/access", async (orig) => ({ ...(await orig<typeof import("@/lib/access")>()), verifyAccessJwt: (...a: unknown[]) => verify(...a) }));
 const { pageGate, requireStaff, signInOpen, staffIdentity, toSignIn } = await import("./staff");
 const { endSession, startSession } = await import("@/lib/auth/session");
+const { dealerAccess } = await import("@/lib/tenancy/membership");
+const { currentDealer } = await import("@/lib/tenancy/current");
 const { memoryDirectory, resetMemoryDirectory } = await import("@/lib/tenancy/directory");
 
 afterEach(() => {
@@ -197,18 +199,17 @@ describe("SIGN_IN: the sign-in pages, and a signed-out page", () => {
     expect(await signInOpen()).toBe(true);
   });
 
-  it("under Access alone a signed-out page is drawn as before: no redirect, whatever the headers say", async () => {
+  it("under Access alone nothing redirects to sign in, whatever the headers say", async () => {
     for (const mode of ["", "access", "bogus"]) {
       vi.stubEnv("SIGN_IN", mode);
       sent = { "x-cw-path": "/leads" };
-      expect(await pageGate(true)).toBe("frame");
-      sent = {};
-      expect(await pageGate(true)).toBe("frame");
       expect(await sentTo(toSignIn())).toBe("no redirect");
+      expect(await sentTo(dealerAccess())).toBe("no redirect");
+      expect(await dealerAccess()).toEqual({ state: "signed-out" });
     }
   });
 
-  it("own: a dead cookie (and both: someone else's session) sends a page load to sign in with its path as next, and 404s an action", async () => {
+  it("own: a dead cookie (and both: someone else's session) sends a page load to sign in from dealerAccess, which every page and store asks, and 404s an action", async () => {
     person("conor", "conor@example.com");
     const cases = [...DEAD.map((state) => ["own", state, "aoife"] as const), ["both", "good", "conor"] as const];
     for (const [mode, state, whose] of cases) {
@@ -217,23 +218,29 @@ describe("SIGN_IN: the sign-in pages, and a signed-out page", () => {
       sent = {};
       if (mode === "both") withAccess("aoife@example.com");
       await cookie(state, whose);
-      const signedOut = !(await staffIdentity()).ok;
-      expect(signedOut, `${mode} ${state}`).toBe(true);
-      sent = { ...sent, "x-cw-path": "/leads?status=new" };
-      expect(await sentTo(pageGate(signedOut)), `${mode} ${state}`).toMatch(/^NEXT_REDIRECT;replace;\/sign-in\?next=%2Fleads%3Fstatus%3Dnew;307;/);
+      expect((await staffIdentity()).ok, `${mode} ${state}`).toBe(false);
+      sent = { ...sent, "x-cw-path": "/leads?status=new" }; // a page load or a client-side navigation: the proxy set the path
+      expect(await sentTo(dealerAccess()), `${mode} ${state}`).toMatch(/^NEXT_REDIRECT;replace;\/sign-in\?next=%2Fleads%3Fstatus%3Dnew;307;/);
+      expect(await sentTo(currentDealer()), `${mode} ${state}`).toMatch(/^NEXT_REDIRECT;replace;\/sign-in\?/); // a store asking first
       sent = { ...sent, "x-cw-path": "" }; // a POST (a server action): the proxy leaves the path empty
-      expect(await pageGate(signedOut)).toBe("frame");
+      expect(await dealerAccess()).toEqual({ state: "signed-out" });
       await expect(requireStaff()).rejects.toThrow(/NEXT_HTTP_ERROR_FALLBACK;404/);
+      const { "x-cw-path": _, ...outside } = sent; // a page outside the proxy (the sign-in pages): no path, so no loop
+      sent = outside;
+      expect(await dealerAccess()).toEqual({ state: "signed-out" });
     }
   });
 
-  it("a page outside the proxy (the sign-in pages, no path header) is drawn bare, never redirected, so there is no loop", async () => {
-    vi.stubEnv("SIGN_IN", "own");
-    expect(await pageGate(true)).toBe("bare");
-    await cookie("good");
-    expect(await pageGate(false)).toBe("bare");
-    sent = { "x-cw-path": "/" };
-    expect(await pageGate(false)).toBe("frame");
+  it("the root layout draws a page outside the proxy bare, in every mode, so its own notFound() answers 404", async () => {
+    for (const mode of ["", "both", "own"]) {
+      vi.stubEnv("SIGN_IN", mode);
+      sent = {};
+      expect(await pageGate()).toBe("bare");
+      sent = { "x-cw-path": "/" };
+      expect(await pageGate()).toBe("frame");
+      sent = { "x-cw-path": "" };
+      expect(await pageGate()).toBe("frame");
+    }
   });
 
   it("builds next only through the one rule", async () => {

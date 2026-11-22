@@ -10,7 +10,7 @@ vi.mock("next/headers", () => ({
   headers: async () => ({ get: (n: string) => (n === "x-admin-email" ? (email ?? null) : null) }),
 }));
 // The verified Access email (src/lib/staff.ts verifies the token; here the test says who it is).
-vi.mock("@/lib/staff", () => ({ staffIdentity: async () => (email === undefined ? { ok: false } : { ok: true, email: email.toLowerCase() }) }));
+vi.mock("@/lib/staff", () => ({ staffIdentity: async () => (email === undefined ? { ok: false } : { ok: true, email: email.toLowerCase() }), toSignIn: async () => {} }));
 vi.mock("@/lib/tenancy/membership", () => vi.importActual("@/lib/tenancy/membership")); // the real directory check, not the setup's stand-in
 const { can, currentMember, realCan } = await import("./permissions");
 const { settingsStore } = await import("@/lib/admin/collections");
