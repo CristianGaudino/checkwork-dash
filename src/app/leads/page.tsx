@@ -11,6 +11,7 @@ import { SALES_LEAD_TYPES, countByStatus, filterLeads, followUpDue, forPerson, i
 import { TOPICS, leadTags } from "@/lib/leads/contact-topics";
 import { LeadKind, LeadTags, leadChips } from "@/components/admin/LeadKind";
 import { enabledModules } from "@/lib/modules";
+import { readLead } from "@/lib/leads/lead-text";
 import { BrandIcon } from "@/components/admin/BrandIcon";
 
 export const metadata = { title: "Leads" };
@@ -52,8 +53,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
       key: "who",
       header: "Who",
       sort: (l) => l.name,
-      // The name is the row's title, and the form's first answer as a chip. On a phone, where the About column is hidden, what it is about
-      // is here too: the kind, where it came from and the car.
+      // The name is the row's title. On a phone, where the About column is hidden, what it is about is here too: the kind, where it came
+      // from, the car and the form's answers as tags.
       cell: (l) => (
         <span className="flex min-w-0 flex-col gap-1">
           <Link href={`/leads/${l.id}`} className="font-bold text-text [overflow-wrap:anywhere] after:absolute after:inset-0">
@@ -61,26 +62,29 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
           </Link>
           <KindSource l={l} className="sm:hidden" />
           {l.carTitle && <span className="truncate text-meta font-medium text-text sm:hidden">{l.carTitle}</span>}
-          {/* No width of its own (w-0), so a long answer is cut short rather than widen the column. */}
-          <span className="w-0 min-w-full">
-            <LeadTags tags={leadChips(l.type, l.topic, l.answers).slice(0, 1)} />
+          <span className="sm:hidden">
+            <LeadTags tags={leadChips(l.type, l.topic, l.answers)} />
           </span>
         </span>
       ),
       className: "max-w-[11rem] sm:max-w-[14rem]",
     },
-    // What kind of request and where it came from, then the car in full, else the first words of their message, quoted and muted so the
-    // two never read alike.
+    // What kind of request and where it came from, the form's answers as tags in full, then the car, else the first words of their
+    // message, quoted and muted so the two never read alike.
     {
       key: "about",
       header: "About",
       sort: (l) => l.carTitle,
-      cell: (l) => (
-        <span className="flex min-w-0 flex-col gap-1">
-          <KindSource l={l} />
-          <span title={l.carTitle ?? l.message} className="line-clamp-2">{l.carTitle ? <span className="font-medium">{l.carTitle}</span> : l.message.trim() ? <span className="text-text-2">&ldquo;{l.message.split("\n")[0]}&rdquo;</span> : null}</span>
-        </span>
-      ),
+      cell: (l) => {
+        const { text } = readLead(l); // their words only, never the form's answers run together (#59)
+        return (
+          <span className="flex min-w-0 flex-col gap-1">
+            <KindSource l={l} />
+            <LeadTags tags={leadChips(l.type, l.topic, l.answers)} />
+            <span title={l.carTitle ?? text} className="line-clamp-2">{l.carTitle ? <span className="font-medium">{l.carTitle}</span> : text ? <span className="text-text-2">&ldquo;{text.split("\n")[0]}&rdquo;</span> : null}</span>
+          </span>
+        );
+      },
       className: "max-w-[20rem]",
       hide: "sm",
     },
@@ -107,14 +111,14 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
             </span>
           )}
           {l.status === "closed" && l.closedReason && <span className="text-meta text-text-2">{l.closedReason}</span>}
-          {/* On a phone the Received column is hidden; when it came in sits here, under its status. */}
-          <span className={`text-meta sm:hidden ${l.status === "new" ? "font-medium text-text" : "text-text-2"}`}>{fmtAgo(l.createdAt)}</span>
+          {/* Below 2xl the Received column is hidden, so About has room; when it came in sits here, under its status. */}
+          <span className={`text-meta 2xl:hidden ${l.status === "new" ? "font-medium text-text" : "text-text-2"}`}>{fmtAgo(l.createdAt)}</span>
         </span>
         );
       },
     },
     { key: "owner", header: "Who has it", hide: "2xl", nowrap: true, sort: (l) => l.assignedTo, cell: (l) => (l.assignedTo ? <span className="inline-flex items-center gap-2"><Avatar name={l.assignedTo} />{l.assignedTo.split(" ")[0]}</span> : <span className="text-text-2">Nobody</span>) },
-    { key: "when", header: "Received", sort: (l) => l.createdAt, cell: (l) => <span className={l.status === "new" ? "font-medium" : "text-text-2"}>{fmtAgo(l.createdAt)}</span>, align: "right", nowrap: true, hide: "sm" }, // on a phone it is in the Who column
+    { key: "when", header: "Received", sort: (l) => l.createdAt, cell: (l) => <span className={l.status === "new" ? "font-medium" : "text-text-2"}>{fmtAgo(l.createdAt)}</span>, align: "right", nowrap: true, hide: "2xl" }, // below 2xl it is in the Status column
     // The two things done most from the list: reach them the way they asked, and move it on a step. Above the row's link.
     // Two fixed slots, so the buttons line up from row to row whichever are there.
     { key: "act", header: "Next step", quietHeader: true, hide: "lg", nowrap: true, cell: (l) => <span className="relative z-10 grid grid-cols-[7.5rem_12.5rem] gap-2"><span>{isOpenLead(l) && <ReachButton lead={l} />}</span><span>{l.status === "spam" ? <SpamButton lead={l} to="no" /> : <NextStatusButton lead={l} />}</span></span> },
@@ -228,9 +232,10 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
           )}
         </Panel>
       )}
+      {/* Closed and Spam only when they hold a lead (or are open), as Stock does with Hidden and Drafts: an empty one is noise. */}
       <SummaryTabs
         label="Lead status"
-        items={[{ label: "All", href: href({ status: undefined }), active: !f.status, count: all.length - counts.spam }, ...LEAD_STATUSES.map((s) => ({ label: LEAD_STATUS_LABELS[s], hint: STATUS_HINTS[s], href: href({ status: s }), active: f.status === s, count: counts[s] }))]}
+        items={[{ label: "All", href: href({ status: undefined }), active: !f.status, count: all.length - counts.spam }, ...LEAD_STATUSES.filter((s) => !["closed", "spam"].includes(s) || counts[s] > 0 || f.status === s).map((s) => ({ label: LEAD_STATUS_LABELS[s], hint: STATUS_HINTS[s], href: href({ status: s }), active: f.status === s, count: counts[s] }))]}
       />
       <TableToolbar search={{ placeholder: "Search", label: "Search leads" }} filters={filters} />
       <DataTable label="Leads" linkRows rows={rows} rowKey={(l) => l.id} columns={columns} sort={sp.sort ? sort : { key: "", dir: "desc" }} empty={<EmptyState title="No leads match" text="Try another filter or search." />} />

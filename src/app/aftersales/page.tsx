@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { readLead } from "@/lib/leads/lead-text";
 import { ClaimStatusBadge, CoverBadge } from "@/components/admin/badges";
 import { DataTable, EmptyState, PageHeader, SummaryTabs, TableFooter, TableToolbar, adminButton, pageOf, rowButtonStrong, sortRows, type Column } from "@/components/admin/kit";
 import { ChoiceAct } from "@/components/admin/ActButton";
@@ -103,7 +104,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
               ),
               className: "max-w-[12rem] sm:max-w-[20rem]",
             },
-            { key: "message", header: "Message", hide: "md", cell: (l) => <span title={l.message} className="line-clamp-1 max-w-[28rem] text-text-2">{l.message}</span> },
+            { key: "message", header: "Message", hide: "md", cell: (l) => <span title={readLead(l).text} className="line-clamp-1 max-w-[28rem] text-text-2">{readLead(l).text}</span> },
             { key: "received", header: "Received", hide: "sm", nowrap: true, cell: (l) => fmtAgo(l.createdAt) },
             // The next step on a request is always the same: make it a claim, with their message as the fault.
             {

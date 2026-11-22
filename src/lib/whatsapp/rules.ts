@@ -111,7 +111,7 @@ export const firstName = (name: string, fallback = "there") => {
 };
 
 // What an alert says, from the facts of the event. Short, as a message on a phone is.
-export type Facts = { first?: string; car?: string; reg?: string; text?: string; sell?: boolean; warranty?: boolean; eur?: number; stars?: number; author?: string; days?: number; dropEur?: number; leads?: number; drives?: number; sales?: number };
+export type Facts = { first?: string; car?: string; reg?: string; text?: string; when?: string; sell?: boolean; warranty?: boolean; eur?: number; stars?: number; author?: string; days?: number; dropEur?: number; leads?: number; drives?: number; sales?: number };
 const quoted = (t?: string) => (t ? `
 "${t.length > 140 ? t.slice(0, 137) + "..." : t}"` : "");
 export function alertText(event: EventId, f: Facts): string {
@@ -123,7 +123,7 @@ export function alertText(event: EventId, f: Facts): string {
       return `${f.first ?? "A buyer"} ${f.sell ? "wants to sell their car" : `wants a price for a trade-in${f.car ? ` against the ${f.car}` : ""}`}.${f.reg ? `
 Reg ${f.reg}.` : ""}${quoted(f.text)}`;
     case "test-drive":
-      return `${f.first ?? "A buyer"} wants a test drive${f.car ? ` in the ${f.car}` : ""}.${quoted(f.text)}`;
+      return `${f.first ?? "A buyer"} wants a test drive${f.car ? ` in the ${f.car}` : ""}${f.when ? `, ${f.when}` : ""}.${quoted(f.text)}`;
     case "service":
       return `${f.first ?? "A customer"} sent a ${f.warranty ? "warranty request" : "service booking"}.${quoted(f.text)}`;
     case "finance":

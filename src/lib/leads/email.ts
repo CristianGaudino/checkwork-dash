@@ -1,18 +1,8 @@
-import { fmtEur, carHref, priceLabel } from "@/lib/stock/format";
+import { carHref, priceLabel } from "@/lib/stock/format";
 import type { LeadRow } from "./store";
-import { EMPLOYMENT } from "./constants";
+import { show } from "./lead-text";
 import { DETAIL_LABELS, TYPE_LABELS } from "./schema";
-import { readable, topicSubject, type Answers } from "./contact-topics";
-
-// The form stores keys and raw numbers; the dealer reads words and formatted figures.
-function show(key: string, value: unknown): string {
-  const v = String(value);
-  if (key === "employment") return EMPLOYMENT[v as keyof typeof EMPLOYMENT] ?? v;
-  if (key === "intent") return v === "sell" ? "Sell the car" : "Trade it in";
-  if (key === "mileage") return `${Number(v).toLocaleString("en-IE")} km`;
-  if (key === "budgetMax" || key === "deposit") return fmtEur(Number(v));
-  return readable(key, v);
-}
+import { topicSubject, type Answers } from "./contact-topics";
 
 // Text only, no HTML: nothing the buyer typed can inject markup. The subject is built from server values only (D-02).
 // `siteUrl`: the dealer's website (their profile), for the car page and the page the form was sent from.

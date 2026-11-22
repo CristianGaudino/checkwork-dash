@@ -1,4 +1,5 @@
 import { PageHeader, Panel } from "@/components/admin/kit";
+import { readLead } from "@/lib/leads/lead-text";
 import { OpenClaimForm } from "@/components/admin/ClaimForms";
 import { coverEnds, customersStore, leadsStore, salesStore } from "@/lib/admin/collections";
 import { dublinDay, fmtDate } from "@/lib/admin/format";
@@ -23,7 +24,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
       <PageHeader title="Open a claim" text="Pick the car they bought and say what is wrong. The cover is checked for you." back={{ href: "/aftersales", label: "Warranty claims" }} />
       <Panel>
         {lead && !theirs && <p className="max-w-measure text-body text-warn">No purchase on file matches {lead.name}&apos;s email or phone. Choose the sale.</p>}
-        <OpenClaimForm sales={sold.map((s) => ({ id: s.id, label: label(s) }))} today={today} defaults={{ saleId: sp.sale ?? theirs?.id, fault: lead?.message, leadId: lead?.id }} />
+        <OpenClaimForm sales={sold.map((s) => ({ id: s.id, label: label(s) }))} today={today} defaults={{ saleId: sp.sale ?? theirs?.id, fault: lead && readLead(lead).text, leadId: lead?.id }} />
       </Panel>
     </>
   );

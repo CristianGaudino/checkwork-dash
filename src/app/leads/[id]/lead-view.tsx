@@ -34,6 +34,7 @@ import { ContactButtons } from "@/components/admin/ContactButtons";
 import { LeadKind, LeadTags, leadChips } from "@/components/admin/LeadKind";
 import { SubmitButton } from "@/components/admin/SubmitButton";
 import { LeadMenu, SpamButton } from "@/components/admin/LeadActions";
+import { readLead } from "@/lib/leads/lead-text";
 
 // The quick actions on a lead: the steps it moves through (leadStatusSteps), each with its icon.
 const STATUS_ICONS: Record<LeadStatus, typeof PhoneIcon> = { new: PhoneIcon, contacted: PhoneIcon, appointment: CalendarIcon, won: CheckIcon, lost: CloseIcon, closed: CloseIcon, spam: CloseIcon };
@@ -60,6 +61,7 @@ export async function LeadView({ id }: { id: string }) {
   // The one filled button: the request's own job when it can be done here, else answering them the way they got in touch.
   const modules = await enabledModules();
   const main = leadMain(lead.type, { drive: !drive && isOpenLead(lead) && modules.has("testDrives"), order: modules.has("newCars") && (await stockSource()) !== "donedeal", claim: modules.has("service") });
+  const { text, facts } = readLead(lead);
   const followUpBack: Record<string, string> | undefined = !lead.followUpOn ? { clear: "1" } : lead.followUpOn >= today ? { on: lead.followUpOn } : undefined;
 
   return (
@@ -99,7 +101,18 @@ export async function LeadView({ id }: { id: string }) {
             {/* A guided contact form's taps say what they want, often with no words typed: the same tags as the list. */}
             <LeadTags tags={leadChips(lead.type, lead.topic, lead.answers)} />
             {/* Their own words, set apart as a quote so they read as the customer's, not the dashboard's. */}
-            {lead.message && <blockquote className="max-w-measure whitespace-pre-line rounded-control border-l-4 border-accent bg-row-alt px-4 py-3 text-body">{lead.message}</blockquote>}
+            {text && <blockquote className="max-w-measure whitespace-pre-line rounded-control border-l-4 border-accent bg-row-alt px-4 py-3 text-body">{text}</blockquote>}
+            {/* The form's other answers, one to a line (#59): never run together into the message. */}
+            {Object.keys(facts).length > 0 && (
+              <dl aria-label="Their answers" className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-body">
+                {Object.entries(facts).map(([label, value]) => (
+                  <div key={label} className="contents">
+                    <dt className="text-text-2">{label}</dt>
+                    <dd className="[overflow-wrap:anywhere]">{value}</dd>
+                  </div>
+                ))}
+              </dl>
+            )}
             {carSold && (
               <p className="rounded-control bg-warn-soft px-4 py-3 text-body text-warn">
                 This car has sold. Offer them something similar

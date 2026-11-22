@@ -29,7 +29,7 @@ test("an owner exports the filtered leads as a CSV, and a manager's stock export
   expect(file.suggestedFilename()).toMatch(/^leads-\d{4}-\d{2}-\d{2}\.csv$/);
   const csv = readFileSync((await file.path())!, "utf8").replace(/^﻿/, "");
   const [head, ...rows] = csv.trim().split("\r\n");
-  expect(head).toBe("Received,Name,Email,Phone,Type,Source,Status,Car,Registration,Message,With,Follow up");
+  expect(head).toBe("Received,Name,Email,Phone,Type,Source,Status,Car,Registration,Message,Details,With,Follow up");
   expect(rows.length).toBeGreaterThan(0);
   expect(rows.every((r) => r.includes(",New,"))).toBe(true);
   await as(context, "Manager");

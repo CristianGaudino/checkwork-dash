@@ -1,6 +1,6 @@
 import "server-only";
-import { DETAIL_LABELS } from "@/lib/leads/schema";
-import { ANSWER_KEYS, readable } from "@/lib/leads/contact-topics";
+import { ANSWER_KEYS } from "@/lib/leads/contact-topics";
+import { detailsOf } from "@/lib/leads/lead-text";
 import type { LeadRow } from "@/lib/leads/store";
 import type { Journey } from "@/lib/leads/journey";
 import { clashes } from "./drives";
@@ -22,15 +22,12 @@ const LEAD_TYPE: Record<Exclude<LeadRow["type"], "alert">, LeadType> = { enquiry
 const pageType = (path: string, topic: string | number | undefined, service: boolean): LeadType =>
   !service ? "general" : path.startsWith("/warranty") || topic === "bought" ? "warranty" : path.startsWith("/service") || topic === "service" ? "service" : "general";
 
-// The answers they gave (a make and model, a trade-in's reg), then their own words: both, so a find-a-car or a factory order keeps the car.
-// A factory order reads as the car it is ("Hyundai Tucson, 1.6 Hybrid, 271 reg"), not as a list of form fields.
-function messageOf(row: LeadRow): string {
+// Their own words only (#59): the other answers are kept as the lead's details (detailsOf). A factory order reads as the car it is
+// ("Hyundai Tucson, 1.6 Hybrid, 271 reg"), then their words, so the order and the leads list keep the car.
+export function messageOf(row: LeadRow): string {
   const d = row.details;
-  const given =
-    row.type === "order"
-      ? [[d.make, d.model].filter(Boolean).join(" "), d.spec, d.regPeriod && `${d.regPeriod} reg`].filter(Boolean).map(String)
-      : Object.entries(DETAIL_LABELS).filter(([k]) => d[k] !== undefined).map(([k, label]) => `${label}: ${readable(k, String(d[k]))}`);
-  return [given.join(row.type === "order" ? ", " : ". "), row.message].filter(Boolean).join("\n\n");
+  const car = row.type === "order" ? [[d.make, d.model].filter(Boolean).join(" "), d.spec, d.regPeriod && `${d.regPeriod} reg`].filter(Boolean).join(", ") : "";
+  return [car, row.message].filter(Boolean).join("\n\n");
 }
 
 async function customerId(row: LeadRow): Promise<string> {
@@ -69,7 +66,8 @@ export function mirrorOf(row: LeadRow, emailed = true, service = true, photos = 
     name: row.name,
     email: row.email ?? "",
     phone: row.phone ?? "",
-    message: row.type === "test_drive" ? `Test drive on ${row.details.driveDate} at ${row.details.driveTime}.${row.message ? " " + row.message : ""}` : messageOf(row),
+    message: messageOf(row),
+    details: detailsOf(row.type, row.details), // always, even empty: it marks a lead whose message is only their words (readLead)
     source: "Website",
     carSlug: row.carSlug ?? undefined,
     carTitle: row.carTitle ?? undefined,

@@ -6,6 +6,7 @@ import { dublinDateTime, dublinDay } from "@/lib/admin/format";
 import { filterLeads, onLeadsList, parseLeadFilter } from "@/lib/admin/leads";
 import { can, DEMO_ROLE_REFUSED, realCan } from "@/lib/permissions";
 import { hasModule } from "@/lib/modules";
+import { readLead } from "@/lib/leads/lead-text";
 
 // The leads list as a CSV, with the list's filters. Personal data: owners and managers only, and each export is in the activity history.
 export async function GET(req: Request) {
@@ -28,7 +29,8 @@ export async function GET(req: Request) {
       ["Status", (l) => LEAD_STATUS_LABELS[l.status]],
       ["Car", (l) => l.carTitle],
       ["Registration", (l) => l.reg],
-      ["Message", (l) => l.message],
+      ["Message", (l) => readLead(l).text],
+      ["Details", (l) => Object.entries(readLead(l).facts).map(([k, v]) => `${k}: ${v}`).join("\n")], // one answer to a line in the cell
       ["With", (l) => l.assignedTo],
       ["Follow up", (l) => l.followUpOn],
     ]),
