@@ -272,7 +272,8 @@ It can be done with WebCrypto (in Workers) and a small reader in our code, as We
 
 About 340 lines plus tests. WebCrypto does the cryptography (Ed25519, ECDSA P-256 with SHA-256, RSASSA-PKCS1-v1_5 with SHA-256); we only
 parse and compare. Importing an Ed25519 key as a JWK (`kty: "OKP"`, `crv: "Ed25519"`) is not yet confirmed in workerd: build step 2 checks
-the import and one verify in `wrangler dev`, and drops -8 from `pubKeyCredParams` if it fails.
+the import and one verify in `wrangler dev`. If the JWK import fails it tries `importKey("raw", x, { name: "Ed25519" }, ...)` first (the
+COSE `x` is already the raw 32-byte key), and drops -8 from `pubKeyCredParams` only if both fail.
 
 The library people use is `@simplewebauthn/server` (14.1.0): 870 kB unpacked and ten dependencies (`@peculiar/x509`, five `@peculiar/asn1-*`
 packages, `@hexagon/base64`, `@levischuck/tiny-cbor`, `reflect-metadata`). Nearly all of that is for attestation formats and certificate
@@ -344,6 +345,8 @@ One email carries both. The code is for the device that asked; the link is for w
   carries the fragment over to its new address, so `/sign-in/link` must never redirect. That includes the rule that sends a signed-in
   person on to `next` (section 4): it does not apply here, or `#t` would land on a dashboard page whose CSP allows the beacon. A
   signed-in person sees the same page, and using the link replaces their session.
+- **No `#t` on the page** (the fragment was lost, for example through Access's PIN form in `both` mode): the page says "Open the link from
+  your email again", not "expired". Opening a link only to look never uses it up, so the same link still works.
 - **In `both` mode** (section 7) Access is still in front. Someone opening the link in a browser with no Access session is redirected to
   Cloudflare Access's login page and back, and the fragment travels with both redirects. It is never sent to a server, but it is in the
   address of Access's own page while it is open. We accept that for the weeks of `both`: Access is Cloudflare's, which we already trust
@@ -428,12 +431,14 @@ staff address.
   goes to `/sign-in?next=<path>`. A POST with no cookie (a server action) gets a 404, never a redirect. The proxy also passes the page's
   path and query to the server in a request header (`x-cw-path`), set with `headers.set` so it overwrites any copy the client sent,
   never appends to it, so layouts can build `next`.
-- **`/sign-in/*` and `/sign-out` are outside the proxy matcher**, as `api/` is today, so the 404 above never meets the signed-out sign-in
+- **`/sign-in`, everything under it, and `/sign-out` are outside the proxy matcher** (`/sign-in` itself too, or a signed-out visit would
+  redirect to `/sign-in?next=...` over and over), as `api/` is today, so the 404 above never meets the signed-out sign-in
   actions. They check the mode themselves: in `access` they answer 404, in `both` they verify the Access token as the proxy does, in
   `own` they are open.
 - **`next`** is one rule, in one function, used everywhere: it must start with a single `/` (not `//`), contain no `\`, and its path must
   match the app's path regex (letters, digits, `-`, `_`, `/` and `.`); the query is parsed and written out again with `URLSearchParams`;
-  anything else becomes `/`. The same rule serves the notification links and `safeFrom`.
+  anything else becomes `/`. The notification links use the same rule. `safeFrom` (help requests' `from`) shares the path check but keeps
+  stripping the query, so a help request never stores a query string such as a lead's id.
 - **A cookie that is there but dead** (ended, idle, past 7 days) passes the proxy. Layouts and pages then `redirect('/sign-in?next=...')`
   in place of today's 404.
 - **A server action with no live session** answers 404 (`notFound()`, as today), never a redirect: the caller is script, not a person on a
@@ -497,8 +502,8 @@ hours from the rows; if any of them says locked or off, the match is refused as 
 never signs in.
 
 **Spending someone's emails.** Anyone can use up a person's 10 emails a day by asking for codes for their address. That denies them email
-sign-in for the rest of the day, except the last link they were sent, which an over-limit request does not end. Their passkey still
-works. Open question 2 is the lasting answer.
+sign-in for the rest of the day, except the last link they were sent, which an over-limit request does not end, and only for that link's
+15 minutes: after that they have no working email sign-in until the next day. Their passkey still works. Open question 2 is the lasting answer.
 
 **Guessing a code.** The 6-digit code has a million values.
 - Per day: at most 15 wrong tries per email, whichever code they were made on, so about 1 in 67,000 a day.
