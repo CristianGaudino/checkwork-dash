@@ -130,7 +130,7 @@ export function MoveDriveForm({ id, carSlug, slots }: { id: string; carSlug: str
   return (
     <form {...action} noValidate className="flex flex-col gap-4">
       <SlotPicker days={slots.days} taken={slots.taken[carSlug] ?? []} windowMin={slots.windowMin} now={slots.now} date={when.date} time={when.time} onChange={(date, time) => setWhen({ date, time })} errors={state?.errors} />
-      <button type="submit" disabled={pending || !when.time} className={`${adminButton} self-start disabled:opacity-50`}>
+      <button type="submit" disabled={pending || !when.time} className={`${when.time ? adminButton : adminButtonQuiet} self-start disabled:opacity-50`}>
         {pending ? "Moving" : "Move"}
       </button>
     </form>

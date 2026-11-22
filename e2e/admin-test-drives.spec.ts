@@ -8,6 +8,11 @@ test("a request is confirmed from the list, and Undo puts it back", async ({ pag
   const waiting = page.getByRole("region", { name: /^Still to confirm/ });
   const first = waiting.getByRole("listitem").first();
   const who = (await first.locator("[data-name]").textContent())!.trim();
+  // Cancel is not beside Confirm in a row: it is under More.
+  await expect(first.getByRole("button", { name: `Cancel: ${who}` })).toHaveCount(0);
+  await first.getByRole("button", { name: `More for ${who}` }).click();
+  await expect(page.getByRole("button", { name: `Cancel: ${who}` })).toBeVisible();
+  await page.keyboard.press("Escape");
   await first.getByRole("button", { name: "Confirm" }).click();
   await expect(page.getByText(`${who}: Confirmed`)).toBeVisible();
   await expect(waiting.getByText(who, { exact: true })).toHaveCount(0);
