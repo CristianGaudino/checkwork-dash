@@ -71,6 +71,14 @@ export function CarForm({ car, at, cost, reg: startReg = "", photosMax }: { car?
   useEffect(() => {
     if (changed && document.activeElement instanceof HTMLElement && form.current?.contains(document.activeElement)) document.activeElement.scrollIntoView({ block: "nearest" });
   }, [changed]);
+  // After every refused save, a fold holding a box with a message opens, so the message is never folded away. Set on the element, not as
+  // React's `open` prop: a prop left unchanged between saves would not reopen a fold the dealer closed, and one cleared would close it.
+  useEffect(() => {
+    for (const group of new Set(CAR_FIELDS.filter((f) => state?.errors?.[f.name]).map((f) => f.group))) {
+      const fold = form.current?.querySelector<HTMLDetailsElement>(`#${GROUP_IDS[group]} > details`);
+      if (fold) fold.open = true;
+    }
+  }, [state]);
   useLeaveGuard(form); // a menu tap would throw the edits away
   const value = (name: string): string => {
     if (found[name] !== undefined) return found[name];
@@ -141,8 +149,7 @@ export function CarForm({ car, at, cost, reg: startReg = "", photosMax }: { car?
           // Each part has an id, so the car page's links (Price, Details, Description) go straight to it.
           <div key={group} id={GROUP_IDS[group]} className={`scroll-mt-24 ${group === "Battery and charging" && !PLUG_FUELS.includes(fuel as Fuel) ? "hidden" : ""}`}>
             {folded(group, Boolean(car)) ? (
-              // Opens by itself when a box in it comes back with a message, so the message is never folded away.
-              <details open={CAR_FIELDS.some((f) => f.group === group && errors[f.name]) || undefined} className={`${card} group/fold p-5`}>
+              <details className={`${card} group/fold p-5`}>
                 <summary className="-my-2 flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
                   <h2 className="text-section font-semibold">{title}</h2>
                   <ChevronDownIcon aria-hidden="true" className="size-5 shrink-0 text-text-2 transition-transform group-open/fold:rotate-180" />

@@ -273,5 +273,16 @@ test.describe("on a phone", () => {
     await expect(save).not.toBeInViewport();
     await page.getByLabel("Earlier price (€)").fill("1");
     await expect(save).toBeInViewport();
+
+    // A message in a fold always shows: a bad mileage opens Details on Save, and again on the next Save after Details is closed.
+    const details = page.locator("#details");
+    await details.getByText("Details", { exact: true }).click();
+    await page.getByLabel("Mileage (km)").fill("-5");
+    await save.click();
+    await expect(details.getByRole("alert")).toBeVisible();
+    await details.getByText("Details", { exact: true }).click();
+    await expect(details.getByRole("alert")).toBeHidden();
+    await save.click();
+    await expect(details.getByRole("alert")).toBeVisible();
   });
 });
