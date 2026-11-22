@@ -91,16 +91,16 @@ monthly report show their website's figures. Same key, auth, 64 KB cap and rate 
 - Names are only the buyer's events, from a fixed list (`BUYER_EVENTS` in `src/lib/owner-api/counter-rules.ts`, the same list the website
   records): `saved`, `compare`, `finance`, `units`, `no-results`, `contact-topic`, `filter:make|model|body|fuel|price|year|km|gearbox`, and
   the visit events `visit:<channel>`, `band:<price band>`, `missed:<make slug or other>` (`VISIT_EVENTS` in `src/lib/visit-rules.ts`). Any
-  other name, the dashboard's own `dash:` ones included, is refused. At most 200 names, each a whole number from 0 to 1,000,000. No visitor
+  other name, the dashboard's own `dash:` ones included, is dropped and the rest of the day is stored. At most 200 names, each a whole number from 0 to 1,000,000. No visitor
   id, IP or anything else is accepted.
 - **It replaces that day's website counts for the dealer**, so the website can send a day again as its numbers grow. A name left out of a
   resend is cleared, and a 0 stores nothing. Other days and the dashboard's own counts are untouched.
-- Kept in the dealer's store, in the `feature-counts` records that `countsBetween` reads (one per day per name, purged after 13 months).
+- Kept in the dealer's store, in the `feature-counts` records that `countsBetween` reads (one per day per name, purged after 13 months). A website key can write or wipe the last 35 days of counts, so a stolen key can too; revoking the key stops it.
 
 | Status | When | Body |
 |---|---|---|
 | 204 | Stored (or replaced) | none |
-| 400 | Not JSON, not the contract, a bad day, a name off the list or a count out of range. Nothing is stored and no detail is given | none |
+| 400 | Not JSON, not the contract, a bad day or a count out of range (a name off the list is dropped, not refused). Nothing is stored and no detail is given | none |
 | 401, 413, 429, 500 | As for leads | none |
 
 ## `GET /api/site/v1/stock`

@@ -159,7 +159,8 @@ test("a day's visitor counts sent with the website's key are accepted and replac
   const day = new Date().toLocaleDateString("en-CA", { timeZone: "Europe/Dublin" });
   const post = (data: object, key?: string) => request.post("/api/site/v1/counts", { headers: auth(key), data });
   expect((await post({ day, counts: { "no-results": 4 } }, "cw_site_nope")).status()).toBe(401);
-  expect((await post({ day, counts: { "dash:leads": 4 } })).status()).toBe(400);
+  expect((await post({ day, counts: { "no-results": "x" } })).status()).toBe(400);
+  expect((await post({ day: "2026-13-45", counts: {} })).status()).toBe(400);
   expect((await post({ day, counts: { "no-results": 4 } })).status()).toBe(204);
-  expect((await post({ day, counts: { "no-results": 6 } })).status()).toBe(204); // replaces, so 6 and not 10
+  expect((await post({ day, counts: { "no-results": 6 } })).status()).toBe(204);
 });

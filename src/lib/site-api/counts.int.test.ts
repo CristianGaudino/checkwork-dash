@@ -56,10 +56,12 @@ describe("POST /api/site/v1/counts", () => {
     expect((await seen(A, other)).features).toEqual({ saved: 9 });
   });
 
-  it("takes only names on the allow-list, and a bad one stores nothing", async () => {
+  it("drops a name off the allow-list and stores the rest of the day, and never writes a dash: name", async () => {
     const day = addDays(today, -4);
-    for (const counts of [{ saved: 1, "dash:leads": 1 }, { nope: 1 }, { "visit:made-up": 1 }]) expect((await send(keyA, { day, counts })).status).toBe(400);
-    expect((await seen(A, day)).features).toEqual({});
+    expect((await send(keyA, { day, counts: { saved: 1, "dash:leads": 1, nope: 1, "visit:made-up": 1 } })).status).toBe(204);
+    const got = await seen(A, day);
+    expect(got.features).toEqual({ saved: 1 });
+    expect(got.dashboard).toEqual({});
   });
 
   it("caps the numbers and the keys", async () => {
@@ -71,7 +73,7 @@ describe("POST /api/site/v1/counts", () => {
   });
 
   it("takes a day from the last 35 days to today, in Irish time", async () => {
-    for (const day of [addDays(today, 1), addDays(today, -36), "2026-02-30", "26-1-1", "not a day"]) expect((await send(keyA, { day, counts: {} })).status).toBe(400);
+    for (const day of [addDays(today, 1), addDays(today, -36), "2026-02-30", "2026-13-45", "26-1-1", "not a day"]) expect((await send(keyA, { day, counts: {} })).status).toBe(400);
     for (const day of [today, addDays(today, -35)]) expect((await send(keyA, { day, counts: { saved: 1 } })).status).toBe(204);
   });
 

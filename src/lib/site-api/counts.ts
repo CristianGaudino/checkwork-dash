@@ -1,6 +1,6 @@
 import "server-only";
 import { z } from "zod";
-import { dublinDay, addDays } from "@/lib/admin/format";
+import { dublinDay, addDays, isIsoDay } from "@/lib/admin/format";
 import { countStore } from "@/lib/owner-api/counters";
 import { BUYER_EVENTS, countId } from "@/lib/owner-api/counter-rules";
 import type { Answer } from "./request";
@@ -27,11 +27,15 @@ export async function receiveCounts(text: string, now = Date.now()): Promise<Ans
   const { day, counts } = sent.data;
   const today = dublinDay(now);
   // A real calendar day (2026-02-30 is not), Irish, not in the future and not older than the window.
-  if (addDays(day, 0) !== day || day > today || day < addDays(today, -COUNTS_WINDOW_DAYS)) return INVALID;
-  if (!Object.keys(counts).every((e) => BUYER_EVENTS.includes(e))) return INVALID;
+  if (!isIsoDay(day) || day > today || day < addDays(today, -COUNTS_WINDOW_DAYS)) return INVALID;
 
-  // Replace, not add: the day's website counts are cleared first (the dashboard's own `dash:` ones are not on the list, so they stay).
-  for (const c of await countStore.list()) if (c.day === day && BUYER_EVENTS.includes(c.event)) await countStore.remove(c.id);
-  for (const [event, count] of Object.entries(counts)) if (count > 0) await countStore.put({ id: countId(day, event), day, event, count });
+  // Replace, not add: every allow-listed name of the day is rewritten or cleared. A name off the list is simply not stored (so list drift or an
+  // older sender never loses a day, and a `dash:` name can never land); the dashboard's own `dash:` records are not on the list, so they stay.
+  // shortcut: one query per name (about 100), not one D1 batch, because the record store has no batch; upgrade if the list grows a lot.
+  for (const event of BUYER_EVENTS) {
+    const count = counts[event] ?? 0;
+    if (count > 0) await countStore.put({ id: countId(day, event), day, event, count });
+    else await countStore.remove(countId(day, event));
+  }
   return { status: 204, outcome: "stored" };
 }
