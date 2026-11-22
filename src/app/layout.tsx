@@ -20,7 +20,7 @@ import { stockSource } from "@/lib/stock-source";
 import { enabledModules } from "@/lib/modules";
 import { modulesValue, pathAllowed } from "@/lib/modules-rules";
 import { dealerAccess } from "@/lib/tenancy/membership";
-import { staffIdentity } from "@/lib/staff";
+import { pageGate, staffIdentity } from "@/lib/staff";
 import "./globals.css";
 
 const signedInEmail = async () => {
@@ -58,7 +58,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // Which dealer this is, from the directory (src/lib/tenancy). With none open, the page is the chooser or "No access" and nothing else: no
   // menu, no page. Every store refuses without a dealer too, and every action (requireStaff), so this is not the only lock.
   const access = await dealerAccess();
-  if (access.state !== "ok")
+  // Our sign-in (SIGN_IN both or own): a signed-out page load goes to sign in, and the sign-in pages get no dashboard frame. Under Access
+  // alone (the default) this is always "frame" and changes nothing.
+  const gate = await pageGate(access.state === "signed-out");
+  if (gate === "bare" || access.state !== "ok")
     return (
       <html lang="en-IE" className={`${sora.variable} ${inter.variable}`} suppressHydrationWarning>
         <head>
@@ -66,7 +69,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           {appHead}
         </head>
         <body className="flex min-h-dvh flex-col">
-          <DealerGate choices={access.state === "choose" ? access.choices : undefined} email={access.state === "no-access" ? await signedInEmail() : undefined} />
+          {gate === "bare" ? children : <DealerGate choices={access.state === "choose" ? access.choices : undefined} email={access.state === "no-access" ? await signedInEmail() : undefined} />}
         </body>
       </html>
     );

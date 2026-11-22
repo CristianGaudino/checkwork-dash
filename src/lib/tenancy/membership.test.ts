@@ -7,8 +7,10 @@ vi.mock("@/lib/tenancy/membership", () => vi.importActual("@/lib/tenancy/members
 let email: string | undefined;
 let picked: string | undefined;
 const set = vi.fn();
-vi.mock("@/lib/staff", () => ({ staffIdentity: async () => (email === undefined ? { ok: false } : { ok: true, email }), requireStaff: async () => {} }));
-vi.mock("next/headers", () => ({ cookies: async () => ({ get: (n: string) => (n === "checkwork-dealer" && picked !== undefined ? { value: picked } : undefined), set }), headers: async () => ({ get: () => null }) }));
+vi.mock("@/lib/staff", () => ({ staffIdentity: async () => (email === undefined ? { ok: false } : { ok: true, email }), requireStaff: async () => {}, toSignIn: async () => {} }));
+let pickedBefore: string | undefined; // the dealer cookie's name before it moved to __Host- (sign-in step 3)
+const jarValue = (n: string) => (n === "__Host-cw_dealer" ? picked : n === "checkwork-dealer" ? pickedBefore : undefined);
+vi.mock("next/headers", () => ({ cookies: async () => ({ get: (n: string) => (jarValue(n) !== undefined ? { value: jarValue(n) } : undefined), set }), headers: async () => ({ get: () => null }) }));
 vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
 vi.mock("next/navigation", () => ({
   notFound: () => {
@@ -37,7 +39,7 @@ const ok = async () => {
 
 beforeEach(() => resetMemoryDirectory());
 afterEach(() => {
-  email = picked = undefined;
+  email = picked = pickedBefore = undefined;
   set.mockClear();
   vi.unstubAllEnvs();
 });
@@ -79,11 +81,28 @@ describe("the current dealer for a request", () => {
     expect(await dealerAccess()).toMatchObject({ state: "choose", choices: [{ id: "checkwork-motors" }, { id: "test-motors" }] });
     await expect(currentDealer()).rejects.toThrow("No current dealer");
     await expect(chooseDealerAction(form("test-motors"))).rejects.toThrow("REDIRECT");
-    expect(set).toHaveBeenCalledWith("checkwork-dealer", "test-motors", expect.objectContaining({ httpOnly: true }));
+    expect(set).toHaveBeenCalledWith("__Host-cw_dealer", "test-motors", expect.objectContaining({ httpOnly: true }));
     picked = "test-motors";
     expect(await dealerAccess()).toMatchObject({ state: "ok", dealer: { id: "test-motors" }, role: "Manager" });
     picked = "nobody-motors";
     expect(await ok()).toBe("choose");
+  });
+
+  it("keeps a pick made under the dealer cookie's old name, and the next pick moves it to the __Host- name", async () => {
+    await putMember("test-motors", "conor@example.com", "Manager");
+    email = "conor@example.com";
+    pickedBefore = "test-motors";
+    expect(await ok()).toBe("test-motors"); // nobody is sent back to the chooser by the rename
+    picked = "checkwork-motors";
+    expect(await ok()).toBe("checkwork-motors"); // the new name wins over the old
+    picked = undefined;
+    await expect(chooseDealerAction(form("checkwork-motors"))).rejects.toThrow("REDIRECT");
+    expect(set).toHaveBeenCalledWith("__Host-cw_dealer", "checkwork-motors", { path: "/", maxAge: 31_536_000, sameSite: "lax", httpOnly: true, secure: true });
+    expect(set).toHaveBeenCalledWith("checkwork-dealer", "", expect.objectContaining({ maxAge: 0, path: "/" })); // the old one ends
+    set.mockClear();
+    pickedBefore = undefined;
+    await expect(chooseDealerAction(form("test-motors"))).rejects.toThrow("REDIRECT");
+    expect(set.mock.calls.map((c) => c[0])).toEqual(["__Host-cw_dealer"]); // nothing to end
   });
 
   it("drops a dealer the person was removed from, whatever the cookie says", async () => {
@@ -110,7 +129,7 @@ describe("a push notification's link (/dealers/open)", () => {
     email = "conor@example.com";
     picked = "test-motors";
     await expect(open("checkwork-motors", "/leads/abc?x=1")).rejects.toThrow("REDIRECT:/leads/abc?x=1");
-    expect(set).toHaveBeenCalledWith("checkwork-dealer", "checkwork-motors", { path: "/", maxAge: 31_536_000, sameSite: "lax", httpOnly: true, secure: true });
+    expect(set).toHaveBeenCalledWith("__Host-cw_dealer", "checkwork-motors", { path: "/", maxAge: 31_536_000, sameSite: "lax", httpOnly: true, secure: true });
   });
 
   it("sends someone not at that dealer to the overview and keeps their cookie", async () => {

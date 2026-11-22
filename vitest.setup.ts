@@ -2,7 +2,7 @@ import { vi } from "vitest";
 
 // The dashboard's actions ask src/lib/staff.ts who is there (a verified Access token). Unit tests of those actions are about what the
 // action does, so here everyone is staff; src/lib/staff.test.ts tests the real check.
-vi.mock("@/lib/staff", () => ({ requireStaff: async () => {}, staffIdentity: async () => ({ ok: true, email: "" }) }));
+vi.mock("@/lib/staff", () => ({ requireStaff: async () => {}, staffIdentity: async () => ({ ok: true, email: "" }), toSignIn: async () => {}, signInOpen: async () => false, pageGate: async () => "frame" }));
 
 // And they work on the demo dealer, where the directory makes them an owner, as it does the open app's person (next dev, the E2E run). The
 // screens' role is the demo bar's cookie, which tests pick; src/app/demo-real-role.test.ts gives a lower real role (realCan). Code inside
