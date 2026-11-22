@@ -6,7 +6,8 @@ import { SIGN_IN_FROM_EMAIL } from "@/lib/site";
 // with E2E_FAKE_BACKENDS=1 and no directory bound (the same rule as the in-memory directory, which the Worker never meets) the message is
 // kept in memory, where e2e/sign-in.spec.ts reads it through /sign-in/outbox. Never on a deploy: the Worker has the directory bound.
 export type Mail = { to: string; subject: string; text: string };
-export const outboxOn = () => process.env.E2E_FAKE_BACKENDS === "1" && !getBindings().DIRECTORY;
+// Every Worker deploy has EMAIL bound, so a third guard: never with a mail binding either.
+export const outboxOn = () => process.env.E2E_FAKE_BACKENDS === "1" && !getBindings().DIRECTORY && !getBindings().EMAIL;
 const held = globalThis as { __checkworkOutbox?: Mail[] };
 export const outbox = () => (held.__checkworkOutbox ??= []);
 

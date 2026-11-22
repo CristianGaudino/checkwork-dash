@@ -123,6 +123,17 @@ export function emailCases(store: Store, { s, a, m, sessions, dir }: Lib) {
       expect(await ask(AOIFE, "b1", NOW + 24 * 60 * MIN + 1)).toBe("sent"); // a day later the early ones no longer count
     });
 
+    it("holds the caps under parallel requests: 10 at once send exactly 3 emails and leave one live code and link", async () => {
+      const outcomes = await Promise.all(Array.from({ length: 10 }, (_, i) => ask(AOIFE, `p${i}`)));
+      expect(outcomes.filter((o) => o === "sent")).toHaveLength(3);
+      expect(outcomes.filter((o) => o === "limited")).toHaveLength(7);
+      expect(mails(AOIFE)).toHaveLength(3);
+      const live = (await store.attempts()).filter((r) => r.email === AOIFE && !r.usedAt && r.expiresAt.getTime() > NOW);
+      expect(live.filter((r) => r.kind === "code")).toHaveLength(1);
+      expect(live.filter((r) => r.kind === "link")).toHaveLength(1);
+      expect((await store.attempts()).filter((r) => r.kind === "link")).toHaveLength(3);
+    });
+
     it("ends the earlier code and link at a new email, but an over-limit request ends nothing", async () => {
       await ask(AOIFE, "b1", NOW);
       const first = lastMail(AOIFE);

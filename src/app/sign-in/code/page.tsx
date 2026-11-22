@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Brand } from "../Brand";
 import { card } from "@/components/ui";
 import { safeNext, signInPath } from "@/lib/auth/gate";
 import { signInOpen } from "@/lib/staff";
@@ -15,6 +16,7 @@ export default async function CodePage({ searchParams }: { searchParams: Promise
   return (
     <main className="flex flex-1 flex-col items-center px-4 py-12 sm:py-20">
       <div className={`${card} flex w-full max-w-sm flex-col gap-5 p-6`}>
+        <Brand />
         <div className="flex flex-col gap-2">
           <h1 className="text-display font-bold">Check your email</h1>
           <p className="text-body text-text-2">If that email is on a team, we have sent a code to it. It works for 15 minutes.</p>

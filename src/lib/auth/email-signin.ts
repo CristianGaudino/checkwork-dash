@@ -4,7 +4,7 @@ import { appUrl, TIME_ZONE } from "@/lib/site";
 import { membershipsOf } from "@/lib/tenancy/directory";
 import { logSignIn } from "@/lib/log";
 import { startSession } from "./session";
-import { addAttempt, addFailure, clearFailures, endLive, ensureStaff, linkByHmac, lockCodes, markUsed, sentCounts, spendTry, staffByEmail, wrongTries, type Attempt, type Person } from "./attempts";
+import { addAttempt, addFailure, clearFailures, endAllButNewest, endLive, ensureStaff, linkByHmac, lockCodes, markUsed, reserveLink, spendTry, staffByEmail, wrongTries, type Attempt, type Person } from "./attempts";
 import { sendSignInMail } from "./mail";
 
 // The emailed code and link (docs/sign-in.md, sections 3 and 5). The rows hold only HMACs (key: SIGN_IN_SECRET), never a code or a token.
@@ -61,18 +61,17 @@ export async function sendSignIn({ email, browserHash, next }: { email: string; 
     return "unknown";
   }
   const person = await ensureStaff(email, now);
-  const sent = await sentCounts(email, now, 15 * MIN);
-  if (sent.recent >= EMAILS_PER_15_MIN || sent.day >= EMAILS_PER_DAY) {
-    await addAttempt(base); // nothing sent and nothing ended: the last link they were sent stays valid
+  const token = random();
+  const link: Attempt = { ...base, id: `${id}-link`, kind: "link", email, tokenHmac: await hmac(`link|${token}`) };
+  // The caps are the write: the link row goes in only under them, and only then is anything sent. Over a cap, nothing is sent or ended.
+  if (!(await reserveLink(link, now, 15 * MIN, EMAILS_PER_15_MIN, EMAILS_PER_DAY))) {
+    await addAttempt(base);
     return "limited";
   }
-  await endLive(email, ["code", "link"], now);
-  const token = random();
-  const link: Attempt = { ...base, id: crypto.randomUUID(), kind: "link", email, browserHash: null, tokenHmac: await hmac(`link|${token}`) };
   const off = await codesOff(person, now);
   const code = sixDigits();
   await addAttempt(off ? base : { ...base, email, codeHmac: await hmac(`code|${id}|${code}`) });
-  await addAttempt(link);
+  await endAllButNewest(email, now); // parallel requests leave one live code and link
   const url = linkUrl(token, next);
   await sendSignInMail({
     to: email,
@@ -93,7 +92,8 @@ export async function checkCode(browserHash: string, code: string, now = Date.no
   const row = await spendTry(browserHash, now, TRIES_PER_CODE);
   if (!row) return { ok: false };
   const given = await hmac(`code|${row.id}|${code}`);
-  const match = same(given, row.codeHmac ?? (await hmac(`none|${random()}`)));
+  const dummy = await hmac(`none|${random()}`); // always made, so a row with no code does the same work
+  const match = same(given, row.codeHmac ?? dummy);
   if (!match || !row.codeHmac || !row.email) return { ok: false, countFor: row.email ?? undefined };
   if (!(await markUsed(row.id, now))) return { ok: false }; // another post got there first
   // The lock is exact: the tries are on the rows already, so a match after the 15th wrong one is refused even if the lock is not written yet.

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { Brand } from "../Brand";
 import { card } from "@/components/ui";
 import { safeNext } from "@/lib/auth/gate";
 import { signInOpen } from "@/lib/staff";
@@ -16,6 +17,7 @@ export default async function LinkPage({ searchParams }: { searchParams: Promise
   return (
     <main className="flex flex-1 flex-col items-center px-4 py-12 sm:py-20">
       <div className={`${card} flex w-full max-w-sm flex-col gap-5 p-6`}>
+        <Brand />
         <LinkSignIn next={next} />
       </div>
     </main>

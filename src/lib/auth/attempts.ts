@@ -27,18 +27,43 @@ export async function endLive(email: string, kinds: Kind[], now: number): Promis
   await quiet(db().update(signInAttempts).set({ expiresAt: at(now) }).where(and(eq(signInAttempts.email, email), inArray(signInAttempts.kind, kinds), isNull(signInAttempts.usedAt), gt(signInAttempts.expiresAt, at(now)))), "endLive");
 }
 
-// The emails we sent this address: every one writes exactly one link or confirm-code row.
-export async function sentCounts(email: string, now: number, windowMs: number): Promise<{ recent: number; day: number }> {
-  const sent = (since: number) => (a: Attempt) => a.email === email && (a.kind === "link" || a.kind === "confirm-code") && a.createdAt.getTime() > since;
+// The gate on emails is the write: a link row (every email sent writes exactly one) goes in only while the address has fewer than `perWindow`
+// in the last `windowMs` and fewer than `perDay` in the last day, counted and inserted in one statement (in memory, in one step with no await),
+// so parallel requests cannot all pass. True means this request may send.
+export async function reserveLink(row: Attempt, now: number, windowMs: number, perWindow: number, perDay: number): Promise<boolean> {
+  const sent = (since: number) => (x: Attempt) => x.email === row.email && (x.kind === "link" || x.kind === "confirm-code") && x.createdAt.getTime() > since;
   if (!hasD1()) {
     const rows = mem().signInAttempts;
-    return { recent: rows.filter(sent(now - windowMs)).length, day: rows.filter(sent(now - DAY_MS)).length };
+    if (rows.filter(sent(now - windowMs)).length >= perWindow || rows.filter(sent(now - DAY_MS)).length >= perDay) return false;
+    rows.push(row);
+    return true;
   }
-  const count = async (since: number) => {
-    const [r] = await quiet(db().select({ n: sql<number>`count(*)` }).from(signInAttempts).where(and(eq(signInAttempts.email, email), inArray(signInAttempts.kind, ["link", "confirm-code"]), gt(signInAttempts.createdAt, at(since)))), "sentCounts");
-    return Number(r?.n ?? 0);
-  };
-  return { recent: await count(now - windowMs), day: await count(now - DAY_MS) };
+  const t = signInAttempts;
+  const count = (since: number) => sql`(select count(*) from ${t} where ${t.email} = ${row.email} and ${t.kind} in ('link', 'confirm-code') and ${t.createdAt} > ${since})`;
+  const rows = await quiet(
+    db().all<{ id: string }>(sql`insert into ${t} (id, kind, email, tries, created_at, expires_at, token_hmac) select ${row.id}, ${row.kind}, ${row.email}, 0, ${row.createdAt.getTime()}, ${row.expiresAt.getTime()}, ${row.tokenHmac} where ${count(now - windowMs)} < ${perWindow} and ${count(now - DAY_MS)} < ${perDay} returning id`),
+    "reserveLink",
+  );
+  return rows.length > 0;
+}
+
+// Parallel requests for one address can each pass the gate (up to the cap), so after its rows are written each ends every live code and link of
+// the address except those of the newest request (its link row, newest by time then id, and the code row sharing its id). Whichever runs last
+// sees them all, so one stays live. A request's code row has the id `X` and its link row `X-link`.
+export async function endAllButNewest(email: string, now: number): Promise<void> {
+  const group = (id: string) => id.slice(0, 36);
+  if (!hasD1()) {
+    const rows = mem().signInAttempts;
+    const newest = rows.filter((x) => x.email === email && x.kind === "link" && !x.usedAt).sort((x, y) => y.createdAt.getTime() - x.createdAt.getTime() || (y.id > x.id ? 1 : -1))[0];
+    for (const x of rows) if (newest && x.email === email && (x.kind === "code" || x.kind === "link") && !x.usedAt && x.expiresAt.getTime() > now && group(x.id) !== group(newest.id)) x.expiresAt = at(now);
+    return;
+  }
+  const t = signInAttempts;
+  await quiet(
+    db().run(sql`update ${t} set expires_at = ${now} where ${t.email} = ${email} and ${t.kind} in ('code', 'link') and ${t.usedAt} is null and ${t.expiresAt} > ${now}
+      and substr(${t.id}, 1, 36) <> (select substr(n.id, 1, 36) from ${t} n where n.email = ${email} and n.kind = 'link' and n.used_at is null order by n.created_at desc, n.id desc limit 1)`),
+    "endAllButNewest",
+  );
 }
 
 // Spends a try before anything is compared, and only on a live code of this browser: one statement, so two posts at once cannot both spend the

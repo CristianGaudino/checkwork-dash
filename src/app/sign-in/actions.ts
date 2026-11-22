@@ -84,9 +84,9 @@ export async function submitCode(_prev: FormState, data: FormData): Promise<Form
 }
 
 // The link page, step one: who would it sign in? Changes nothing.
-export type PeekResult = { email: string } | { expired: true };
+export type PeekResult = { email: string } | { expired: true } | { rate: true };
 export async function peekSignInLink(token: string): Promise<PeekResult> {
-  if (!(await guard("link"))) return { expired: true };
+  if (!(await guard("link"))) return { rate: true };
   const email = TOKEN.test(token) ? await peekLink(token) : null;
   done("link", email ? "ok" : "expired");
   return email ? { email } : { expired: true };
@@ -94,7 +94,7 @@ export async function peekSignInLink(token: string): Promise<PeekResult> {
 
 // Step two, the button: only this uses the token.
 export async function signInWithLink(token: string, next: string | undefined): Promise<PeekResult> {
-  if (!(await guard("link"))) return { expired: true };
+  if (!(await guard("link"))) return { rate: true };
   const who = TOKEN.test(token) ? await spendLink(token) : null;
   if (!who) {
     done("link", "expired");

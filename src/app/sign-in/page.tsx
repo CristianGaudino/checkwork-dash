@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
+import { Brand } from "./Brand";
 import { card } from "@/components/ui";
 import { safeNext } from "@/lib/auth/gate";
 import { currentSession } from "@/lib/auth/session";
@@ -17,6 +18,7 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
   return (
     <main className="flex flex-1 flex-col items-center px-4 py-12 sm:py-20">
       <div className={`${card} flex w-full max-w-sm flex-col gap-5 p-6`}>
+        <Brand />
         <h1 className="text-display font-bold">Sign in to Checkwork</h1>
         <EmailForm next={next} />
       </div>
