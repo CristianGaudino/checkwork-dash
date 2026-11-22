@@ -7,7 +7,7 @@ import { getSettings, leadsStore } from "@/lib/admin/collections";
 import { enabledModules, requireModule } from "@/lib/modules";
 import { can, currentMember } from "@/lib/permissions";
 import { tap, typed } from "@/lib/whatsapp/handle";
-import { BUTTON_LABELS, eventsFor, type ButtonId } from "@/lib/whatsapp/rules";
+import { BUTTON_LABELS, eventsFor, staffErrors, type ButtonId } from "@/lib/whatsapp/rules";
 import { staffStore, viewFor, type View } from "@/lib/whatsapp/store";
 import { requireStaff } from "@/lib/staff";
 
@@ -42,8 +42,9 @@ export async function sendAction(text: string): Promise<View> {
 }
 
 // One person's phone, alerts and quiet hours. Owners and managers set anyone's; everyone else sets their own. An empty number unlinks it.
-const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
-export async function saveStaffAction(id: string, data: FormData) {
+// A wrong field comes back as an error on that field, so the form stays open with what was typed.
+export type StaffState = { errors?: Record<string, string> } | undefined;
+export async function saveStaffAction(id: string, _p: StaffState, data: FormData): Promise<StaffState> {
   await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
   await requireModule("whatsapp");
   const me = await currentMember();
@@ -52,8 +53,8 @@ export async function saveStaffAction(id: string, data: FormData) {
   const phone = String(data.get("phone") ?? "").trim();
   const quietFrom = String(data.get("quietFrom") ?? "");
   const quietTo = String(data.get("quietTo") ?? "");
-  const ok = (!phone || /^\+?[\d\s]{8,18}$/.test(phone)) && (quietFrom === "" ? quietTo === "" : TIME.test(quietFrom) && TIME.test(quietTo));
-  if (!ok) redirect("/whatsapp?notice=invalid");
+  const errors = staffErrors(phone, quietFrom, quietTo);
+  if (Object.keys(errors).length) return { errors };
   const allowed = eventsFor(await enabledModules());
   // The choices for a module that is off are kept, so switching it on again finds them.
   const kept = ((await staffStore.get(id))?.alerts ?? []).filter((e) => !allowed.includes(e));

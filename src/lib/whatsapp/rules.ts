@@ -140,3 +140,15 @@ Reg ${f.reg}.` : ""}${quoted(f.text)}`;
       return `Last week: ${plural(f.leads ?? 0, "new lead")}, ${plural(f.drives ?? 0, "test drive")}, ${plural(f.sales ?? 0, "sale")}. The full report is a tap away.`;
   }
 }
+
+// A staff phone's form, checked field by field so the page can say which one is wrong. An empty number unlinks; quiet hours are both or neither.
+const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
+export function staffErrors(phone: string, quietFrom: string, quietTo: string): Record<string, string> {
+  const errors: Record<string, string> = {};
+  if (phone && !/^\+?[\d\s]{8,18}$/.test(phone)) errors.phone = "Give the number with the country code, like +353 83 123 4567";
+  if (quietFrom || quietTo) {
+    if (!TIME.test(quietFrom)) errors.quietFrom = "Give a start time, or leave both empty";
+    if (!TIME.test(quietTo)) errors.quietTo = "Give an end time, or leave both empty";
+  }
+  return errors;
+}
