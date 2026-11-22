@@ -210,7 +210,7 @@ with no D1). The actor is the signed-in person (`currentMember`), or a named one
   fallback lead email: rules only, no outside service, nothing logged. Clear spam is only what no person types into a contact form:
   forum or web page link markup. Words and links are only ever a hint, because real buyers sign off with job titles, mention crypto,
   link another dealer or give their company site as their name. Clear spam is filed as spam, with no email, booking, customer, bell notice or WhatsApp alert, and is never linked to a sale or a
-  factory order. A test drive booking or a warranty request is never filed as spam, only as possible spam (`arrivalSpam`). When unsure
+  factory order. A test drive booking, a warranty request or a question about a car bought here is never filed as spam, only as possible spam (`arrivalSpam`). When unsure
   (a pitch word such as SEO services, backlinks or crypto, read in the message only; a link to a site that is not a car, photo or chat
   site or the dealer's own; or a web address in the name) the lead stays new with `maybeSpam`:
   "Possible spam" on the list and To answer now, with Spam and Not spam. Careful by design: a name in any language, a short or empty

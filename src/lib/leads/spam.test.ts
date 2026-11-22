@@ -16,6 +16,8 @@ describe("the spam check on a lead as it arrives (#56)", () => {
       ["Здравствуйте, машина ещё продаётся?", "Дмитрий"],
       ["Interested in the Ford Escort, can I book a test drive? Two slots would suit."],
       ["My email is john.murphy@gmail.com, I prefer email to calls."],
+      ["Email:mary@gmail.com"],
+      ["Reach me at email:mary@gmail.com or mailto:mary@gmail.com"],
       ["Saw this on DoneDeal: https://www.donedeal.ie/cars-for-sale/vw-golf-2019/12345678 is it the same car?"],
       ["Ready to buy now. Photos of my trade-in: https://imgur.com/a/b"],
       ["My trade-in is a 12-D-xxx Corolla, photos https://imgur.com/a/b"],
@@ -57,6 +59,9 @@ describe("the spam check on a lead as it arrives (#56)", () => {
       ["Trade buyer here", "KellyAuto.com"],
       ["Check this out https://goo.gl/abcd backlinks and guest posts cheap"],
       ["Get more leads https://wa.me:x@evil.xyz backlinks guest posts"], // the host is evil.xyz, not wa.me
+      ["https://www.wa.me:a.b@evil.xyz"],
+      ["https://wa.me:x-y@evil.xyz and https://wa.me:x+y@evil.xyz"],
+      ["https://evil.xyz\\@wa.me"], // a browser reads "\\" as "/": evil.xyz
       ["Backlinks and guest posts: https://user@evil.xyz/path"],
       ["Can I pay part of the deposit in bitcoin?\nAoife Kelly, Digital Marketing Manager, kellyco.com"],
       ["I hit the jackpot finding this one! Similar to https://www.otherdealer.ie/cars/123 - do you take crypto at all?"],

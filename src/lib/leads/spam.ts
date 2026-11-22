@@ -35,10 +35,11 @@ const TERMS = [
 const MARKUP = /\[url=|<a\s+href/i;
 const LINK = /\bhttps?:\/\/[^\s<>"\]]+|\bwww\.[^\s<>"\]]+|\b[a-z0-9-]+\.(?:com|net|org|info|biz|xyz|top|site|online|shop|store|io|ru|cn)\b[^\s<>"\]]*/gi;
 
-// The host a browser would open: past any "name:password@" in front of it, so "https://wa.me:x@evil.xyz" is evil.xyz.
-const hostOf = (link: string) => link.replace(/^https?:\/\//i, "").split(/[/?#]/)[0].replace(/^.*@/, "").split(":")[0].replace(/^www\./i, "").toLowerCase();
+// The host a browser would open: past any "name:password@" in front of it, and a "\" ends it as "/" does, so "https://wa.me:x@evil.xyz"
+// and "https://evil.xyz\@wa.me" are both evil.xyz.
+const hostOf = (link: string) => link.replace(/^https?:\/\//i, "").split(/[/\\?#]/)[0].replace(/^.*@/, "").split(":")[0].replace(/^www\./i, "").toLowerCase();
 const safe = (host: string, own: string[]) => [...SAFE_SITES, ...own].some((s) => host === s || host.endsWith(`.${s}`));
-const noEmails = (s: string) => s.replace(/(?<![/:\w])[\w.+-]+@[\w-]+(\.[\w-]+)+/g, " "); // "my email is mary@gmail.com" is no link; "https://x@evil.xyz" still is
+const noEmails = (s: string) => s.replace(/(?<![\w.+-]|:\/\/\S*)[\w.+-]+@[\w-]+(\.[\w-]+)+/g, " "); // "Email:mary@gmail.com" is no link; nothing inside a link ("https://wa.me:a.b@evil.xyz") is taken for an email
 
 // Clear spam only on what no person types into a contact form: forum or web page link markup. Words and links are only ever a hint
 // (Possible spam): a real buyer signs off with a job title, mentions crypto, links another dealer or puts their company site as their

@@ -72,7 +72,7 @@ describe("mirrorLead", () => {
 });
 
 describe("the spam check on arrival (#56)", () => {
-  const pitch = "We offer cheap backlinks and guest posts for your website: https://linkfarm.top";
+  const pitch = "Cheap backlinks [url=https://linkfarm.top]here[/url]";
   it("files clear spam as spam, an unsure one as possible spam, and a real one as it is", () => {
     expect(mirrorOf(row({ message: pitch }), true, true, 0, undefined, "spam").lead).toMatchObject({ status: "spam", statusBefore: "new" });
     expect(mirrorOf(row({}), true, true, 0, undefined, "maybe").lead).toMatchObject({ status: "new", maybeSpam: true });
