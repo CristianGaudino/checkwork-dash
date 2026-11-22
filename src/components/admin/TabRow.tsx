@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 
 // A row of tabs that scrolls sideways on a phone, scrolled so the open tab is in view on load and on each change (`current`). Only the
 // row scrolls, never the page. An edge with more beyond it fades out, so a cut-off tab reads as "there is more", never as a cut label.
-export function TabRow({ current, children, style, ...rest }: { current: string; children: React.ReactNode } & React.ComponentProps<"nav">) {
+export function TabRow({ current, children, className = "", ...rest }: { current: string; children: React.ReactNode } & React.ComponentProps<"nav">) {
   const row = useRef<HTMLElement>(null);
   useEffect(() => {
     const nav = row.current;
@@ -17,8 +17,11 @@ export function TabRow({ current, children, style, ...rest }: { current: string;
     // Each edge fades only while there is more past it (2rem of fade, none at an end).
     const fade = () => {
       const end = nav.scrollWidth - nav.clientWidth - nav.scrollLeft;
-      nav.style.setProperty("--fade-l", nav.scrollLeft > 1 ? "2rem" : "0px");
-      nav.style.setProperty("--fade-r", end > 1 ? "2rem" : "0px");
+      const [l, r] = [nav.scrollLeft > 1 ? "2rem" : "0px", end > 1 ? "2rem" : "0px"];
+      // The mask only while there is more: with none it would clip the focus ring on a row that does not scroll (640px up).
+      nav.style.maskImage = l === "0px" && r === "0px" ? "" : `linear-gradient(to right, transparent, #000 ${l}, #000 calc(100% - ${r}), transparent)`;
+      nav.style.setProperty("--fade-l", l);
+      nav.style.setProperty("--fade-r", r);
     };
     fade();
     nav.addEventListener("scroll", fade, { passive: true });
@@ -29,7 +32,8 @@ export function TabRow({ current, children, style, ...rest }: { current: string;
     };
   }, [current]);
   return (
-    <nav ref={row} style={{ maskImage: "linear-gradient(to right, transparent, #000 var(--fade-l, 0px), #000 calc(100% - var(--fade-r, 0px)), transparent)", ...style }} {...rest}>
+    // scroll-px-8: a tab reached by keyboard stops clear of the fade.
+    <nav ref={row} className={`scroll-px-8 ${className}`} {...rest}>
       {children}
     </nav>
   );

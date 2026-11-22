@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ActButton } from "@/components/admin/ActButton";
 import { AlertForm, DetailsForm, LimitsForm } from "@/components/admin/BillingForms";
-import { Badge, DataTable, EmptyState, Facts, PageHeader, Panel, Segmented, adminButtonQuiet, rowButton } from "@/components/admin/kit";
+import { Badge, DataTable, EmptyState, Facts, PageHeader, Panel, Segmented, adminButtonQuiet, rowButton, tapArea } from "@/components/admin/kit";
 import { listing, stockSource } from "@/lib/stock-source";
 import { currentDealer } from "@/lib/tenancy/current";
 import { fmtDay, fmtNum, plural } from "@/lib/admin/format";
@@ -297,7 +297,7 @@ async function SetForYou() {
         ]}
       />
       <p className="text-meta text-text-2">
-        <Link href={`/help?type=${encodeURIComponent("Request a change")}&from=/billing`} className="font-medium text-accent-text underline underline-offset-2">Ask us to change them</Link>
+        <Link href={`/help?type=${encodeURIComponent("Request a change")}&from=/billing`} className={`font-medium text-accent-text underline underline-offset-2 ${tapArea}`}>Ask us to change them</Link>
       </p>
     </Panel>
   );

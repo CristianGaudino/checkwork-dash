@@ -63,7 +63,7 @@ export function AdminNav({ items, label, openGroups, rail = false }: { items: Na
                 <NavLink key={it.href} item={it} on={current(it)} iconOnly />
               ))}
             </div>
-            <div className="flex min-h-0 flex-1 flex-col items-center gap-0.5 overflow-y-auto overscroll-contain pb-4">
+            <div className="flex min-h-24 flex-1 flex-col items-center gap-0.5 overflow-y-auto overscroll-contain pb-4">
               {groups.map((g) => (
                 <div key={g.name} className="mt-2 flex flex-col items-center gap-0.5 border-t border-hairline pt-2">
                   {g.items.map((it) => (
@@ -81,7 +81,7 @@ export function AdminNav({ items, label, openGroups, rail = false }: { items: Na
               ))}
             </div>
             {groups.length > 0 && <div aria-hidden className="mx-3 mt-3 shrink-0 border-t border-hairline" />}
-            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain pb-4">
+            <div className="flex min-h-24 flex-1 flex-col overflow-y-auto overscroll-contain pb-4">
               {groups.map((g) => (
                 <NavSection key={g.name} group={g} open={open.has(g.name)} holdsCurrent={g.name === here} onToggle={() => toggle(g.name)} current={current} />
               ))}

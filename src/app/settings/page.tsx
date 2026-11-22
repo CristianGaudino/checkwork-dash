@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { AddTeamForm, BusinessForm, RoleForm, LeadEmailsForm, MarketingForm, NotificationsForm, SiteKeyForm, TargetsForm } from "@/components/admin/SettingsForms";
-import { Badge, DataTable, PageHeader, Panel, adminButtonQuiet, rowButton, rowDanger } from "@/components/admin/kit";
+import { Badge, DataTable, PageHeader, Panel, adminButtonQuiet, rowButton, rowDanger, tapArea } from "@/components/admin/kit";
 import { TabRow } from "@/components/admin/TabRow";
 import { ChevronDownIcon } from "@/components/stock/icons";
 import { ActButton } from "@/components/admin/ActButton";
@@ -116,7 +116,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
               {/* The plan and what we set for you (stock, the old stock and sold car rules) are in Billing, beside what it costs. */}
               <p className="text-meta text-text-2">
                 Your plan, and what we set up for you, are in{" "}
-                <Link href="/billing" className="font-medium text-accent-text underline underline-offset-2">Billing</Link>
+                <Link href="/billing" className={`font-medium text-accent-text underline underline-offset-2 ${tapArea}`}>Billing</Link>
               </p>
             </>
           )}

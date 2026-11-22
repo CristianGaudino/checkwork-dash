@@ -42,6 +42,9 @@ test.describe("on a 390px phone", () => {
       ["/settings?section=emails", (p) => p.locator('input[name="followUps"]')],
       ["/leads?per=10", (p) => p.getByRole("navigation", { name: "Pages" }).getByRole("link", { name: "Next" })],
       ["/leads?per=10&page=2", (p) => p.getByRole("navigation", { name: "Pages" }).getByRole("link", { name: "Previous" })],
+      ["/billing", (p) => p.getByRole("link", { name: "Ask us to change them" })],
+      ["/settings", (p) => p.locator("main").getByRole("link", { name: "Billing", exact: true })],
+      ["/orders/order-s1", (p) => p.getByRole("link", { name: "The website request" })],
     ];
     for (const [path, find] of controls) {
       await page.goto(path);
@@ -53,6 +56,14 @@ test.describe("on a 390px phone", () => {
     await expect(radios).toHaveCount(2);
     for (const r of await radios.all()) expect(await hitsAt44(r)).toBe(true);
   });
+});
+
+test("from 640px a row of summary tabs that fits has no mask, so nothing clips a tab's focus ring", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/leads");
+  const row = page.getByRole("navigation", { name: "Lead status" });
+  await expect.poll(() => row.evaluate((n) => getComputedStyle(n).getPropertyValue("--fade-r").trim())).toBe("0px"); // measured
+  expect(await row.evaluate((n) => getComputedStyle(n).maskImage)).toBe("none");
 });
 
 test("on a 1280x800 laptop with every group open, Overview and Leads stay in view and only the groups scroll", async ({ page, context }) => {
