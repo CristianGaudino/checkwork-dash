@@ -14,6 +14,7 @@ export function show(key: string, value: unknown): string {
   if (key === "intent") return v === "sell" ? "Sell the car" : v === "trade" ? "Trade it in" : v;
   if (key === "mileage") return num ? `${Number(v).toLocaleString("en-IE")} km` : v;
   if ((key === "budgetMax" || key === "deposit") && num) return fmtEur(Number(v));
+  if (key === "term" && num) return `${v} months`;
   if (key === "driveDate" && /^\d{4}-\d{2}-\d{2}$/.test(v)) return `${fmtDay(v, "weekday")} ${fmtDay(v, "day")} ${fmtDay(v, "month")}`; // Sat 30 Nov
   return readable(key, v);
 }
@@ -31,8 +32,9 @@ export function detailsOf(type: string, d: Record<string, unknown>): Facts {
   };
 }
 
-const KEY_OF: Record<string, string> = Object.fromEntries(Object.entries(DETAIL_LABELS).map(([k, label]) => [label, k]));
-const LABELS = Object.values(DETAIL_LABELS).sort((a, b) => b.length - a.length).map((l) => l.replace(/[()]/g, "\\$&")).join("|");
+// "Term (months)": the term's label before it read "Term" with "48 months", still in leads stored with the old text.
+const KEY_OF: Record<string, string> = { ...Object.fromEntries(Object.entries(DETAIL_LABELS).map(([k, label]) => [label, k])), "Term (months)": "term" };
+const LABELS = Object.keys(KEY_OF).sort((a, b) => b.length - a.length).map((l) => l.replace(/[()]/g, "\\$&")).join("|");
 const PAIR = new RegExp(`^(${LABELS}): (.+)$`, "s");
 const NEXT = new RegExp(`\\. (?=(?:${LABELS}): )`);
 const OLD_DRIVE = /^Test drive on (\d{4}-\d{2}-\d{2}) at (\d{2}:\d{2})\.(?: ([\s\S]*))?$/;

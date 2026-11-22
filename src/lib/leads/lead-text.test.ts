@@ -12,7 +12,7 @@ describe("splitOldMessage", () => {
   it("reads a message that is only answers, and puts raw figures in words", () => {
     expect(splitOldMessage("Finance: PCP. Deposit: 2000. Term (months): 48. Employment status: self_employed")).toEqual({
       text: "",
-      given: [["product", "PCP"], ["deposit", "€2,000"], ["term", "48"], ["employment", "Self-employed"]],
+      given: [["product", "PCP"], ["deposit", "€2,000"], ["term", "48 months"], ["employment", "Self-employed"]],
     });
   });
   it("reads an old test drive's day and time in plain words", () => {

@@ -58,7 +58,7 @@ describe("mirrorOf", () => {
   it("keeps a form's answers as details, never run into the message (#59)", () => {
     const m = mirrorOf(row({ type: "finance", message: null, details: { deposit: 2000, term: 48, product: "pcp", employment: "self_employed" } }));
     expect(m.lead!.message).toBe("");
-    expect(m.lead!.details).toEqual({ Finance: "PCP", Deposit: "€2,000", "Term (months)": "48", "Employment status": "Self-employed" });
+    expect(m.lead!.details).toEqual({ Finance: "PCP", Deposit: "€2,000", Term: "48 months", "Employment status": "Self-employed" });
   });
   it("keeps only the buyer's words as the message of a guided form: the topic, taps and channel are tags and the source (#59)", () => {
     const m = mirrorOf(row({ type: "general", carId: null, message: "Something small for my daughter", details: { topic: "buying", timing: "this-month", contactWhen: "evening", channel: "Typed in or bookmarked", budgetMax: 15000 } }));

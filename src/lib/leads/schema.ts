@@ -218,7 +218,7 @@ export const DETAIL_LABELS: Record<string, string> = {
   budgetMax: "Budget up to",
   product: "Finance",
   deposit: "Deposit",
-  term: "Term (months)",
+  term: "Term",
   employment: "Employment status",
   driveDate: "Day",
   driveTime: "Time",

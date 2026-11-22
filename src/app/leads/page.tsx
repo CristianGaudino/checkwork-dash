@@ -53,8 +53,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
       key: "who",
       header: "Who",
       sort: (l) => l.name,
-      // The name is the row's title, and the form's first answer as a chip. On a phone, where the About column is hidden, what it is about
-      // is here too: the kind, where it came from and the car.
+      // The name is the row's title. On a phone, where the About column is hidden, what it is about is here too: the kind, where it came
+      // from, the car and the form's answers as tags.
       cell: (l) => (
         <span className="flex min-w-0 flex-col gap-1">
           <Link href={`/leads/${l.id}`} className="font-bold text-text [overflow-wrap:anywhere] after:absolute after:inset-0">
@@ -62,16 +62,15 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
           </Link>
           <KindSource l={l} className="sm:hidden" />
           {l.carTitle && <span className="truncate text-meta font-medium text-text sm:hidden">{l.carTitle}</span>}
-          {/* No width of its own (w-0), so a long answer is cut short rather than widen the column. */}
-          <span className="w-0 min-w-full">
-            <LeadTags tags={leadChips(l.type, l.topic, l.answers).slice(0, 1)} />
+          <span className="sm:hidden">
+            <LeadTags tags={leadChips(l.type, l.topic, l.answers)} />
           </span>
         </span>
       ),
       className: "max-w-[11rem] sm:max-w-[14rem]",
     },
-    // What kind of request and where it came from, then the car in full, else the first words of their message, quoted and muted so the
-    // two never read alike.
+    // What kind of request and where it came from, the form's answers as tags in full, then the car, else the first words of their
+    // message, quoted and muted so the two never read alike.
     {
       key: "about",
       header: "About",
@@ -81,6 +80,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
         return (
           <span className="flex min-w-0 flex-col gap-1">
             <KindSource l={l} />
+            <LeadTags tags={leadChips(l.type, l.topic, l.answers)} />
             <span title={l.carTitle ?? text} className="line-clamp-2">{l.carTitle ? <span className="font-medium">{l.carTitle}</span> : text ? <span className="text-text-2">&ldquo;{text.split("\n")[0]}&rdquo;</span> : null}</span>
           </span>
         );
@@ -232,9 +232,10 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
           )}
         </Panel>
       )}
+      {/* Closed and Spam only when they hold a lead (or are open), as Stock does with Hidden and Drafts: an empty one is noise. */}
       <SummaryTabs
         label="Lead status"
-        items={[{ label: "All", href: href({ status: undefined }), active: !f.status, count: all.length - counts.spam }, ...LEAD_STATUSES.map((s) => ({ label: LEAD_STATUS_LABELS[s], hint: STATUS_HINTS[s], href: href({ status: s }), active: f.status === s, count: counts[s] }))]}
+        items={[{ label: "All", href: href({ status: undefined }), active: !f.status, count: all.length - counts.spam }, ...LEAD_STATUSES.filter((s) => !["closed", "spam"].includes(s) || counts[s] > 0 || f.status === s).map((s) => ({ label: LEAD_STATUS_LABELS[s], hint: STATUS_HINTS[s], href: href({ status: s }), active: f.status === s, count: counts[s] }))]}
       />
       <TableToolbar search={{ placeholder: "Search", label: "Search leads" }} filters={filters} />
       <DataTable label="Leads" linkRows rows={rows} rowKey={(l) => l.id} columns={columns} sort={sp.sort ? sort : { key: "", dir: "desc" }} empty={<EmptyState title="No leads match" text="Try another filter or search." />} />
