@@ -6,7 +6,7 @@ How a dealer's website (a Showroom site made from `checkwork-demo`) talks to the
 
 ## Keys
 
-- Each website has its own key: `cw_site_` and 32 random bytes in base64url. An owner or manager makes one in Settings, Connected services,
+- Each website has its own key: `cw_site_` and 32 random bytes in base64url. An owner or manager makes one in Settings, Connected services, For your web developer,
   Website connection. The key is shown once, with a copy button; only its SHA-256 is kept, in the directory (`site_keys`, with the dealer,
   a name, when it was made, when it was last used and when it was revoked). Last used is written at most once an hour per key.
 - The key decides the dealer. Nothing in a request names one, and the work runs inside that dealer's store (`runAsDealer`).
