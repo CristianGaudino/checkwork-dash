@@ -28,6 +28,7 @@ import { siteCarUrl } from "@/lib/stock/format";
 import { dealerProfile } from "@/lib/tenancy/current";
 import { stockSource } from "@/lib/stock-source";
 import { NotesPanel } from "@/components/admin/NotesPanel";
+import { VisitPanel } from "@/components/admin/VisitPanel";
 import { ContactButtons } from "@/components/admin/ContactButtons";
 import { LeadKind, LeadTags, leadChips } from "@/components/admin/LeadKind";
 import { SubmitButton } from "@/components/admin/SubmitButton";
@@ -42,7 +43,8 @@ export async function LeadView({ id }: { id: string }) {
   const [lead, settings, drives, { siteUrl, rules }] = await Promise.all([leadsStore.get(id), getSettings(), drivesStore.list(), dealerProfile()]);
   if (!lead) notFound();
   // The car the lead asked about has sold since (here, or on DoneDeal): the salesperson offers something like it.
-  const car = lead.carSlug ? (await adminCars()).find((c) => c.slug === lead.carSlug) : undefined;
+  const stock = lead.carSlug || lead.journey ? await adminCars() : [];
+  const car = lead.carSlug ? stock.find((c) => c.slug === lead.carSlug) : undefined;
   const carSold = car !== undefined && isSold(car);
   const today = dublinDay();
   // Their next test drive, today or later, found by their email or phone: shown in place of Book a test drive.
@@ -189,6 +191,8 @@ export async function LeadView({ id }: { id: string }) {
       {/* Below: the reply and the history on the left; when to get back to them and who has it on the right (first on a phone). */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
         <div className="flex min-w-0 flex-col gap-6">
+          {/* What they did on the website before they got in touch, when they sent it: first, as it is read before the call. Nothing without it. */}
+          {lead.journey && <VisitPanel lead={{ ...lead, journey: lead.journey }} stock={stock} />}
           {/* A reply to copy into email or WhatsApp: written from their message and the car, never from their phone or email. */}
           <IfModule id="ai">
             <Panel title="Draft a reply">

@@ -738,3 +738,11 @@ input:is([type="checkbox"], [type="radio"], [type="file"]):not(:disabled) {
   outline: 2px solid var(--color-text);
   outline-offset: 2px;
 }
+
+/* A fold that is open from 1024px whatever its state (VisitPanel): folded on a phone, always shown on a desk. */
+@media (min-width: 64rem) {
+  details.open-lg::details-content {
+    content-visibility: visible;
+    opacity: 1;
+  }
+}

@@ -14,6 +14,7 @@ import { adminButtonQuiet, adminInput, rowButton } from "./kit";
 const chip = `inline-flex min-h-11 items-center rounded-full bg-hairline px-3.5 text-meta font-medium text-text transition-colors hover:bg-accent-soft hover:text-accent-text disabled:opacity-50 pointer-fine:min-h-9 ${press}`;
 // With our pricing hidden the limit is not on Billing, so the message says where to ask.
 const SAID = { limit: `The monthly AI limit is reached. Your text is unchanged.${SHOW_PRICING ? "" : " Ask us in Help to raise it."}`, failed: "Couldn't write that, try again. Your text is unchanged." };
+const BRIEF_SAID = { limit: `The monthly AI limit is reached.${SHOW_PRICING ? "" : " Ask us in Help to raise it."}`, failed: "Couldn't write that, try again." };
 
 // "Write with AI" for any text box (#179): a first draft from the record's facts, then buttons that rewrite it, Undo for one step back, and a
 // label so AI text is never taken for the dealer's own. The box stays the host's own and stays editable. `request` is read when a button is
@@ -112,6 +113,53 @@ export function AITextarea({ id, name, label, defaultValue = "", rows = 5, maxLe
           <p aria-live="polite" className="text-meta text-bad">{copyError}</p>
         </>
       )}
+    </div>
+  );
+}
+
+// "Prepare me" on a lead (#34): a short brief to read before calling them back, from the lead, their visit and the stock. The same button as
+// Write with AI, then the brief under an AI tag. Nothing to edit or send, so no box, no changes and no Undo; Prepare again writes it afresh.
+export function AIBrief({ leadId }: { leadId: string }) {
+  const has = useModules().has("ai");
+  const [pending, start] = useTransition();
+  const [said, setSaid] = useState("");
+  const [brief, setBrief] = useState("");
+  if (!has) return null;
+  const run = () => {
+    setSaid("");
+    start(async () => {
+      try {
+        const r = await writeAction({ task: "leadBrief", leadId });
+        if (!r.ok) return setSaid(BRIEF_SAID[r.reason]);
+        setBrief(r.text);
+      } catch {
+        setSaid(BRIEF_SAID.failed);
+      }
+    });
+  };
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <button type="button" onClick={run} disabled={pending} aria-busy={pending} className={`${adminButtonQuiet} pl-2.5 disabled:opacity-60`}>
+          <span aria-hidden="true" className="grid size-7 place-items-center rounded-full bg-accent text-on-accent">
+            <SparkleIcon className="shrink-0 size-4" />
+          </span>
+          {pending ? "Writing" : brief ? "Prepare again" : "Prepare me"}
+        </button>
+        {brief && (
+          <span className="inline-flex h-6 items-center gap-1 rounded-full bg-info-soft px-2.5 text-meta font-medium text-info">
+            <SparkleIcon className="shrink-0 size-3.5" />
+            AI brief
+          </span>
+        )}
+      </div>
+      {/* A line a paragraph, so the parts (what they want, the cars, the opening line) read apart on a phone. */}
+      {brief && (
+        <div aria-label="Brief" role="group" className="flex max-w-measure flex-col gap-2 rounded-control bg-row-alt px-4 py-3 text-body">
+          {brief.split("\n").filter((l) => l.trim()).map((l, i) => <p key={i}>{l}</p>)}
+        </div>
+      )}
+      <p aria-live="polite" className="-mt-3 text-meta text-text-2 [&:not(:empty)]:mt-0">{said}</p>
     </div>
   );
 }
