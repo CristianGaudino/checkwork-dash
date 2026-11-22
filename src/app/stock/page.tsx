@@ -17,7 +17,7 @@ import { listingHref } from "@/lib/stock-source-rules";
 import { listing } from "@/lib/stock-source";
 import { dealerProfile } from "@/lib/tenancy/current";
 import { SyncPanel } from "@/components/admin/SyncPanel";
-import { StockBulk, StockPick } from "@/components/admin/StockBulk";
+import { StockBulk, StockPick, StockPickToggle } from "@/components/admin/StockBulk";
 import { CarThumb } from "@/components/admin/CarThumb";
 import { AgeBar } from "@/components/admin/charts";
 import { FEW_PHOTOS, stockViews, parseStockList, stockList, type StockView } from "@/lib/admin/stock-views";
@@ -84,15 +84,16 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
 
   const columns: Column<Car>[] = [
     // Tick several cars to change them at once (#104). Our version only: DoneDeal stock is changed on DoneDeal.
-    ...(synced ? [] : [{ key: "pick", header: "Select", quietHeader: true, className: "w-10 !pr-0", cell: (c: Car) => <StockPick id={c.id} name={carName(c)} /> }]),
+    // On a phone only after Select (StockPickToggle): bulk changes are rare there, and the row is for opening the car.
+    ...(synced ? [] : [{ key: "pick", header: "Select", quietHeader: true, hide: "picking" as const, className: "w-10 !pr-0", cell: (c: Car) => <StockPick id={c.id} name={carName(c)} /> }]),
     {
       key: "car",
       header: "Car",
       sort: (c) => `${c.make} ${c.model} ${c.variant ?? ""}`,
       cell: (c) => (
         <div className="flex min-w-0 items-center gap-3">
-          {/* The photo goes in compact rows: there the row is the size of a line. */}
-          <div className="hidden h-12 w-16 shrink-0 overflow-hidden rounded-control bg-photo-bg min-[25rem]:block group-data-[density=compact]/shell:hidden">
+          {/* The photo goes in compact rows: there the row is the size of a line. Smaller on a phone under 400px, so the name still fits. */}
+          <div className="h-9 w-12 shrink-0 overflow-hidden rounded-control bg-photo-bg min-[25rem]:h-12 min-[25rem]:w-16 group-data-[density=compact]/shell:hidden">
             <CarThumb src={c.photos[0]?.src} />
           </div>
           {/* The name, then the year and variant, then what needs doing about the car (few photos, hidden, in stock too long). */}
@@ -107,12 +108,13 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
                 {c.listedAt && !isSold(c) && <span className="lg:hidden"> · {daysInStock(c.listedAt)}</span>}
               </span>
             </span>
-            <CarFlags car={c} status={view === "all"} />
+            {/* Photo warnings only in Need photos: elsewhere To do counts them already. */}
+            <CarFlags car={c} status={view === "all"} photos={view === "photos"} />
           </div>
         </div>
       ),
       // A truncated name still asks for its whole width in a table: the cap lets the car and its price fit a 360px phone.
-      className: "max-w-[10rem] min-[25rem]:max-w-[15rem] sm:min-w-[13rem] sm:max-w-[18rem]",
+      className: "max-w-[14rem] min-[25rem]:max-w-[16rem] sm:min-w-[13rem] sm:max-w-[18rem]",
     },
     {
       key: "price",
@@ -334,12 +336,13 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
           <TaskList label="To do">{todo}</TaskList>
         </Panel>
       )}
-      {/* Hidden and Drafts only show when they hold a car (or are open), so a dealer who never uses them never sees them. */}
+      {/* Hidden and Drafts only show when they hold a car (or are open), so a dealer who never uses them never sees them. Need photos and
+          the old stock view are reached from To do, so they show only while open. */}
       <SummaryTabs label="Stock views" items={(Object.keys(STOCK_VIEWS) as StockView[])
           .map((v) => [v, all.filter(STOCK_VIEWS[v].test).length] as const)
-          .filter(([v, count]) => count > 0 || view === v || !["hidden", "drafts", "reserved"].includes(v))
+          .filter(([v, count]) => view === v || (!["photos", "old"].includes(v) && (count > 0 || !["hidden", "drafts", "reserved"].includes(v))))
           .map(([v, count]) => ({ label: STOCK_VIEWS[v].label, count, href: href(v), active: view === v }))} />
-      <TableToolbar search={{ placeholder: "Search", label: "Search stock" }} filters={filters} />
+      <TableToolbar search={{ placeholder: "Search", label: "Search stock" }} filters={filters} action={synced ? undefined : <StockPickToggle />} />
       {/* Keyed by the list's address: a new search or filter starts the bar again, counting the boxes that are really ticked. */}
       {!synced && <StockBulk key={new URLSearchParams(sp as Record<string, string>).toString()} canDelete={canUndo} />}
       <DataTable

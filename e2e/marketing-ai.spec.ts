@@ -112,6 +112,7 @@ test("write a car description, a lead reply and a review reply with AI", async (
   await page.goto("/stock/new");
   await page.getByLabel("Make").fill("Skoda");
   await page.getByLabel("Model").fill("Octavia");
+  await page.getByText("More details (optional)").click();
   await page.getByLabel("Seats").fill("5");
   await page.getByRole("button", { name: "Write with AI" }).click();
   const description = page.getByRole("textbox", { name: "Description" });

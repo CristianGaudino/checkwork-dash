@@ -22,6 +22,8 @@ import type { ModuleId } from "@/lib/modules-rules";
 import { setDriveStatusAction } from "@/app/test-drives/actions";
 import { DRIVE_STATUS_LABELS } from "@/lib/admin/drives";
 import { CallButton } from "@/components/admin/LeadActions";
+import { VisitSources } from "@/components/admin/VisitSources";
+import { visitSources } from "@/lib/admin/visit-sources-load";
 
 // The layout's "%s | Dealer dashboard" template reaches only the pages under it, not this one beside it.
 export const metadata = { title: { absolute: "Overview | Dealer dashboard" } };
@@ -77,6 +79,7 @@ export default async function Page() {
   // The header counts only what is late or due now; reviews to answer and old stock are in the list, not in the headline.
   const urgent = attention.filter((a) => a.urgency !== "info").reduce((n, a) => n + a.count, 0);
   const thisWeek = o.weeks[o.weeks.length - 1];
+  const visits = mods.has("analytics") ? await visitSources(30, leads) : null;
 
   // One kind of to-do as rows: the first few records each with their own buttons, then one row for the rest.
   const rest = (key: string, n: number, one: string, many: string, href: string, urgency: TaskUrgency) =>
@@ -177,6 +180,12 @@ export default async function Page() {
                 {mods.has("reviews") && <StatCard href="/reviews" label="Review rating" value={o.reviewCount ? o.averageRating.toFixed(1) : "None"} hint={plural(o.reviewCount, "review")} />}
               </StatGrid>
             </Panel>
+            {/* The busiest channels by name and mark: quicker to read at a glance than Search or Social. Analytics has the groups. */}
+            {visits && (
+              <Panel plain title="Where visits come from" text="Last 30 days, compared with the 30 before" action={<PanelLink href="/analytics">Analytics</PanelLink>}>
+                <VisitSources now={visits.now} before={visits.before} top={4} />
+              </Panel>
+            )}
           </>
         }
       >

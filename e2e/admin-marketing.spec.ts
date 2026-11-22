@@ -100,7 +100,7 @@ test("an idea starts the composer on its car, and the list filters to ads", asyn
   await page.getByRole("radio", { name: "Ads", exact: true }).check();
   await expect(page).toHaveURL(/show=ad/);
   await page.getByRole("button", { name: "Done", exact: true }).click();
-  await expect(page.getByRole("region", { name: "Posts and ads" }).getByRole("listitem").first()).toContainText(" ad");
+  await expect(page.getByRole("list", { name: "Posts and ads" }).getByRole("listitem").first()).toContainText(" ad");
 });
 
 test("write a newsletter from the newest cars, and sending sends it", async ({ page }) => {
@@ -121,8 +121,15 @@ test("an unknown notice code shows nothing", async ({ page }) => {
 test("what waits on you is at the top with Post now in the row; the list below is what went out; a chosen car can be changed", async ({ page }) => {
   await page.goto("/marketing");
   const waiting = page.getByRole("region", { name: "Waiting on you" });
-  await expect(waiting.getByRole("button", { name: /^(Post now|Get it ready|Start ad)/ }).first()).toBeVisible(); // the demo seeds drafts and a scheduled post
-  await expect(page.getByRole("region", { name: "Posts and ads" }).getByText("Draft", { exact: true })).toHaveCount(0);
+  await expect(waiting.getByRole("button", { name: /^(Post now|Finish post|Start ad)/ }).first()).toBeVisible(); // the demo seeds drafts and a scheduled post
+  await expect(page.getByRole("list", { name: "Posts and ads" }).getByText("Draft", { exact: true })).toHaveCount(0);
+  // Delete is in More, not a red button in every row, and still asks first. Cancel keeps it.
+  await expect(waiting.getByRole("button", { name: /^Delete/ })).toHaveCount(0);
+  await waiting.getByRole("button", { name: /^More for/ }).first().click();
+  await page.getByRole("button", { name: /^Delete the / }).first().click();
+  await expect(page.getByRole("dialog")).toContainText(/Delete this (post|ad)\?/);
+  await page.getByRole("dialog").getByRole("button", { name: "Cancel" }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await startPost(page);
   await page.getByRole("button", { name: "Change car" }).click();
   await expect(page.getByRole("heading", { name: /Step 1 of 4/ })).toBeVisible();

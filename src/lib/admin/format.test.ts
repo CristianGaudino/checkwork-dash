@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addMonths, daysSince, isIsoDay, isIsoMonth, fmtAgo, fmtDateTime, fmtDay, fmtEur, fmtPct, fmtTime, monthChoices, plural } from "./format";
+import { addMonths, daysSince, isIsoDay, isIsoMonth, fmtAgo, fmtDateTime, fmtDay, fmtEur, fmtPct, fmtTime, monthChoices, plural, threeLetter } from "./format";
 
 describe("admin format", () => {
   const now = new Date("2026-11-10T12:00:00Z").getTime();
@@ -12,6 +12,10 @@ describe("admin format", () => {
     expect(fmtEur(12500)).toBe("€12,500");
     expect(fmtPct(12.345)).toBe("12.3%");
     expect(fmtPct(8)).toBe("8%");
+  });
+  it("writes September in full, and short as Sep", () => {
+    expect(fmtDay("2027-09-01", "monthYear")).toBe("September 2027");
+    expect(threeLetter("1 Sept 2027")).toBe("1 Sep 2027");
   });
 });
 

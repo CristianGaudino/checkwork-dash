@@ -8,6 +8,7 @@ import { buildLeadEmail } from "@/lib/leads/email";
 import { leadRecipients, sendToDealer } from "@/lib/leads/mail";
 import { DETAIL_LABELS, TYPE_LABELS, leadSchemaFor, oneLine, type LeadType } from "@/lib/leads/schema";
 import { createDrizzleStore, type LeadRow } from "@/lib/leads/store";
+import { parseJourney } from "@/lib/leads/journey";
 import { logLead } from "@/lib/log";
 import { currentDealer, hasD1 } from "@/lib/tenancy/current";
 import { CHANNELS, CHANNEL_LABELS } from "@/lib/visit-rules";
@@ -16,7 +17,7 @@ import type { Answer } from "./request";
 // POST /api/site/v1/leads: a lead the dealer's website already stored (and emailed, or tried to). It lands in this dealer's `leads` table
 // and inbox as a website lead always did: the bell, the staff WhatsApp alert, and the dealer's lead email when the website could not send it.
 // The website ran the browser's checks (bot check, per-visitor limit); this checks the lead again by the same rules (src/lib/leads/schema.ts),
-// consent included. Runs inside the key's dealer (siteRequest). Nothing from the lead is ever logged.
+// consent included. Runs inside the key's dealer (siteRequest). Nothing from the lead or its visit note is ever logged.
 
 const TYPES = Object.keys(TYPE_LABELS) as [LeadType, ...LeadType[]];
 const time = z.number().int().positive();
@@ -42,6 +43,8 @@ const envelope = z.strictObject({
   }),
   emailed: z.boolean(),
   photoCount: z.number().int().min(0).max(20),
+  // The visit note (src/lib/leads/journey.ts), checked on its own below: a bad one is dropped, never the lead.
+  journey: z.unknown().optional(),
 });
 
 const INVALID: Answer = { status: 400, outcome: "invalid" };
@@ -80,6 +83,7 @@ export async function receiveLead(text: string): Promise<Answer> {
   const sent = envelope.safeParse(json);
   if (!sent.success) return INVALID;
   const { lead, emailed, photoCount } = sent.data;
+  const journey = parseJourney(sent.data.journey);
 
   // A retry of a lead already here gets the same id, before the rules are run again (a booking's day may have passed since).
   const leadsHere = await store();
@@ -143,7 +147,7 @@ export async function receiveLead(text: string): Promise<Answer> {
     }
   }
   // Best effort, as on the website: the lead is stored, so a failed copy into the inbox is logged by id and type for a hand copy.
-  await mirrorLead(row, told, photoCount).catch(() => logLead({ leadId: row.id, type: row.type, outcome: "mirror_failed" }));
+  await mirrorLead(row, told, photoCount, journey).catch(() => logLead({ leadId: row.id, type: row.type, outcome: "mirror_failed" }));
   if (told) await leadsHere.markNotified(row.id).catch(() => {});
   return { status: 201, outcome: "stored", body: { id: row.id } };
 }

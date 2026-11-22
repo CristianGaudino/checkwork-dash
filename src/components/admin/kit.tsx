@@ -146,7 +146,8 @@ export function EmptyState({ title, text, action, icon, compact = false }: { tit
 
 // `hide` keeps a less important column off narrow screens: it shows from that width up. `nowrap` keeps short values (a name, a date) on one line.
 // A right-aligned column is figures, which never wrap either.
-const HIDE = { sm: "hidden sm:table-cell", md: "hidden md:table-cell", lg: "hidden lg:table-cell", xl: "hidden xl:table-cell", "2xl": "hidden 2xl:table-cell" } as const;
+// `picking`: from 640px, and on a phone while the page says so (<html data-picking>, the stock list's Select).
+const HIDE = { sm: "hidden sm:table-cell", md: "hidden md:table-cell", lg: "hidden lg:table-cell", xl: "hidden xl:table-cell", "2xl": "hidden 2xl:table-cell", picking: "hidden sm:table-cell [[data-picking]_&]:table-cell" } as const;
 // `sort`: the value the column sorts by; with it, its header sorts the list (sortRows does it on the server, before the list is paged).
 // `quietHeader`: the header is for screen readers only (a column of tick boxes).
 export type Column<T> = { key: string; header: string; quietHeader?: boolean; cell: (row: T) => React.ReactNode; align?: "right"; className?: string; hide?: keyof typeof HIDE; nowrap?: boolean; sort?: (row: T) => string | number | undefined };
@@ -238,12 +239,14 @@ export function SummaryTabs({ items, label = "Filter" }: { items: SummaryTab[]; 
 
 // Above a table: its search and one Filters button (every filter it has, in a panel), the density switch at the end of the row, and under
 // them the filters that are on, as chips to take off. On a phone the search and Filters share a row and the density switch is left out.
-export function TableToolbar({ search, filters }: { search?: { placeholder: string; label: string }; filters?: FilterGroup[] }) {
+// `action`: one more control in the row, after the filters (the stock list's Select on a phone).
+export function TableToolbar({ search, filters, action }: { search?: { placeholder: string; label: string }; filters?: FilterGroup[]; action?: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-2">
         {search && <LiveSearch placeholder={search.placeholder} label={search.label} />}
         {filters && filters.length > 0 && <Filters groups={filters} />}
+        {action}
         <div className="ml-auto hidden sm:block">
           <DensityToggle />
         </div>

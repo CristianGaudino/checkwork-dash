@@ -11,7 +11,8 @@ describe("a data request", () => {
   it("finds everything held about a person by email or phone, exports it, and erases it, keeping their purchase without them", async () => {
     const now = Date.now();
     await customersStore.put({ id: "cust-x", name: "Pat Byrne", email: "pat@example.com", phone: "087 123 4567", source: "Sale", marketingConsent: false, createdAt: now, lastContactAt: now });
-    await leadsStore.put({ id: "lead-x", type: "enquiry", status: "new", name: "Pat Byrne", email: "PAT@example.com", phone: "", message: "Hi", source: "Website", notes: [], createdAt: now });
+    const journey = { v: 1 as const, minutes: 9, cars: [{ id: "4508173", views: 2 }], searches: [{ body: "suv" }], tools: { saved: 1 } };
+    await leadsStore.put({ id: "lead-x", type: "enquiry", status: "new", name: "Pat Byrne", email: "PAT@example.com", phone: "", message: "Hi", source: "Website", journey, notes: [], createdAt: now });
     await drivesStore.put({ id: "drive-x", name: "Pat", email: "", phone: "+353 87 123 4567", carSlug: "x", carTitle: "2016 Ford Focus", startsAt: now, status: "confirmed", notes: "", createdAt: now });
     await alertsStore.put({ id: "alert-x", email: "pat@example.com", kind: "price-drop", criteria: "Ford Focus", active: true, createdAt: now });
     await subscribersStore.put({ id: "sub-x", email: "pat@example.com", status: "subscribed", createdAt: now });
@@ -31,6 +32,7 @@ describe("a data request", () => {
     expect(heldCount(byPhone)).toBe(heldCount(byEmail));
     expect(heldCount(byEmail)).toBe(10);
     expect(JSON.stringify(exportOf(byEmail).purchases)).not.toContain("cust-x");
+    expect(exportOf(byEmail).leads[0].journey).toEqual(journey); // their visit note goes with the lead: exported, and erased with it below
     expect(exportOf(byEmail).deposits).toEqual([{ car: "2018 Kia Rio", depositEur: 500, paidOn: "2026-10-01", until: "2026-10-10", status: "refunded", refundEur: 500 }]);
 
     expect(await erasePerson(parsePersonQuery("pat@example.com")!)).toBe(6); // the sale and the deposit are kept, so not counted

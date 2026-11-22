@@ -2,7 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ActButton } from "@/components/admin/ActButton";
 import { AlertForm, DetailsForm, LimitsForm } from "@/components/admin/BillingForms";
-import { Badge, DataTable, EmptyState, PageHeader, Panel, Segmented, adminButtonQuiet, rowButton } from "@/components/admin/kit";
+import { Badge, DataTable, EmptyState, Facts, PageHeader, Panel, Segmented, adminButtonQuiet, rowButton } from "@/components/admin/kit";
+import { listing, stockSource } from "@/lib/stock-source";
+import { currentDealer } from "@/lib/tenancy/current";
 import { fmtDay, fmtNum, plural } from "@/lib/admin/format";
 import { MODULES, withModule } from "@/lib/modules-rules";
 import { enabledModules } from "@/lib/modules";
@@ -274,7 +276,30 @@ function PlanAndUsage({ modules, services, usage, counts, b, now }: { modules: M
           </div>
         </dl>
       </Panel>
+      <SetForYou />
     </>
+  );
+}
+
+// Ours to set with the plan (the owner's program, docs/new-dealer.md): shown, never changed here. It was "Your plan" in Settings.
+async function SetForYou() {
+  const [source, { site }, { profile }] = await Promise.all([stockSource(), listing(), currentDealer()]);
+  const r = profile.rules;
+  return (
+    <Panel title="What we set for you" quiet>
+      <Facts
+        items={[
+          ["Stock", source === "donedeal" ? `From ${site}` : "Kept here"],
+          ["Old stock after", `${r.oldStockDays} days`],
+          ["Price drop suggested", `€${r.slowDropEur}`],
+          ["Sold cars stay on your website", `${r.soldVisibleDays} days`],
+          ["Sales asked about for", `${r.saleNudgeDays} days`],
+        ]}
+      />
+      <p className="text-meta text-text-2">
+        <Link href={`/help?type=${encodeURIComponent("Request a change")}&from=/billing`} className="font-medium text-accent-text underline underline-offset-2">Ask us to change them</Link>
+      </p>
+    </Panel>
   );
 }
 
@@ -333,6 +358,7 @@ async function WithoutPrices() {
           </div>
         </Panel>
       )}
+      <SetForYou />
       <Panel title="Billing details">
         <DetailsForm details={details} editable={me.role === "Owner"} />
       </Panel>

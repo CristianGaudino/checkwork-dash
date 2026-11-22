@@ -85,7 +85,7 @@ export function BookDriveForm({ cars, team, me, slots, initialCar, person }: { c
           <input name="email" type="email" defaultValue={person?.email} className={adminInput} autoComplete="off" />
         </Field>
         <Field label="Who takes them out">
-          <Select name="assignedTo" label="Who takes them out" defaultValue={team.includes(me) ? me : ""} options={[["", "Nobody yet"], ...team.map((t) => [t, t] as const)]} />
+          <Select name="assignedTo" label="Who takes them out" defaultValue={team.includes(me) ? me : ""} options={[["", "Not assigned"], ...team.map((t) => [t, t] as const)]} />
         </Field>
         <Field label="Notes (optional)" className="sm:col-span-2">
           <input name="notes" maxLength={DRIVE_LIMITS.notes} className={adminInput} />
@@ -130,7 +130,7 @@ export function MoveDriveForm({ id, carSlug, slots }: { id: string; carSlug: str
   return (
     <form {...action} noValidate className="flex flex-col gap-4">
       <SlotPicker days={slots.days} taken={slots.taken[carSlug] ?? []} windowMin={slots.windowMin} now={slots.now} date={when.date} time={when.time} onChange={(date, time) => setWhen({ date, time })} errors={state?.errors} />
-      <button type="submit" disabled={pending || !when.time} className={`${adminButton} self-start disabled:opacity-50`}>
+      <button type="submit" disabled={pending || !when.time} className={`${when.time ? adminButton : adminButtonQuiet} self-start disabled:opacity-50`}>
         {pending ? "Moving" : "Move"}
       </button>
     </form>

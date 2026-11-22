@@ -28,6 +28,7 @@ test.describe("on a computer", () => {
       asked++;
       void d.dismiss();
     });
+    await page.getByText("More details (optional)").click();
     await choose(page.getByRole("combobox", { name: "Fuel" }), 1);
     await page.getByRole("link", { name: "Cancel" }).click();
     await expect.poll(() => asked).toBe(1);

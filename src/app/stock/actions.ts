@@ -18,6 +18,7 @@ import { BAD_COST, parseCost } from "@/lib/admin/margins";
 import { can } from "@/lib/permissions";
 import { addCar, adminCar, adminCarAt, adminCars, freeCarId, removeCar, updateCar } from "@/lib/admin/stock-admin";
 import { droppedPrice, listedOn } from "@/lib/admin/stock-admin-pure";
+import { isAsked } from "@/lib/leads/journey";
 import { CAR_PHOTOS_MAX, CAR_PHOTO_MAX_BYTES, dropCarPhotos, storeCarPhoto } from "@/lib/admin/car-photos";
 import { sniffImage } from "@/lib/leads/photos";
 import { stockSource } from "@/lib/stock-source";
@@ -306,7 +307,7 @@ export async function recordSaleAction(carId: string, _prev: FormState, data: Fo
   const depositEur = held?.depositEur ?? was?.depositEur;
   // The lead it came from (one on this car, still open or already won) is marked won with it.
   const lead = d.leadId ? await leadsStore.get(d.leadId) : undefined;
-  const leadId = lead?.carSlug === car.slug && lead.status !== "lost" ? lead.id : undefined;
+  const leadId = lead && isAsked(lead.carSlug, car.id) && lead.status !== "lost" ? lead.id : undefined;
   if (lead && leadId && lead.status !== "won") {
     await leadsStore.update(lead.id, (l) => ({ ...l, status: "won", followUpOn: undefined, notes: [...l.notes, { at: Date.now(), text: "Bought the car." }] }));
     await logActivity("leads", "Marked the lead won, with the sale", { kind: "lead", id: lead.id });

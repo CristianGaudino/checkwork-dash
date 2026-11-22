@@ -1,7 +1,7 @@
 import type { Network, PostFormat, StoryLayout } from "@/lib/admin/networks";
 
 // What AI writing help is asked for (#179). Plain data, safe for the browser: the buttons, and the facts each task is allowed to see.
-export const TASKS = ["post", "newsletter", "carDescription", "leadReply", "reviewReply"] as const;
+export const TASKS = ["post", "newsletter", "carDescription", "leadReply", "reviewReply", "leadBrief"] as const;
 export type Task = (typeof TASKS)[number];
 
 export const ADJUSTS = {
@@ -24,6 +24,7 @@ const BY_TASK: Record<Task, Adjust[]> = {
   carDescription: ["shorter", "detail", "economy", "family"],
   leadReply: ["formal", "friendlier", "shorter"],
   reviewReply: ["apologetic", "shorter"],
+  leadBrief: [], // a brief to read before a call: written again, never reworded
 };
 // A story is a few words on a photo: it only gets the buttons that make sense there.
 export const adjustsFor = (task: Task, format?: PostFormat): Adjust[] => (task === "post" && format === "story" ? ["shorter", "urgency"] : BY_TASK[task]);
@@ -38,7 +39,11 @@ export type FactsOf = {
   // type: the lead type id (stable), so a reply chooses its ask by it and never by the label, which can be reworded.
   leadReply: { dealer: string; firstName: string; kind: string; type?: string; message: string; car?: string; carDetails?: CarFacts & { forSale: boolean } };
   reviewReply: { dealer: string; firstName: string; rating: number; text: string };
+  // "Prepare me" (#34): the lead's own fields (no name, no contacts), what they did on the site this visit, and the closest cars for sale.
+  // Every string is the lead's cut message, the dealer's name, a fixed label or a car of the dealer's stock: nothing else about the person.
+  leadBrief: { dealer: string; kind: string; type: string; tags: string[]; message: string; car?: string; carForSale?: boolean; visit: VisitFacts; closest: CarFacts[] };
 };
+export type VisitFacts = { from?: string; minutes: number; cars: { name: string; views: number; askedAbout?: true; sold?: true }[]; pattern?: string; searches: string[][]; tools: string[] };
 
 // Phone numbers and emails never go to the AI provider: a reply is drafted without them. 9 digits or more is a phone number, unless it holds
 // a date ("14/06/2025 14:00") or is only years ("2019 2020 2021").
@@ -67,6 +72,7 @@ export type WriteRequest =
   | { task: "newsletter" }
   | { task: "carDescription"; fields: Record<string, string> }
   | { task: "leadReply"; leadId: string }
-  | { task: "reviewReply"; reviewId: string };
+  | { task: "reviewReply"; reviewId: string }
+  | { task: "leadBrief"; leadId: string };
 
 export type WriteResult = { ok: true; text: string; subject?: string } | { ok: false; reason: "limit" | "failed" };

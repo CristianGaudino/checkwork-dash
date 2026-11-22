@@ -2,7 +2,7 @@
 
 import { useKeptForm } from "@/components/admin/useKeptForm";
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { RegLookup } from "@/components/leads/RegLookup";
 import { useLeaveGuard } from "@/components/admin/useLeaveGuard";
 import { Select } from "@/components/Select";
@@ -12,6 +12,8 @@ import { NewCarPhotos, type PickedPhoto } from "@/components/admin/CarPhotos";
 import { saveCarAction } from "@/app/stock/actions";
 import { lookupRegStaffAction } from "@/app/reg-action";
 import { CAR_FIELDS, FIELD_GROUPS } from "@/lib/admin/car-fields";
+import { ChevronDownIcon } from "@/components/stock/icons";
+import { card } from "@/components/ui";
 import { addMonths, dublinDay, fmtDay, isIsoMonth, monthChoices } from "@/lib/admin/format";
 import { PLUG_FUELS, type Car, type Fuel } from "@/lib/stock/types";
 import type { WriteRequest } from "@/lib/ai/tasks";
@@ -20,6 +22,10 @@ import type { FormState } from "@/lib/admin/validation";
 // The parts of the form: a plainer name on screen, and the anchor the car page's links go to.
 const GROUP_TITLES: Partial<Record<(typeof FIELD_GROUPS)[number], string>> = { Basics: "About the car" };
 const GROUP_IDS: Record<(typeof FIELD_GROUPS)[number], string> = { Basics: "basics", Price: "price", Details: "details", "Battery and charging": "battery", "Description and equipment": "description" };
+// A saved car opens on its price (the most changed box); the long parts fold under headings that open. A new car folds only its details,
+// which the registration lookup mostly fills.
+const EDIT_GROUPS = ["Price", ...FIELD_GROUPS.filter((g) => g !== "Price")] as const;
+const folded = (group: (typeof FIELD_GROUPS)[number], editing: boolean) => group === "Details" || (editing && group === "Description and equipment");
 
 // What Write with AI sends for the description: the form's boxes, or nothing until the make and model are in (the writer then says so).
 const carRequest = (form: HTMLFormElement | null | undefined): WriteRequest | null => {
@@ -59,6 +65,20 @@ export function CarForm({ car, at, cost, reg: startReg = "", photosMax }: { car?
   const [reg, setReg] = useState(startReg);
   const [onRequest, setOnRequest] = useState(car?.priceEur === 0); // a price of 0 says so as it is typed
   const [fuel, setFuel] = useState<string>(car?.fuel ?? ""); // the battery and charging boxes are for a car with a plug
+  const [changed, setChanged] = useState(false); // once anything changes, Save stays in view at the foot of the screen
+  const touched = () => setChanged(true);
+  // The bar comes up over the foot of the screen: the box being typed in moves up out from under it (globals.css keeps room for it).
+  useEffect(() => {
+    if (changed && document.activeElement instanceof HTMLElement && form.current?.contains(document.activeElement)) document.activeElement.scrollIntoView({ block: "nearest" });
+  }, [changed]);
+  // After every refused save, a fold holding a box with a message opens, so the message is never folded away. Set on the element, not as
+  // React's `open` prop: a prop left unchanged between saves would not reopen a fold the dealer closed, and one cleared would close it.
+  useEffect(() => {
+    for (const group of new Set(CAR_FIELDS.filter((f) => state?.errors?.[f.name]).map((f) => f.group))) {
+      const fold = form.current?.querySelector<HTMLDetailsElement>(`#${GROUP_IDS[group]} > details`);
+      if (fold) fold.open = true;
+    }
+  }, [state]);
   useLeaveGuard(form); // a menu tap would throw the edits away
   const value = (name: string): string => {
     if (found[name] !== undefined) return found[name];
@@ -72,10 +92,11 @@ export function CarForm({ car, at, cost, reg: startReg = "", photosMax }: { car?
     setFound(next);
     setFuel(next.fuel ?? "");
     setDrawn((n) => n + 1);
+    touched();
   };
 
   return (
-    <form {...action} className="flex flex-col gap-6" noValidate>
+    <form {...action} onInput={touched} className="flex flex-col gap-6" noValidate>
       {/* Adding a car starts from its registration: the lookup fills the basics and details, and every box can still be changed. */}
       {!car && (
         <Panel title="1. Look up the registration">
@@ -94,14 +115,11 @@ export function CarForm({ car, at, cost, reg: startReg = "", photosMax }: { car?
           </div>
         </Panel>
       )}
-      {photosMax !== undefined && <NewCarPhotos title="2. Add photos" photos={photos} onChange={setPhotos} max={photosMax} error={errors.photos} />}
+      {photosMax !== undefined && <NewCarPhotos title="2. Add photos" photos={photos} onChange={(p) => (setPhotos(p), touched())} max={photosMax} error={errors.photos} />}
       {!car && <h2 className="-mb-2 text-section font-semibold">3. Check the details and set the price</h2>}
       <div key={drawn} className="flex flex-col gap-6">
-      {FIELD_GROUPS.map((group) => (
-        // Hidden, not left out, for any other fuel: what was typed comes back if the fuel is changed back. The server drops it on save.
-        // Each part has an id, so the car page's links (Price, Details, Description) go straight to it.
-        <div key={group} id={GROUP_IDS[group]} className={`scroll-mt-24 ${group === "Battery and charging" && !PLUG_FUELS.includes(fuel as Fuel) ? "hidden" : ""}`}>
-        <Panel title={GROUP_TITLES[group] ?? group}>
+      {(car ? EDIT_GROUPS : FIELD_GROUPS).map((group) => {
+        const fields = (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {CAR_FIELDS.filter((f) => f.group === group).map((f) => f.name === "description" ? (
               // The description has the AI writer under it, so it is not inside the label the other boxes use.
@@ -113,9 +131,9 @@ export function CarForm({ car, at, cost, reg: startReg = "", photosMax }: { car?
             ) : (
               <Field key={f.name} label={f.label} hint={f.name === "priceEur" && onRequest ? "A price of 0 shows as Price on request on the website, with no finance estimate." : f.hint} error={errors[f.name]} className={f.wide ? "sm:col-span-2 lg:col-span-3" : ""}>
                 {f.type === "select" ? (
-                  <Select name={f.name} defaultValue={value(f.name)} onChange={f.name === "fuel" ? setFuel : undefined} options={[["", f.name === "condition" ? "Used" : "Not set"], ...f.options!.filter(([v]) => !(f.name === "condition" && v === "used"))]} />
+                  <Select name={f.name} defaultValue={value(f.name)} onChange={(v) => (touched(), f.name === "fuel" && setFuel(v))} options={[["", f.name === "condition" ? "Used" : "Not set"], ...f.options!.filter(([v]) => !(f.name === "condition" && v === "used"))]} />
                 ) : f.type === "month" ? (
-                  <Select name={f.name} defaultValue={value(f.name)} options={monthOptions(value(f.name))} />
+                  <Select name={f.name} defaultValue={value(f.name)} onChange={touched} options={monthOptions(value(f.name))} />
                 ) : f.type === "textarea" ? (
                   <textarea name={f.name} defaultValue={value(f.name)} rows={f.name === "features" ? 6 : 5} className={`${adminInput} h-auto py-2`} />
                 ) : (
@@ -124,9 +142,26 @@ export function CarForm({ car, at, cost, reg: startReg = "", photosMax }: { car?
               </Field>
             ))}
           </div>
-        </Panel>
-        </div>
-      ))}
+        );
+        const title = !car && group === "Details" ? "More details (optional)" : (GROUP_TITLES[group] ?? group);
+        return (
+          // Hidden, not left out, for any other fuel: what was typed comes back if the fuel is changed back. The server drops it on save.
+          // Each part has an id, so the car page's links (Price, Details, Description) go straight to it.
+          <div key={group} id={GROUP_IDS[group]} className={`scroll-mt-24 ${group === "Battery and charging" && !PLUG_FUELS.includes(fuel as Fuel) ? "hidden" : ""}`}>
+            {folded(group, Boolean(car)) ? (
+              <details className={`${card} group/fold p-5`}>
+                <summary className="-my-2 flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
+                  <h2 className="text-section font-semibold">{title}</h2>
+                  <ChevronDownIcon aria-hidden="true" className="size-5 shrink-0 text-text-2 transition-transform group-open/fold:rotate-180" />
+                </summary>
+                <div className="mt-4">{fields}</div>
+              </details>
+            ) : (
+              <Panel title={title}>{fields}</Panel>
+            )}
+          </div>
+        );
+      })}
 
       </div>
       {cost && (
@@ -142,7 +177,8 @@ export function CarForm({ car, at, cost, reg: startReg = "", photosMax }: { car?
       {/* Shown, hidden or draft is changed by the buttons at the top of the car's page (Hide from the website, Publish), never by Save
           changes (car-form.ts keeps a saved car's state). A new car is added or kept as a draft by its buttons. */}
       {errors.stale && <p role="alert" className="text-body text-destructive">{errors.stale}</p>}
-      <div className="flex flex-wrap gap-3">
+      {/* Above the phone's tab bar (and the demo bar), so Save is a thumb away wherever the change was made. */}
+      <div data-sticky-save={changed || undefined} className={`flex flex-wrap gap-3 ${changed ? "sticky bottom-[calc(var(--demo-bar-h,0px)+4.5rem+env(safe-area-inset-bottom))] z-20 rounded-card border border-hairline bg-card p-3 shadow-lift lg:bottom-[calc(var(--demo-bar-h,0px)+1rem)]" : ""}`}>
         <button type="submit" name={car ? undefined : "listing"} value={car ? undefined : "live"} disabled={pending} className={adminButton}>
           {pending ? "Saving" : car ? "Save changes" : "Add car"}
         </button>

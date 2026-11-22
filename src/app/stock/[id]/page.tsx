@@ -149,13 +149,13 @@ export default async function Page({ params, searchParams }: { params: Promise<{
       {summary}
       {/* The long form in named parts, so price, photos or the description is one press away. */}
       <nav aria-label="Parts of this car's page" className="scrollbar-none -mx-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:px-0">
-        {[["photos", "Photos"], ["basics", "About the car"], ["price", "Price"], ["details", "Details"], ["description", "Description"], ...(cost ? [["cost", "Cost"]] : []), ...(prep ? [["prep", "Prep costs"]] : [])].map(([to, label]) => (
+        {[["price", "Price"], ["basics", "About the car"], ["details", "Details"], ["description", "Description"], ["photos", "Photos"], ...(cost ? [["cost", "Cost"]] : []), ...(prep ? [["prep", "Prep costs"]] : [])].map(([to, label]) => (
           <a key={to} href={`#${to}`} className={`${choicePill(false)} shrink-0 whitespace-nowrap`}>{label}</a>
         ))}
       </nav>
-      {/* Photos first: they are the job on the forecourt, and they save on their own, apart from the form's Save changes. */}
-      <CarPhotos carId={car.id} photos={car.photos} max={CAR_PHOTOS_MAX} />
+      {/* The form first, opening on the price (#40); its long parts fold. Photos after it: they save on their own, apart from Save changes. */}
       <CarForm car={car} at={at} cost={cost} />
+      <CarPhotos carId={car.id} photos={car.photos} max={CAR_PHOTOS_MAX} />
       {prep}
       {history}
       {/* Out of the way, at the end: marking a car sold is nearly always what is wanted, and it keeps the car's page as Sold for a while.

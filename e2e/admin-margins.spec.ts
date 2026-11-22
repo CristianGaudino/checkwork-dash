@@ -48,8 +48,7 @@ test("the demo bar's role decides what the dealer sees, the owner by default", a
 test("only an owner or manager changes the team and the settings; a manager cannot change an owner", async ({ page, context }) => {
   await as(context, "Sales");
   await page.goto("/settings?section=targets");
-  await expect(page.getByText("Only an owner or manager can change these settings.")).toBeVisible();
-  await expect(page.getByLabel("Reply to a new lead within (hours)")).toHaveCount(0); // read only: the value as text
+  await expect(page.getByLabel("Reply to a new lead within (hours)")).toHaveCount(0); // not theirs: only their own notifications show
   await page.goto("/settings?section=team");
   await expect(page.getByRole("button", { name: "Remove" })).toHaveCount(0);
   await as(context, "Manager");

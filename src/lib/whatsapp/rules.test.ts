@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { parseModules } from "@/lib/modules-rules";
 import { ROLES } from "@/lib/permission-rules";
-import { BUTTON_LABELS, EVENTS, EVENT_IDS, alertText, channelFor, defaultAlerts, eventOfLead, eventsFor, firstName, inQuiet, parsePrice } from "./rules";
+import { BUTTON_LABELS, EVENTS, EVENT_IDS, alertText, channelFor, defaultAlerts, eventList, eventOfLead, eventsFor, firstName, inQuiet, parsePrice } from "./rules";
 
 describe("parsePrice", () => {
   it.each([
@@ -30,6 +30,13 @@ describe("templates by module", () => {
   it("a dealer gets only the events of the modules they have", () => {
     expect(eventsFor(some("dashboard,whatsapp"))).toEqual(["enquiry", "slow-stock"]);
     expect(eventsFor(some("all"))).toEqual(EVENT_IDS);
+  });
+  it("the page's list fills in the dealer's old stock days, and puts the plan's alerts first", () => {
+    const list = eventList(some("dashboard,whatsapp"), 60);
+    expect(list.find((e) => e.id === "slow-stock")).toMatchObject({ label: "A car 60 days in stock", on: true });
+    for (const e of list) expect(`${e.label} ${e.does}`).not.toContain("{");
+    expect(list.map((e) => e.on)).toEqual([true, true, ...Array(EVENT_IDS.length - 2).fill(false)]);
+    expect(eventList(some("dashboard,reviews"), 60).slice(0, 3).map((e) => e.id)).toEqual(["enquiry", "slow-stock", "review"]);
   });
   it("every button of every template has a label, and no text has a dash", () => {
     for (const e of EVENT_IDS) for (const b of EVENTS[e].buttons) expect(BUTTON_LABELS[b]).toBeTruthy();

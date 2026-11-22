@@ -39,7 +39,8 @@ permissions, each checked on the server in every page and action that needs it (
   in the admin store (`car-costs`), never in the public car data.
 - **Team:** add people, change roles, remove people. A manager cannot add, change or remove an owner, or make anyone one. A team with an
   owner always keeps one, and the last person cannot be removed.
-- **Business settings:** targets, lead emails, notifications, marketing voice and the demo reset. Others see them read only.
+- **Business settings:** timings, lead emails, notifications, marketing voice and the demo reset. Others see only Notifications, for their
+  own devices.
 
 - **Activity history** (`/activity`): every change made in the dashboard, newest first, with who made it, filtered by area,
   person and period. Changes only, never page views. See below.
@@ -65,7 +66,7 @@ What differs between dealers beyond their records is in their profile (#5): one 
   since images load from here only). The name is the directory's `name` column. Owners and managers change the name, website, phone,
   email, address and hours in Settings, Your business (`saveBusinessAction`, in the activity history); it merges into the profile, never
   over what is ours.
-- **Ours to set** (shown read only in Settings, Your plan): `modules` (the plan), `stock` (`source` "checkwork" or "donedeal",
+- **Ours to set** (shown read only in Billing: the plan, and "What we set for you"): `modules` (the plan), `stock` (`source` "checkwork" or "donedeal",
   `listingSite`, `listingUrl`), `rules` (`oldStockDays`, `slowDropEur`, `soldVisibleDays`, `saleNudgeDays`), `placeId` (Google reviews)
   and `leadEmail` (where leads go when Settings has no address). How to set them: `docs/new-dealer.md`.
 - **Defaults:** a dealer with nothing set has the dashboard alone, stock kept here, the usual rules, no website and no logo (the menu
@@ -358,7 +359,7 @@ their bytes and kept in the private bucket under `help/`, or as a data URL with 
 
 ## Monthly report and the owner API
 
-- **Analytics** (`/analytics`, the Site analytics module): on the demo, generated sample figures (`src/lib/admin/analytics.ts`). On a real site, the site's own anonymous counts (`src/lib/admin/visitor-figures.ts`): visits by channel and the website leads each brought, searches with no cars to show by make, price bands and filters used, calculator use against finance applications, and active alerts per car. A visit's channel (Google, Facebook, DoneDeal, a tagged link's `utm_source` and so on, `src/lib/visit-rules.ts`) is worked out on its first page and kept in the tab's sessionStorage for that visit only, so a lead form can send it: the lead shows "Website, from Facebook", and the dealer's email shows "Came from". No cookie, no visitor id, and what a buyer types in the search box is never stored, only a make from the fixed list.
+- **Analytics** (`/analytics`, the Site analytics module): on the demo, generated sample figures (`src/lib/admin/analytics.ts`). On a real site, the site's own anonymous counts (`src/lib/admin/visitor-figures.ts`): visits by channel and the website leads each brought, searches with no cars to show by make, price bands and filters used, calculator use against finance applications, and active alerts per car. A visit's channel (Google, Facebook, DoneDeal, a tagged link's `utm_source` and so on, `src/lib/visit-rules.ts`) is worked out on its first page and kept in the tab's sessionStorage for that visit only, so a lead form can send it: the lead shows "Website, from Facebook", and the dealer's email shows "Came from". No cookie, no visitor id, and what a buyer types in the search box is never stored, only a make from the fixed list. Where visits come from (`src/components/admin/VisitSources.tsx`, the maths in `src/lib/admin/visit-sources.ts`) shows one tile per channel with visits, the change ("Up 6%", or "Too few to compare" under 5; the panel names the period), leads and leads per 100 visits, the channel and the group with the most leads marked: the four busiest channels on the Overview, the groups (Search, Social, Listing sites, Email, Typed in, Other) opening into their networks on Analytics and in the monthly report. Paid and organic are not split: the site does not count a paid visit yet.
 - **Monthly report** (`/monthly-report`): last month by default, any of the twelve before it from the picker. Each section shows only for the modules on (Leads and Stock always, Visitors with Site analytics: sample figures on the demo, the site's own visit counts on a real site, Sales, Reviews). Each figure says how it compares with the month before, or "Too few to compare" under 5. Sales value and profit show only to staff with the margins permission. As on Reports, staff without it (Sales) see their own leads and sales only, with no stock, visitors or reviews. One "What to do" line comes from fixed rules. "Print or save as PDF" uses the browser's print, with the menu left out.
 - **Email**: `/api/reports/monthly` (CRON_KEY, scheduled `0 7 1 * *` in `worker.mjs` and `wrangler.jsonc`) emails last month's summary to the owners and managers: counts only. On the demo it goes to the lead inbox like the follow-up digest.
 - **Owner API** and the anonymous feature counters: see `docs/owner-api.md`. The figures for the report and the API are one module, `src/lib/reports/monthly.ts`.
