@@ -54,18 +54,29 @@ describe("sealing", () => {
 });
 
 describe("a dealer's own keys", () => {
-  it("win over the app-wide variable, stay with their dealer, and are stored sealed", async () => {
+  it("are the only source: an app-wide variable never stands in, and they stay with their dealer, and are stored sealed", async () => {
     vi.stubEnv("META_PAGE_ID", "app-wide");
     await at("test-motors", async () => {
-      expect(await secretFor("META_PAGE_ID")).toBe("app-wide");
+      expect(await secretFor("META_PAGE_ID")).toBeUndefined();
+      expect(await isConnected("social")).toBe(false);
       await saveSecret("META_PAGE_ID", "mine-plain-value");
       expect(await secretFor("META_PAGE_ID")).toBe("mine-plain-value");
     });
-    await at("checkwork-motors", async () => expect(await secretFor("META_PAGE_ID")).toBe("app-wide"));
+    await at("checkwork-motors", async () => expect(await secretFor("META_PAGE_ID")).toBeUndefined());
     const store = (globalThis as { __checkworkDocs?: Map<string, Map<string, Map<string, unknown>>> }).__checkworkDocs!;
     const rows = JSON.stringify([...store.get("test-motors")!.get("secrets")!.values()]);
     expect(rows).toContain("v1.");
     expect(rows).not.toContain("mine-plain-value");
+  });
+  it("that cannot be opened give nothing, not the app-wide variable", async () => {
+    vi.stubEnv("META_PAGE_ID", "app-wide");
+    await at("test-motors", async () => {
+      await saveSecret("META_PAGE_ID", "mine");
+      vi.stubEnv("DEALER_SECRETS_KEY", OTHER_KEY);
+      const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+      expect(await secretFor("META_PAGE_ID")).toBeUndefined();
+      spy.mockRestore();
+    });
   });
   it("count as connected, without the app-wide variables", async () => {
     await at("test-motors", async () => {
@@ -105,6 +116,20 @@ describe("saving from Settings", () => {
       expect((await saveKeysAction("social", undefined, form(META)))?.errors?.form).toBe("The demo never needs keys");
       expect((await savedNames()).size).toBe(0);
     });
+  });
+  it("is refused for no role (Sales, Finance, no person), save and remove, and the demo cannot remove either", async () => {
+    for (const role of [null, "Sales", "Finance"]) {
+      who.role = role;
+      await at("test-motors", async () => {
+        expect((await saveKeysAction("social", undefined, form(META)))?.errors?.form).toBe("Only an owner can change this");
+        expect(await removeKeysAction("social")).toEqual({ error: "Only an owner can change this" });
+        expect((await savedNames()).size).toBe(0);
+      });
+    }
+    who.role = "Owner";
+    await at("test-motors", () => saveKeysAction("social", undefined, form(META)));
+    await at("checkwork-motors", async () => expect(await removeKeysAction("social")).toEqual({ error: "The demo never needs keys" }));
+    await at("test-motors", async () => expect((await savedNames()).size).toBe(3));
   });
   it("is refused with a plain message when DEALER_SECRETS_KEY is not set, for a service that is ours, and for an empty box", async () => {
     await at("test-motors", async () => {

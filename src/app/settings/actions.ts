@@ -21,7 +21,7 @@ import { staffStore } from "@/lib/whatsapp/store";
 import { removePushOf } from "@/lib/push";
 import { INTEGRATIONS, integrationText } from "@/lib/integrations";
 import { listing } from "@/lib/stock-source";
-import { removeSecret, saveSecret, savedNames, secretsKeyReady } from "@/lib/dealer-secrets";
+import { removeSecret, saveSecrets, savedNamesNow, secretsKeyReady } from "@/lib/dealer-secrets";
 
 export type SettingsState = { errors?: Record<string, string>; saved?: boolean } | undefined;
 
@@ -252,9 +252,9 @@ export async function saveKeysAction(id: string, _p: SettingsState, data: FormDa
   const names = Object.keys(service.perDealer!);
   const values = names.map((n) => String(data.get(n) ?? "").trim());
   if (values.some((v) => !v || v.length > 4000)) return { errors: { form: "Fill in every box" } };
-  const saved = await savedNames();
+  const saved = await savedNamesNow();
   const had = names.every((n) => saved.has(n));
-  for (const [i, n] of names.entries()) await saveSecret(n, values[i]);
+  await saveSecrets(Object.fromEntries(names.map((n, i) => [n, values[i]])));
   await logActivity("settings", `${had ? "Replaced" : "Connected"} ${await nameOf(service)}`);
   revalidatePath("/settings");
   return { saved: true };

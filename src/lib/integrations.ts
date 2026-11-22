@@ -55,10 +55,10 @@ export const simulating = async () => (await currentDealer()).demo;
 
 const present = (name: string) => Boolean(process.env[name]);
 
-// What a service still lacks for the current dealer: their saved keys count first, then the app-wide variables.
+// What a service still lacks for the current dealer: a setting that is the dealer's own counts only when they saved it (never from an app-wide variable); the rest are ours, from the Worker secrets.
 export async function missingEnv(i: Integration) {
   const mine = i.perDealer ? await savedNames() : new Set<string>();
-  return i.env.filter((n) => !(i.perDealer?.[n] && mine.has(n)) && !present(n));
+  return i.env.filter((n) => !(i.perDealer?.[n] ? mine.has(n) : present(n)));
 }
 export const isConnected = async (id: IntegrationId) => {
   const i = INTEGRATIONS.find((x) => x.id === id);

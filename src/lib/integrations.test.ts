@@ -10,12 +10,13 @@ describe("integrations", () => {
     const social = INTEGRATIONS.find((i) => i.id === "social")!;
     expect(await isConnected("social")).toBe(false);
     expect(await missingEnv(social)).toEqual(social.env);
-    vi.stubEnv("META_PAGE_ID", "1");
-    vi.stubEnv("META_PAGE_ACCESS_TOKEN", "x");
+    // Meta's settings are the dealer's own: an app-wide variable never counts for them (src/lib/dealer-secrets.ts).
+    for (const k of ["META_PAGE_ID", "META_PAGE_ACCESS_TOKEN", "META_INSTAGRAM_ID"]) vi.stubEnv(k, "x");
     expect(await isConnected("social")).toBe(false);
-    expect(await missingEnv(social)).toEqual(["META_INSTAGRAM_ID"]);
-    vi.stubEnv("META_INSTAGRAM_ID", "2");
-    expect(await isConnected("social")).toBe(true);
+    // Ours are the Worker secrets.
+    const news = INTEGRATIONS.find((i) => i.id === "newsletter")!;
+    vi.stubEnv("NEWSLETTER_API_KEY", "x");
+    expect(await missingEnv(news)).toEqual(["NEWSLETTER_FROM_EMAIL", "UNSUBSCRIBE_SECRET"]);
   });
   it("treats an empty value as missing", async () => {
     vi.stubEnv("CARTELL_API_KEY", "");
@@ -64,7 +65,9 @@ describe("simulation follows the dealer, never the deploy", () => {
       expect(await modeOf("social")).toBe("off");
       expect(await modeOf("whatsapp")).toBe("off");
       for (const k of META) vi.stubEnv(k, "x");
-      expect(await modeOf("social")).toBe("live");
+      expect(await modeOf("social")).toBe("off"); // a leftover app-wide token is nobody's account
+      vi.stubEnv("CARTELL_API_KEY", "x");
+      expect(await modeOf("reglookup")).toBe("live"); // ours: the Worker secret
     });
   });
 });

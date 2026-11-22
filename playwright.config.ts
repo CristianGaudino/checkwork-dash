@@ -6,7 +6,7 @@ const baseURL = process.env.E2E_BASE_URL ?? `http://localhost:${process.env.PORT
 
 // SITE_PHOTO_SECRET empty: the run has none, whatever a local .env sets (the Settings warning is tested), and an empty value counts as unset.
 // SIGN_IN empty, whatever the shell has: Access alone, as production today, except on the closed server below.
-const SERVER_ENV = { E2E_FAKE_BACKENDS: "1", SIGN_IN: "", UNSUBSCRIBE_SECRET: "e2e-unsubscribe-secret", OWNER_API_TOKEN: "e2e-owner-token", SITE_PHOTO_SECRET: "", ANTHROPIC_API_KEY: "", DEALER_SECRETS_KEY: Buffer.alloc(32, 7).toString("base64") }; // no key: AI writing is the mock in every run, never paid Claude
+const SERVER_ENV = { E2E_FAKE_BACKENDS: "1", SIGN_IN: "", UNSUBSCRIBE_SECRET: "e2e-unsubscribe-secret", OWNER_API_TOKEN: "e2e-owner-token", SITE_PHOTO_SECRET: "", DEALER_SECRETS_KEY: Buffer.alloc(32, 7).toString("base64"), ANTHROPIC_API_KEY: "" }; // no key: AI writing is the mock in every run, never paid Claude
 const PUSH_PORT = Number(process.env.PORT ?? 3000) + 1;
 const PUSH_URL = `http://localhost:${PUSH_PORT}`;
 // A third server of the same build, closed (docs/sign-in.md, section 9): E2E_SIGN_IN=1 turns the open shortcut off (it can only close the

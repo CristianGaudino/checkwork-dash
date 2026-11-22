@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { defineCollection } from "@/lib/admin/docs";
 import { currentDealer } from "@/lib/tenancy/current";
 
@@ -45,24 +46,29 @@ export async function unseal(dealerId: string, name: string, sealed: string): Pr
 type Sealed = { id: string; sealed: string; at: number };
 const store = defineCollection<Sealed>("secrets", () => []);
 
-// Which of these names the current dealer has saved (no decrypting).
-export const savedNames = async () => new Set((await store.list()).map((d) => d.id));
+// Which names the current dealer has saved (no decrypting). Read once per page render; a save reads it fresh (savedNamesNow).
+export const savedNamesNow = async () => new Set((await store.list()).map((d) => d.id));
+export const savedNames = cache(savedNamesNow);
 
-export async function saveSecret(name: string, value: string) {
+// Every value is sealed before any is written, so a failed seal leaves the old keys whole. shortcut: the record store has no batch, so a
+// write that fails midway can still leave a mix; the owner sees the error and saves again.
+export async function saveSecrets(values: Record<string, string>) {
   const { id } = await currentDealer();
-  await store.put({ id: name, sealed: await seal(id, name, value), at: Date.now() });
+  const sealed = await Promise.all(Object.entries(values).map(async ([name, v]) => ({ id: name, sealed: await seal(id, name, v), at: Date.now() })));
+  for (const doc of sealed) await store.put(doc);
 }
+export const saveSecret = (name: string, value: string) => saveSecrets({ [name]: value });
 export const removeSecret = (name: string) => store.remove(name);
 
-// The value for the current dealer: theirs first, else the app-wide variable (so nothing breaks while a key is still a Worker secret).
+// The value for the current dealer, and only theirs: a dealer's own setting never falls back to an app-wide variable, or one leftover token
+// would be every dealer's account. A setting that is not per dealer (ours) is read from the Worker secret by its own adapter, not here.
 export async function secretFor(name: string): Promise<string | undefined> {
   const mine = await store.get(name);
-  if (mine) {
-    try {
-      return await unseal((await currentDealer()).id, name, mine.sealed);
-    } catch {
-      console.error(JSON.stringify({ job: "secrets", error: "could not open a saved key", name })); // the name only, never a value
-    }
+  if (!mine) return undefined;
+  try {
+    return await unseal((await currentDealer()).id, name, mine.sealed);
+  } catch {
+    console.error(JSON.stringify({ job: "secrets", error: "could not open a saved key", name })); // the name only, never a value
+    return undefined;
   }
-  return process.env[name] || undefined;
 }
