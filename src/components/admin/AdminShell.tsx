@@ -5,7 +5,7 @@ import Link from "next/link";
 import { AdminNav } from "@/components/admin/AdminNav";
 import { NotificationBell } from "@/components/admin/NotificationBell";
 import { Density } from "@/components/admin/density";
-import { ChevronLeftIcon, ChevronRightIcon } from "@/components/stock/icons";
+import { ChevronLeftIcon, ChevronRightIcon, ExternalIcon } from "@/components/stock/icons";
 import { press } from "@/components/ui";
 import { Logo } from "@/components/Logo";
 import { NEW_TAB } from "@/components/ui";
@@ -62,8 +62,10 @@ export function AdminShell({ title, profile, subtitle, nav, navLabel, openGroups
           <AdminNav items={nav} label={navLabel} openGroups={openGroups} rail={rail} />
           <div className={`hidden items-center border-t border-hairline lg:mx-3 lg:flex lg:min-h-14 ${rail ? "lg:justify-center" : "lg:justify-between lg:gap-2 lg:pl-3"}`}>
             {!rail && profile.siteUrl && (
-              <a href={profile.siteUrl} {...NEW_TAB} className="truncate py-3 text-meta text-text-2 underline">
-                View your website<span className="sr-only"> (opens in a new tab)</span>
+              <a href={profile.siteUrl} {...NEW_TAB} className="flex min-w-0 items-center gap-1.5 py-3 text-meta font-medium text-text-2 transition-colors hover:text-text">
+                <span className="truncate">View your website</span>
+                <ExternalIcon aria-hidden className="size-4 shrink-0" />
+                <span className="sr-only"> (opens in a new tab)</span>
               </a>
             )}
             <button type="button" onClick={toggleRail} aria-label={rail ? "Expand the menu" : "Collapse the menu"} title={rail ? "Expand the menu" : "Collapse the menu"} className={`inline-flex size-11 shrink-0 items-center justify-center rounded-control text-text-2 transition-colors hover:bg-card hover:text-text ${press}`}>
