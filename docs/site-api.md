@@ -130,7 +130,7 @@ its next stock read.
 - **Cloudflare Access:** the staff application covers the whole host, so add an application for `www.dash.checkwork.ie/api/site/*` (and `dev.dash.checkwork.ie/api/site/*` on dev) with
   a **Bypass** policy (as for `/api/owner/*`), or a website calling over the internet is turned away by Access. A website Worker in the
   same Cloudflare account that calls through a service binding (`DASH` in `checkwork-demo`) does not pass through Access at all.
-- **Rate limit:** `SITE_LIMITER` uses namespace `1004` in production and `2004` in dev (`wrangler.jsonc`); change one if that id is taken in the account.
+- **Rate limit:** `SITE_LIMITER` uses namespace `3004` in production and `4004` in dev (`wrangler.jsonc`); change one if that id is taken in the account.
 - **Photo secret:** set `SITE_PHOTO_SECRET` in each environment, a long random value of its own (`openssl rand -base64 32 | npx wrangler
   secret put SITE_PHOTO_SECRET`, and again with `--env production`). Until it is set, a website shows no photo added in
   the dashboard, and Settings, Website connection says so to owners and managers.
