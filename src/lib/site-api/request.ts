@@ -1,6 +1,6 @@
 import "server-only";
 import { getBindings } from "@/lib/leads/bindings";
-import { logSite, type SiteOutcome } from "@/lib/log";
+import { logSite, type SiteOutcome, type SiteRoute } from "@/lib/log";
 import { runAsDealerRow } from "@/lib/tenancy/current";
 import { dealerOfSiteKey } from "@/lib/tenancy/directory";
 
@@ -11,16 +11,16 @@ export type Answer = { status: number; outcome: SiteOutcome; body?: unknown; hea
 const HEADERS = { "Cache-Control": "no-store", "X-Robots-Tag": "noindex" };
 export const MAX_BODY = 64 * 1024;
 
-export async function siteRequest(req: Request, route: "leads" | "stock", run: () => Promise<Answer>): Promise<Response> {
+export async function siteRequest(req: Request, route: Exclude<SiteRoute, "photos">, run: () => Promise<Answer>): Promise<Response> {
   let dealerId: string | undefined;
   const answer = await (async (): Promise<Answer> => {
     const key = /^Bearer (\S+)$/.exec(req.headers.get("authorization") ?? "")?.[1];
     const found = key ? await dealerOfSiteKey(key) : null;
     if (!found) return { status: 401, outcome: "no-key" };
     dealerId = found.dealer.id;
-    // Per key, 60 a minute (wrangler.jsonc). No binding (next dev, the E2E run): no limit.
+    // Per key and route, 60 a minute (wrangler.jsonc): a flood on one route cannot use up the leads'. No binding (next dev, the E2E run): no limit.
     const limiter = getBindings().SITE_LIMITER;
-    if (limiter && !(await limiter.limit({ key: found.keyId })).success) return { status: 429, outcome: "rate" };
+    if (limiter && !(await limiter.limit({ key: `${found.keyId}:${route}` })).success) return { status: 429, outcome: "rate" };
     return runAsDealerRow(found.dealer, run);
   })().catch((): Answer => ({ status: 500, outcome: "error" })); // nothing from the error: a query's message carries its values
   logSite({ route, dealerId, outcome: answer.outcome, status: answer.status });
