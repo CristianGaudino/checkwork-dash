@@ -55,6 +55,13 @@ test("the website reads its cars: on the site only, public fields only", async (
   expect((await request.get("/api/site/v1/stock")).status()).toBe(401);
 });
 
+test("the demo's photos stay the paths its website has its own copies of", async ({ request }) => {
+  const { cars } = (await (await request.get("/api/site/v1/stock", { headers: auth() })).json()) as { cars: { photos: { src: string }[] }[] };
+  const srcs = cars.flatMap((c) => c.photos.map((p) => p.src)).filter((s) => !s.startsWith("data:"));
+  expect(srcs.length).toBeGreaterThan(0);
+  expect(srcs.every((s) => /^\/stock\/[^/]+\/[^/]+$/.test(s))).toBe(true);
+});
+
 test("a test drive booking, a price alert and a claim on a car bought here each land where the dealer works them", async ({ page, request }) => {
   const { cars } = (await (await request.get("/api/site/v1/stock", { headers: auth() })).json()) as { cars: { id: string; slug: string; year: number; make: string; model: string; priceEur: number; soldAt?: string; reserved?: boolean }[] };
   const car = cars.find((c) => !c.soldAt && !c.reserved)!;
@@ -81,6 +88,9 @@ test("Settings makes a website key, shows it once, and revokes it", async ({ pag
   await page.goto("/settings?section=services");
   await page.getByText("For your web developer").click();
   const panel = page.getByRole("region", { name: "Website connection" });
+  // No SITE_PHOTO_SECRET in this run (playwright.config.ts): the panel says so, in the dealer's words.
+  await expect(panel).toContainText("Photos added here can't show on your website yet.");
+  await expect(panel.getByRole("link", { name: "Ask us to connect it" })).toBeVisible();
   await panel.getByRole("textbox", { name: "Name" }).fill(name);
   await panel.getByRole("button", { name: "Make a key" }).click();
   const shown = panel.getByRole("textbox", { name: "New website key" });

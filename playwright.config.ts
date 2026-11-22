@@ -4,7 +4,8 @@ import { defineConfig, devices } from "@playwright/test";
 // Runs against E2E_BASE_URL, or a local production build (npm run build && npm start) on PORT (default 3000).
 const baseURL = process.env.E2E_BASE_URL ?? `http://localhost:${process.env.PORT ?? 3000}`;
 
-const SERVER_ENV = { E2E_FAKE_BACKENDS: "1", UNSUBSCRIBE_SECRET: "e2e-unsubscribe-secret", OWNER_API_TOKEN: "e2e-owner-token" };
+// SITE_PHOTO_SECRET empty: the run has none, whatever a local .env sets (the Settings warning is tested), and an empty value counts as unset.
+const SERVER_ENV = { E2E_FAKE_BACKENDS: "1", UNSUBSCRIBE_SECRET: "e2e-unsubscribe-secret", OWNER_API_TOKEN: "e2e-owner-token", SITE_PHOTO_SECRET: "" };
 const PUSH_PORT = Number(process.env.PORT ?? 3000) + 1;
 const PUSH_URL = `http://localhost:${PUSH_PORT}`;
 function vapidForRun() {

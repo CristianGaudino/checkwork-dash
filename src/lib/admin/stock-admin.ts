@@ -37,8 +37,11 @@ export async function freeCarId(): Promise<string> {
   return nextCarId([...cars, ...sales.map((s) => ({ id: s.carId ?? s.id })), ...deposits.map((r) => ({ id: r.carId })), ...named]);
 }
 
+// One row on D1, not the whole table: the website's photo route (src/lib/site-api/photos.ts) reads a car per image.
 export async function adminCar(id: string): Promise<Car | undefined> {
-  return (await adminCars()).find((c) => c.id === id);
+  if (!hasDb()) return (await adminCars()).find((c) => c.id === id);
+  const [r] = await (await getDb()).select({ data: cars.data }).from(cars).where(eq(cars.id, id)).limit(1);
+  return r?.data as Car | undefined;
 }
 
 // When each car in memory was last written (D1 keeps it in the row's updated_at). Kept off the Car, so the website never sees it.

@@ -102,7 +102,8 @@ code path reaches another dealer's (#3, #4, #6; `src/lib/tenancy/`).
   runs for demo dealers only.
 - **Photos and media** are kept in the one bucket under `dealers/<id>/` (`prefixedBucket`, `src/lib/tenancy/bucket.ts`). `/car-photos`
   and `/media-files` read under the current dealer's prefix only, so they serve a dealer's files to its own members and
-  nothing to anyone else. Serving car photos to the dealer's own website is not built yet (`docs/site-api.md`).
+  nothing to anyone else. The dealer's website shows its cars' photos by signed links from the site API, only while the car is on the
+  website (`docs/site-api.md`, "Car photos").
 - **The site API** (`/api/site/v1`, `docs/site-api.md`): a dealer's website sends leads and reads its cars with a key made in Settings.
   The key decides the dealer, and the work runs inside `runAsDealer`; nothing in a request can name another dealer.
 - **A demo dealer** (the directory's `demo` flag) behaves as the demo on any deploy, the one shared production deploy included: its

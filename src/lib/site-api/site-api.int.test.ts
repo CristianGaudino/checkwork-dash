@@ -7,15 +7,18 @@ vi.mock("@/lib/tenancy/membership", () => vi.importActual("@/lib/tenancy/members
 vi.mock("drizzle-orm/d1", () => import("@/test/sqlite-d1"));
 vi.mock("@opennextjs/cloudflare", async () => {
   const { env } = await import("@/test/sqlite-d1");
-  return { getCloudflareContext: () => ({ env }) };
+  return { getCloudflareContext: () => ({ env, ctx: { waitUntil: () => {} } }) };
 });
-const { drizzle, env } = await import("@/test/sqlite-d1");
+const { drizzle, env, objects } = await import("@/test/sqlite-d1");
 const { POST } = await import("@/app/api/site/v1/leads/route");
 const { GET } = await import("@/app/api/site/v1/stock/route");
+const { GET: PHOTO } = await import("@/app/api/site/v1/photos/[dealer]/[...key]/route");
+const { NextRequest } = await import("next/server");
+const { storeCarPhoto } = await import("@/lib/admin/car-photos");
 const { makeSiteKey, revokeSiteKey, dealerOfSiteKey, siteKeysOf, patchDealer } = await import("@/lib/tenancy/directory");
 const { runAsDealer } = await import("@/lib/tenancy/current");
 const { leadsStore, costsStore } = await import("@/lib/admin/collections");
-const { saveCar } = await import("@/lib/admin/stock-admin");
+const { saveCar, updateCar } = await import("@/lib/admin/stock-admin");
 const { leads } = await import("@/lib/db/schema");
 const { siteKeys } = await import("@/lib/db/directory-schema");
 
@@ -262,5 +265,210 @@ describe("a lead the website could not email", () => {
     const { id } = await res.json();
     expect((await rowsIn("DB_TEST_MOTORS", l.clientRef))[0].notifiedAt).toBeNull();
     expect((await runAsDealer(B, () => leadsStore.get(`real-${id}`)))?.notes).toMatchObject([{ text: "The email about this lead didn't reach you. Reply from here." }]);
+  });
+});
+
+describe("car photos on the website", () => {
+  const SECRET = "test-site-photo-secret";
+  const STATIC = { src: "/stock/4710001/1.webp", width: 1600, height: 1067 };
+  const car = (id: string, photos: { src: string; width: number; height: number }[], over: object = {}) => ({ id, slug: `golf-2020-${id}`, make: "Volkswagen", makeSlug: "volkswagen", model: "Golf", modelSlug: "golf", year: 2020, priceEur: 17950, photos, ...over });
+  const stock = async (key: string) => ((await (await GET(new Request("https://x.test/api/site/v1/stock", { headers: { Authorization: `Bearer ${key}` } }))).json()) as { cars: { id: string; photos: { src: string }[] }[] }).cars;
+  const srcsOf = async (key: string, id: string) => (await stock(key)).find((c) => c.id === id)?.photos.map((p) => p.src);
+  // The route as a browser opens a link: the dealer and key from the path, the signature from the query.
+  const open = (link: string) => {
+    const url = new URL(link);
+    const [dealer, ...key] = url.pathname.replace("/api/site/v1/photos/", "").split("/");
+    return PHOTO(new NextRequest(url), { params: Promise.resolve({ dealer, key }) });
+  };
+  const store = (dealer: string, carId: string) => runAsDealer(dealer, () => storeCarPhoto(carId, new Uint8Array([0xff, 0xd8, 0xff, 1, 2, 3]), 1600, 1200));
+  const keyOf = (src: string) => src.replace("/car-photos/", "");
+  const withSecret = async <T,>(secret: string | undefined, fn: () => Promise<T>) => {
+    const before = process.env.SITE_PHOTO_SECRET;
+    if (secret === undefined) delete process.env.SITE_PHOTO_SECRET;
+    else process.env.SITE_PHOTO_SECRET = secret;
+    try {
+      return await fn();
+    } finally {
+      if (before === undefined) delete process.env.SITE_PHOTO_SECRET;
+      else process.env.SITE_PHOTO_SECRET = before;
+    }
+  };
+
+  it("gives a car on the website its photos as absolute links: signed ones open with a long public cache, a hidden car's are never given", () =>
+    withSecret(SECRET, async () => {
+      const stored = await store(B, "9300001");
+      const draftPhoto = await store(B, "9300002");
+      await runAsDealer(B, async () => {
+        await saveCar(car("9300001", [stored, STATIC]));
+        await saveCar(car("9300002", [draftPhoto], { listing: "draft" }));
+      });
+      const srcs = (await srcsOf(keyB, "9300001"))!;
+      const link = new URL(srcs[0]);
+      expect(link.origin).toBe("https://www.dash.checkwork.ie");
+      expect(link.pathname).toBe(`/api/site/v1/photos/test-motors/${keyOf(stored.src)}`);
+      expect(link.searchParams.get("sig")).toMatch(/^[A-Za-z0-9_-]{43}$/);
+      expect(srcs[1]).toBe(STATIC.src);
+      expect(JSON.stringify(await stock(keyB))).not.toContain(keyOf(draftPhoto.src));
+
+      const res = await open(srcs[0]);
+      expect(res.status).toBe(200);
+      expect(res.headers.get("Content-Type")).toBe("image/jpeg");
+      expect(res.headers.get("Cache-Control")).toBe("public, max-age=31536000, immutable");
+      expect(res.headers.get("X-Content-Type-Options")).toBe("nosniff");
+      expect([...new Uint8Array(await res.arrayBuffer())]).toEqual([0xff, 0xd8, 0xff, 1, 2, 3]);
+    }));
+
+  it("answers 404 to a tampered signature, dealer or key, and to one dealer's signature on another dealer's photo", () =>
+    withSecret(SECRET, async () => {
+      const stored = await store(B, "9300003");
+      await runAsDealer(B, () => saveCar(car("9300003", [stored])));
+      const link = (await srcsOf(keyB, "9300003"))![0];
+      expect((await open(link)).status).toBe(200);
+      const sig = new URL(link).searchParams.get("sig")!;
+      const flipped = (sig[0] === "A" ? "B" : "A") + sig.slice(1);
+      expect((await open(link.replace(sig, flipped))).status).toBe(404);
+      expect((await open(link.replace(/\?sig=.*/, ""))).status).toBe(404);
+      expect((await open(link.replace(/\/[0-9a-f-]{36}\.jpg/, `/${crypto.randomUUID()}.jpg`))).status).toBe(404);
+      // Dealer A has a car of the same id with a photo at the same key, on its website: B's signature still opens nothing of A's.
+      objects.set(`dealers/${A}/${keyOf(stored.src)}`, new Blob([new Uint8Array([9])]));
+      await runAsDealer(A, () => saveCar(car("9300003", [stored])));
+      expect((await open(link.replace("/test-motors/", `/${A}/`))).status).toBe(404);
+      expect((await open(link.replace("/test-motors/", "/nobody/"))).status).toBe(404);
+    }));
+
+  it("stops a link once its photo is taken off the car or the car is hidden", () =>
+    withSecret(SECRET, async () => {
+      const [one, two] = [await store(B, "9300004"), await store(B, "9300004")];
+      await runAsDealer(B, () => saveCar(car("9300004", [one, two])));
+      const [l1, l2] = (await srcsOf(keyB, "9300004"))!;
+      expect((await open(l2)).status).toBe(200);
+      // The signature covers the key: the first photo's signature opens nothing at the second's path, both still on the car.
+      expect((await open(l2.replace(/sig=.*/, new URL(l1).search.slice(1)))).status).toBe(404);
+      await runAsDealer(B, () => updateCar("9300004", (c) => ({ ...c, photos: [one] })));
+      expect((await open(l2)).status).toBe(404);
+      expect((await open(l1)).status).toBe(200);
+      await runAsDealer(B, () => updateCar("9300004", (c) => ({ ...c, listing: "hidden" })));
+      expect((await open(l1)).status).toBe(404);
+    }));
+
+  it("stops a link while its dealer is paused", () =>
+    withSecret(SECRET, async () => {
+      const { dealers } = await import("@/lib/db/directory-schema");
+      const { eq } = await import("drizzle-orm");
+      const stored = await store(B, "9300007");
+      await runAsDealer(B, () => saveCar(car("9300007", [stored])));
+      const link = (await srcsOf(keyB, "9300007"))![0];
+      expect((await open(link)).status).toBe(200);
+      await drizzle("DIRECTORY").update(dealers).set({ status: "paused" }).where(eq(dealers.id, B));
+      try {
+        expect((await open(link)).status).toBe(404);
+      } finally {
+        await drizzle("DIRECTORY").update(dealers).set({ status: "active" }).where(eq(dealers.id, B));
+      }
+    }));
+
+  it("signs nothing with no secret, in production too: stored photos are left out and no link opens", async () => {
+    const stored = await store(B, "9300005");
+    await runAsDealer(B, () => saveCar(car("9300005", [stored, STATIC])));
+    const link = await withSecret(SECRET, async () => (await srcsOf(keyB, "9300005"))![0]);
+    vi.stubEnv("APP_ENV", "production");
+    try {
+      await withSecret(undefined, async () => {
+        expect(await srcsOf(keyB, "9300005")).toEqual([STATIC.src]);
+        expect((await open(link)).status).toBe(404);
+      });
+      await withSecret("", async () => expect((await open(link)).status).toBe(404));
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("never logs a key or a signature, a failure included", () =>
+    withSecret(SECRET, async () => {
+      const stored = await store(B, "9300006");
+      await runAsDealer(B, () => saveCar(car("9300006", [stored])));
+      const lines: string[] = [];
+      for (const m of ["log", "warn", "error", "info"] as const) vi.spyOn(console, m).mockImplementation((...a: unknown[]) => void lines.push(a.map(String).join(" ")));
+      const link = (await srcsOf(keyB, "9300006"))![0];
+      expect((await open(link)).status).toBe(200);
+      expect((await open(link.replace(/sig=(.)/, (_, c: string) => `sig=${c === "A" ? "B" : "A"}`))).status).toBe(404); // always a different first character
+      vi.spyOn(env.LEAD_PHOTOS as { get: () => unknown }, "get").mockRejectedValueOnce(new Error(`R2 down for ${link}`));
+      expect((await open(link)).status).toBe(500);
+      expect(lines.some((l) => l.includes('"photos"') && l.includes('"error"'))).toBe(true);
+      const sig = new URL(link).searchParams.get("sig")!;
+      for (const l of lines) for (const secret of [keyOf(stored.src), sig, SECRET]) expect(l).not.toContain(secret);
+    }));
+
+  // The Workers cache (caches.default) in front of the checks, after the signature: a stub that keeps what it is given.
+  describe("with the Workers cache", () => {
+    const withCache = async (fn: (c: { kept: Map<string, Response>; calls: string[] }) => Promise<void>) => {
+      const kept = new Map<string, Response>();
+      const calls: string[] = [];
+      vi.stubGlobal("caches", { default: { match: async (u: string) => (calls.push("match"), kept.get(u)?.clone()), put: async (u: string, r: Response) => void (calls.push("put"), kept.set(u, r)) } });
+      try {
+        await withSecret(SECRET, () => fn({ kept, calls }));
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    };
+    const linkFor = async (carId: string) => {
+      const stored = await store(B, carId);
+      await runAsDealer(B, () => saveCar(car(carId, [stored])));
+      return (await srcsOf(keyB, carId))![0];
+    };
+
+    it("keeps a copy for 10 minutes on a miss; the browser still gets a year", () =>
+      withCache(async ({ kept }) => {
+        const link = await linkFor("9300008");
+        const res = await open(link);
+        expect(res.status).toBe(200);
+        expect(res.headers.get("Cache-Control")).toBe("public, max-age=31536000, immutable");
+        expect([...new Uint8Array(await res.arrayBuffer())]).toEqual([0xff, 0xd8, 0xff, 1, 2, 3]);
+        expect([...kept.keys()]).toEqual([link]);
+        expect(kept.get(link)!.headers.get("Cache-Control")).toBe("public, max-age=600");
+        expect([...new Uint8Array(await kept.get(link)!.arrayBuffer())]).toEqual([0xff, 0xd8, 0xff, 1, 2, 3]);
+      }));
+
+    it("answers a hit without reading D1", () =>
+      withCache(async ({ kept }) => {
+        const link = await linkFor("9300009");
+        kept.set(link, new Response(new Uint8Array([7])));
+        const before = { dir: env.DIRECTORY, db: env.DB_TEST_MOTORS };
+        Object.assign(env, { DIRECTORY: "unreachable", DB_TEST_MOTORS: "unreachable" }); // any D1 read now throws
+        try {
+          const res = await open(link);
+          expect(res.status).toBe(200);
+          expect(res.headers.get("Cache-Control")).toBe("public, max-age=31536000, immutable");
+          expect(res.headers.get("Content-Type")).toBe("image/jpeg");
+          expect([...new Uint8Array(await res.arrayBuffer())]).toEqual([7]);
+        } finally {
+          Object.assign(env, { DIRECTORY: before.dir, DB_TEST_MOTORS: before.db });
+        }
+      }));
+
+    it("an extra query parameter finds the same copy, so it cannot skip the cache", () =>
+      withCache(async ({ kept }) => {
+        const link = await linkFor("9300010");
+        kept.set(link, new Response(new Uint8Array([8])));
+        const before = { dir: env.DIRECTORY, db: env.DB_TEST_MOTORS };
+        Object.assign(env, { DIRECTORY: "unreachable", DB_TEST_MOTORS: "unreachable" }); // a miss would read D1 and throw
+        try {
+          const res = await open(`${link}&r=${Math.random()}`);
+          expect(res.status).toBe(200);
+          expect([...new Uint8Array(await res.arrayBuffer())]).toEqual([8]);
+          expect([...kept.keys()]).toEqual([link]); // no new entry
+        } finally {
+          Object.assign(env, { DIRECTORY: before.dir, DB_TEST_MOTORS: before.db });
+        }
+      }));
+
+    it("never touches the cache for a bad signature", () =>
+      withCache(async ({ calls }) => {
+        const link = await linkFor("9300010");
+        const sig = new URL(link).searchParams.get("sig")!;
+        expect((await open(link.replace(sig, (sig[0] === "A" ? "B" : "A") + sig.slice(1)))).status).toBe(404);
+        expect((await open(link.replace("/test-motors/", `/${A}/`))).status).toBe(404);
+        expect(calls).toEqual([]);
+      }));
   });
 });
