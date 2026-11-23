@@ -6,8 +6,8 @@ import { CalendarIcon, CarIcon, CheckIcon, InboxIcon, ShareIcon } from "@/compon
 import { can } from "@/lib/permissions";
 import { addDays, dublinDay, fmtDay, fmtNum, fmtTime, plural } from "@/lib/admin/format";
 import { forSale, isSold } from "@/lib/stock/types";
-import { CallButton } from "@/components/admin/LeadActions";
-import { ConfirmDrive, WhoseToggle, loadToDo } from "@/components/admin/ToDo";
+import { WhoseToggle, loadToDo } from "@/components/admin/ToDo";
+import { DriveSteps } from "@/components/admin/DriveSteps";
 import { VisitsTile } from "@/components/admin/VisitsTile";
 import { visitSources } from "@/lib/admin/visit-sources-load";
 import { activeNow } from "@/lib/site-api/presence";
@@ -86,7 +86,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
                             <span className="truncate text-meta text-text-2">{[passed && "Passed", d.carTitle, staff].filter(Boolean).join(" · ")}</span>
                           </span>
                           <Link href={`/test-drives/${d.id}`} aria-label={`${d.name}, ${when ? `${when} ` : ""}${fmtTime(d.startsAt)}`} className="absolute inset-0" />
-                          {!passed && <span className="relative z-10 flex shrink-0 gap-2">{d.status === "requested" && !confirmInToDo.has(`drive-${d.id}`) ? <ConfirmDrive id={d.id} name={d.name} status={d.status} /> : <CallButton phone={d.phone} name={d.name} />}</span>}
+                          {/* The next step and the menu (#95); a request already in To do keeps its Confirm there, so here it has only the menu. */}
+                          <span className="relative z-10 flex shrink-0 gap-2"><DriveSteps drive={d} primary={!confirmInToDo.has(`drive-${d.id}`)} /></span>
                         </li>
                       );
                     })}

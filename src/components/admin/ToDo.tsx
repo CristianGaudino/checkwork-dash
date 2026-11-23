@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { ActButton } from "@/components/admin/ActButton";
 import { Task, WhoseSwitch, rowButton, rowButtonStrong, type TaskUrgency } from "@/components/admin/kit";
-import { AlertIcon, CalendarIcon, CarIcon, CheckIcon, InboxIcon, PercentIcon, PhoneIcon, ReceiptIcon, StarIcon, SyncIcon, TruckIcon, WrenchIcon } from "@/components/stock/icons";
+import { AlertIcon, CalendarIcon, CarIcon, InboxIcon, PercentIcon, PhoneIcon, ReceiptIcon, StarIcon, SyncIcon, TruckIcon, WrenchIcon } from "@/components/stock/icons";
 import { CallButton, ReachButton } from "@/components/admin/LeadActions";
+import { RowMenu } from "@/components/admin/RowMenu";
+import { DriveSteps } from "@/components/admin/DriveSteps";
 import { carCosts } from "@/lib/admin/costs";
 import { claimsStore, drivesStore, getSettings, leadsStore, ordersStore, reservationsStore, reviewsStore, salesStore, type Lead } from "@/lib/admin/collections";
 import { can, currentMember } from "@/lib/permissions";
@@ -16,8 +17,6 @@ import { isSalesLead, openWarrantyRequests } from "@/lib/admin/leads";
 import { enabledModules } from "@/lib/modules";
 import { readLead } from "@/lib/leads/lead-text";
 import type { ModuleId } from "@/lib/modules-rules";
-import { setDriveStatusAction } from "@/app/test-drives/actions";
-import { DRIVE_STATUS_LABELS } from "@/lib/admin/drives";
 
 // To do, for the Overview (its top rows) and the To do page (every row): the records loaded once, and each to-do as a row with the button
 // that does it.
@@ -40,16 +39,13 @@ const GROUPED: Record<string, { noun: string; verb: string; icon: React.ReactNod
 
 // A lead in a line: the car, else the first line of the message.
 const about = (l: Lead) => l.carTitle ?? (readLead(l).text.split("\n")[0] || undefined);
-const OpenLeadButton = ({ id, name }: { id: string; name: string }) => (
-  <Link href={`/leads/${id}`} aria-label={`Open ${name}'s lead`} className={rowButton}>
-    Open
-  </Link>
-);
-export const ConfirmDrive = ({ id, name, status }: { id: string; name: string; status: string }) => (
-  <ActButton act={setDriveStatusAction.bind(null, id, "confirmed", status)} undo={setDriveStatusAction.bind(null, id, status, "confirmed")} done={`${name}: ${DRIVE_STATUS_LABELS.confirmed}`} label={`Confirm ${name}'s test drive`} className={rowButtonStrong}>
-    <CheckIcon className="shrink-0 size-4" />
-    Confirm
-  </ActButton>
+// A lead's row (#95): the way to reach them, and Open in the row's menu.
+const LeadMenu = ({ id, name }: { id: string; name: string }) => (
+  <RowMenu label={`More for ${name}`}>
+    <Link href={`/leads/${id}`} aria-label={`Open ${name}'s lead`} className={rowButton}>
+      Open
+    </Link>
+  </RowMenu>
 );
 
 // Everyone | For me, the same words as on Leads. For me: given to me, plus new leads nobody has taken (forPerson).
@@ -81,7 +77,7 @@ export async function loadToDo(mineParam: string | undefined) {
       case "reply":
         return [
           ...o.reply.slice(0, EACH).map(({ lead: l, urgency, flag }) => (
-            <Task key={`reply-${l.id}`} urgency={urgency} icon={<InboxIcon />} title={`Reply to ${l.name}`} detail={[who(l.assignedTo), about(l), `came in ${fmtAgo(l.createdAt)}${flag === "late" ? ", past your reply time" : ""}`].filter(Boolean).join(" · ")} action={<><ReachButton lead={l} /><OpenLeadButton id={l.id} name={l.name} /></>} />
+            <Task key={`reply-${l.id}`} urgency={urgency} icon={<InboxIcon />} title={`Reply to ${l.name}`} detail={[who(l.assignedTo), about(l), `came in ${fmtAgo(l.createdAt)}${flag === "late" ? ", past your reply time" : ""}`].filter(Boolean).join(" · ")} action={<><ReachButton lead={l} /><LeadMenu id={l.id} name={l.name} /></>} />
           )),
           ...rest(a.key, o.reply.length, "new lead to answer", "new leads to answer", a.href, a.urgency),
         ];
@@ -90,7 +86,7 @@ export async function loadToDo(mineParam: string | undefined) {
           ...o.due.slice(0, EACH).map(({ lead: l, urgency }) => {
             const late = l.followUpOn! < today; // the words by the date, as on Leads; the colour is the rule's (urgency), which is also red for a late new lead
             return (
-              <Task key={`follow-${l.id}`} urgency={urgency} icon={<PhoneIcon />} title={`Follow up with ${l.name}`} detail={[who(l.assignedTo), late ? `was due ${fmtDay(l.followUpOn!, "dayMonth")}` : "due today", about(l)].filter(Boolean).join(" · ")} action={<><CallButton phone={l.phone} name={l.name} /><OpenLeadButton id={l.id} name={l.name} /></>} />
+              <Task key={`follow-${l.id}`} urgency={urgency} icon={<PhoneIcon />} title={`Follow up with ${l.name}`} detail={[who(l.assignedTo), late ? `was due ${fmtDay(l.followUpOn!, "dayMonth")}` : "due today", about(l)].filter(Boolean).join(" · ")} action={<><CallButton phone={l.phone} name={l.name} /><LeadMenu id={l.id} name={l.name} /></>} />
             );
           }),
           ...rest(a.key, o.due.length, "follow-up due", "follow-ups due", a.href, a.urgency),
@@ -98,7 +94,7 @@ export async function loadToDo(mineParam: string | undefined) {
       case "drives":
         return [
           ...o.toConfirm.slice(0, EACH).map((d) => (
-            <Task key={`drive-${d.id}`} urgency="soon" icon={<CalendarIcon />} title={`${d.name} asked for a test drive`} detail={`${who(d.assignedTo)} · ${d.carTitle} · ${fmtDateTime(d.startsAt)}`} href={`/test-drives/${d.id}`} action={<ConfirmDrive id={d.id} name={d.name} status={d.status} />} />
+            <Task key={`drive-${d.id}`} urgency="soon" icon={<CalendarIcon />} title={`${d.name} asked for a test drive`} detail={`${who(d.assignedTo)} · ${d.carTitle} · ${fmtDateTime(d.startsAt)}`} href={`/test-drives/${d.id}`} action={<DriveSteps drive={d} />} />
           )),
           ...rest(a.key, o.toConfirm.length, "test drive to confirm", "test drives to confirm", a.href, "soon"),
         ];

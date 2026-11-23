@@ -9,21 +9,24 @@ test("the overview opens with the main jobs, and a test drive is confirmed from 
   for (const job of ["Add a car", "Book a test drive", "New post", "Reply to leads"]) await expect(jobs.getByRole("link", { name: new RegExp(`^${job}`) })).toBeVisible();
   await page.goto("/to-do"); // every row: the test drives may be below the Overview's top few
   const todo = page.getByRole("list", { name: "To do" });
-  const confirm = todo.getByRole("button", { name: /^Confirm .+'s test drive$/ }).first();
-  const name = (await confirm.getAttribute("aria-label"))!.replace(/^Confirm (.+)'s test drive$/, "$1");
+  const confirm = todo.getByRole("button", { name: /^Confirm: .+$/ }).first();
+  const name = (await confirm.getAttribute("aria-label"))!.replace(/^Confirm: (.+)$/, "$1");
   await confirm.click();
   const toast = page.getByTestId("toast");
   await expect(toast).toContainText(`${name}: Confirmed`);
-  await expect(todo.getByRole("button", { name: `Confirm ${name}'s test drive` })).toHaveCount(0);
+  await expect(todo.getByRole("button", { name: `Confirm: ${name}` })).toHaveCount(0);
   await toast.getByRole("button", { name: "Undo" }).click(); // back as it was, for the other specs
-  await expect(todo.getByRole("button", { name: `Confirm ${name}'s test drive` })).toBeVisible();
+  await expect(todo.getByRole("button", { name: `Confirm: ${name}` })).toBeVisible();
 });
 
 test("a new lead is called or answered from its row in To do", async ({ page }) => {
   await page.goto("/");
   const leads = page.getByRole("list", { name: "To do" });
-  await expect(leads.getByRole("link", { name: /^Call / }).first()).toHaveAttribute("href", /^tel:/);
-  await leads.getByRole("link", { name: /^Open .*'s lead$/ }).first().click();
+  // A follow-up's row: Call, and Open under the row's menu (#95).
+  const row = leads.getByRole("listitem").filter({ has: page.getByRole("link", { name: /^Call / }) }).first();
+  await expect(row.getByRole("link", { name: /^Call / })).toHaveAttribute("href", /^tel:/);
+  await row.getByRole("button", { name: /^More for / }).click();
+  await row.getByRole("link", { name: /^Open .*'s lead$/ }).click();
   await expect(page).toHaveURL(/\/leads\/[^/]+$/);
 });
 

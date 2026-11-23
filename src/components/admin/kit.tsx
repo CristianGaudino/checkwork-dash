@@ -412,7 +412,7 @@ export function Avatar({ name, className = "" }: { name: string; className?: str
 export const choicePill = (active: boolean) => `inline-flex min-h-11 items-center gap-2 rounded-full px-4 text-meta font-medium transition-colors ${active ? "bg-text text-ink dark:bg-accent-soft dark:text-accent-text dark:ring-1 dark:ring-inset dark:ring-accent" : "bg-hairline text-text hover:bg-accent-soft hover:text-accent-text"} ${press}`;
 
 // What needs doing, as a list a person works down: each row says what it is, why it matters now (`detail`) and has the button that does
-// it (`action`), so nobody has to work out where to go. The marker on the left is the urgency: `now` (red) is late or due today, `soon`
+// it (`action`: that one button, and a RowMenu for the rest, #95), so nobody has to work out where to go. The marker on the left is the urgency: `now` (red) is late or due today, `soon`
 // (amber) is coming up, `info` is worth knowing. The row's own link (`href`) opens the thing; the action sits above it and is what a press
 // on it hits. Inside a Panel, or on its own as the page's first block.
 // The marker alone carries the colour; the icon stays neutral, so a long list of late rows is not a wall of red.

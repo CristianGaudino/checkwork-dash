@@ -40,7 +40,9 @@ test.describe("DoneDeal stock", () => {
     await expect(page.getByRole("link", { name: /Add a car/ })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Mark sold" })).toHaveCount(0);
     await expect(page.getByRole("link", { name: /^Open DoneDeal/ })).toHaveAttribute("target", "_blank");
-    await expect(page.getByRole("row").nth(1).getByRole("link", { name: /^Edit .+ on DoneDeal/ })).toBeVisible();
+    const row = page.getByRole("row").nth(1);
+    await row.getByRole("button", { name: /^More for / }).click(); // Edit on DoneDeal is under the row's menu (#95)
+    await expect(row.getByRole("link", { name: /^Edit .+ on DoneDeal/ })).toBeVisible();
     await page.goto("/stock/new");
     await expect(page.getByRole("heading", { name: "This stock comes from DoneDeal" })).toBeVisible();
     await expect(page.getByLabel("Make", { exact: true })).toHaveCount(0);
@@ -75,7 +77,7 @@ test("our own stock has Add car, no sync and no DoneDeal service", async ({ page
 });
 
 test("a car for sale is posted to social from its stock row; a sold car has no Post to social", async ({ page }) => {
-  await page.setViewportSize({ width: 1280, height: 900 }); // the row's buttons are from 640px; below 1536px Post is under More
+  await page.setViewportSize({ width: 1280, height: 900 }); // the row's buttons are from 640px; Post is under the row's menu (#95)
   await page.goto("/stock");
   const row = page.getByRole("row").nth(1);
   await row.getByRole("button", { name: /^More for/ }).click();
@@ -88,10 +90,6 @@ test("a car for sale is posted to social from its stock row; a sold car has no P
   const sold = page.getByRole("row").nth(1);
   await sold.getByRole("button", { name: /^More for/ }).click();
   await expect(sold.getByRole("link", { name: "Post to social" })).toHaveCount(0);
-  // From 1536px it is in the row itself, in words.
-  await page.setViewportSize({ width: 1600, height: 900 });
-  await page.goto("/stock");
-  await expect(page.getByRole("row").nth(1).getByRole("link", { name: "Post to social" })).toHaveText("Post to social");
 });
 
 test("the summary tiles are the filter: one press filters the table and marks the tile", async ({ page }) => {

@@ -46,7 +46,9 @@ test("a change shows at the top, by the person who made it, and the filters narr
   expect((await page.request.get("/activity?area=nope&who=nobody&period=x&page=999")).status()).toBe(200);
 
   await page.goto("/settings?section=team");
-  await page.getByRole("row").filter({ hasText: name }).getByRole("button", { name: "Remove" }).click();
+  const member = page.getByRole("row").filter({ hasText: name });
+  await member.getByRole("button", { name: `More for ${name}` }).click(); // Remove is under the row's menu (#95)
+  await member.getByRole("button", { name: "Remove" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Remove" }).click();
   await expect(page.getByText(name)).toHaveCount(0);
 });

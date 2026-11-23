@@ -14,7 +14,6 @@ import { slugId } from "@/lib/admin/stock-admin-pure";
 import { driveTimes } from "@/lib/leads/constants";
 import { forSale } from "@/lib/stock/types";
 import { currentMember } from "@/lib/permissions";
-import { CallButton } from "@/components/admin/LeadActions";
 
 export const metadata = { title: "Test drives" };
 
@@ -111,16 +110,13 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
   );
 }
 
-// A day's bookings in time order. Each opens its booking; the next steps (confirm, done, no show, cancel) are on the row, with Undo.
+// A day's bookings in time order. Each opens its booking; its next step and menu (DriveSteps) are on the row, with Undo.
 // status: the one the section's title already names, so its rows leave the badge out.
 function Agenda({ drives, gone, me, empty = "Nothing booked.", withDay = false, status }: { drives: TestDrive[]; gone: Set<string>; me: string; empty?: string; withDay?: boolean; status?: TestDrive["status"] }) {
   if (drives.length === 0) return <p className="text-body text-text-2">{empty}</p>;
-  const today = dublinDay();
   return (
     <ul className="-mx-5 flex flex-col">
-      {drives.map((d) => {
-        const ahead = dublinDay(d.startsAt) > today;
-        return (
+      {drives.map((d) => (
         <li key={d.id} className="relative grid grid-cols-1 items-center gap-x-4 gap-y-2 px-5 py-3 even:bg-row-alt hover:bg-surface sm:grid-cols-[3.5rem_minmax(0,1fr)] md:grid-cols-[3.5rem_minmax(0,1fr)_auto]">
           {/* On a phone the time leads the name line instead (below), so the buttons get the row's whole width, at its right edge. */}
           <span className="self-start font-medium tabular-nums max-sm:hidden md:self-center">
@@ -146,14 +142,12 @@ function Agenda({ drives, gone, me, empty = "Nothing booked.", withDay = false, 
               {d.carTitle} · {whoHas(d, me)}
             </span>
           </span>
-          {/* Call them, then the next step, one press each. One strong button a row: Call is quiet when a step (Confirm, Mark done) is the strong one. */}
+          {/* The next step (Confirm, Mark done once it has started) and the menu with Call and the rest (#95). */}
           <span className="relative z-10 flex flex-wrap justify-end gap-2 sm:col-start-2 md:col-start-3">
-            {isOpenDrive(d) && <CallButton phone={d.phone} name={d.name} quiet={d.status === "requested" || !ahead} />}
-            <DriveSteps drive={d} ahead={ahead} />
+            <DriveSteps drive={d} />
           </span>
         </li>
-        );
-      })}
+      ))}
     </ul>
   );
 }

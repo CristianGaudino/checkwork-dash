@@ -8,7 +8,7 @@ test("a request is confirmed from the list, and Undo puts it back", async ({ pag
   const waiting = page.getByRole("region", { name: /^Still to confirm/ });
   const first = waiting.getByRole("listitem").first();
   const who = (await first.locator("[data-name]").textContent())!.trim();
-  // Cancel is not beside Confirm in a row: it is under More.
+  // Cancel is not beside Confirm in a row: it is under the row's menu.
   await expect(first.getByRole("button", { name: `Cancel test drive: ${who}` })).toHaveCount(0);
   await first.getByRole("button", { name: `More for ${who}` }).click();
   await expect(page.getByRole("button", { name: `Cancel test drive: ${who}` })).toBeVisible();
@@ -22,8 +22,8 @@ test("a request is confirmed from the list, and Undo puts it back", async ({ pag
 
 test("a request's row has one strong button, Confirm; on its own page Confirm is the filled one and Cancel is in view", async ({ page }) => {
   await page.goto("/test-drives");
-  // Every row on Today (today's, the requests, the next few days) has at most one strong (tonal) button. Today's confirmed rows (Call
-  // and Mark done) are only there on an open day with one booked, so this covers them when they are.
+  // Every row on Today (today's, the requests, the next few days) has at most one strong (tonal) button, its next step (#95). Call is
+  // under the row's menu.
   const strong = await page.locator("li:has([data-name])").evaluateAll((rows) => rows.map((r) => r.querySelectorAll('[class~="bg-accent-soft"]').length));
   expect(strong.length).toBeGreaterThan(0);
   expect(Math.max(...strong)).toBeLessThanOrEqual(1);
@@ -31,7 +31,10 @@ test("a request's row has one strong button, Confirm; on its own page Confirm is
   const row = page.getByRole("region", { name: /^Still to confirm/ }).getByRole("listitem").filter({ has: page.locator('a[href*="/test-drives/drive-"]') }).last();
   const who = (await row.locator("[data-name]").textContent())!.trim();
   // Whole class names: rowButton has hover:bg-accent-soft, rowButtonStrong has bg-accent-soft itself.
-  await expect(row.getByRole("link", { name: `Call ${who}` })).not.toHaveClass(/(^|\s)bg-accent-soft(\s|$)/);
+  await expect(row.getByRole("link", { name: `Call ${who}` })).toHaveCount(0);
+  await row.getByRole("button", { name: `More for ${who}` }).click();
+  await expect(row.getByRole("link", { name: `Call ${who}` })).toHaveAttribute("href", /^tel:/);
+  await page.keyboard.press("Escape");
   await expect(row.getByRole("button", { name: `Confirm: ${who}` })).toHaveClass(/(^|\s)bg-accent-soft(\s|$)/);
   await row.locator("[data-name]").click();
   await expect(page).toHaveURL(/\/test-drives\/drive-/);
@@ -103,4 +106,24 @@ test("the picker opens on the car's first free time, never on a day with nothing
   // A time is chosen already, so Next works at once.
   await expect(page.getByRole("button", { name: "Next", exact: true })).toBeEnabled();
   await expect(page.getByText("No time left that day.")).toHaveCount(0);
+});
+
+test("a confirmed drive still to come has no Mark done; a booking that is over is rebooked with its customer filled in", async ({ page }) => {
+  await page.goto("/test-drives");
+  // The next few days hold confirmed drives that have not started: only the menu, never Mark done or No show.
+  const coming = page.getByRole("region", { name: /^Next few days/ }).getByRole("listitem").first();
+  const who = (await coming.locator("[data-name]").textContent())!.trim();
+  await expect(coming.getByRole("button", { name: `Mark done: ${who}` })).toHaveCount(0);
+  await coming.getByRole("button", { name: `More for ${who}` }).click();
+  await expect(coming.getByRole("button", { name: `Mark done: ${who}` })).toHaveCount(0);
+  await expect(coming.getByRole("button", { name: `Cancel test drive: ${who}` })).toBeVisible();
+  await page.keyboard.press("Escape");
+  // A completed booking: Rebook on its page opens Book a test drive with them filled in.
+  await page.goto("/test-drives?view=list&status=completed");
+  await page.getByRole("table").getByRole("row").nth(1).getByRole("link").first().click();
+  await expect(page).toHaveURL(/\/test-drives\/drive-/);
+  const name = (await page.getByRole("heading", { level: 1 }).textContent())!.trim();
+  await page.getByRole("region", { name: "Status" }).getByRole("link", { name: `Rebook ${name}` }).click();
+  await expect(page).toHaveURL(/\/test-drives\/new\?rebook=/);
+  await expect(page.locator('input[name="name"]')).toHaveValue(name); // on the last step, hidden until then
 });

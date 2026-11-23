@@ -172,9 +172,11 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sto
                 </span>
                 <span className="ml-auto flex flex-wrap justify-end gap-2">
                   <Link href={`/stock/${c.id}/sale`} className={rowButtonStrong}>It sold</Link>
-                  <ActButton act={withdrawnAction.bind(null, c.id)} confirm={{ title: `${carName(c)} did not sell?`, text: `It stays off the website. If the ad goes back up on ${listingSite}, the car comes back too.`, yes: "It did not sell" }} className={rowButton}>
-                    It did not sell
-                  </ActButton>
+                  <RowMenu label={`More for ${carName(c)}`}>
+                    <ActButton act={withdrawnAction.bind(null, c.id)} confirm={{ title: `${carName(c)} did not sell?`, text: `It stays off the website. If the ad goes back up on ${listingSite}, the car comes back too.`, yes: "It did not sell" }} className={rowButton}>
+                      It did not sell
+                    </ActButton>
+                  </RowMenu>
                 </span>
               </li>
             ))}
@@ -226,14 +228,14 @@ async function StockTable({ sp, matching, sales, view, q, synced, social, canUnd
         Undo sale
       </Link>
     ) : null;
-  // Post and View as More items below 1536px (in the row from there); anyLaptopItems mirrors when they show (CarActions), so More is never empty.
-  const laptopItems = (c: Car) => (
+  // Post and View, menu items at every width; anyShareItems mirrors when they show (CarActions), so a synced car's menu is never empty.
+  const shareItems = (c: Car) => (
     <>
-      {social && <PostToSocial car={c} className={`${rowButton} 2xl:hidden`} />}
-      <ViewOnSite car={c} shown={conditionShown(mods, c.condition)} className={`${rowButton} 2xl:hidden`} />
+      {social && <PostToSocial car={c} className={rowButton} />}
+      <ViewOnSite car={c} shown={conditionShown(mods, c.condition)} className={rowButton} />
     </>
   );
-  const anyLaptopItems = (c: Car) => (social && forSale(c)) || (conditionShown(mods, c.condition) && Boolean(siteUrl) && onPublicSite(c, rules.soldVisibleDays));
+  const anyShareItems = (c: Car) => (social && forSale(c)) || (conditionShown(mods, c.condition) && Boolean(siteUrl) && onPublicSite(c, rules.soldVisibleDays));
 
   const columns: Column<Car>[] = [
     // Tick several cars to change them at once (#104). Our version only: DoneDeal stock is changed on DoneDeal.
@@ -322,28 +324,23 @@ async function StockTable({ sp, matching, sales, view, q, synced, social, canUnd
       header: "",
       hide: "sm", // on a phone the row opens the car, and its page has these at the top
       cell: (c) => (
-        // Above the row's own link, so these buttons are what a press on them hits. The most used ones are in the row, labelled; the rest
-        // are under More. Post and View are in the row from 1536px and under More below it, so a laptop row fits, always in words.
+        // Above the row's own link, so these buttons are what a press on them hits. One button, the car's next step (Record sale, Mark sold),
+        // and the rest under the row's menu (#95).
         <div className="relative z-10 flex justify-end gap-2">
           {recordSale(c)}
-          {social && <PostToSocial car={c} className={`${rowButton} max-2xl:hidden`} />}
-          <ViewOnSite car={c} shown={conditionShown(mods, c.condition)} className={`${rowButton} max-2xl:hidden`} />
           {synced ? (
-            <>
-              {undoSale(c)}
-              {!c.takenDownAt && (
-              <a href={listingHref(c, listingUrl)} {...NEW_TAB} className={rowButton} aria-label={`Edit ${carName(c)} on ${listingSite} (opens in a new tab)`}>
-                <PencilIcon className="shrink-0 size-4" />
-                Edit on {listingSite}
-              </a>
-              )}
-              {/* Synced stock has no other menu items: More is there only while Post and View are out of the row. */}
-              {anyLaptopItems(c) && (
-                <span className="contents 2xl:hidden">
-                  <RowMenu label={`More for ${carName(c)}`}>{laptopItems(c)}</RowMenu>
-                </span>
-              )}
-            </>
+            (undoSale(c) || !c.takenDownAt || anyShareItems(c)) && (
+              <RowMenu label={`More for ${carName(c)}`}>
+                {undoSale(c)}
+                {!c.takenDownAt && (
+                  <a href={listingHref(c, listingUrl)} {...NEW_TAB} className={rowButton} aria-label={`Edit ${carName(c)} on ${listingSite} (opens in a new tab)`}>
+                    <PencilIcon className="shrink-0 size-4" />
+                    Edit on {listingSite}
+                  </a>
+                )}
+                {shareItems(c)}
+              </RowMenu>
+            )
           ) : (
             <>
               {!isSold(c) && (
@@ -362,7 +359,7 @@ async function StockTable({ sp, matching, sales, view, q, synced, social, canUnd
                     {c.reserved ? "Deposit" : "Reserve"}
                   </Link>
                 )}
-                {laptopItems(c)}
+                {shareItems(c)}
                 <ListingButton car={c} className={rowButton} />
                 {undoSale(c)}
                 {/* Back on sale only where no sale is recorded: undoing a recorded sale keeps its record (Undo sale). */}

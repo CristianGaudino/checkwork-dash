@@ -1,11 +1,12 @@
 "use client";
 
 import { useId, useRef } from "react";
-import { ChevronDownIcon } from "@/components/stock/icons";
+import { MoreIcon } from "@/components/stock/icons";
 import { rowButton } from "./kit";
 
-// A row's less used actions, behind More, so a table row keeps one or two buttons and fits its width. A native popover: it sits above the
-// page (a table's scroll box cannot clip it), and the browser closes it on Escape or a press outside, returning focus to More. Placed
+// A row's other actions (#95: a row shows only its next step and this menu), behind an icon named "More for <name>", so a row keeps one
+// button and fits its width. A native popover: it sits above the
+// page (a table's scroll box cannot clip it), and the browser closes it on Escape or a press outside, returning focus to the icon. Placed
 // under the button, right edges level (above it near the bottom of the screen), and closed on scroll so it never floats from its row.
 export function RowMenu({ label, children }: { label: string; children: React.ReactNode }) {
   const id = useId();
@@ -24,9 +25,9 @@ export function RowMenu({ label, children }: { label: string; children: React.Re
     });
   return (
     <>
-      <button ref={button} type="button" popoverTarget={id} onClick={place} aria-label={label} className={rowButton}>
-        More
-        <ChevronDownIcon className="shrink-0 size-4" />
+      {/* An icon, square at the row's button height; its hit area stays 44px in compact rows (32px tall) too. */}
+      <button ref={button} type="button" popoverTarget={id} onClick={place} aria-label={label} title="More" className={`${rowButton} relative w-11 shrink-0 px-0 group-data-[density=compact]/shell:w-8 after:absolute after:left-1/2 after:top-1/2 after:size-11 after:-translate-x-1/2 after:-translate-y-1/2`}>
+        <MoreIcon className="size-5" />
       </button>
       {/* An item closes the menu when chosen: a link navigates, a button runs (and asks first, in its own dialog, if it must). */}
       <div

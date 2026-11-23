@@ -10,6 +10,7 @@ import { stockSource } from "@/lib/stock-source";
 import { fmtAgo, fmtDate, fmtNum } from "@/lib/admin/format";
 import { pauseAlertAction, removeAlertAction, unsubscribeAction } from "./actions";
 import { CallButton } from "@/components/admin/LeadActions";
+import { RowMenu } from "@/components/admin/RowMenu";
 import { BrandName } from "@/components/admin/BrandIcon";
 
 export const metadata = { title: "Customers" };
@@ -75,8 +76,13 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
       nowrap: true,
       cell: (c) => (
         <span className="relative z-10 flex justify-end gap-2">
+          {/* A call, and Email under the row's menu (#95). */}
           <CallButton phone={c.phone} name={c.name} />
-          {c.email && <a href={`mailto:${c.email}`} aria-label={`Email ${c.name}`} className={rowButton}>Email</a>}
+          {c.email && (
+            <RowMenu label={`More for ${c.name}`}>
+              <a href={`mailto:${c.email}`} aria-label={`Email ${c.name}`} className={rowButton}>Email</a>
+            </RowMenu>
+          )}
         </span>
       ),
     },
@@ -105,12 +111,15 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
       header: "",
       nowrap: true,
       cell: (a) => (
-        <div className="flex justify-end gap-2">
-          {/* Stop only: an alert starts again only when the person signs up again (actions.ts). */}
-          {a.active && (
-            <ActButton act={pauseAlertAction.bind(null, a.id)} confirm={{ title: "Stop this stock alert?", text: "Only the customer can start it again, by signing up on the website.", yes: "Stop" }} className={rowButton}>Stop</ActButton>
-          )}
-          <ActButton act={removeAlertAction.bind(null, a.id)} confirm={{ title: "Remove this stock alert?", text: "This cannot be undone.", yes: "Remove" }} className={rowDanger}>Remove</ActButton>
+        // No next step on an alert: Stop and Remove are under the row's menu (#95).
+        <div className="flex justify-end">
+          <RowMenu label={`More for ${a.email}: ${a.criteria}`}>
+            {/* Stop only: an alert starts again only when the person signs up again (actions.ts). */}
+            {a.active && (
+              <ActButton act={pauseAlertAction.bind(null, a.id)} confirm={{ title: "Stop this stock alert?", text: "Only the customer can start it again, by signing up on the website.", yes: "Stop" }} className={rowButton}>Stop</ActButton>
+            )}
+            <ActButton act={removeAlertAction.bind(null, a.id)} confirm={{ title: "Remove this stock alert?", text: "This cannot be undone.", yes: "Remove" }} className={rowDanger}>Remove</ActButton>
+          </RowMenu>
         </div>
       ),
     },
@@ -137,7 +146,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
       cell: (s) =>
         s.status === "subscribed" && (
           <span className="flex justify-end">
-            <ActButton act={unsubscribeAction.bind(null, s.id)} confirm={{ title: `Unsubscribe ${s.email}?`, text: "Only they can sign up again, on the website.", yes: "Unsubscribe" }} className={rowButton}>Unsubscribe</ActButton>
+            <RowMenu label={`More for ${s.email}`}>
+              <ActButton act={unsubscribeAction.bind(null, s.id)} confirm={{ title: `Unsubscribe ${s.email}?`, text: "Only they can sign up again, on the website.", yes: "Unsubscribe" }} className={rowButton}>Unsubscribe</ActButton>
+            </RowMenu>
           </span>
         ),
     },
