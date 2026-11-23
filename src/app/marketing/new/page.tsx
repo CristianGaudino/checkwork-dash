@@ -22,7 +22,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
   const cards = carCards([...onSale.filter((c) => ideas.has(c.slug)), ...onSale.filter((c) => !ideas.has(c.slug))], ideas);
   return (
     <>
-      <PageHeader title="New post" text={(await isUsable("social")) ? undefined : "Facebook and Instagram are not connected, so posts are kept as drafts."} back={{ href: "/marketing", label: "Marketing" }} />
+      <PageHeader title="New post" text={(await isUsable("social")) ? "Pick a car and where it goes. Post it now or schedule it." : "Your social accounts are not connected yet, so posts are kept as drafts."} back={{ href: "/marketing", label: "Marketing" }} />
       <PostComposer
         cars={cards}
         initialSlug={sp.car ?? ""}
