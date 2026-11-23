@@ -3,8 +3,8 @@ import type { Hours } from "@/lib/tenancy/profile";
 import Link from "next/link";
 import { DriveStatusBadge } from "@/components/admin/badges";
 import { DriveSteps } from "@/components/admin/DriveSteps";
-import { Badge, DataTable, EmptyState, PageHeader, Panel, Segmented, TableFooter, TableToolbar, adminButton, choicePill, pageOf, sortRows, type Column, type FilterGroup } from "@/components/admin/kit";
-import { CheckIcon, ChevronLeftIcon, ChevronRightIcon, PlusIcon } from "@/components/stock/icons";
+import { Badge, DataTable, EmptyState, PageHeader, Panel, Segmented, TableFooter, TableToolbar, adminButton, pageOf, sortRows, type Column, type FilterGroup } from "@/components/admin/kit";
+import { ChevronLeftIcon, ChevronRightIcon, PlusIcon } from "@/components/stock/icons";
 import { card } from "@/components/ui";
 import { DRIVE_STATUSES, DRIVE_STATUS_LABELS, drivesStore, getSettings, type DriveStatus, type TestDrive } from "@/lib/admin/collections";
 import { filterDrives, isOpenDrive, waitingDrives } from "@/lib/admin/drives";
@@ -27,7 +27,7 @@ type View = (typeof VIEWS)[number];
 type Params = { view?: string; day?: string; mine?: string; q?: string; status?: string; with?: string; when?: string; car?: string; sort?: string; dir?: string; page?: string; per?: string };
 
 // The diary. Today: the day's bookings in order, and the requests still to confirm. Week: a calendar of seven days (on a phone, a strip of
-// days and the one chosen). List: every booking in a table, searched and filtered. "Only mine" keeps the bookings given to whoever is
+// days and the one chosen). List: every booking in a table, searched and filtered. For me keeps the bookings given to whoever is
 // looking. A booking opens on its own page, where it is moved or given to someone.
 export default async function Page({ searchParams }: { searchParams: Promise<Params> }) {
   const sp = await searchParams;
@@ -71,10 +71,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
             { label: "List", href: link({ view: "list", day: undefined }), active: view === "list" },
           ]}
         />
-        <Link href={link({ mine: mine ? undefined : "1", page: undefined })} aria-current={mine ? "true" : undefined} className={choicePill(mine)}>
-          {mine && <CheckIcon className="shrink-0 size-4" />}
-          Only mine
-        </Link>
+        <Segmented label="Whose test drives" items={[{ label: "Everyone", href: link({ mine: undefined, page: undefined }), active: !mine }, { label: "For me", href: link({ mine: "1", page: undefined }), active: mine }]} />
       </div>
 
       {view === "today" && (

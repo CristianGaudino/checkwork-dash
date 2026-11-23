@@ -97,7 +97,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
                 <StatCard href="/leads" label="Leads this week" value={fmtNum(thisWeek)} hint={`${fmtNum(o.usualWeek)} in a usual week`} tone={thisWeek > o.usualWeek ? "good" : undefined} />
                 <StatCard href="/stock" label="Cars for sale" value={fmtNum(cars.filter(forSale).length)} hint={o.oldStock ? `${o.oldStock} for sale ${rules.oldStockDays} days or more` : undefined} tone={o.oldStock ? "warn" : undefined} />
                 {visits && <VisitsTile now={visits.now} before={visits.before} />}
-                {active !== null && <StatCard label="Active now" value={fmtNum(active)} hint="On your website" />}
+                {active !== null && <StatCard href="/analytics" label="Active now" value={fmtNum(active)} hint="On your website" />}
               </StatGrid>
             </Panel>
           </>
