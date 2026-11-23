@@ -9,7 +9,7 @@ export function logLead({ leadId, type, outcome }: { leadId?: string; type: Lead
 // The site API's one line per request (src/lib/site-api): the route, the dealer's id (once the key named one), what happened and the answer's
 // status. Built from those keys by name, so a key, a lead or anything personal can never reach Workers Logs.
 export type SiteOutcome = "stored" | "duplicate" | "listed" | "no-key" | "rate" | "too-large" | "invalid" | "not-here" | "error";
-export type SiteRoute = "leads" | "stock" | "drives" | "counts" | "photos";
+export type SiteRoute = "leads" | "stock" | "drives" | "counts" | "presence" | "photos";
 export function logSite({ route, dealerId, outcome, status }: { route: SiteRoute; dealerId?: string; outcome: SiteOutcome; status: number }): void {
   const line = JSON.stringify({ site: route, dealerId, outcome, status });
   if (status >= 500) console.error(line);

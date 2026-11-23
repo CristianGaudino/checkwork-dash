@@ -80,7 +80,7 @@ IP address, nothing about the device.
 
 ## `POST /api/site/v1/counts`
 
-A day's anonymous visitor counts from the website (#71), so a real dealer's Analytics, Where visits come from, the Overview strip and the
+A day's anonymous visitor counts from the website (#71), so a real dealer's Analytics, Where visits come from, the Overview's Visits this week tile and the
 monthly report show their website's figures. Same key, auth, 64 KB cap and rate limit as the leads POST. Code: `src/lib/site-api/counts.ts`.
 
 ```json
@@ -102,6 +102,35 @@ monthly report show their website's figures. Same key, auth, 64 KB cap and rate 
 | 204 | Stored (or replaced) | none |
 | 400 | Not JSON, not the contract, a bad day or a count out of range (a name off the list is dropped, not refused). Nothing is stored and no detail is given | none |
 | 401, 413, 429, 500 | As for leads | none |
+
+## `POST /api/site/v1/presence`
+
+An open tab on the website (#111), for the Overview's Active now figure: how many tabs pinged in the last 3 minutes. Same key, auth and
+rate limit as the leads POST; the body is capped at 256 bytes. Code: `src/lib/site-api/presence.ts`.
+
+```json
+{ "tab": "k3Jx9_Qm2a-7" }
+```
+
+- `tab` is a random id the website makes for each tab when it first loads, 8 to 64 characters of `A-Z a-z 0-9 - _` (a
+  `crypto.randomUUID()` will do), kept in that tab's `sessionStorage` and nowhere else. A new tab gets a new id. No other field is accepted:
+  no IP, no user agent, no cookie, no page, nothing about the person or the device.
+- **What the website does:** the page sends a ping to its own Worker, and the Worker sends it on with the key (the key never reaches the
+  browser). Ping when a page loads, then once a minute while the tab is visible (`document.visibilityState` is `visible`), and once more
+  when it becomes visible again. Stop while it is hidden, and send nothing on close: the tab drops off the figure 3 minutes after its last
+  ping. Not more often than once a minute: every tab's pings share the key's limit. A failed ping is not retried; the next one will do.
+- Kept in the dealer's store, one record per tab id with when it was last seen, plus one record of when the website last pinged at all.
+  An id not seen for 5 minutes is deleted on the next ping. Never logged.
+- The figure is left off the Overview until the website has sent its first ping. A demo dealer shows a made-up figure instead.
+- The pings share the key's limit of 60 a minute, so about 60 tabs open at once is the most it counts exactly; past that some pings get
+  429 and the figure reads low.
+
+| Status | When | Body |
+|---|---|---|
+| 204 | Seen | none |
+| 400 | Not JSON, not the contract, or a `tab` that is not 8 to 64 of those characters | none |
+| 413 | Body over 256 bytes | none |
+| 401, 429, 500 | As for leads | none |
 
 ## `GET /api/site/v1/stock`
 

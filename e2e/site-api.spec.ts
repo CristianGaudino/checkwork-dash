@@ -182,3 +182,14 @@ test("a day's visitor counts sent with the website's key are accepted and replac
   expect((await post({ day, counts: { "no-results": 4 } })).status()).toBe(204);
   expect((await post({ day, counts: { "no-results": 6 } })).status()).toBe(204);
 });
+
+test("an open tab's ping is accepted with the website's key, and a bad id or extra field is turned away (#111)", async ({ request }) => {
+  const post = (data: object, key?: string) => request.post("/api/site/v1/presence", { headers: auth(key), data });
+  const tab = crypto.randomUUID();
+  expect((await post({ tab }, "cw_site_nope")).status()).toBe(401);
+  expect((await post({ tab: "a b" })).status()).toBe(400);
+  expect((await post({ tab, ip: "1.2.3.4" })).status()).toBe(400);
+  expect((await post({ tab: "x".repeat(300) })).status()).toBe(413);
+  expect((await post({ tab })).status()).toBe(204);
+  expect((await post({ tab })).status()).toBe(204);
+});
