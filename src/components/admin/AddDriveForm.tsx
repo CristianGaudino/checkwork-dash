@@ -94,7 +94,7 @@ export function BookDriveForm({ cars, team, me, slots, initialCar, person }: { c
           <input name="email" type="email" defaultValue={person?.email} className={adminInput} autoComplete="off" />
         </Field>
         <Field label="Who takes them out">
-          <Select name="assignedTo" label="Who takes them out" defaultValue={team.includes(me) ? me : ""} options={[["", "Not assigned"], ...team.map((t) => [t, t] as const)]} />
+          <Select name="assignedTo" label="Who takes them out" defaultValue={team.includes(me) ? me : ""} options={[["", "Not taken"], ...team.map((t) => [t, t] as const)]} />
         </Field>
         <Field label="Notes (optional)" className="sm:col-span-2">
           <input name="notes" maxLength={DRIVE_LIMITS.notes} className={adminInput} />
@@ -102,7 +102,7 @@ export function BookDriveForm({ cars, team, me, slots, initialCar, person }: { c
       </section>
 
       {/* Step 1 has no buttons (picking a car moves on), so no empty divider either. */}
-      <div className={`${step > 0 ? "flex" : "hidden"} flex-wrap items-center gap-3 border-t border-hairline pt-4`}>
+      <div className={`${step > 0 ? "flex" : "hidden"} flex-wrap items-center justify-end gap-3 border-t border-hairline pt-4`}>
         {step > 0 && (
           <button type="button" onClick={() => setStep(step - 1)} className={adminButtonQuiet}>
             Back
