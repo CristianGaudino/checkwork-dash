@@ -294,8 +294,8 @@ export async function LeadView({ id }: { id: string }) {
           )}
           <Panel title="Who has it" quiet>
             <div className="flex flex-wrap gap-2">
-              <ChoiceAct action={assignLeadAction.bind(null, lead.id)} set={{ assignedTo: "" }} back={{ assignedTo: lead.assignedTo ?? "" }} active={!lead.assignedTo} done="Given to nobody">
-                Nobody
+              <ChoiceAct action={assignLeadAction.bind(null, lead.id)} set={{ assignedTo: "" }} back={{ assignedTo: lead.assignedTo ?? "" }} active={!lead.assignedTo} done="Not taken">
+                Not taken
               </ChoiceAct>
               {settings.team.map((t) => (
                 <ChoiceAct key={t.id} action={assignLeadAction.bind(null, lead.id)} set={{ assignedTo: t.name }} back={{ assignedTo: lead.assignedTo ?? "" }} active={lead.assignedTo === t.name} done={`Given to ${t.name}`}>

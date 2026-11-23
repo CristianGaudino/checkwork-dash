@@ -3,7 +3,7 @@ import Link from "next/link";
 import { LeadStatusBadge } from "@/components/admin/badges";
 import { Avatar, Badge, DataTable, EmptyState, PageHeader, Panel, Segmented, SummaryTabs, TableFooter, TableToolbar, Task, TaskList, pageOf, sortRows, type Column, type FilterGroup } from "@/components/admin/kit";
 import { LeadMenu, NextStatusButton, ReachButton, SpamButton } from "@/components/admin/LeadActions";
-import { AlertIcon, CalendarIcon, InboxIcon } from "@/components/stock/icons";
+import { CalendarIcon, InboxIcon } from "@/components/stock/icons";
 import { can, currentMember } from "@/lib/permissions";
 import { LEAD_SOURCES, LEAD_STATUSES, LEAD_STATUS_LABELS, LEAD_TYPE_LABELS, getSettings, leadsStore, type Lead } from "@/lib/admin/collections";
 import { dublinDay, fmtAgo, fmtDate } from "@/lib/admin/format";
@@ -48,13 +48,16 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
   // New leads waiting past the reply target, counted for the filter.
   const late = filterLeads(all, { q: "", late: true }, today, leadSlaHours, at).length;
   const STATUS_ORDER = Object.fromEntries(LEAD_STATUSES.map((s, i) => [s, i]));
+  const me = await currentMember();
+  // Whose it is, as To do says it: You, a name, or Not taken.
+  const who = (name?: string) => (!name ? "Not taken" : name === me.name ? "You" : name);
   const columns: Column<Lead>[] = [
     {
       key: "who",
       header: "Who",
       sort: (l) => l.name,
       // The name is the row's title. On a phone, where the About column is hidden, what it is about is here too: the kind, where it came
-      // from, the car and the form's answers as tags.
+      // from and the car. The form's tags stay on the lead's page, so a row is a few lines, not a stack of chips.
       cell: (l) => (
         <span className="flex min-w-0 flex-col gap-1">
           <Link href={`/leads/${l.id}`} className="font-bold text-text [overflow-wrap:anywhere] after:absolute after:inset-0">
@@ -62,12 +65,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
           </Link>
           <KindSource l={l} className="sm:hidden" />
           {l.carTitle && <span className="truncate text-meta font-medium text-text sm:hidden">{l.carTitle}</span>}
-          <span className="sm:hidden">
-            <LeadTags tags={leadChips(l.type, l.topic, l.answers)} />
-          </span>
         </span>
       ),
-      className: "max-w-[11rem] sm:max-w-[14rem]",
+      className: "max-sm:w-full sm:max-w-[14rem]",
     },
     // What kind of request and where it came from, the form's answers as tags in full, then the car, else the first words of their
     // message, quoted and muted so the two never read alike.
@@ -104,9 +104,10 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
             {flag === "late" ? <Badge tone="bad" strong>Late</Badge> : flag === "urgent" && <Badge tone="warn">Urgent</Badge>}
             {possibleSpam(l) && <Badge tone="warn">Possible spam</Badge>}
           </span>
-          {/* The follow-up, when there is one, under the status: one place to look for what to do next. Overdue is red, today amber. */}
+          {/* The follow-up, when there is one, under the status: one place to look for what to do next. Muted: the words say overdue or
+              today, and the row is already pinned and badged. */}
           {l.followUpOn && isOpenLead(l) && (
-            <span className={`text-meta ${l.followUpOn < today ? "font-medium text-bad" : followUpDue(l, today) ? "font-medium text-warn" : "text-text-2"}`}>
+            <span className="text-meta text-text-2">
               Follow up {l.followUpOn === today ? "today" : l.followUpOn < today ? "overdue" : fmtDate(`${l.followUpOn}T12:00:00Z`)}
             </span>
           )}
@@ -117,7 +118,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
         );
       },
     },
-    { key: "owner", header: "Who has it", hide: "2xl", nowrap: true, sort: (l) => l.assignedTo, cell: (l) => (l.assignedTo ? <span className="inline-flex items-center gap-2"><Avatar name={l.assignedTo} />{l.assignedTo.split(" ")[0]}</span> : <span className="text-text-2">Nobody</span>) },
+    { key: "owner", header: "Who has it", hide: "2xl", nowrap: true, sort: (l) => l.assignedTo, cell: (l) => (l.assignedTo ? <span className="inline-flex items-center gap-2"><Avatar name={l.assignedTo} />{l.assignedTo === me.name ? "You" : l.assignedTo.split(" ")[0]}</span> : <span className="text-text-2">Not taken</span>) },
     { key: "when", header: "Received", sort: (l) => l.createdAt, cell: (l) => <span className={l.status === "new" ? "font-medium" : "text-text-2"}>{fmtAgo(l.createdAt)}</span>, align: "right", nowrap: true, hide: "2xl" }, // below 2xl it is in the Status column
     // The two things done most from the list: reach them the way they asked, and move it on a step. Above the row's link.
     // Two fixed slots, so the buttons line up from row to row whichever are there.
@@ -134,7 +135,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
     { name: "type", label: "What they want", any: "Anything", options: SALES_LEAD_TYPES.map((t) => [t, LEAD_TYPE_LABELS[t]] as const) },
     { name: "topic", label: "Topic", any: "Any topic", options: TOPICS.filter((t) => t.id !== "bought" && (!("module" in t) || modules.has(t.module))).map((t) => [t.id, t.label] as const) }, // "bought" is filed in Aftersales
     { name: "need", label: "Needs a reply", any: "Any", options: [["due", `Follow-up due (${due})`], ["late", `Waiting too long (${late})`]] },
-    { name: "with", label: "Who has it", any: "Anyone", options: [["none", "Nobody"], ...team.map((t) => [t.name, t.name] as const)] },
+    { name: "with", label: "Who has it", any: "Anyone", options: [["none", "Not taken"], ...team.map((t) => [t.name, t.name] as const)] },
     { name: "source", label: "Where it came from", any: "Any source", options: LEAD_SOURCES.map((s) => [s, s] as const) },
   ];
   const canExport = await can("data");
@@ -151,7 +152,6 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
   // person's: For me (forPerson, as the Overview's, whose Reply to leads opens it so) or Who has it. Any other filter is
   // looking for something else. A search keeps it, so the search box does not jump up under the cursor while typing (#85).
   const filtered = Boolean(f.status || f.type || f.topic || f.due || f.late || f.source || (sp.page && sp.page !== "1"));
-  const me = await currentMember();
   const mine = sp.mine === "1" && Boolean(me.name) && !f.with; // Who has it wins: its pill hides Everyone | For me
   const why = ({ lead: l, kind, flag }: LeadTask) =>
     kind === "follow" ? (l.followUpOn! < today ? `Follow-up was due ${fmtDate(`${l.followUpOn}T12:00:00Z`)}` : "Follow up today") : flag === "late" ? `Came in ${fmtAgo(l.createdAt)}, past your reply time` : flag === "urgent" ? `In a hurry: ${leadTags(l.topic!, l.answers ?? {}).join(", ")}` : `New, came in ${fmtAgo(l.createdAt)}`;
@@ -169,19 +169,30 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
     return `/leads${p.size ? `?${p}` : ""}`;
   };
 
+  const whose = me.name && !f.with && (
+    <Segmented label="Whose leads" items={[{ label: "Everyone", href: mineHref(false), active: !mine }, { label: "For me", href: mineHref(true), active: mine }]} />
+  );
+  // Closed and Spam only when they hold a lead (or are open), as Stock does with Hidden and Drafts: an empty one is noise.
+  const statusTabs = (
+    <SummaryTabs
+      label="Lead status"
+      items={[{ label: "All", href: href({ status: undefined }), active: !f.status, count: Object.values(counts).reduce((a, b) => a + b, 0) - counts.spam }, ...LEAD_STATUSES.filter((s) => !["closed", "spam"].includes(s) || counts[s] > 0 || f.status === s).map((s) => ({ label: LEAD_STATUS_LABELS[s], hint: STATUS_HINTS[s], href: href({ status: s }), active: f.status === s, count: counts[s] }))]}
+    />
+  );
+
   return (
     <>
       <PageHeader title="Leads" text="Every enquiry, the urgent ones first" />
+      {/* The status tiles first, so picking one (which hides To answer now) leaves them where they were. */}
+      {statusTabs}
       {!filtered && (
         <Panel
           title="To answer now"
           count={todo.length}
-          action={
-            me.name && !f.with && (
-              <Segmented label="Whose leads" items={[{ label: "Everyone", href: mineHref(false), active: !mine }, { label: "For me", href: mineHref(true), active: mine }]} />
-            )
-          }
+          // On a phone Everyone | For me goes under the title, so the title keeps one line.
+          action={whose && <span className="max-sm:hidden">{whose}</span>}
         >
+          {whose && <div className="sm:hidden">{whose}</div>}
           {todo.length === 0 ? (
             <p className="text-body text-text-2">All caught up. No new leads and no follow-ups due.</p>
           ) : (
@@ -191,7 +202,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
                   key={l.id}
                   href={`/leads/${l.id}`}
                   urgency={urgency}
-                  icon={kind === "follow" ? <CalendarIcon /> : urgency === "now" ? <AlertIcon /> : <InboxIcon />}
+                  icon={kind === "follow" ? <CalendarIcon /> : <InboxIcon />}
                   title={l.name}
                   detail={
                     <span className="flex flex-col gap-0.5">
@@ -199,7 +210,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
                         <LeadKind type={l.type} topic={l.topic} />
                         {l.carTitle && <span className="text-text">{l.carTitle}</span>}
                       </span>
-                      <span>{why}</span>
+                      <span>{[who(l.assignedTo), why].join(" · ")}</span>
                       {possibleSpam(l) && <span className="flex"><Badge tone="warn">Possible spam</Badge></span>}
                     </span>
                   }
@@ -232,11 +243,6 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
           )}
         </Panel>
       )}
-      {/* Closed and Spam only when they hold a lead (or are open), as Stock does with Hidden and Drafts: an empty one is noise. */}
-      <SummaryTabs
-        label="Lead status"
-        items={[{ label: "All", href: href({ status: undefined }), active: !f.status, count: Object.values(counts).reduce((a, b) => a + b, 0) - counts.spam }, ...LEAD_STATUSES.filter((s) => !["closed", "spam"].includes(s) || counts[s] > 0 || f.status === s).map((s) => ({ label: LEAD_STATUS_LABELS[s], hint: STATUS_HINTS[s], href: href({ status: s }), active: f.status === s, count: counts[s] }))]}
-      />
       <TableToolbar search={{ placeholder: "Search", label: "Search leads" }} filters={filters} />
       <DataTable label="Leads" linkRows rows={rows} rowKey={(l) => l.id} columns={columns} sort={sp.sort ? sort : { key: "", dir: "desc" }} empty={<EmptyState title="No leads match" text="Try another filter or search." />} />
       {/* The list as it is filtered now, as a CSV: owners and managers only. */}
