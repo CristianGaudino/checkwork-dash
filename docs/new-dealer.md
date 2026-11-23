@@ -1,6 +1,6 @@
 # Adding a dealer
 
-Their website, if it is ours, connects with a key the dealer's owner or manager makes in Settings (`docs/site-api.md`).
+Their website, if it is ours, connects with a website key Checkwork makes through the owner API (`docs/owner-api.md`, "Dealer website keys"; `docs/site-api.md`). The dealer never sees it.
 
 One app serves every dealer. Each dealer has a D1 database of its own (EU jurisdiction), and the directory (`DIRECTORY`) says which dealers
 there are and who works at each. How they are kept apart: `docs/dealer-admin.md`, "Dealers kept apart".
@@ -103,6 +103,9 @@ secrets.
 5. Add the owner's email to the Cloudflare Access policy of each host they use (named emails only, never Everyone: `docs/dealer-admin.md`, "Cloudflare
    Access"). The owner signs in, checks their details in Settings, Your business, adds the team in Settings, Team (which writes the
    directory), then Lead emails. Each person they add needs their email added to the Access policy too, until our own sign-in (#10).
+
+6. If their website is ours: make its key with the owner API in each environment (`POST /api/owner/v1/dealers/<id>/site-keys`,
+   `docs/owner-api.md`) and set it on the website. The answer is the only time the key is shown.
 
 ## Every deploy
 

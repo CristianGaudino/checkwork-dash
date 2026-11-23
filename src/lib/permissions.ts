@@ -36,7 +36,7 @@ export async function can(permission: Permission): Promise<boolean> {
   return roleCan((await currentMember()).role, permission);
 }
 
-// For effects that reach past the dashboard's own records: the directory's team, website keys, email sent from our domain, and real
+// For effects that reach past the dashboard's own records: the directory's team, email sent from our domain, and real
 // personal data (exports, data requests). These also need the role the directory gives the signed-in person, which the demo bar's cookie
 // cannot raise, so a demo viewer trying the Owner role sees every screen but changes or takes nothing real. The screen's role still has to
 // allow it too, so the demo shows each role's refusals as before. On any other dealer the two roles are one and this is can().

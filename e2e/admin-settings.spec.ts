@@ -45,10 +45,9 @@ test("the sections are one at a time; services say what is connected and how to 
   await expect(social).toContainText("Connected");
   await expect(social).toContainText("@checkworkmotors");
   await expect(page.getByRole("row", { name: /Lead email/ })).toContainText("Not connected");
-  // The website keys are for a web developer: folded until asked for.
-  await expect(page.getByRole("region", { name: "Website connection" })).toBeHidden();
-  await page.getByText("For your web developer").click();
-  await expect(page.getByRole("region", { name: "Website connection" })).toBeVisible();
+  // Website keys are Checkwork's, made through the owner API (#118): nothing about them here.
+  await expect(page.getByText("For your web developer")).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "Website connection" })).toHaveCount(0);
 });
 
 test("on a phone the tab row opens scrolled to the open section", async ({ page }) => {

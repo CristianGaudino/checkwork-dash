@@ -53,7 +53,7 @@ export function overview(input: { leads: Lead[]; drives: TestDrive[]; reviews: A
     // Warranty requests from the website with no claim opened yet (openWarrantyRequests), as Aftersales' Requests.
     { key: "warranty", label: "Warranty requests to answer", count: input.warrantyRequests ?? 0, href: "/aftersales?view=requests", urgency: "soon" },
     { key: "reviews", label: "Reviews without a reply", count: reviews.filter((r) => !r.reply).length, href: "/reviews?filter=unreplied", urgency: "info" },
-    { key: "sync", label: `${listingSite} stock is not updating`, count: input.syncProblem ? 1 : 0, href: "/stock", urgency: "now" },
+    { key: "sync", label: "Stock is not updating", count: input.syncProblem ? 1 : 0, href: "/stock", urgency: "now" },
     { key: "sold-drives", label: "Test drives booked on a car no longer for sale", count: ownDrives.filter((d) => d.startsAt >= now && isOpenDrive(d) && offSale.has(slugId(d.carSlug))).length, href: "/test-drives?view=list&car=gone&when=ahead", urgency: "now" },
     { key: "deposits", label: "Reservations past their date", count: overdue.length, href: overdue.length === 1 ? `/stock/${overdue[0].carId}/reserve` : "/stock?view=reserved", urgency: "now" },
     { key: "orders", label: "Ordered cars arrived, to hand over", count: (input.orders ?? []).filter((o) => o.status === "arrived").length, href: "/orders?view=arrived", urgency: "soon" },

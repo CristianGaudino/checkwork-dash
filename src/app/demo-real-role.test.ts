@@ -28,7 +28,7 @@ const leads = await import("./leads/export/route");
 const customers = await import("./customers/export/route");
 const { can, DEMO_ROLE_REFUSED } = await import("@/lib/permissions");
 const { getSettings, settingsStore } = await import("@/lib/admin/collections");
-const { membersOf, resetMemoryDirectory, siteKeysOf } = await import("@/lib/tenancy/directory");
+const { membersOf, resetMemoryDirectory } = await import("@/lib/tenancy/directory");
 
 const form = (o: Record<string, string>) => Object.entries(o).reduce((f, [k, v]) => (f.set(k, v), f), new FormData());
 const get = (route: { GET: (r: Request) => Promise<Response> }, path: string) => route.GET(new Request(`http://localhost${path}`));
@@ -53,13 +53,6 @@ describe("a demo Sales member with the demo bar on Owner", () => {
     expect(await settings.removeTeamAction((await conor()).id)).toEqual({ error: DEMO_ROLE_REFUSED });
     expect(await settings.setRoleAction((await conor()).id, undefined, form({ role: "Owner" }))).toEqual({ errors: { role: DEMO_ROLE_REFUSED } });
     expect(await membersOf("checkwork-motors")).toEqual(before);
-  });
-
-  it("cannot make or revoke a website key", async () => {
-    const [key] = await siteKeysOf("checkwork-motors");
-    expect(await settings.makeSiteKeyAction(undefined, form({ label: "Mine" }))).toEqual({ errors: { label: DEMO_ROLE_REFUSED } });
-    expect(await settings.revokeSiteKeyAction(key.id)).toEqual({ error: DEMO_ROLE_REFUSED });
-    expect(await siteKeysOf("checkwork-motors")).toEqual([key]);
   });
 
   it("cannot change the lead emails or send the test email", async () => {
@@ -92,10 +85,6 @@ describe("the real Owner", () => {
     expect((await settings.addTeamAction(undefined, form({ name: "Sam Reilly", email: "sam@example.com", role: "Sales" })))?.saved).toBe(true);
     expect((await membersOf("checkwork-motors")).some((m) => m.email === "sam@example.com")).toBe(true);
     expect(await settings.removeTeamAction((await getSettings()).team.find((t) => t.email === "sam@example.com")!.id)).toBeUndefined();
-    const made = await settings.makeSiteKeyAction(undefined, form({ label: "Mine" }));
-    expect(made?.key).toMatch(/^cw_site_/);
-    const mine = (await siteKeysOf("checkwork-motors")).find((k) => k.label === "Mine")!;
-    expect(await settings.revokeSiteKeyAction(mine.id)).toBeUndefined();
     expect(await settings.saveLeadEmailsAction(undefined, form({ leadEmails: "someone@example.com" }))).toEqual({ saved: true });
     expect((await settings.sendTestEmailAction())?.errors?.test).not.toBe(DEMO_ROLE_REFUSED);
     expect((await get(leads, "/leads/export")).status).toBe(200);

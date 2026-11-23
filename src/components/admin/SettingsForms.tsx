@@ -4,7 +4,7 @@ import { useKeptForm } from "@/components/admin/useKeptForm";
 import { Select } from "@/components/Select";
 import { startTransition, useActionState, useEffect, useState } from "react";
 import { Field, adminButton, adminButtonQuiet, adminInput } from "@/components/admin/kit";
-import { addTeamAction, setRoleAction, saveBusinessAction, saveLeadEmailsAction, saveMarketingAction, sendTestEmailAction, saveNotificationsAction, saveTargetsAction, makeSiteKeyAction, type SettingsState, type SiteKeyState } from "@/app/settings/actions";
+import { addTeamAction, setRoleAction, saveBusinessAction, saveLeadEmailsAction, saveMarketingAction, sendTestEmailAction, saveNotificationsAction, saveTargetsAction, type SettingsState } from "@/app/settings/actions";
 import type { DealerSettings, TeamMember } from "@/lib/admin/collections";
 import { ROLES } from "@/lib/permission-rules";
 import type { DealerProfile } from "@/lib/tenancy/profile";
@@ -244,42 +244,6 @@ export function RoleForm({ member, owner }: { member: TeamMember; owner: boolean
           Saved
         </p>
       )}
-    </div>
-  );
-}
-
-// A new website key for the site API: made here, shown once with a copy button, then never again (only its hash is kept).
-export function SiteKeyForm() {
-  const [state, run, pending] = useKeptForm<SiteKeyState>(makeSiteKeyAction, undefined);
-  return (
-    <div className="flex flex-col gap-4">
-      <form {...run} className="flex flex-col gap-3 sm:flex-row sm:items-end" noValidate>
-        <Field label="Name" error={state?.errors?.label} className="sm:flex-1">
-          <input name="label" defaultValue="Website" maxLength={60} className={adminInput} />
-        </Field>
-        <button type="submit" disabled={pending} className={adminButton}>
-          {pending ? "Making" : "Make a key"}
-        </button>
-      </form>
-      {state?.key && !pending && <NewKey key={state.key} value={state.key} />}
-    </div>
-  );
-}
-
-function NewKey({ value }: { value: string }) {
-  const [said, setSaid] = useState("");
-  const failed = () => setSaid("Couldn't copy. Select the key and copy it.");
-  const copy = () => (navigator.clipboard ? navigator.clipboard.writeText(value).then(() => setSaid("Copied"), failed) : failed());
-  return (
-    <div role="status" className="flex flex-col gap-2 rounded-control border border-hairline p-4">
-      <p className="text-body font-medium">Copy this key now. It is shown only once.</p>
-      <input readOnly value={value} aria-label="New website key" onFocus={(e) => e.currentTarget.select()} className={`${adminInput} font-mono text-meta`} />
-      <div className="flex items-center gap-3">
-        <button type="button" onClick={copy} className={adminButtonQuiet}>
-          Copy
-        </button>
-        {said && <p className="text-meta text-text-2">{said}</p>}
-      </div>
     </div>
   );
 }
