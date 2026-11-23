@@ -7,7 +7,7 @@ test("filters by status and search, and keeps the filter in the link", async ({ 
   const total = async () => Number((await page.getByText(/^Showing 1 to /).textContent())!.match(/of ([\d,]+)$/)![1].replace(/,/g, ""));
   const all = await total();
   expect(all).toBeGreaterThan(10);
-  await page.getByRole("link", { name: /^Won/ }).click();
+  await page.getByRole("link", { name: /^Won/ }).click(); // one tap, even as the page hydrates: TabRow leaves a swiped row where it is
   await expect(page).toHaveURL(/status=won/);
   await expect.poll(total).toBeLessThan(all);
   await page.getByLabel("Search leads").fill("zzzz-nobody");
