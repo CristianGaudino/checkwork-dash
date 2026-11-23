@@ -44,9 +44,13 @@ export function Panel({ title, text, count, action, children, className = "", qu
   return (
     <section aria-labelledby={title ? id : undefined} className={`${frame} flex min-w-0 flex-col gap-4 ${className}`}>
       {(title || action) && (
-        <div className="flex items-start justify-between gap-3">
+        // The title keeps the width of its own line: when the action leaves no room for it, the action wraps onto a line of its own
+        // under the title rather than squeezing it. The helper text takes no width of its own ([contain:inline-size]), so it never
+        // pushes the action down.
+        // On a phone the action's -my-2.5 would eat 10px of the gap below a wrapped action: pb-2.5 gives it back.
+        <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-5 max-sm:has-[>:nth-child(2)]:pb-2.5">
           {title && (
-            <div className="flex min-w-0 flex-col gap-0.5">
+            <div className="flex min-w-0 grow flex-col gap-0.5 [&>p]:[contain:inline-size]">
               <h2 id={id} className="text-section font-semibold">
                 {title}
                 {count !== undefined && <span className="ml-2 font-normal text-text-2 tabular-nums">{count}</span>}

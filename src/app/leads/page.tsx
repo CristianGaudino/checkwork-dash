@@ -189,10 +189,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
         <Panel
           title="To answer now"
           count={todo.length}
-          // On a phone Everyone | For me goes under the title, so the title keeps one line.
-          action={whose && <span className="max-sm:hidden">{whose}</span>}
+          action={whose}
         >
-          {whose && <div className="sm:hidden">{whose}</div>}
           {todo.length === 0 ? (
             <p className="text-body text-text-2">All caught up. No new leads and no follow-ups due.</p>
           ) : (
