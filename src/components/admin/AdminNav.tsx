@@ -144,7 +144,8 @@ function NavSection({ group, open, holdsCurrent, onToggle, current }: { group: N
   );
 }
 
-// Under 1024px: the four main places as tabs, and More. More is marked when the page you are on is one of its own.
+// Under 1024px: the four main places as tabs, and More. More is marked when the page you are on is one of its own. As iOS's own tab bar: the
+// bar's background runs to every edge, and the tabs sit inside the safe area (above the home indicator, clear of the notch on a phone on its side).
 function TabBar({ items, label, current }: { items: NavItem[]; label: string; current: (it: NavItem) => boolean }) {
   const tabs = items.filter((i) => TABS.includes(i.href));
   // Each item under its sidebar group, so More shows the same headings. An everyday place that is not a tab (Marketing) gets one too.
@@ -157,7 +158,7 @@ function TabBar({ items, label, current }: { items: NavItem[]; label: string; cu
       title="More"
       closeLabel="Close"
       trigger={(open) => (
-        <nav aria-label={label} className="fixed inset-x-0 bottom-0 z-30 border-t border-hairline bg-surface/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl reduce-transparency:bg-surface reduce-transparency:backdrop-blur-none lg:hidden">
+        <nav aria-label={label} className="fixed inset-x-0 bottom-0 z-30 border-t border-hairline bg-surface/90 pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] backdrop-blur-xl reduce-transparency:bg-surface reduce-transparency:backdrop-blur-none lg:hidden">
           <ul className="mx-auto grid max-w-xl grid-cols-5">
             {tabs.map((it) => {
               const Icon = ICONS[it.icon];
