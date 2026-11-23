@@ -6,21 +6,40 @@ import { downscale, drawEdited, frameCrop, turnedSize } from "@/components/leads
 import { uploadMediaAction } from "@/app/marketing/actions";
 import type { Network, PostFormat } from "@/lib/admin/networks";
 
-// Each network's picture shapes (width / height). A story, a reel and anything on TikTok fill the phone screen; a feed post can be tall,
-// square or, on Facebook, wide. The first is the one each network shows biggest, so it is where the editor starts.
-const SHAPES = { "4:5": [4 / 5, "Tall 4:5"], "1:1": [1, "Square"], "1.91:1": [1.91, "Wide"], "9:16": [9 / 16, "Full screen"] } as const;
-type Shape = keyof typeof SHAPES;
+// The picture shapes (width / height; 0 is the photo's own shape, so it can be turned and not cut). For posts: a story, a reel and anything
+// on TikTok fill the phone screen; a feed post can be tall, square or, on Facebook, wide. The first in a list is where the editor starts.
+const SHAPES = { photo: [0, "As it is"], "4:3": [4 / 3, "4:3"], "4:5": [4 / 5, "Tall 4:5"], "1:1": [1, "Square"], "1.91:1": [1.91, "Wide"], "9:16": [9 / 16, "Full screen"] } as const;
+export type Shape = keyof typeof SHAPES;
 export const shapesFor = (network: Network, format: PostFormat): Shape[] =>
   format === "story" || format === "reel" || network === "TikTok" ? ["9:16"] : network === "Instagram" ? ["4:5", "1:1"] : ["4:5", "1:1", "1.91:1"];
 
 const ZOOM_MAX = 4;
 const icon = "size-4 shrink-0";
+export type Jpeg = { blob: Blob; width: number; height: number };
 
-// Crop and rotate one photo for a post (#114): pick the shape, drag (or use the arrow keys) to frame it, pinch or slide to zoom, turn it a
-// quarter at a time. The frame is drawn with the same canvas step that makes the file (downscale), so what is seen is what goes out. The
-// result is added to the media library, since a post may only use the car's photos and the library's (the server checks).
+// A post's photo (#114): the edited copy is added to the media library, since a post may only use the car's photos and the library's (the
+// server checks).
 export function PhotoEditor({ src, network, format, carSlug, onDone, onCancel }: { src: string; network: Network; format: PostFormat; carSlug: string; onDone: (src: string) => void; onCancel: () => void }) {
+  const save = async (jpeg: Jpeg) => {
+    const f = new FormData();
+    f.set("name", `${src.split("/").pop()?.replace(/\.\w+$/, "") || "Photo"} edited.jpg`);
+    if (carSlug) f.set("carSlug", carSlug);
+    f.set("file", jpeg.blob);
+    f.set("width", String(jpeg.width));
+    f.set("height", String(jpeg.height));
+    const r = await uploadMediaAction(f);
+    if (!r.ok) return r.error;
+    onDone(r.item.src);
+  };
   const shapes = shapesFor(network, format);
+  return <EditPhoto src={src} shapes={shapes} note={`${SHAPES[shapes[0]][1]}, as ${network} shows it`} onSave={save} onCancel={onCancel} />;
+}
+
+// Crop and rotate one photo (#114, #125): pick the shape, drag (or use the arrow keys) to frame it, pinch or slide to zoom, turn it a quarter
+// at a time. The frame is drawn with the same canvas step that makes the file (downscale, which drops the EXIF data too), so what is seen is
+// what goes out. `src` is a URL on this site or a picked file; `onSave` gets the 1,600px JPEG and returns an error to show, if any. `note`
+// stands in for the shape choice when there is only one shape.
+export function EditPhoto({ src, shapes, note, saveLabel = "Use photo", onSave, onCancel }: { src: string | Blob; shapes: Shape[]; note?: string; saveLabel?: string; onSave: (jpeg: Jpeg) => Promise<string | void>; onCancel: () => void }) {
   const [shape, setShape] = useState<Shape>(shapes[0]);
   const [turns, setTurns] = useState(0);
   const [zoom, setZoom] = useState(1);
@@ -34,8 +53,11 @@ export function PhotoEditor({ src, network, format, carSlug, onDone, onCancel }:
   useEffect(() => {
     let live = true;
     let bmp: ImageBitmap | undefined;
-    fetch(src)
-      .then((r) => (r.ok ? r.blob() : Promise.reject(new Error(String(r.status)))))
+    // A data: URL (a car photo kept without a bucket, next dev and E2E) is decoded here: the CSP's connect-src does not let fetch read one.
+    const blob = typeof src !== "string" ? Promise.resolve(src)
+      : src.startsWith("data:") ? Promise.resolve(new Blob([Uint8Array.from(atob(src.slice(src.indexOf(",") + 1)), (c) => c.charCodeAt(0))]))
+      : fetch(src).then((r) => (r.ok ? r.blob() : Promise.reject(new Error(String(r.status)))));
+    blob
       .then(async (blob) => {
         bmp = await createImageBitmap(blob, { imageOrientation: "from-image" });
         if (live) setPhoto({ blob, bmp });
@@ -48,8 +70,8 @@ export function PhotoEditor({ src, network, format, carSlug, onDone, onCancel }:
     };
   }, [src]);
 
-  const aspect = SHAPES[shape][0];
   const size = photo ? turnedSize(photo.bmp.width, photo.bmp.height, turns) : { width: 1, height: 1 };
+  const aspect = SHAPES[shape][0] || size.width / size.height;
   const frame = frameCrop(size.width, size.height, aspect, zoom, centre[0], centre[1]);
 
   useEffect(() => {
@@ -110,16 +132,8 @@ export function PhotoEditor({ src, network, format, carSlug, onDone, onCancel }:
     setBusy(true);
     setSaid("Saving the photo");
     try {
-      const jpeg = await downscale(photo.blob, 1600, 0.82, { turns, crop: frame.crop });
-      const f = new FormData();
-      f.set("name", `${src.split("/").pop()?.replace(/\.\w+$/, "") || "Photo"} edited.jpg`);
-      if (carSlug) f.set("carSlug", carSlug);
-      f.set("file", jpeg.blob);
-      f.set("width", String(jpeg.width));
-      f.set("height", String(jpeg.height));
-      const r = await uploadMediaAction(f);
-      if (!r.ok) return setSaid(r.error);
-      onDone(r.item.src);
+      const error = await onSave(await downscale(photo.blob, 1600, 0.82, { turns, crop: frame.crop }));
+      setSaid(error || "");
     } catch {
       setSaid("The photo could not be saved. Try again.");
     } finally {
@@ -139,7 +153,7 @@ export function PhotoEditor({ src, network, format, carSlug, onDone, onCancel }:
             ))}
           </div>
         ) : (
-          <span className="text-meta text-text-2">{SHAPES[shape][1]}, as {network} shows it</span>
+          note && <span className="text-meta text-text-2">{note}</span>
         )}
         <button type="button" onClick={() => { setTurns((t) => t + 1); reset(); }} disabled={!photo} className={`${adminButtonQuiet} ml-auto px-4 disabled:opacity-50`}>
           <RotateIcon className={icon} />
@@ -169,7 +183,7 @@ export function PhotoEditor({ src, network, format, carSlug, onDone, onCancel }:
       <div className="flex flex-wrap items-center justify-end gap-3">
         <p aria-live="polite" className="mr-auto text-meta text-text-2">{said || (photo ? "" : "Opening the photo")}</p>
         <button type="button" onClick={onCancel} className={adminButtonQuiet}>Cancel</button>
-        <button type="button" onClick={use} disabled={!photo || busy} className={`${adminButton} disabled:opacity-50`}>Use photo</button>
+        <button type="button" onClick={use} disabled={!photo || busy} className={`${adminButton} disabled:opacity-50`}>{saveLabel}</button>
       </div>
     </div>
   );
