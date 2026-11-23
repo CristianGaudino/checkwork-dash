@@ -15,13 +15,14 @@ export const FORMAT_LABELS: Record<PostFormat, string> = { post: "Post", story: 
 export const STORY_LAYOUTS = ["just-in", "price-drop"] as const;
 export type StoryLayout = (typeof STORY_LAYOUTS)[number];
 export const LAYOUT_LABELS: Record<StoryLayout, string> = { "just-in": "Just in", "price-drop": "Price drop" };
-// What each network takes, and how it goes out. "auto": the network's publishing API takes it from us. "prepare": we make it ready and the dealer
-// posts it from the phone. Facebook Page stories are limited in the API and Instagram's API cannot add the link sticker, so both stories are
-// prepared; TikTok's posting API holds an unaudited app's posts as private, so TikTok is prepared until the app is audited.
+// What each network takes, and how it goes out. "auto": the network's publishing API takes it from us (stories too: Instagram's media_type
+// STORIES, Facebook's photo_stories and video_stories). "prepare": saved here and held until the network lets us post. TikTok's posting API keeps
+// an unaudited app's posts private, so TikTok is held until it approves the app.
 export const FORMATS_FOR: Record<Network, readonly PostFormat[]> = { Facebook: ["post", "story", "reel", "carousel"], Instagram: ["post", "story", "reel", "carousel"], TikTok: ["post", "reel", "carousel"] };
+// shortcut: held posts are stored as "posted" and nothing sends them; when TikTok goes "auto", send or reset the held TikTok posts first.
 export const PUBLISH_MODE: Record<Network, Partial<Record<PostFormat, "auto" | "prepare">>> = {
-  Facebook: { post: "auto", carousel: "auto", reel: "auto", story: "prepare" },
-  Instagram: { post: "auto", carousel: "auto", reel: "auto", story: "prepare" },
+  Facebook: { post: "auto", carousel: "auto", reel: "auto", story: "auto" },
+  Instagram: { post: "auto", carousel: "auto", reel: "auto", story: "auto" },
   TikTok: { post: "prepare", reel: "prepare", carousel: "prepare" },
 };
 // Photos and video per format (the server checks the same numbers). Video seconds: a story is 60, a reel 90 on the demo.

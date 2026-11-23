@@ -32,7 +32,7 @@ const NOTICES: Record<string, { tone: "good" | "warn"; text: string }> = {
   "draft-ad": { tone: "good", text: "Draft and ad draft saved." },
   "post-scheduled": { tone: "good", text: "Post scheduled." },
   "post-published": { tone: "good", text: "Post published." },
-  "post-ready": { tone: "good", text: "Ready to post from your phone." },
+  "post-held": { tone: "good", text: "Saved. It goes out once TikTok approves us." },
   "published-ad": { tone: "good", text: "Post published and ad started." },
   "published-ad-draft": { tone: "warn", text: "Post published. The ad is saved as a draft because ads are not connected." },
   "ad-started": { tone: "good", text: "Ad started." },
@@ -100,7 +100,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
     ...posts.filter((p) => p.status === "scheduled").sort((x, y) => (x.scheduledFor ?? 0) - (y.scheduledFor ?? 0)).map((p) => ({ kind: "post" as const, p })),
   ];
   const since = today() - 30 * DAY;
-  // What really went out: a post made ready for the phone (a story, TikTok) may never have been posted, so it is not counted.
+  // What really went out: a post held until the network approves us (TikTok) has not gone out, so it is not counted.
   const recent = posts.filter((p) => p.status === "posted" && !prepared(p) && (p.postedAt ?? p.createdAt) >= since);
   const seen = recent.reduce((n, p) => n + (p.reach ?? 0), 0);
   const clicks = recent.reduce((n, p) => n + (p.clicks ?? 0), 0);
@@ -240,7 +240,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
                       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                           <span className="inline-flex items-center gap-1.5 font-medium">{item.p.photos?.[0] && <BrandIcon name={item.p.network} />}{postName(item.p)}</span>
-                          {item.p.status === "posted" && prepared(item.p) ? <Badge tone="info">Ready on your phone</Badge> : <Badge tone={STATUS[item.p.status].tone}>{STATUS[item.p.status].label}</Badge>}
+                          {item.p.status === "posted" && prepared(item.p) ? <Badge tone="info">Waiting for {item.p.network}</Badge> : <Badge tone={STATUS[item.p.status].tone}>{STATUS[item.p.status].label}</Badge>}
                         </div>
                         <span className="truncate text-meta text-text-2">
                           {item.p.carTitle ? `${item.p.carTitle}, ` : ""}
@@ -249,7 +249,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
                         <p className="line-clamp-1 max-w-measure text-meta text-text-2 max-sm:hidden">{item.p.text}</p>
                       </div>
                       {item.p.status === "posted" ? (
-                        // Made ready for the phone: we do not know how it did, so no figures.
+                        // Held until the network approves us: it has not gone out, so no figures.
                         !prepared(item.p) && <Results items={[[item.p.reach ?? 0, "saw it"], [item.p.clicks ?? 0, "clicks"]]} />
                       ) : (
                         <PostNow p={item.p} />
@@ -395,7 +395,7 @@ function Calendar({ posts, ads, week }: { posts: Awaited<ReturnType<typeof posts
                   <li key={i.id} data-calendar-item className="flex min-w-0 flex-col gap-0.5 rounded-control bg-row-alt p-2">
                     <span className="flex min-w-0 items-center gap-1.5 text-meta font-medium"><BrandIcon name={i.title} /><span className="truncate">{i.title}</span></span>
                     {i.sub && <span className="truncate text-meta text-text-2">{i.sub}</span>}
-                    <span className="text-meta text-text-2">{new Date(i.at).toLocaleTimeString("en-IE", { hour: "2-digit", minute: "2-digit", timeZone: TIME_ZONE })} · {i.ready && i.status === "posted" ? "Ready on your phone" : STATUS[i.status].label}</span>
+                    <span className="text-meta text-text-2">{new Date(i.at).toLocaleTimeString("en-IE", { hour: "2-digit", minute: "2-digit", timeZone: TIME_ZONE })} · {i.heldBy && i.status === "posted" ? `Waiting for ${i.heldBy}` : STATUS[i.status].label}</span>
                   </li>
                 ))}
               </ul>
@@ -407,7 +407,7 @@ function Calendar({ posts, ads, week }: { posts: Awaited<ReturnType<typeof posts
   );
 }
 
-// Post a waiting post now. A story, or anything on TikTok, is only made ready to post from the phone (PUBLISH_MODE), and says so.
+// Post a waiting post now. Anything on TikTok is held until TikTok approves us (PUBLISH_MODE), and says so.
 const prepared = (p: Pick<SocialPost, "network" | "format">) => PUBLISH_MODE[p.network][p.format ?? "post"] === "prepare";
 function PostNow({ p }: { p: SocialPost }) {
   const ready = prepared(p);
@@ -415,7 +415,7 @@ function PostNow({ p }: { p: SocialPost }) {
   return (
     <ActButton
       act={publishPostAction.bind(null, p.id)}
-      confirm={ready ? { title: "Finish this post?", text: `It is made ready here and posted on ${p.network} from your phone.`, yes: verb, safe: true } : { title: "Post this now?", text: `It goes out on ${p.network} at once.`, yes: verb, safe: true }}
+      confirm={ready ? { title: "Finish this post?", text: `It is saved and goes out once ${p.network} approves us.`, yes: verb, safe: true } : { title: "Post this now?", text: `It goes out on ${p.network} at once.`, yes: verb, safe: true }}
       label={`${verb}: ${postName(p)}${p.carTitle ? `, ${p.carTitle}` : ""}`}
       className={rowButtonStrong}
     >

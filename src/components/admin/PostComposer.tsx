@@ -262,6 +262,7 @@ export function PostComposer({ cars, initialSlug, initialFormat = "post", initia
               <input name="when" type="datetime-local" required min={localNow()} className={`${adminInput} w-60`} />
             </Field>
           )}
+          {mode === "prepare" && <p className="text-meta text-text-2">It is saved and goes out once {network} approves us.</p>}
           {/* An ad starts with the post, so it is only offered for a post that goes out now, in a format the network's API takes (PUBLISH_MODE). */}
           {!later && mode === "auto" && (
             <label className="flex min-h-11 items-start gap-3 py-1">

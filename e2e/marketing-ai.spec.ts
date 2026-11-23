@@ -53,18 +53,29 @@ test("make a story from a car: pick the layout, see it drawn on the photo, and p
   await expect(preview).toContainText("Price drop");
   await expect(preview).toContainText("See it");
   await page.getByRole("button", { name: "Post now", exact: true }).click();
-  await expect(page.getByRole("status")).toContainText("Ready to post from your phone");
-  await expect(page.getByRole("listitem").filter({ hasText: "Facebook story" }).first()).toBeVisible();
+  await expect(page.getByRole("status")).toContainText("Post published."); // a story goes out through the API like a feed post
+  await expect(page.getByRole("listitem").filter({ hasText: "Facebook story" }).first()).toContainText("Posted");
 });
 
-test("an Instagram story says nothing about posting by hand, and a TikTok has no story", async ({ page }) => {
+test("a TikTok has no story", async ({ page }) => {
   await startPost(page);
-  await page.getByRole("radio", { name: "Instagram" }).click();
   await page.getByRole("radio", { name: "Story" }).click();
-  await expect(page.getByText("from your phone")).toHaveCount(0);
   await page.getByRole("radio", { name: "TikTok" }).click();
   await expect(page.getByRole("radio", { name: "Story" })).toHaveCount(0);
   await expect(page.getByRole("radio", { name: "Post", exact: true })).toBeChecked();
+});
+
+// TikTok keeps an unaudited app's posts private, so a TikTok post is saved and held until TikTok approves us (PUBLISH_MODE), and says so.
+test("a TikTok post is held until TikTok approves us, and says so", async ({ page }) => {
+  await startPost(page);
+  await page.getByRole("radio", { name: "TikTok" }).click();
+  await next(page);
+  await next(page);
+  await expect(page.getByText("It is saved and goes out once TikTok approves us.")).toBeVisible();
+  await page.getByRole("button", { name: "Post now", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("Saved. It goes out once TikTok approves us.");
+  await expect(page.getByRole("listitem").filter({ hasText: "TikTok post" }).first()).toContainText("Waiting for TikTok");
+  await expect(page.getByText(/your phone/)).toHaveCount(0);
 });
 
 test("upload a photo to the media library, tag it to a car, and use it in a carousel; the server refuses a file that is not a photo", async ({ page }) => {

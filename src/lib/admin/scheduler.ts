@@ -18,11 +18,12 @@ export async function sendDuePosts(now = Date.now()): Promise<number> {
   for (const p of await postsStore.list()) {
     if (p.status !== "scheduled" || p.scheduledFor === undefined || p.scheduledFor > now || (p.claimedAt && now - p.claimedAt < CLAIM_MS)) continue;
     await postsStore.put({ ...p, claimedAt: now });
-    const r = await publishPost(p);
+    const held = PUBLISH_MODE[p.network][p.format ?? "post"] === "prepare";
+    const r = held ? { ok: true as const } : await publishPost(p); // a held post never reaches a network
     if (!r.ok) continue;
     await postsStore.put({ ...p, status: "posted", postedAt: p.scheduledFor, claimedAt: undefined, ...(r.simulated && { simulated: true, ...simulatedPost(p.id) }) });
-    // In the history like a post sent by hand; a story or TikTok post is only made ready for the phone, and says so.
-    await logActivity("marketing", PUBLISH_MODE[p.network][p.format ?? "post"] === "prepare" ? `Made a scheduled ${p.network} post ready to post from the phone` : `Published a scheduled ${p.network} post`, { kind: "post", id: p.id }, "Scheduler");
+    // In the history like a post sent by hand; a TikTok post is held until TikTok approves us, and says so.
+    await logActivity("marketing", held ? `Saved a scheduled ${p.network} post to go out once ${p.network} approves us` : `Published a scheduled ${p.network} post`, { kind: "post", id: p.id }, "Scheduler");
     sent++;
   }
   return sent;
