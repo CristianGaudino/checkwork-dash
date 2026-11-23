@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+import { Bone, PanelBones, Skeleton, TileBones } from "@/components/admin/Skeleton";
 import { counted } from "@/lib/admin/reports";
 import { bounds } from "@/lib/reports/monthly";
 import { alertsStore, salesStore } from "@/lib/admin/collections";
@@ -28,8 +30,35 @@ export const metadata = { title: "Analytics" };
 
 const shortDate = new Intl.DateTimeFormat("en-IE", { day: "numeric", month: "short", timeZone: "UTC" });
 
+// The header and the period first, so a tap on another period works from the first paint; the figures stream in under them (#109).
 export default async function Page({ searchParams }: { searchParams: Promise<{ range?: string }> }) {
   const range = parseRange((await searchParams).range);
+  return (
+    <>
+      <PageHeader title="Analytics" />
+      <Segmented label="Period" items={RANGES.map((r) => ({ label: `${r} days`, href: `/analytics?range=${r}`, active: range === r }))} />
+      <Suspense key={range} fallback={<FiguresBones />}>
+        <Figures range={range} />
+      </Suspense>
+    </>
+  );
+}
+
+function FiguresBones() {
+  return (
+    <Skeleton>
+      <TileBones />
+      <PanelBones plain title="Where visits come from">
+        <TileBones />
+      </PanelBones>
+      <PanelBones>
+        <Bone className="h-48" />
+      </PanelBones>
+    </Skeleton>
+  );
+}
+
+async function Figures({ range }: { range: Range }) {
   // The demo shows generated figures; a dealer's own site shows what its visitors really did.
   if (!(await simulating())) return <RealAnalytics range={range} />;
   const [all, leads, allSales, me, { siteUrl }] = await Promise.all([adminCars(), leadsStore.list(), salesStore.list(), currentMember(), dealerProfile()]);
@@ -49,9 +78,6 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ r
 
   return (
     <>
-      <PageHeader title="Analytics" />
-      <Segmented label="Period" items={RANGES.map((r) => ({ label: `${r} days`, href: `/analytics?range=${r}`, active: range === r }))} />
-
       {/* The answer first, in words; the figures behind it follow. */}
       <p className="max-w-measure text-body">
         {fmtNum(a.totals.visitors)} people visited your site in the last {range} days, {changeText(a.totals.visitors, a.previous.visitors).toLowerCase()}. {fmtNum(a.totals.leads)} got in touch{whole ? ` and ${fmtNum(sold)} bought a car.` : `, and you sold ${fmtNum(sold)}.`}
@@ -135,9 +161,6 @@ async function RealAnalytics({ range }: { range: Range }) {
 
   return (
     <>
-      <PageHeader title="Analytics" />
-      <Segmented label="Period" items={RANGES.map((r) => ({ label: `${r} days`, href: `/analytics?range=${r}`, active: range === r }))} />
-
       <StatGrid>
         <StatCard label="Visits" value={fmtNum(f.totals.visits)} />
         <StatCard label="Website leads" value={fmtNum(f.totals.leads)} />

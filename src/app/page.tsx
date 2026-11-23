@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { Suspense } from "react";
+import { Skeleton, TileBone } from "@/components/admin/Skeleton";
 import { ActionTile, ActionTiles, Columns, EmptyState, PageHeader, Panel, PanelLink, StatCard, StatGrid, TaskList, adminButtonQuiet } from "@/components/admin/kit";
 import { CalendarIcon, CarIcon, CheckIcon, InboxIcon, ShareIcon } from "@/components/stock/icons";
 import { can } from "@/lib/permissions";
@@ -9,6 +11,7 @@ import { ConfirmDrive, WhoseToggle, loadToDo } from "@/components/admin/ToDo";
 import { VisitsTile } from "@/components/admin/VisitsTile";
 import { visitSources } from "@/lib/admin/visit-sources-load";
 import { activeNow } from "@/lib/site-api/presence";
+import type { Lead } from "@/lib/admin/collections";
 
 // The layout's "%s | Dealer dashboard" template reaches only the pages under it, not this one beside it.
 export const metadata = { title: { absolute: "Overview | Dealer dashboard" } };
@@ -28,9 +31,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
   const drivesOn = mods.has("testDrives");
   const today = dublinDay();
   const thisWeek = o.weeks[o.weeks.length - 1];
-  // Owners and managers (the team permission) also see the website: the week's visits and who is on it now.
+  // Owners and managers (the team permission) also see the website: the week's visits and who is on it now, read after the first paint.
   const boss = await can("team");
-  const [visits, active] = boss ? await Promise.all([mods.has("analytics") ? visitSources(7, leads) : null, activeNow()]) : [null, null];
 
   const shown = tasks.slice(0, TOP);
   // A request in To do's first PHONE rows (shown on every screen) keeps its Confirm there; here it gets Call.
@@ -97,8 +99,12 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
                 {/* This week's leads: Leads has no date filter, Analytics over 7 days does. */}
                 <StatCard href={mods.has("analytics") ? "/analytics?range=7" : "/leads"} label="Leads this week" value={fmtNum(thisWeek)} hint={`${fmtNum(o.usualWeek)} in a usual week`} tone={thisWeek > o.usualWeek ? "good" : undefined} />
                 <StatCard href="/stock" label="Cars for sale" value={fmtNum(cars.filter(forSale).length)} hint={o.oldStock ? `${o.oldStock} for sale ${rules.oldStockDays} days or more` : undefined} tone={o.oldStock ? "warn" : undefined} />
-                {visits && <VisitsTile now={visits.now} before={visits.before} />}
-                {active !== null && <StatCard href="/analytics" label="Active now" value={fmtNum(active)} hint="On your website" />}
+                {/* Only the website's tiles wait: the two above are links in the first chunk (#109). */}
+                {boss && (
+                  <Suspense fallback={<Skeleton className="contents"><TileBone />{mods.has("analytics") && <TileBone />}</Skeleton>}>
+                    <WebsiteTiles leads={leads} analytics={mods.has("analytics")} />
+                  </Suspense>
+                )}
               </StatGrid>
             </Panel>
           </>
@@ -120,6 +126,17 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
           )}
         </Panel>
       </Columns>
+    </>
+  );
+}
+
+// The website's tiles: the site's counts are a slower read, so they stream in (#109).
+async function WebsiteTiles({ leads, analytics }: { leads: Lead[]; analytics: boolean }) {
+  const [visits, active] = await Promise.all([analytics ? visitSources(7, leads) : null, activeNow()]);
+  return (
+    <>
+      {visits && <VisitsTile now={visits.now} before={visits.before} />}
+      {active !== null && <StatCard href="/analytics" label="Active now" value={fmtNum(active)} hint="On your website" />}
     </>
   );
 }
