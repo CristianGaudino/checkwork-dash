@@ -52,16 +52,16 @@ test("make a story from a car: pick the layout, see it drawn on the photo, and p
   const preview = page.locator("[data-preview=story]");
   await expect(preview).toContainText("Price drop");
   await expect(preview).toContainText("See it");
-  await page.getByRole("button", { name: "Get it ready for Facebook" }).click(); // a story is posted from the phone, so not "Post now"
+  await page.getByRole("button", { name: "Post now", exact: true }).click();
   await expect(page.getByRole("status")).toContainText("Ready to post from your phone");
   await expect(page.getByRole("listitem").filter({ hasText: "Facebook story" }).first()).toBeVisible();
 });
 
-test("a story is prepared for the phone on Instagram, and a TikTok has no story", async ({ page }) => {
+test("an Instagram story says nothing about posting by hand, and a TikTok has no story", async ({ page }) => {
   await startPost(page);
   await page.getByRole("radio", { name: "Instagram" }).click();
   await page.getByRole("radio", { name: "Story" }).click();
-  await expect(page.getByText("is made ready here and posted from your phone")).toBeVisible();
+  await expect(page.getByText("from your phone")).toHaveCount(0);
   await page.getByRole("radio", { name: "TikTok" }).click();
   await expect(page.getByRole("radio", { name: "Story" })).toHaveCount(0);
   await expect(page.getByRole("radio", { name: "Post", exact: true })).toBeChecked();
@@ -70,7 +70,7 @@ test("a story is prepared for the phone on Instagram, and a TikTok has no story"
 test("upload a photo to the media library, tag it to a car, and use it in a carousel; the server refuses a file that is not a photo", async ({ page }) => {
   await page.goto("/marketing?tab=media");
   await page.getByLabel("Car, if it belongs to one").selectOption({ index: 1 });
-  const name = `e2e-forecourt-${Date.now()}.png`;
+  const name = `e2e-yard-${Date.now()}.png`;
   await page.getByLabel("Add photos or videos").setInputFiles({ name, mimeType: "image/png", buffer: PNG });
   await expect(page.getByText("Added to your library")).toBeVisible();
   await expect(page.getByRole("img", { name: new RegExp(name.slice(0, -4)) })).toBeVisible();
@@ -89,7 +89,7 @@ test("a post that goes out shows on the calendar's week, and the week can move",
   await next(page);
   await expect(text(page)).not.toHaveValue("");
   await next(page);
-  await page.getByRole("button", { name: /^Post to [A-Za-z]+ now$/ }).click();
+  await page.getByRole("button", { name: "Post now", exact: true }).click();
   await expect(page.getByRole("status")).toContainText("Post published");
   await page.goto("/marketing?tab=calendar");
   const week = page.getByRole("region", { name: "Week" });

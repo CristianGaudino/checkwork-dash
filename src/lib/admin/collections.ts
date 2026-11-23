@@ -429,7 +429,7 @@ export const adsStore = defineCollection<Ad>("ads", seedAds);
 function seedNewsletters(): Newsletter[] {
   const now = Date.now();
   return [
-    { id: "nl-900", subject: "New arrivals this week", body: "Six new cars on the forecourt this week, including two SUVs under €20,000.", status: "sent", sentAt: now - 12 * DAY, recipients: 27, opens: 15, clicks: 6, createdAt: now - 13 * DAY },
+    { id: "nl-900", subject: "New arrivals this week", body: "Six new cars in the yard this week, including two SUVs under €20,000.", status: "sent", sentAt: now - 12 * DAY, recipients: 27, opens: 15, clicks: 6, createdAt: now - 13 * DAY },
     { id: "nl-901", subject: "Trade-in event this Saturday", body: "Bring your car in this Saturday for a free, no-obligation valuation.", status: "sent", sentAt: now - 40 * DAY, recipients: 24, opens: 12, clicks: 4, createdAt: now - 41 * DAY },
     { id: "nl-902", subject: "Winter service offer", body: "Book your winter check in November.", status: "draft", createdAt: now - 2 * DAY },
   ];

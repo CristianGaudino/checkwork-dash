@@ -5,7 +5,7 @@ clear, and it is not built for someone who is not technical. This is the contrac
 `docs/dashboard-polish.md` (tokens, type, radius, status tones, copy rules), which still holds.
 
 ## Who it is for
-A salesperson or owner at a small car dealer, on a phone on the forecourt or a laptop in the office, who has never had training. They open
+A salesperson or owner at a small car dealer, on a phone out on the yard or a laptop in the office, who has never had training. They open
 a page to do one of a few jobs. They should know within five seconds what needs doing, what the main job here is, and how to do it.
 
 ## Rules
