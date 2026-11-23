@@ -40,15 +40,15 @@ describe("POST /api/site/v1/presence", () => {
     expect(await runAsDealer(B, () => activeNow())).toBeNull();
   });
 
-  it("stops counting a quiet tab after 3 minutes and deletes it after 5", async () => {
+  it("stops counting a quiet tab after 30 minutes and deletes it after 35", async () => {
     const t = Date.now() + 60 * 60_000;
     await runAsDealer(A, async () => {
       await receivePresence(JSON.stringify({ tab: "tab-quiet-00" }), t);
-      await receivePresence(JSON.stringify({ tab: "tab-busy-000" }), t + 4 * 60_000);
-      expect(await activeNow(t + 4 * 60_000)).toBe(1);
+      await receivePresence(JSON.stringify({ tab: "tab-busy-000" }), t + 31 * 60_000);
+      expect(await activeNow(t + 31 * 60_000)).toBe(1);
       await receivePresence(JSON.stringify({ tab: "tab-busy-000" }), t + KEEP_MS + 1);
       expect((await presence.list()).map((s) => s.id)).not.toContain("tab-quiet-00");
-      expect(await activeNow(t + 30 * 60_000)).toBe(0); // the website has pinged before: 0, not null
+      expect(await activeNow(t + 120 * 60_000)).toBe(0); // the website has pinged before: 0, not null
     });
   });
 });
@@ -58,7 +58,7 @@ describe("simulatedActive", () => {
     const t0 = Date.UTC(2026, 10, 23, 12, 0);
     for (let m = 0; m < 240; m++) {
       const n = simulatedActive(t0 + m * 60_000);
-      expect(Number.isInteger(n) && n >= 2 && n <= 8).toBe(true);
+      expect(Number.isInteger(n) && n >= 4 && n <= 16).toBe(true);
       expect(simulatedActive(t0 + m * 60_000 + 59_000)).toBe(n);
       if (m) expect(Math.abs(n - simulatedActive(t0 + (m - 1) * 60_000))).toBeLessThanOrEqual(3);
     }

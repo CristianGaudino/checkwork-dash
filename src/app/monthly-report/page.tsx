@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+import { PanelBones, Skeleton, TextBones, TileBones } from "@/components/admin/Skeleton";
 import { BarList } from "@/components/admin/charts";
 import { DataTable, PageHeader, Panel, StatCard, StatGrid, rowButton } from "@/components/admin/kit";
 import Link from "next/link";
@@ -39,15 +41,54 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
   const month = isIsoMonth(asked) && months.includes(asked) ? asked : last;
   const earlier = months[months.indexOf(month) + 1];
   const later = months[months.indexOf(month) - 1];
-  const [all, seeMargins, me, hasSales, hasReviews, hasAnalytics, hasMargins, profile] = await Promise.all([loadReportData(), can("margins"), currentMember(), hasModule("sales"), hasModule("reviews"), hasModule("analytics"), hasModule("margins"), dealerProfile()]);
-  const oldDays = profile.rules.oldStockDays;
+  const [me, hasMargins] = await Promise.all([currentMember(), hasModule("margins")]);
   // As on Reports (owner's decision): the roles allowed margins see the dealership; a salesperson sees their own leads and sales, and
   // nothing of the stock, visitors or reviews. By role, not by `can`: with the Margins module off an owner still sees the dealership (only
   // the money goes, `seeMargins`).
   const whole = roleCan(me.role, "margins");
-  const data = whole ? all : { leads: all.leads.filter((l) => l.assignedTo === me.name), sales: all.sales.filter((x) => x.salesperson === me.name), cars: [], reviews: [] };
-  const { from, to } = monthRange(month);
   const prevMonth = monthBefore(month);
+  return (
+    <>
+      {/* Printing leaves out the menu, the demo bar and the picker: the page alone, in the browser's own PDF. */}
+      <style>{"@media print { aside, [data-demo-bar], .no-print { display: none !important; } main { padding: 0 !important; } * { box-shadow: none !important; } }"}</style>
+      {/* The same header as Reports' (no actions), so the views control sits where it does there. */}
+      <PageHeader title="Monthly report" text={`${whole ? "" : `${me.name}, `}${monthLabel(month)}, compared with ${monthLabel(prevMonth)}`} />
+      {/* A view of Reports: its other views, for a dealer who has Reports (the Margins module). */}
+      {hasMargins && <div className="no-print"><ReportViews /></div>}
+      {/* The months before and after, one tap each, as Test drives moves by week; twelve months back at most. Both arrows always there,
+          the one with no month to go to dimmed, so neither moves under a second click. */}
+      <div className="no-print flex items-center gap-2">
+        {earlier ? <Link href={`/monthly-report?month=${earlier}`} aria-label="Previous month" className={arrow}><ChevronLeftIcon className="size-4 shrink-0" /></Link> : <span aria-hidden="true" className={`${arrow} opacity-50`}><ChevronLeftIcon className="size-4 shrink-0" /></span>}
+        {later ? <Link href={`/monthly-report?month=${later}`} aria-label="Next month" className={arrow}><ChevronRightIcon className="size-4 shrink-0" /></Link> : <span aria-hidden="true" className={`${arrow} opacity-50`}><ChevronRightIcon className="size-4 shrink-0" /></span>}
+        <h2 className="ml-2 min-w-0 text-heading font-semibold">{monthLabel(month)}</h2>
+        <div className="ml-auto"><PrintButton /></div>
+      </div>
+      {/* The report itself streams in under the controls, so a tap on another month or view works from the first paint (#109). */}
+      <Suspense key={month} fallback={<ReportBones />}>
+        <Report month={month} prevMonth={prevMonth} now={now} name={me.name} whole={whole} hasMargins={hasMargins} />
+      </Suspense>
+    </>
+  );
+}
+
+function ReportBones() {
+  return (
+    <Skeleton>
+      <PanelBones title="What to do">
+        <TextBones />
+      </PanelBones>
+      <TileBones />
+      <h2 className="text-heading font-semibold">Leads</h2>
+      <TileBones />
+    </Skeleton>
+  );
+}
+
+async function Report({ month, prevMonth, now, name, whole, hasMargins }: { month: string; prevMonth: string; now: number; name: string; whole: boolean; hasMargins: boolean }) {
+  const [all, seeMargins, hasSales, hasReviews, hasAnalytics, profile] = await Promise.all([loadReportData(), can("margins"), hasModule("sales"), hasModule("reviews"), hasModule("analytics"), dealerProfile()]);
+  const oldDays = profile.rules.oldStockDays;
+  const data = whole ? all : { leads: all.leads.filter((l) => l.assignedTo === name), sales: all.sales.filter((x) => x.salesperson === name), cars: [], reviews: [] };
+  const { from, to } = monthRange(month);
   const prevRange = monthRange(prevMonth);
   const s = summarise(data, from, to, now, profile, { money: seeMargins });
   const p = summarise(data, prevRange.from, prevRange.to, now, profile);
@@ -74,23 +115,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
   const sources = Object.entries(s.leads.bySource).sort((x, y) => y[1] - x[1]);
   const topSource = sources[0];
 
+
   return (
     <>
-      {/* Printing leaves out the menu, the demo bar and the picker: the page alone, in the browser's own PDF. */}
-      <style>{"@media print { aside, [data-demo-bar], .no-print { display: none !important; } main { padding: 0 !important; } * { box-shadow: none !important; } }"}</style>
-      {/* The same header as Reports' (no actions), so the views control sits where it does there. */}
-      <PageHeader title="Monthly report" text={`${whole ? "" : `${me.name}, `}${monthLabel(month)}, compared with ${monthLabel(prevMonth)}`} />
-      {/* A view of Reports: its other views, for a dealer who has Reports (the Margins module). */}
-      {hasMargins && <div className="no-print"><ReportViews /></div>}
-      {/* The months before and after, one tap each, as Test drives moves by week; twelve months back at most. Both arrows always there,
-          the one with no month to go to dimmed, so neither moves under a second click. */}
-      <div className="no-print flex items-center gap-2">
-        {earlier ? <Link href={`/monthly-report?month=${earlier}`} aria-label="Previous month" className={arrow}><ChevronLeftIcon className="size-4 shrink-0" /></Link> : <span aria-hidden="true" className={`${arrow} opacity-50`}><ChevronLeftIcon className="size-4 shrink-0" /></span>}
-        {later ? <Link href={`/monthly-report?month=${later}`} aria-label="Next month" className={arrow}><ChevronRightIcon className="size-4 shrink-0" /></Link> : <span aria-hidden="true" className={`${arrow} opacity-50`}><ChevronRightIcon className="size-4 shrink-0" /></span>}
-        <h2 className="ml-2 min-w-0 text-heading font-semibold">{monthLabel(month)}</h2>
-        <div className="ml-auto"><PrintButton /></div>
-      </div>
-
       <Panel title="What to do" action={whole && s.stock.oldStock > 0 ? <Link href="/stock?view=old" className={rowButton}>See the old stock</Link> : undefined}>
         <p className="text-body">{advice(s, oldDays)}</p>
       </Panel>

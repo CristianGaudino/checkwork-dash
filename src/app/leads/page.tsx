@@ -1,7 +1,9 @@
 import { sourceText } from "@/lib/visit-rules";
 import Link from "next/link";
 import { LeadStatusBadge } from "@/components/admin/badges";
-import { Avatar, Badge, DataTable, EmptyState, PageHeader, Panel, Segmented, SummaryTabs, TableFooter, TableToolbar, Task, TaskList, pageOf, sortRows, type Column, type FilterGroup } from "@/components/admin/kit";
+import { Avatar, Badge, DataTable, EmptyState, PageHeader, Panel, SummaryTabs, TableFooter, TableToolbar, Task, TaskList, WhoseSwitch, pageOf, sortRows, type Column, type FilterGroup } from "@/components/admin/kit";
+import { Suspense } from "react";
+import { Skeleton, TableBones } from "@/components/admin/Skeleton";
 import { LeadMenu, NextStatusButton, ReachButton, SpamButton } from "@/components/admin/LeadActions";
 import { CalendarIcon, InboxIcon } from "@/components/stock/icons";
 import { can, currentMember } from "@/lib/permissions";
@@ -47,10 +49,132 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
   const due = all.filter((l) => followUpDue(l, today)).length;
   // New leads waiting past the reply target, counted for the filter.
   const late = filterLeads(all, { q: "", late: true }, today, leadSlaHours, at).length;
-  const STATUS_ORDER = Object.fromEntries(LEAD_STATUSES.map((s, i) => [s, i]));
   const me = await currentMember();
   // Whose it is, as To do says it: You, a name, or Not taken.
   const who = (name?: string) => (!name ? "Not taken" : name === me.name ? "You" : name);
+  // Every filter in one panel: what kind of lead, whether it needs a reply, who has it, where it came from.
+  const filters: FilterGroup[] = [
+    { name: "type", label: "What they want", any: "Anything", options: SALES_LEAD_TYPES.map((t) => [t, LEAD_TYPE_LABELS[t]] as const) },
+    { name: "topic", label: "Topic", any: "Any topic", options: TOPICS.filter((t) => t.id !== "bought" && (!("module" in t) || modules.has(t.module))).map((t) => [t.id, t.label] as const) }, // "bought" is filed in Aftersales
+    { name: "need", label: "Needs a reply", any: "Any", options: [["due", `Follow-up due (${due})`], ["late", `Waiting too long (${late})`]] },
+    { name: "with", label: "Who has it", any: "Anyone", options: [["none", "Not taken"], ...team.map((t) => [t.name, t.name] as const)] },
+    { name: "source", label: "Where it came from", any: "Any source", options: LEAD_SOURCES.map((s) => [s, s] as const) },
+  ];
+  // A status tile keeps everything else in the URL (search, filters, sort), so picking a status does not forget the rest.
+  const href = ({ status }: { status?: string }) => {
+    const p = new URLSearchParams(Object.entries(sp).filter((e): e is [string, string] => typeof e[1] === "string" && e[0] !== "page"));
+    if (status) p.set("status", status);
+    else p.delete("status");
+    const qs = p.toString();
+    return `/leads${qs ? `?${qs}` : ""}`;
+  };
+
+  // What to answer now, worked down from the top, by the same rule as the Overview's To do (leadsToAnswer). On the plain list, or one
+  // person's: For me (forPerson, as the Overview's, whose Reply to leads opens it so) or Who has it. Any other filter is
+  // looking for something else. A search keeps it, so the search box does not jump up under the cursor while typing (#85).
+  const filtered = Boolean(f.status || f.type || f.topic || f.due || f.late || f.source || (sp.page && sp.page !== "1"));
+  const mine = sp.mine === "1" && Boolean(me.name) && !f.with; // Who has it wins: its pill hides Everyone | For me
+  const why = ({ lead: l, kind, flag }: LeadTask) =>
+    kind === "follow" ? (l.followUpOn! < today ? `Follow-up was due ${fmtDate(`${l.followUpOn}T12:00:00Z`)}` : "Follow up today") : flag === "late" ? `Came in ${fmtAgo(l.createdAt)}, past your reply time` : flag === "urgent" ? `In a hurry: ${leadTags(l.topic!, l.answers ?? {}).join(", ")}` : `New, came in ${fmtAgo(l.createdAt)}`;
+  const every = leadsToAnswer(f.with ? filterLeads(all, { q: "", with: f.with }) : all, at, today, leadSlaHours);
+  const todo = (mine ? forPerson(every, me.name) : every).map((t) => ({ ...t, why: why(t) }));
+  const SHOWN = 8;
+  // The footer's links keep whose leads these are: new ones by Who has it, follow-ups by Who has it or For me (only their own).
+  const withWho = f.with ? `&with=${encodeURIComponent(f.with)}` : "";
+  const replies = todo.filter((t) => t.kind === "reply").length;
+  const follows = todo.length - replies;
+  // Everyone | For me: the same URL minus the page, with or without mine=1.
+  const mineHref = (on: boolean) => {
+    const p = new URLSearchParams(Object.entries(sp).filter((e): e is [string, string] => typeof e[1] === "string" && e[0] !== "page" && e[0] !== "mine"));
+    if (on) p.set("mine", "1");
+    return `/leads${p.size ? `?${p}` : ""}`;
+  };
+
+  const whose = me.name && !f.with && (
+    <WhoseSwitch label="Whose leads" everyone={mineHref(false)} forMe={mineHref(true)} mine={mine} />
+  );
+  // Closed and Spam only when they hold a lead (or are open), as Stock does with Hidden and Drafts: an empty one is noise.
+  const statusTabs = (
+    <SummaryTabs
+      label="Lead status"
+      items={[{ label: "All", href: href({ status: undefined }), active: !f.status, count: Object.values(counts).reduce((a, b) => a + b, 0) - counts.spam }, ...LEAD_STATUSES.filter((s) => !["closed", "spam"].includes(s) || counts[s] > 0 || f.status === s).map((s) => ({ label: LEAD_STATUS_LABELS[s], hint: STATUS_HINTS[s], href: href({ status: s }), active: f.status === s, count: counts[s] }))]}
+    />
+  );
+
+  return (
+    <>
+      <PageHeader title="Leads" text="Every enquiry, the urgent ones first" />
+      {/* The status tiles first, so picking one (which hides To answer now) leaves them where they were. */}
+      {statusTabs}
+      {!filtered && (
+        <Panel
+          title="To answer now"
+          count={todo.length}
+          action={whose}
+        >
+          {todo.length === 0 ? (
+            <p className="text-body text-text-2">All caught up. No new leads and no follow-ups due.</p>
+          ) : (
+            <TaskList label="Leads to answer now">
+              {todo.slice(0, SHOWN).map(({ lead: l, why, urgency, kind }) => (
+                <Task
+                  key={l.id}
+                  href={`/leads/${l.id}`}
+                  urgency={urgency}
+                  icon={kind === "follow" ? <CalendarIcon /> : <InboxIcon />}
+                  title={l.name}
+                  detail={
+                    <span className="flex flex-col gap-0.5">
+                      <span className="flex flex-wrap items-center gap-x-2">
+                        <LeadKind type={l.type} topic={l.topic} />
+                        {l.carTitle && <span className="text-text">{l.carTitle}</span>}
+                      </span>
+                      <span>{[who(l.assignedTo), why].join(" · ")}</span>
+                      {possibleSpam(l) && <span className="flex"><Badge tone="warn">Possible spam</Badge></span>}
+                    </span>
+                  }
+                  action={
+                    <>
+                      <ReachButton lead={l} />
+                      <span className="contents max-sm:hidden">
+                        <NextStatusButton lead={l} />
+                      </span>
+                      {/* Possible spam: the person decides in one press, so a real customer is never hidden (#56). */}
+                      {possibleSpam(l) && (
+                        <>
+                          <SpamButton lead={l} to="yes" />
+                          <SpamButton lead={l} to="no" />
+                        </>
+                      )}
+                      <LeadMenu lead={l} spam={!possibleSpam(l)} />
+                    </>
+                  }
+                />
+              ))}
+            </TaskList>
+          )}
+          {todo.length > SHOWN && (
+            <p className="flex flex-wrap gap-x-4 text-meta text-text-2">
+              {todo.length - SHOWN} more waiting.
+              {replies > 0 && <Link href={`/leads?status=new${withWho}`} className="font-medium text-text underline">New leads ({replies})</Link>}
+              {follows > 0 && <Link href={`/leads?need=due${withWho || (mine ? `&with=${encodeURIComponent(me.name)}` : "")}`} className="font-medium text-text underline">Follow-ups due ({follows})</Link>}
+            </p>
+          )}
+        </Panel>
+      )}
+      <TableToolbar search={{ placeholder: "Search", label: "Search leads" }} filters={filters} />
+      {/* The rows stream in under the tiles, To answer now and the search, so a tap on a tile works from the first paint (#109), as on Stock.
+          Keyed by the status only: a new status shows the bones, a search, sort or page keeps the old rows until the new ones come. */}
+      <Suspense key={f.status ?? ""} fallback={<Skeleton><TableBones /></Skeleton>}>
+        <LeadsTable sp={sp} all={all} f={f} today={today} leadSlaHours={leadSlaHours} at={at} me={me.name} />
+      </Suspense>
+    </>
+  );
+}
+
+// The table: its columns, sort and page, and the export link. Rendering a page of leads with their buttons is the slow part.
+async function LeadsTable({ sp, all, f, today, leadSlaHours, at, me }: { sp: Params; all: Lead[]; f: ReturnType<typeof parseLeadFilter>; today: string; leadSlaHours: number; at: number; me: string }) {
+  const STATUS_ORDER = Object.fromEntries(LEAD_STATUSES.map((s, i) => [s, i]));
   const columns: Column<Lead>[] = [
     {
       key: "who",
@@ -118,7 +242,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
         );
       },
     },
-    { key: "owner", header: "Who has it", hide: "2xl", nowrap: true, sort: (l) => l.assignedTo, cell: (l) => (l.assignedTo ? <span className="inline-flex items-center gap-2"><Avatar name={l.assignedTo} />{l.assignedTo === me.name ? "You" : l.assignedTo.split(" ")[0]}</span> : <span className="text-text-2">Not taken</span>) },
+    { key: "owner", header: "Who has it", hide: "2xl", nowrap: true, sort: (l) => l.assignedTo, cell: (l) => (l.assignedTo ? <span className="inline-flex items-center gap-2"><Avatar name={l.assignedTo} />{l.assignedTo === me ? "You" : l.assignedTo.split(" ")[0]}</span> : <span className="text-text-2">Not taken</span>) },
     { key: "when", header: "Received", sort: (l) => l.createdAt, cell: (l) => <span className={l.status === "new" ? "font-medium" : "text-text-2"}>{fmtAgo(l.createdAt)}</span>, align: "right", nowrap: true, hide: "2xl" }, // below 2xl it is in the Status column
     // The two things done most from the list: reach them the way they asked, and move it on a step. Above the row's link.
     // Two fixed slots, so the buttons line up from row to row whichever are there.
@@ -130,120 +254,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
   const sort = ordered.sort;
   const paged = pageOf(sorted, sp);
   const rows = paged.rows;
-  // Every filter in one panel: what kind of lead, whether it needs a reply, who has it, where it came from.
-  const filters: FilterGroup[] = [
-    { name: "type", label: "What they want", any: "Anything", options: SALES_LEAD_TYPES.map((t) => [t, LEAD_TYPE_LABELS[t]] as const) },
-    { name: "topic", label: "Topic", any: "Any topic", options: TOPICS.filter((t) => t.id !== "bought" && (!("module" in t) || modules.has(t.module))).map((t) => [t.id, t.label] as const) }, // "bought" is filed in Aftersales
-    { name: "need", label: "Needs a reply", any: "Any", options: [["due", `Follow-up due (${due})`], ["late", `Waiting too long (${late})`]] },
-    { name: "with", label: "Who has it", any: "Anyone", options: [["none", "Not taken"], ...team.map((t) => [t.name, t.name] as const)] },
-    { name: "source", label: "Where it came from", any: "Any source", options: LEAD_SOURCES.map((s) => [s, s] as const) },
-  ];
   const canExport = await can("data");
-  // A status tile keeps everything else in the URL (search, filters, sort), so picking a status does not forget the rest.
-  const href = ({ status }: { status?: string }) => {
-    const p = new URLSearchParams(Object.entries(sp).filter((e): e is [string, string] => typeof e[1] === "string" && e[0] !== "page"));
-    if (status) p.set("status", status);
-    else p.delete("status");
-    const qs = p.toString();
-    return `/leads${qs ? `?${qs}` : ""}`;
-  };
-
-  // What to answer now, worked down from the top, by the same rule as the Overview's To do (leadsToAnswer). On the plain list, or one
-  // person's: For me (forPerson, as the Overview's, whose Reply to leads opens it so) or Who has it. Any other filter is
-  // looking for something else. A search keeps it, so the search box does not jump up under the cursor while typing (#85).
-  const filtered = Boolean(f.status || f.type || f.topic || f.due || f.late || f.source || (sp.page && sp.page !== "1"));
-  const mine = sp.mine === "1" && Boolean(me.name) && !f.with; // Who has it wins: its pill hides Everyone | For me
-  const why = ({ lead: l, kind, flag }: LeadTask) =>
-    kind === "follow" ? (l.followUpOn! < today ? `Follow-up was due ${fmtDate(`${l.followUpOn}T12:00:00Z`)}` : "Follow up today") : flag === "late" ? `Came in ${fmtAgo(l.createdAt)}, past your reply time` : flag === "urgent" ? `In a hurry: ${leadTags(l.topic!, l.answers ?? {}).join(", ")}` : `New, came in ${fmtAgo(l.createdAt)}`;
-  const every = leadsToAnswer(f.with ? filterLeads(all, { q: "", with: f.with }) : all, at, today, leadSlaHours);
-  const todo = (mine ? forPerson(every, me.name) : every).map((t) => ({ ...t, why: why(t) }));
-  const SHOWN = 8;
-  // The footer's links keep whose leads these are: new ones by Who has it, follow-ups by Who has it or For me (only their own).
-  const withWho = f.with ? `&with=${encodeURIComponent(f.with)}` : "";
-  const replies = todo.filter((t) => t.kind === "reply").length;
-  const follows = todo.length - replies;
-  // Everyone | For me: the same URL minus the page, with or without mine=1.
-  const mineHref = (on: boolean) => {
-    const p = new URLSearchParams(Object.entries(sp).filter((e): e is [string, string] => typeof e[1] === "string" && e[0] !== "page" && e[0] !== "mine"));
-    if (on) p.set("mine", "1");
-    return `/leads${p.size ? `?${p}` : ""}`;
-  };
-
-  const whose = me.name && !f.with && (
-    <Segmented label="Whose leads" items={[{ label: "Everyone", href: mineHref(false), active: !mine }, { label: "For me", href: mineHref(true), active: mine }]} />
-  );
-  // Closed and Spam only when they hold a lead (or are open), as Stock does with Hidden and Drafts: an empty one is noise.
-  const statusTabs = (
-    <SummaryTabs
-      label="Lead status"
-      items={[{ label: "All", href: href({ status: undefined }), active: !f.status, count: Object.values(counts).reduce((a, b) => a + b, 0) - counts.spam }, ...LEAD_STATUSES.filter((s) => !["closed", "spam"].includes(s) || counts[s] > 0 || f.status === s).map((s) => ({ label: LEAD_STATUS_LABELS[s], hint: STATUS_HINTS[s], href: href({ status: s }), active: f.status === s, count: counts[s] }))]}
-    />
-  );
-
   return (
     <>
-      <PageHeader title="Leads" text="Every enquiry, the urgent ones first" />
-      {/* The status tiles first, so picking one (which hides To answer now) leaves them where they were. */}
-      {statusTabs}
-      {!filtered && (
-        <Panel
-          title="To answer now"
-          count={todo.length}
-          // On a phone Everyone | For me goes under the title, so the title keeps one line.
-          action={whose && <span className="max-sm:hidden">{whose}</span>}
-        >
-          {whose && <div className="sm:hidden">{whose}</div>}
-          {todo.length === 0 ? (
-            <p className="text-body text-text-2">All caught up. No new leads and no follow-ups due.</p>
-          ) : (
-            <TaskList label="Leads to answer now">
-              {todo.slice(0, SHOWN).map(({ lead: l, why, urgency, kind }) => (
-                <Task
-                  key={l.id}
-                  href={`/leads/${l.id}`}
-                  urgency={urgency}
-                  icon={kind === "follow" ? <CalendarIcon /> : <InboxIcon />}
-                  title={l.name}
-                  detail={
-                    <span className="flex flex-col gap-0.5">
-                      <span className="flex flex-wrap items-center gap-x-2">
-                        <LeadKind type={l.type} topic={l.topic} />
-                        {l.carTitle && <span className="text-text">{l.carTitle}</span>}
-                      </span>
-                      <span>{[who(l.assignedTo), why].join(" · ")}</span>
-                      {possibleSpam(l) && <span className="flex"><Badge tone="warn">Possible spam</Badge></span>}
-                    </span>
-                  }
-                  action={
-                    <>
-                      <ReachButton lead={l} />
-                      <span className="contents max-sm:hidden">
-                        <NextStatusButton lead={l} />
-                      </span>
-                      {/* Possible spam: the person decides in one press, so a real customer is never hidden (#56). */}
-                      {possibleSpam(l) && (
-                        <>
-                          <SpamButton lead={l} to="yes" />
-                          <SpamButton lead={l} to="no" />
-                        </>
-                      )}
-                      <LeadMenu lead={l} spam={!possibleSpam(l)} />
-                    </>
-                  }
-                />
-              ))}
-            </TaskList>
-          )}
-          {todo.length > SHOWN && (
-            <p className="flex flex-wrap gap-x-4 text-meta text-text-2">
-              {todo.length - SHOWN} more waiting.
-              {replies > 0 && <Link href={`/leads?status=new${withWho}`} className="font-medium text-text underline">New leads ({replies})</Link>}
-              {follows > 0 && <Link href={`/leads?need=due${withWho || (mine ? `&with=${encodeURIComponent(me.name)}` : "")}`} className="font-medium text-text underline">Follow-ups due ({follows})</Link>}
-            </p>
-          )}
-        </Panel>
-      )}
-      <TableToolbar search={{ placeholder: "Search", label: "Search leads" }} filters={filters} />
       <DataTable label="Leads" linkRows rows={rows} rowKey={(l) => l.id} columns={columns} sort={sp.sort ? sort : { key: "", dir: "desc" }} empty={<EmptyState title="No leads match" text="Try another filter or search." />} />
       {/* The list as it is filtered now, as a CSV: owners and managers only. */}
       <TableFooter page={paged.page} pageCount={paged.pageCount} total={paged.total} per={paged.per} exportHref={canExport ? "/leads/export" : undefined} />

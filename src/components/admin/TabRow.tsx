@@ -6,11 +6,18 @@ import { useEffect, useRef } from "react";
 // row scrolls, never the page. An edge with more beyond it fades out, so a cut-off tab reads as "there is more", never as a cut label.
 export function TabRow({ current, children, className = "", ...rest }: { current: string; children: React.ReactNode } & React.ComponentProps<"nav">) {
   const row = useRef<HTMLElement>(null);
+  // The open tab at load when the row had already been swiped by then; null once a tab is chosen. Keyed by the tab, not a first-run flag,
+  // so React running the effect twice in development leaves it the same.
+  const swipedAt = useRef<string | null | undefined>(undefined);
   useEffect(() => {
     const nav = row.current;
     if (!nav) return;
     const tab = nav.querySelector("[aria-current]");
-    if (tab) {
+    // On load, a row the person has already swiped is left where it is: moving it as the page hydrates would slide another tab under
+    // their finger, and the tap would open the wrong view.
+    if (swipedAt.current === undefined) swipedAt.current = nav.scrollLeft > 0 ? current : null;
+    else if (swipedAt.current !== current) swipedAt.current = null;
+    if (tab && swipedAt.current !== current) {
       const [n, t] = [nav.getBoundingClientRect(), tab.getBoundingClientRect()];
       nav.scrollLeft += t.left - n.left - (n.width - t.width) / 2;
     }

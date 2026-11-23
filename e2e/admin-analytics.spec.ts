@@ -31,6 +31,7 @@ test("a bad range falls back to 30 days", async ({ page }) => {
 test("a salesperson sees their own sales, never the dealership's, and the funnel stops before sales", async ({ page, context, baseURL }) => {
   const funnel = page.getByRole("region", { name: "From visit to sale" }).getByRole("listitem");
   await page.goto("/analytics");
+  await expect(funnel.first()).toBeVisible(); // the figures stream in after the page loads (#109)
   const steps = await funnel.count();
   await expect(page.getByText("Sales you recorded")).toBeVisible();
   await context.addCookies([{ name: "checkwork-demo-role", value: "Sales", url: baseURL! }]);

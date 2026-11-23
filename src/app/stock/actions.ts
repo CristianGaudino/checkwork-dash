@@ -7,7 +7,7 @@ import { logActivity } from "@/lib/admin/activity";
 import { carEditSummary, costText } from "@/lib/admin/activity-text";
 import { z } from "zod";
 import { PREP_KINDS } from "@/lib/admin/prep";
-import { DEPOSIT_METHODS, costsStore, heldFor, leadsStore, ordersStore, prepStore, reservationsStore, salesStore, undoSale } from "@/lib/admin/collections";
+import { DEPOSIT_METHODS, costsStore, heldFor, leadsStore, ordersStore, postsStore, prepStore, reservationsStore, salesStore, undoSale } from "@/lib/admin/collections";
 import { addMonths, dublinDay, fmtEur } from "@/lib/admin/format";
 import { newId } from "@/lib/admin/ids";
 import { blank, euros, fieldErrors, isoDay, type FormState } from "@/lib/admin/validation";
@@ -264,6 +264,28 @@ export async function carPhotoAction(carId: string, src: string, to: "first" | "
   if (to === "remove") await dropCarPhotos([photo]);
   await logActivity("stock", to === "first" ? "Changed the main photo" : "Removed a photo", carRef(car));
   revalidatePath(`/stock/${carId}`);
+}
+
+// A photo cropped or turned in the photo editor (#125): the edited JPEG takes the old one's place in the list, so the main photo stays main,
+// and the old file goes once the car no longer has it. Not add then remove: that moves it to the end, and a full car would refuse the add.
+export async function replaceCarPhotoAction(carId: string, src: string, data: FormData): Promise<{ error?: string }> {
+  await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
+  const car = (await readOnly()) ? undefined : await adminCar(carId);
+  const old = car?.photos.find((p) => p.src === src);
+  if (!car || !old) return { error: "This photo can no longer be changed here." };
+  const checked = await checkedPhoto(data.get("photo"), data.get("width"), data.get("height"));
+  if (!checked) return { error: "That photo could not be saved. Try again." };
+  const photo = await storeCarPhoto(car.id, checked.bytes, checked.width, checked.height);
+  const swap = (cur: typeof car) => (cur.photos.some((p) => p.src === src) ? { ...cur, photos: cur.photos.map((p) => (p.src === src ? photo : p)) } : null);
+  if (!(await updateCar(carId, swap).catch(() => undefined))) {
+    await dropCarPhotos([photo]).catch(() => undefined);
+    return { error: "This photo can no longer be changed here." };
+  }
+  // a post may use the car's photo directly (marketing/actions.ts okPhoto): keep the file while one does, as deleteMediaAction does
+  if (!(await postsStore.list()).some((p) => p.photos?.includes(old.src))) await dropCarPhotos([old]).catch(() => undefined);
+  await logActivity("stock", "Edited a photo", carRef(car));
+  revalidatePath(`/stock/${carId}`);
+  return {};
 }
 
 // Sync now, for stock from DoneDeal. `force` applies a sync that was held because DoneDeal's answer looked wrong: owners and managers only,

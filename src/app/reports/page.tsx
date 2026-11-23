@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+import { Bone, PanelBones, Skeleton, TextBones, TileBones } from "@/components/admin/Skeleton";
 import { dealerProfile } from "@/lib/tenancy/current";
 import { AreaChart, BarList } from "@/components/admin/charts";
 import { ChevronDownIcon } from "@/components/stock/icons";
@@ -23,17 +25,39 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ p
   if (!(await can("reports"))) return <NotForRole title="Reports" permission="reports" />;
   const asked = Number((await searchParams).period);
   const period: Period = (PERIODS as readonly number[]).includes(asked) ? (asked as Period) : 12;
-  const tabs = <ReportViews period={period} />;
-  if (!(await can("margins"))) return <Personal period={period} tabs={tabs} />;
+  const whole = await can("margins");
+  // The header and the periods first, so a tap on another period works from the first paint; the figures stream in under them (#109).
+  return (
+    <>
+      <PageHeader title="Reports" text={whole ? `The last ${period} months, this one included` : `Your own figures, the last ${period} months, this one included`} />
+      <ReportViews period={period} />
+      <Suspense key={period} fallback={<FiguresBones />}>
+        {whole ? <Full period={period} /> : <Personal period={period} />}
+      </Suspense>
+    </>
+  );
+}
 
+function FiguresBones() {
+  return (
+    <Skeleton>
+      <TextBones />
+      <TileBones />
+      <PanelBones title="Sales by month">
+        <Bone className="h-48" />
+      </PanelBones>
+    </Skeleton>
+  );
+}
+
+// The whole dealership's figures, profit included.
+async function Full({ period }: { period: Period }) {
   const [sales, cars, leads, costs, prep, { team }, { rules }] = await Promise.all([salesStore.list(), adminCars(), (await leadsStore.list()).filter(isSalesLead), carCosts(), prepStore.list(), getSettings(), dealerProfile()]);
   const r = fullReport({ sales, cars, leads, team: team.map((t) => t.name), costs: new Map([...costs].map(([id, c]) => [id, c.total])), prep, period, now: now(), oldDays: rules.oldStockDays });
   const best = r.months.reduce((a, b) => (b.value > a.value ? b : a), r.months[0]);
 
   return (
     <>
-      <PageHeader title="Reports" text={`The last ${period} months, this one included`} />
-      {tabs}
       {/* The answer first, in words. */}
       <p className="max-w-measure text-body">
         You sold {plural(r.totals.sold, "car")} for {fmtEur(r.totals.value)}
@@ -116,14 +140,12 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ p
 }
 
 // A salesperson's own figures: counts only.
-async function Personal({ period, tabs }: { period: Period; tabs: React.ReactNode }) {
+async function Personal({ period }: { period: Period }) {
   const me = await currentMember();
   const [sales, leads] = await Promise.all([salesStore.list(), (await leadsStore.list()).filter(isSalesLead)]);
   const r = personalReport({ name: me.name, sales, leads, period, now: now() });
   return (
     <>
-      <PageHeader title="Reports" text={`Your own figures, the last ${period} months, this one included`} />
-      {tabs}
       <StatGrid>
         <StatCard label="Cars sold" value={fmtNum(r.totals.sold)} />
         <StatCard label="Leads" value={fmtNum(r.totals.leads)} />

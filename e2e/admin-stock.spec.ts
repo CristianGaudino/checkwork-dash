@@ -264,6 +264,14 @@ test("a car's photos: add one, remove it", async ({ page }) => {
   await page.locator('#photos input[type="file"]').setInputFiles("public/stock/4710001/1-b1b37b33.webp");
   await expect(page.getByText("Photo added")).toBeVisible();
   await expect(page.locator("#photos").getByText("Main photo")).toBeVisible();
+  // Editing replaces the photo in its place (#125): still one photo, still the main one.
+  await page.getByRole("button", { name: "Crop and rotate photo 1" }).click();
+  await page.getByRole("button", { name: "Rotate", exact: true }).click();
+  await page.getByRole("button", { name: "Save photo" }).click();
+  await expect(page.getByText("Photo saved")).toBeVisible();
+  await expect(page.locator("#photos").getByText("Main photo")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Remove photo 1" })).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "Remove photo 2" })).toHaveCount(0);
 
   await page.goto("/stock?q=" + MAKE);
   await page.getByRole("row", { name: new RegExp(MAKE) }).getByRole("link").first().click();

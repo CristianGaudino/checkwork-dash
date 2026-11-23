@@ -2,18 +2,21 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { addCarPhotoAction, carPhotoAction } from "@/app/stock/actions";
+import { addCarPhotoAction, carPhotoAction, replaceCarPhotoAction } from "@/app/stock/actions";
 import { downscale } from "@/components/leads/downscale";
 import { PHOTO_TYPES } from "@/lib/leads/constants";
 import type { Photo } from "@/lib/stock/types";
 import { ActButton } from "./ActButton";
+import { EditPhoto, type Jpeg } from "./PhotoEditor";
 import { CarThumb } from "./CarThumb";
 import { Panel, adminButtonQuiet, rowButton } from "./kit";
 import { CameraIcon } from "@/components/stock/icons";
 
 // The photos with their buttons, the first marked as the main one. The same for a saved car and one being added. On a phone each photo is
-// a row, small photo then its buttons on one line (two half-width tiles are too narrow for both); tiles from 640px.
-function PhotoGrid({ srcs, makeMain, remove }: { srcs: string[]; makeMain: (src: string, i: number) => React.ReactNode; remove: (src: string, i: number) => React.ReactNode }) {
+// a row, small photo then its buttons, which wrap on a narrow phone (two half-width tiles are too narrow); tiles from 640px. Edit opens
+// the photo editor (#125) in the grid's place, framed 4:3 as the website shows a car, and the edited copy takes the photo's place.
+const EDIT_NOTE = "4:3, as the website shows it";
+function PhotoGrid({ srcs, makeMain, remove, onEdit }: { srcs: string[]; makeMain: (src: string, i: number) => React.ReactNode; remove: (src: string, i: number) => React.ReactNode; onEdit: (i: number) => void }) {
   return (
     <>
       <p className="text-meta text-text-2">The first photo is the one on the car&apos;s card and at the top of its page.</p>
@@ -24,8 +27,11 @@ function PhotoGrid({ srcs, makeMain, remove }: { srcs: string[]; makeMain: (src:
               <div className="aspect-[4/3] w-20 shrink-0 overflow-hidden rounded-control bg-photo-bg sm:w-auto">
                 <CarThumb src={src} />
               </div>
-              <div className="flex gap-2 sm:flex-wrap">
+              <div className="flex min-w-0 flex-wrap gap-2">
                 {i === 0 ? <span className="inline-flex h-11 items-center px-3 text-meta font-medium text-text-2">Main photo</span> : makeMain(src, i)}
+                <button type="button" onClick={() => onEdit(i)} aria-label={`Crop and rotate photo ${i + 1}`} className={rowButton}>
+                  Edit
+                </button>
                 {remove(src, i)}
               </div>
             </li>
@@ -43,7 +49,20 @@ export function CarPhotos({ carId, photos, max }: { carId: string; photos: Photo
   const router = useRouter();
   const input = useRef<HTMLInputElement>(null);
   const [said, setSaid] = useState("");
+  const [editing, setEditing] = useState<string | null>(null);
   const [pending, start] = useTransition();
+
+  const replace = async (jpeg: Jpeg) => {
+    const f = new FormData();
+    f.set("photo", jpeg.blob);
+    f.set("width", String(jpeg.width));
+    f.set("height", String(jpeg.height));
+    const r = await replaceCarPhotoAction(carId, editing!, f);
+    if (r.error) return r.error;
+    setEditing(null);
+    setSaid("Photo saved");
+    router.refresh();
+  };
 
   const add = (files: File[]) =>
     start(async () => {
@@ -81,7 +100,10 @@ export function CarPhotos({ carId, photos, max }: { carId: string; photos: Photo
   return (
     <div id="photos" className="scroll-mt-24">
     <Panel title="Photos">
-      <PhotoGrid srcs={photos.map((p) => p.src)} makeMain={(src, i) => (
+      {editing ? (
+        <EditPhoto key={editing} src={editing} shapes={["4:3"]} note={EDIT_NOTE} saveLabel="Save photo" onSave={replace} onCancel={() => setEditing(null)} />
+      ) : (
+      <PhotoGrid srcs={photos.map((p) => p.src)} onEdit={(i) => setEditing(photos[i].src)} makeMain={(src, i) => (
         <ActButton act={carPhotoAction.bind(null, carId, src, "first")} label={`Make photo ${i + 1} the main photo`} className={rowButton}>
           Make main
         </ActButton>
@@ -90,6 +112,7 @@ export function CarPhotos({ carId, photos, max }: { carId: string; photos: Photo
           Remove
         </ActButton>
       )} />
+      )}
       <div className="flex flex-wrap items-center gap-3">
         <label className={`${adminButtonQuiet} cursor-pointer ${pending || photos.length >= max ? "pointer-events-none opacity-60" : ""}`}>
           <CameraIcon className="shrink-0 size-4" />
@@ -146,10 +169,21 @@ export function NewCarPhotos({ photos, onChange, max, error, title = "Photos" }:
     onChange(photos.filter((_, j) => j !== i));
   };
   const first = (i: number) => onChange([photos[i], ...photos.filter((_, j) => j !== i)]);
+  const [editing, setEditing] = useState<number | null>(null);
+  const replace = async (jpeg: Jpeg) => {
+    const i = editing!;
+    if (photos.reduce((n, p, j) => n + (j === i ? jpeg.blob.size : p.blob.size), 0) > SEND_MAX_BYTES) return "That is more than can go with the form. Remove a photo first.";
+    URL.revokeObjectURL(photos[i].url);
+    onChange(photos.map((p, j) => (j === i ? { ...jpeg, url: URL.createObjectURL(jpeg.blob) } : p)));
+    setEditing(null);
+  };
 
   return (
     <Panel title={title}>
-      <PhotoGrid srcs={photos.map((p) => p.url)} makeMain={(_, i) => (
+      {editing !== null && photos[editing] ? (
+        <EditPhoto key={photos[editing].url} src={photos[editing].blob} shapes={["4:3"]} note={EDIT_NOTE} saveLabel="Save photo" onSave={replace} onCancel={() => setEditing(null)} />
+      ) : (
+      <PhotoGrid srcs={photos.map((p) => p.url)} onEdit={setEditing} makeMain={(_, i) => (
         <button type="button" onClick={() => first(i)} aria-label={`Make photo ${i + 1} the main photo`} className={rowButton}>
           Make main
         </button>
@@ -158,6 +192,7 @@ export function NewCarPhotos({ photos, onChange, max, error, title = "Photos" }:
           Remove
         </button>
       )} />
+      )}
       <div className="flex flex-wrap items-center gap-3">
         <label className={`${adminButtonQuiet} cursor-pointer ${pending || photos.length >= max ? "pointer-events-none opacity-60" : ""}`}>
           <CameraIcon className="shrink-0 size-4" />

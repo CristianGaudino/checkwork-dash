@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ActButton } from "@/components/admin/ActButton";
-import { Segmented, Task, rowButton, rowButtonStrong, type TaskUrgency } from "@/components/admin/kit";
+import { Task, WhoseSwitch, rowButton, rowButtonStrong, type TaskUrgency } from "@/components/admin/kit";
 import { AlertIcon, CalendarIcon, CarIcon, CheckIcon, InboxIcon, PercentIcon, PhoneIcon, ReceiptIcon, StarIcon, SyncIcon, TruckIcon, WrenchIcon } from "@/components/stock/icons";
 import { CallButton, ReachButton } from "@/components/admin/LeadActions";
 import { carCosts } from "@/lib/admin/costs";
@@ -54,7 +54,7 @@ export const ConfirmDrive = ({ id, name, status }: { id: string; name: string; s
 
 // Everyone | For me, the same words as on Leads. For me: given to me, plus new leads nobody has taken (forPerson).
 export const WhoseToggle = ({ path, mine }: { path: string; mine: boolean }) => (
-  <Segmented label="Whose to-dos" items={[{ label: "Everyone", href: `${path}?mine=0`, active: !mine }, { label: "For me", href: `${path}?mine=1`, active: mine }]} />
+  <WhoseSwitch label="Whose to-dos" everyone={`${path}?mine=0`} forMe={`${path}?mine=1`} mine={mine} />
 );
 
 // `mine`: the page's ?mine; For me is on by default for Sales (their report counts their own follow-ups).

@@ -22,7 +22,10 @@ import { StockBulk, StockPick, StockPickToggle } from "@/components/admin/StockB
 import { CarThumb } from "@/components/admin/CarThumb";
 import { AgeBar } from "@/components/admin/charts";
 import { FEW_PHOTOS, stockViews, parseStockList, stockList, type StockView } from "@/lib/admin/stock-views";
-import { salesStore } from "@/lib/admin/collections";
+import { salesStore, type Sale } from "@/lib/admin/collections";
+import type { DealerRules } from "@/lib/tenancy/profile";
+import { Suspense } from "react";
+import { Skeleton, TableBones } from "@/components/admin/Skeleton";
 import { syncStatus } from "@/lib/donedeal/sync";
 import { syncNowAction, toggleSoldAction, withdrawnAction } from "./actions";
 import { SubmitButton } from "@/components/admin/SubmitButton";
@@ -33,7 +36,9 @@ export const metadata = { title: "Stock" };
 
 // The views (src/lib/admin/stock-views.ts) are the summary: each is a tile with its count, and the chosen one filters the table.
 
-export default async function Page({ searchParams }: { searchParams: Promise<{ view?: string; status?: string; q?: string; make?: string; fuel?: string; gearbox?: string; sort?: string; dir?: string; per?: string; saved?: string; deleted?: string; sale?: string; reserved?: string; undone?: string; page?: string; synced?: string }> }) {
+type StockParams = { view?: string; status?: string; q?: string; make?: string; fuel?: string; gearbox?: string; sort?: string; dir?: string; per?: string; saved?: string; deleted?: string; sale?: string; reserved?: string; undone?: string; page?: string; synced?: string };
+
+export default async function Page({ searchParams }: { searchParams: Promise<StockParams> }) {
   const sp = await searchParams;
   const { view, q, make, fuel, gearbox } = parseStockList(sp);
   const [all, source, deposits, { site: listingSite, url: listingUrl }, { siteUrl, rules }] = await Promise.all([adminCars(), stockSource(), hasModule("sales"), listing(), dealerProfile()]);
@@ -46,6 +51,160 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
   const tradeIn = saleFor && sales.get(saleFor.id)?.tradeIn;
   const reservedNow = sp.reserved ? all.find((c) => c.id === sp.reserved) : undefined;
   const undoneNow = sp.undone ? all.find((c) => c.id === sp.undone) : undefined;
+  // The makes in stock, for the make filter.
+  const makes = [...new Map(all.map((c) => [c.makeSlug, c.make])).entries()].sort((a, b) => a[1].localeCompare(b[1], "en-IE"));
+  const matching = stockList(all, view, q, OLD_DAYS, { make, fuel, gearbox });
+  const saved = sp.saved ? all.find((c) => c.id === sp.saved) : undefined;
+  // A view keeps the search and the filters; the sort and the page start again.
+  const href = (v: StockView) => `/stock?${new URLSearchParams(Object.entries({ view: v, q, make, fuel, gearbox }).filter((e): e is [string, string] => Boolean(e[1])))}`;
+  const takenDown = synced ? all.filter((c) => c.takenDownAt) : [];
+  const canUndo = await can("settings"); // undoing a sale is money going back: owners and managers
+  const social = await hasModule("social");
+  // Every filter in one panel: the make (those in stock), the fuel, the gearbox.
+  const filters: FilterGroup[] = [
+    { name: "make", label: "Make", any: "Every make", options: makes },
+    { name: "fuel", label: "Fuel", any: "Any fuel", options: FUELS.filter((f) => all.some((c) => c.fuel === f)).map((f) => [f, FUEL_LABELS[f]] as const) },
+    { name: "gearbox", label: "Gearbox", any: "Any gearbox", options: GEARBOXES.map((g) => [g, GEARBOX_LABELS[g]] as const) },
+  ];
+
+  // What needs doing about the stock, at the top, each with the button that does it. Every sold car with no sale, as the overview and the
+  // Sold view's Record sale buttons count them; photos and price drops for the cars still to sell. Drafts only in our version.
+  const toRecord = all.filter((c) => isSold(c) && !sales.has(c.id)).sort((a, b) => a.soldAt!.localeCompare(b.soldAt!));
+  const needPhotos = all.filter((c) => !isSold(c) && c.photos.length < FEW_PHOTOS);
+  const old = all.filter((c) => STOCK_VIEWS.old.test(c));
+  const drafts = synced ? [] : all.filter((c) => c.listing === "draft" && !isSold(c));
+  const one = (cars: Car[], many: string, single: string) => (cars.length === 1 ? single : many);
+  // The why under each task is for a laptop: on a phone the task and its button, so the cars are on the first screen.
+  const phoneless = (text: string) => <span className="max-sm:hidden">{text}</span>;
+  const todo = [
+    // One at a time, oldest first: the row and its button open the next sale to record, so the count and the page behind it agree.
+    toRecord.length > 0 && (
+      <Task key="sale" urgency="now" icon={<ReceiptIcon />} count={toRecord.length} title={one(toRecord, "sold cars with no sale recorded", "sold car with no sale recorded")} detail={phoneless("Add the buyer and the price, so your reports are right.")} href={`/stock/${toRecord[0].id}/sale`}
+        action={<Link href={`/stock/${toRecord[0].id}/sale`} aria-label={`Record sale: ${carName(toRecord[0])}`} className={rowButtonStrong}>Record sale</Link>} />
+    ),
+    !synced && needPhotos.length > 0 && (
+      <Task key="photos" urgency="soon" icon={<CameraIcon />} count={needPhotos.length} title={one(needPhotos, "cars need more photos", "car needs more photos")} detail={phoneless(`Cars with ${FEW_PHOTOS} or more photos get more enquiries.`)} href={href("photos")}
+        action={<Link href={`/stock/${needPhotos[0].id}#photos`} className={rowButtonStrong}>Add photos</Link>} />
+    ),
+    old.length > 0 && (
+      <Task key="old" urgency="soon" icon={<HistoryIcon />} count={old.length} title={one(old, `cars for sale ${OLD_DAYS} days or more`, `car for sale ${OLD_DAYS} days or more`)} detail={phoneless(synced ? `Think about a price drop on ${listingSite}.` : social ? "Tick them below to drop the price, or post them to social." : "Tick them below to drop the price.")} href={href("old")}
+        action={<Link href={href("old")} className={rowButton}>See them</Link>} />
+    ),
+    drafts.length > 0 && (
+      <Task key="drafts" icon={<PencilIcon />} count={drafts.length} title={one(drafts, "drafts not on the website yet", "draft not on the website yet")} detail={phoneless("Finish them and publish when ready.")} href={href("drafts")}
+        action={<Link href={href("drafts")} className={rowButton}>See drafts</Link>} />
+    ),
+  ].filter(Boolean);
+
+  return (
+    <>
+      <PageHeader
+        title="Stock"
+        text={sync ? (sync.lastOkAt ? `Last updated ${fmtAgo(sync.lastOkAt)}` : "Not updated yet") : "Press a car to change its price, photos or details"}
+        actions={
+          <>
+            {synced ? (
+              <>
+                <RefreshStock />
+                <a href={listingUrl} {...NEW_TAB} className={adminButton}>
+                  <ExternalIcon className="shrink-0 size-4" />
+                  Open {listingSite}
+                  <span className="sr-only"> (opens in a new tab)</span>
+                </a>
+              </>
+            ) : (
+              <Link href="/stock/new" className={adminButton}>
+                <PlusIcon className="shrink-0 size-4" />
+                Add a car
+              </Link>
+            )}
+          </>
+        }
+      />
+      {/* A failing sync stays in view while it fails. A held one (the answer looked wrong) can be applied by an owner or manager: the alert sends them here. */}
+      {sync?.problem && (
+        <div className="flex flex-col gap-2">
+          <Notice tone="warn">{syncLine(sync)}</Notice>
+          {sync.held && canUndo && (
+            <form action={syncNowAction.bind(null, true)}>
+              <SubmitButton className={adminButtonQuiet}>Apply anyway</SubmitButton>
+            </form>
+          )}
+        </div>
+      )}
+      {sync && sp.synced && !sync.problem && <Notice>Stock refreshed. {counts(sync.result ?? { added: 0, changed: 0, takenDown: 0 }, "No changes")}.</Notice>}
+      {saved && (
+        <Notice>
+          Saved {carName(saved)}.
+          {!synced && saved.photos.length === 0 && (
+            <>
+              {" "}
+              <Link href={`/stock/${saved.id}#photos`} className="font-semibold underline">Add its photos</Link>
+            </>
+          )}
+        </Notice>
+      )}
+      {saleFor && (
+        <Notice>
+          Sale recorded for {carName(saleFor)}.
+          {/* The car taken as a trade-in is the next car in stock: start it from its registration. Our version only. */}
+          {!synced && tradeIn && (
+            <>
+              {" "}
+              <Link href={`/stock/new?reg=${encodeURIComponent(tradeIn.reg)}`} className="font-semibold underline">Add the trade-in, {tradeIn.reg}, to stock</Link>
+            </>
+          )}
+        </Notice>
+      )}
+      {sp.deleted && <Notice tone="neutral">Car deleted.</Notice>}
+      {reservedNow && <Notice>Deposit taken. {carName(reservedNow)} shows as Reserved on the website.</Notice>}
+      {undoneNow && <Notice tone="neutral">Sale undone for {carName(undoneNow)}. The record is kept.</Notice>}
+      {/* DoneDeal does not say why an ad came down, so the car is hidden until the dealer says. Above the table, so a phone has it too. */}
+      {takenDown.length > 0 && (
+        <Panel title={`Ads taken down on ${listingSite}`}>
+          <p className="max-w-measure text-body text-text-2">These cars are off the website. Did they sell?</p>
+          <ul className="divide-y divide-hairline">
+            {takenDown.map((c) => (
+              <li key={c.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                <span className="flex min-w-0 flex-col">
+                  <span className="font-medium">{carName(c)}</span>
+                  <span className="text-meta text-text-2">Ad came down {fmtDate(Date.parse(`${c.takenDownAt}T12:00:00Z`))}</span>
+                </span>
+                <span className="ml-auto flex flex-wrap justify-end gap-2">
+                  <Link href={`/stock/${c.id}/sale`} className={rowButtonStrong}>It sold</Link>
+                  <ActButton act={withdrawnAction.bind(null, c.id)} confirm={{ title: `${carName(c)} did not sell?`, text: `It stays off the website. If the ad goes back up on ${listingSite}, the car comes back too.`, yes: "It did not sell" }} className={rowButton}>
+                    It did not sell
+                  </ActButton>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Panel>
+      )}
+      {/* Hidden and Drafts only show when they hold a car (or are open), so a dealer who never uses them never sees them. Need photos and
+          the old stock view are reached from To do, so they show only while open. */}
+      <SummaryTabs label="Stock views" items={(Object.keys(STOCK_VIEWS) as StockView[])
+          .map((v) => [v, all.filter(STOCK_VIEWS[v].test).length] as const)
+          .filter(([v, count]) => view === v || (!["photos", "old"].includes(v) && (count > 0 || !["hidden", "drafts", "reserved"].includes(v))))
+          .map(([v, count]) => ({ label: STOCK_VIEWS[v].label, count, href: href(v), active: view === v }))} />
+      {/* Under the views, so they stay put when one is picked. On the plain list only, as on Leads: its counts are of the whole stock, a search is looking for something else. */}
+      {todo.length > 0 && view === "for-sale" && !q && !make && !fuel && !gearbox && (!sp.page || sp.page === "1") && (
+        <Panel title="To do" count={todo.length}>
+          <TaskList label="To do">{todo}</TaskList>
+        </Panel>
+      )}
+      <TableToolbar search={{ placeholder: "Search", label: "Search stock" }} filters={filters} action={synced ? undefined : <StockPickToggle />} />
+      {/* The cars stream in under the views and the search, so a tap on a view works from the first paint (#109).
+          Keyed by the view only: a new view shows the bones, a search, sort or page keeps the old rows until the new ones come. */}
+      <Suspense key={view} fallback={<Skeleton><TableBones /></Skeleton>}>
+        <StockTable sp={sp} matching={matching} sales={sales} view={view} q={q} synced={synced} social={social} canUndo={canUndo} deposits={deposits} siteUrl={siteUrl} rules={rules} listingSite={listingSite} listingUrl={listingUrl} oldDays={OLD_DAYS} />
+      </Suspense>
+    </>
+  );
+}
+
+// The table: every row, its buttons and the margin column. Rendering a page of cars with their buttons is the slow part, so it streams in.
+async function StockTable({ sp, matching, sales, view, q, synced, social, canUndo, deposits, siteUrl, rules, listingSite, listingUrl, oldDays: OLD_DAYS }: { sp: StockParams; matching: Car[]; sales: Map<string, Sale>; view: StockView; q?: string; synced: boolean; social: boolean; canUndo: boolean; deposits: boolean; siteUrl?: string; rules: DealerRules; listingSite: string; listingUrl: string; oldDays: number }) {
   // A sold car with no sale recorded gets the button: Mark sold in our version records it; after the DoneDeal sync it is asked for here.
   const recordSale = (c: Car) =>
     isSold(c) && !sales.has(c.id) ? (
@@ -56,26 +215,17 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
   // The margin column is for staff with the margins permission; without it the costs are not even read.
   const costs = (await can("margins")) ? new Map([...(await carCosts())].map(([id, c]) => [id, c.total])) : null;
   const marginPrice = (c: Car) => (isSold(c) ? sales.get(c.id)?.priceEur : undefined) ?? c.priceEur;
-  // The makes in stock, for the make filter.
-  const makes = [...new Map(all.map((c) => [c.makeSlug, c.make])).entries()].sort((a, b) => a[1].localeCompare(b[1], "en-IE"));
-  const matching = stockList(all, view, q, OLD_DAYS, { make, fuel, gearbox });
-  const saved = sp.saved ? all.find((c) => c.id === sp.saved) : undefined;
-  // A view keeps the search and the filters; the sort and the page start again.
-  const href = (v: StockView) => `/stock?${new URLSearchParams(Object.entries({ view: v, q, make, fuel, gearbox }).filter((e): e is [string, string] => Boolean(e[1])))}`;
   // Where a row goes: the car's editor here, or, for synced stock, the car on the dealer's website in a new tab (it is changed on DoneDeal).
   // A synced car off the website (its ad came down) has no page there, so it opens here; so does every car with AI, to improve its description.
   const ai = synced && (await hasModule("ai"));
   const mods = await enabledModules();
   const open = (c: Car) => (synced && !ai && siteUrl && onPublicSite(c, rules.soldVisibleDays) && conditionShown(mods, c.condition) ? siteCarUrl(siteUrl, c.slug) : `/stock/${c.id}`);
-  const takenDown = synced ? all.filter((c) => c.takenDownAt) : [];
-  const canUndo = await can("settings"); // undoing a sale is money going back: owners and managers
   const undoSale = (c: Car) =>
     canUndo && isSold(c) && sales.has(c.id) ? (
       <Link href={`/stock/${c.id}/undo-sale`} className={rowButton}>
         Undo sale
       </Link>
     ) : null;
-  const social = await hasModule("social");
   // Post and View as More items below 1536px (in the row from there); anyLaptopItems mirrors when they show (CarActions), so More is never empty.
   const laptopItems = (c: Car) => (
     <>
@@ -233,140 +383,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
   const { rows: sorted, sort } = sortRows(matching, columns, sp, { key: "", dir: "asc" });
   const paged = pageOf(sorted, sp);
   const rows = paged.rows;
-  // Every filter in one panel: the make (those in stock), the fuel, the gearbox.
-  const filters: FilterGroup[] = [
-    { name: "make", label: "Make", any: "Every make", options: makes },
-    { name: "fuel", label: "Fuel", any: "Any fuel", options: FUELS.filter((f) => all.some((c) => c.fuel === f)).map((f) => [f, FUEL_LABELS[f]] as const) },
-    { name: "gearbox", label: "Gearbox", any: "Any gearbox", options: GEARBOXES.map((g) => [g, GEARBOX_LABELS[g]] as const) },
-  ];
-
-  // What needs doing about the stock, at the top, each with the button that does it. Every sold car with no sale, as the overview and the
-  // Sold view's Record sale buttons count them; photos and price drops for the cars still to sell. Drafts only in our version.
-  const toRecord = all.filter((c) => isSold(c) && !sales.has(c.id)).sort((a, b) => a.soldAt!.localeCompare(b.soldAt!));
-  const needPhotos = all.filter((c) => !isSold(c) && c.photos.length < FEW_PHOTOS);
-  const old = all.filter((c) => STOCK_VIEWS.old.test(c));
-  const drafts = synced ? [] : all.filter((c) => c.listing === "draft" && !isSold(c));
-  const one = (cars: Car[], many: string, single: string) => (cars.length === 1 ? single : many);
-  // The why under each task is for a laptop: on a phone the task and its button, so the cars are on the first screen.
-  const phoneless = (text: string) => <span className="max-sm:hidden">{text}</span>;
-  const todo = [
-    // One at a time, oldest first: the row and its button open the next sale to record, so the count and the page behind it agree.
-    toRecord.length > 0 && (
-      <Task key="sale" urgency="now" icon={<ReceiptIcon />} count={toRecord.length} title={one(toRecord, "sold cars with no sale recorded", "sold car with no sale recorded")} detail={phoneless("Add the buyer and the price, so your reports are right.")} href={`/stock/${toRecord[0].id}/sale`}
-        action={<Link href={`/stock/${toRecord[0].id}/sale`} aria-label={`Record sale: ${carName(toRecord[0])}`} className={rowButtonStrong}>Record sale</Link>} />
-    ),
-    !synced && needPhotos.length > 0 && (
-      <Task key="photos" urgency="soon" icon={<CameraIcon />} count={needPhotos.length} title={one(needPhotos, "cars need more photos", "car needs more photos")} detail={phoneless(`Cars with ${FEW_PHOTOS} or more photos get more enquiries.`)} href={href("photos")}
-        action={<Link href={`/stock/${needPhotos[0].id}#photos`} className={rowButtonStrong}>Add photos</Link>} />
-    ),
-    old.length > 0 && (
-      <Task key="old" urgency="soon" icon={<HistoryIcon />} count={old.length} title={one(old, `cars for sale ${OLD_DAYS} days or more`, `car for sale ${OLD_DAYS} days or more`)} detail={phoneless(synced ? `Think about a price drop on ${listingSite}.` : social ? "Tick them below to drop the price, or post them to social." : "Tick them below to drop the price.")} href={href("old")}
-        action={<Link href={href("old")} className={rowButton}>See them</Link>} />
-    ),
-    drafts.length > 0 && (
-      <Task key="drafts" icon={<PencilIcon />} count={drafts.length} title={one(drafts, "drafts not on the website yet", "draft not on the website yet")} detail={phoneless("Finish them and publish when ready.")} href={href("drafts")}
-        action={<Link href={href("drafts")} className={rowButton}>See drafts</Link>} />
-    ),
-  ].filter(Boolean);
-
   return (
     <>
-      <PageHeader
-        title="Stock"
-        text={sync ? (sync.lastOkAt ? `Last updated ${fmtAgo(sync.lastOkAt)}` : "Not updated yet") : "Press a car to change its price, photos or details"}
-        actions={
-          <>
-            {synced ? (
-              <>
-                <RefreshStock />
-                <a href={listingUrl} {...NEW_TAB} className={adminButton}>
-                  <ExternalIcon className="shrink-0 size-4" />
-                  Open {listingSite}
-                  <span className="sr-only"> (opens in a new tab)</span>
-                </a>
-              </>
-            ) : (
-              <Link href="/stock/new" className={adminButton}>
-                <PlusIcon className="shrink-0 size-4" />
-                Add a car
-              </Link>
-            )}
-          </>
-        }
-      />
-      {/* A failing sync stays in view while it fails. A held one (the answer looked wrong) can be applied by an owner or manager: the alert sends them here. */}
-      {sync?.problem && (
-        <div className="flex flex-col gap-2">
-          <Notice tone="warn">{syncLine(sync)}</Notice>
-          {sync.held && canUndo && (
-            <form action={syncNowAction.bind(null, true)}>
-              <SubmitButton className={adminButtonQuiet}>Apply anyway</SubmitButton>
-            </form>
-          )}
-        </div>
-      )}
-      {sync && sp.synced && !sync.problem && <Notice>Stock refreshed. {counts(sync.result ?? { added: 0, changed: 0, takenDown: 0 }, "No changes")}.</Notice>}
-      {saved && (
-        <Notice>
-          Saved {carName(saved)}.
-          {!synced && saved.photos.length === 0 && (
-            <>
-              {" "}
-              <Link href={`/stock/${saved.id}#photos`} className="font-semibold underline">Add its photos</Link>
-            </>
-          )}
-        </Notice>
-      )}
-      {saleFor && (
-        <Notice>
-          Sale recorded for {carName(saleFor)}.
-          {/* The car taken as a trade-in is the next car in stock: start it from its registration. Our version only. */}
-          {!synced && tradeIn && (
-            <>
-              {" "}
-              <Link href={`/stock/new?reg=${encodeURIComponent(tradeIn.reg)}`} className="font-semibold underline">Add the trade-in, {tradeIn.reg}, to stock</Link>
-            </>
-          )}
-        </Notice>
-      )}
-      {sp.deleted && <Notice tone="neutral">Car deleted.</Notice>}
-      {reservedNow && <Notice>Deposit taken. {carName(reservedNow)} shows as Reserved on the website.</Notice>}
-      {undoneNow && <Notice tone="neutral">Sale undone for {carName(undoneNow)}. The record is kept.</Notice>}
-      {/* DoneDeal does not say why an ad came down, so the car is hidden until the dealer says. Above the table, so a phone has it too. */}
-      {takenDown.length > 0 && (
-        <Panel title={`Ads taken down on ${listingSite}`}>
-          <p className="max-w-measure text-body text-text-2">These cars are off the website. Did they sell?</p>
-          <ul className="divide-y divide-hairline">
-            {takenDown.map((c) => (
-              <li key={c.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
-                <span className="flex min-w-0 flex-col">
-                  <span className="font-medium">{carName(c)}</span>
-                  <span className="text-meta text-text-2">Ad came down {fmtDate(Date.parse(`${c.takenDownAt}T12:00:00Z`))}</span>
-                </span>
-                <span className="flex flex-wrap gap-2">
-                  <Link href={`/stock/${c.id}/sale`} className={rowButtonStrong}>It sold</Link>
-                  <ActButton act={withdrawnAction.bind(null, c.id)} confirm={{ title: `${carName(c)} did not sell?`, text: `It stays off the website. If the ad goes back up on ${listingSite}, the car comes back too.`, yes: "It did not sell" }} className={rowButton}>
-                    It did not sell
-                  </ActButton>
-                </span>
-              </li>
-            ))}
-          </ul>
-        </Panel>
-      )}
-      {/* Hidden and Drafts only show when they hold a car (or are open), so a dealer who never uses them never sees them. Need photos and
-          the old stock view are reached from To do, so they show only while open. */}
-      <SummaryTabs label="Stock views" items={(Object.keys(STOCK_VIEWS) as StockView[])
-          .map((v) => [v, all.filter(STOCK_VIEWS[v].test).length] as const)
-          .filter(([v, count]) => view === v || (!["photos", "old"].includes(v) && (count > 0 || !["hidden", "drafts", "reserved"].includes(v))))
-          .map(([v, count]) => ({ label: STOCK_VIEWS[v].label, count, href: href(v), active: view === v }))} />
-      {/* Under the views, so they stay put when one is picked. On the plain list only, as on Leads: its counts are of the whole stock, a search is looking for something else. */}
-      {todo.length > 0 && view === "for-sale" && !q && !make && !fuel && !gearbox && (!sp.page || sp.page === "1") && (
-        <Panel title="To do" count={todo.length}>
-          <TaskList label="To do">{todo}</TaskList>
-        </Panel>
-      )}
-      <TableToolbar search={{ placeholder: "Search", label: "Search stock" }} filters={filters} action={synced ? undefined : <StockPickToggle />} />
       {/* Keyed by the list's address: a new search or filter starts the bar again, counting the boxes that are really ticked. */}
       {!synced && <StockBulk key={new URLSearchParams(sp as Record<string, string>).toString()} canDelete={canUndo} />}
       <DataTable
