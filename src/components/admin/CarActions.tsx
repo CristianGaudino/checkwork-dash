@@ -32,7 +32,9 @@ export async function ViewOnSite({ car, shown, className }: { car: Car; shown: b
   return (
     <a href={siteCarUrl(siteUrl, car.slug)} {...NEW_TAB} title="Open the car's page on your website" aria-label={`View on the website: ${carName(car)} (opens in a new tab)`} className={className}>
       <ExternalIcon className="size-4 shrink-0" />
-      View on the website
+      {/* Short on a phone, where the car's page has its actions two across. */}
+      <span className="sm:hidden">View on site</span>
+      <span className="max-sm:hidden">View on the website</span>
     </a>
   );
 }
@@ -72,11 +74,13 @@ export async function CarFlags({ car, status = true, photos = true }: { car: Car
 // Hide, show or publish, with Undo in the toast. Our version only: DoneDeal stock is shown and hidden there.
 export function ListingButton({ car, className }: { car: Car; className: string }) {
   const name = carName(car);
-  const [to, label, done] = car.listing === "draft" ? ["live", "Publish", `Published ${name}`] : car.listing ? ["live", "Show on the website", `${name} is on the website again`] : ["hidden", "Hide from the website", `Hid ${name} from the website`];
+  const [to, label, short, done] = car.listing === "draft" ? ["live", "Publish", "Publish", `Published ${name}`] : car.listing ? ["live", "Show on the website", "Show on site", `${name} is on the website again`] : ["hidden", "Hide from the website", "Hide from site", `Hid ${name} from the website`];
   return (
     <ActButton act={setListingAction.bind(null, car.id, to, car.listing ?? "live")} undo={setListingAction.bind(null, car.id, car.listing ?? "live", to)} done={done} className={className}>
       {car.listing ? <EyeIcon className="size-4 shrink-0" /> : <EyeOffIcon className="size-4 shrink-0" />}
-      {label}
+      {/* Short on a phone, as View on site. */}
+      <span className="sm:hidden">{short}</span>
+      <span className="max-sm:hidden">{label}</span>
     </ActButton>
   );
 }

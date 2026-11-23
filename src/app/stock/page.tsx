@@ -105,13 +105,13 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
               <Link href={open(c)} {...(open(c).startsWith("/") ? {} : NEW_TAB)} title={`${c.make} ${c.model}`} className="line-clamp-2 font-medium after:absolute after:inset-0">
                 {c.make} {c.model}
               </Link>
-              {/* The reg before the variant, so a long variant never clamps it away on a phone; kept on one line, never split at a dash. */}
+              {/* The reg and the days before the variant, so a long variant never clamps them away on a phone; the reg never split at a dash. */}
               <span title={[c.year, c.reg, c.variant].filter(Boolean).join(" · ")} className="line-clamp-2 text-meta text-text-2">
                 {c.year}
                 {c.reg && <> · <span className="whitespace-nowrap">{c.reg}</span></>}
-                {c.variant && ` · ${c.variant}`}
                 {/* The days in stock have their own column from 1024px. */}
-                {c.listedAt && !isSold(c) && <span className="lg:hidden"> · {daysInStock(c.listedAt)}</span>}
+                {c.listedAt && !isSold(c) && <span className="whitespace-nowrap lg:hidden"> · {daysInStock(c.listedAt)}</span>}
+                {c.variant && ` · ${c.variant}`}
               </span>
             </span>
             {/* Photo warnings only in Need photos: elsewhere To do counts them already. */}
@@ -119,8 +119,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
           </div>
         </div>
       ),
-      // A truncated name still asks for its whole width in a table: the cap lets the car and its price fit a 360px phone.
-      className: "max-w-[14rem] min-[25rem]:max-w-[16rem] sm:min-w-[13rem] sm:max-w-[18rem]",
+      // A truncated name still asks for its whole width in a table. On a phone the car takes the room the price leaves (w-full with max-w-0)
+      // and wraps inside it; from 640px a cap keeps it from crowding the other columns.
+      className: "max-sm:w-full max-sm:max-w-0 max-sm:!pr-2 sm:min-w-[13rem] sm:max-w-[18rem]",
     },
     {
       key: "price",
@@ -128,13 +129,15 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
       align: "right",
       nowrap: true,
       sort: (c) => c.priceEur,
+      // Tight on a phone, and the was-price left to the car's page there, so the car's name has the room for one line.
+      className: "max-sm:!pl-1",
       cell: (c) => (
         <span className="flex flex-col items-end">
           <span className="font-medium">{priceLabel(c)}</span>
           {isSold(c) && sales.has(c.id) ? (
             <span className="text-meta text-text-2">sold for {fmtEur(sales.get(c.id)!.priceEur)}</span>
           ) : (
-            isReduced(c) && <span className="text-meta text-ok">was {fmtEur(c.wasPriceEur!)}</span>
+            isReduced(c) && <span className="text-meta text-ok max-sm:hidden">was {fmtEur(c.wasPriceEur!)}</span>
           )}
         </span>
       ),
@@ -153,11 +156,11 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
       cell: (c) =>
         c.listedAt && !isSold(c) ? (
           <span className="inline-flex items-center gap-2">
-            {/* Amber exactly for the cars the old stock view counts (for sale: not reserved or hidden). */}
+            {/* The bar turns amber exactly for the cars the old stock view counts (for sale: not reserved or hidden); the days stay plain text. */}
             <span className="hidden 2xl:contents">
               <AgeBar days={daysSince(c.listedAt)} late={forSale(c) ? OLD_DAYS : Infinity} oldDays={OLD_DAYS} />
             </span>
-            <span className={STOCK_VIEWS.old.test(c) ? "font-medium text-warn" : ""}>{daysInStock(c.listedAt)}</span>
+            <span>{daysInStock(c.listedAt)}</span>
           </span>
         ) : (
           <span className="text-text-2">-</span>
@@ -317,7 +320,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
       {saleFor && (
         <Notice>
           Sale recorded for {carName(saleFor)}.
-          {/* The car taken in part exchange is the next car in stock: start it from its registration. Our version only. */}
+          {/* The car taken as a trade-in is the next car in stock: start it from its registration. Our version only. */}
           {!synced && tradeIn && (
             <>
               {" "}
@@ -351,18 +354,18 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
           </ul>
         </Panel>
       )}
-      {/* On the plain list only, as on Leads: its counts are of the whole stock, a search is looking for something else. */}
-      {todo.length > 0 && view === "for-sale" && !q && !make && !fuel && !gearbox && (!sp.page || sp.page === "1") && (
-        <Panel title="To do" count={todo.length}>
-          <TaskList label="To do">{todo}</TaskList>
-        </Panel>
-      )}
       {/* Hidden and Drafts only show when they hold a car (or are open), so a dealer who never uses them never sees them. Need photos and
           the old stock view are reached from To do, so they show only while open. */}
       <SummaryTabs label="Stock views" items={(Object.keys(STOCK_VIEWS) as StockView[])
           .map((v) => [v, all.filter(STOCK_VIEWS[v].test).length] as const)
           .filter(([v, count]) => view === v || (!["photos", "old"].includes(v) && (count > 0 || !["hidden", "drafts", "reserved"].includes(v))))
           .map(([v, count]) => ({ label: STOCK_VIEWS[v].label, count, href: href(v), active: view === v }))} />
+      {/* Under the views, so they stay put when one is picked. On the plain list only, as on Leads: its counts are of the whole stock, a search is looking for something else. */}
+      {todo.length > 0 && view === "for-sale" && !q && !make && !fuel && !gearbox && (!sp.page || sp.page === "1") && (
+        <Panel title="To do" count={todo.length}>
+          <TaskList label="To do">{todo}</TaskList>
+        </Panel>
+      )}
       <TableToolbar search={{ placeholder: "Search", label: "Search stock" }} filters={filters} action={synced ? undefined : <StockPickToggle />} />
       {/* Keyed by the list's address: a new search or filter starts the bar again, counting the boxes that are really ticked. */}
       {!synced && <StockBulk key={new URLSearchParams(sp as Record<string, string>).toString()} canDelete={canUndo} />}

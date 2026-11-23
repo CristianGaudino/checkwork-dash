@@ -11,20 +11,21 @@ import { CarThumb } from "./CarThumb";
 import { Panel, adminButtonQuiet, rowButton } from "./kit";
 import { CameraIcon } from "@/components/stock/icons";
 
-// The photos with their buttons, the first marked as the main one. The same for a saved car and one being added.
+// The photos with their buttons, the first marked as the main one. The same for a saved car and one being added. On a phone each photo is
+// a row, small photo then its buttons on one line (two half-width tiles are too narrow for both); tiles from 640px.
 function PhotoGrid({ srcs, makeMain, remove }: { srcs: string[]; makeMain: (src: string, i: number) => React.ReactNode; remove: (src: string, i: number) => React.ReactNode }) {
   return (
     <>
       <p className="text-meta text-text-2">The first photo is the one on the car&apos;s card and at the top of its page.</p>
       {srcs.length > 0 && (
-        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        <ul className="grid gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {srcs.map((src, i) => (
-            <li key={src} className="flex flex-col gap-2">
-              <div className="aspect-[4/3] overflow-hidden rounded-control bg-photo-bg">
+            <li key={src} className="flex items-center gap-3 sm:flex-col sm:items-stretch sm:gap-2">
+              <div className="aspect-[4/3] w-20 shrink-0 overflow-hidden rounded-control bg-photo-bg sm:w-auto">
                 <CarThumb src={src} />
               </div>
-              <div className="flex flex-wrap gap-2">
-                {i === 0 ? <span className="inline-flex h-10 items-center text-meta font-medium text-text-2">Main photo</span> : makeMain(src, i)}
+              <div className="flex gap-2 sm:flex-wrap">
+                {i === 0 ? <span className="inline-flex h-11 items-center px-3 text-meta font-medium text-text-2">Main photo</span> : makeMain(src, i)}
                 {remove(src, i)}
               </div>
             </li>

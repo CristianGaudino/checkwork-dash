@@ -177,8 +177,9 @@ export function CarForm({ car, at, cost, reg: startReg = "", photosMax }: { car?
       {/* Shown, hidden or draft is changed by the buttons at the top of the car's page (Hide from the website, Publish), never by Save
           changes (car-form.ts keeps a saved car's state). A new car is added or kept as a draft by its buttons. */}
       {errors.stale && <p role="alert" className="text-body text-destructive">{errors.stale}</p>}
-      {/* Above the phone's tab bar (and the demo bar), so Save is a thumb away wherever the change was made. */}
-      <div data-sticky-save={changed || undefined} className={`flex flex-wrap gap-3 ${changed ? "sticky bottom-[calc(var(--demo-bar-h,0px)+4.5rem+env(safe-area-inset-bottom))] z-20 rounded-card border border-hairline bg-card p-3 shadow-lift lg:bottom-[calc(var(--demo-bar-h,0px)+1rem)]" : ""}`}>
+      {/* Above the phone's tab bar (and the demo bar), so Save is a thumb away wherever the change was made. Bottom right with the main button
+          right-most, as New post; reversed rather than reordered, so Enter in a box still presses the main button (the first in the form). */}
+      <div data-sticky-save={changed || undefined} className={`flex flex-row-reverse flex-wrap gap-3 ${changed ? "sticky bottom-[calc(var(--demo-bar-h,0px)+4.5rem+env(safe-area-inset-bottom))] z-20 rounded-card border border-hairline bg-card p-3 shadow-lift lg:bottom-[calc(var(--demo-bar-h,0px)+1rem)]" : ""}`}>
         <button type="submit" name={car ? undefined : "listing"} value={car ? undefined : "live"} disabled={pending} className={adminButton}>
           {pending ? "Saving" : car ? "Save changes" : "Add car"}
         </button>

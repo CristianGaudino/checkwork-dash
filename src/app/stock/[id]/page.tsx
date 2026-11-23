@@ -15,7 +15,7 @@ import { dealerProfile } from "@/lib/tenancy/current";
 import { CheckIcon, PencilIcon, ReceiptIcon, TagIcon, TrashIcon } from "@/components/stock/icons";
 import { costsStore, heldFor, prepStore, reservationsStore, salesStore } from "@/lib/admin/collections";
 import { RETURN_WINDOW_DAYS, withinReturnWindow } from "@/lib/admin/deposits";
-import { fmtDate, fmtEur, fmtNum } from "@/lib/admin/format";
+import { fmtAgo, fmtDate, fmtEur, fmtNum } from "@/lib/admin/format";
 import { PrepPanel } from "@/components/admin/PrepPanel";
 import { CarPhotos } from "@/components/admin/CarPhotos";
 import { CAR_PHOTOS_MAX } from "@/lib/admin/car-photos";
@@ -23,6 +23,7 @@ import { adminCar, adminCarAt } from "@/lib/admin/stock-admin";
 import { can } from "@/lib/permissions";
 import { carName, priceLabel } from "@/lib/stock/format";
 import { stockSource } from "@/lib/stock-source";
+import { syncStatus } from "@/lib/donedeal/sync";
 import { forSale, isReduced, onPublicSite } from "@/lib/stock/types";
 import { deleteCarAction, saveCostAction } from "../actions";
 import { enabledModules, hasModule } from "@/lib/modules";
@@ -111,13 +112,15 @@ export default async function Page({ params, searchParams }: { params: Promise<{
         </div>
       </div>
       {/* Two across on a phone, each a 44px button; in a row from 640px. */}
-      {actions.length > 0 && <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap max-sm:[&>*]:h-auto max-sm:[&>*]:min-h-11 max-sm:[&>*]:px-3 max-sm:[&>*]:py-2 max-sm:[&>*]:text-center">{actions}</div>}
+      {actions.length > 0 && <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap max-sm:[&>*]:h-auto max-sm:[&>*]:min-h-11 max-sm:[&>*]:px-2 max-sm:[&>*]:py-2 max-sm:[&>*]:text-center">{actions}</div>}
     </section>
   );
   if (synced) {
+    // When the stock was last read, as on the Stock list: Edit on the listing site beside it says where the car is changed.
+    const { lastOkAt } = await syncStatus();
     return (
       <>
-        <PageHeader title={carName(car)} text={`This car comes from ${listingSite}. Change it there; your website updates within 15 minutes.`} actions={main} back={{ href: "/stock", label: "Stock" }} />
+        <PageHeader title={carName(car)} text={lastOkAt ? `Last updated ${fmtAgo(lastOkAt)}` : "Not updated yet"} actions={main} back={{ href: "/stock", label: "Stock" }} />
         {summary}
         {/* The site shows the feed's text, so a better one is written here and pasted into the listing site (#225). Not for an ad that is gone. */}
         {!sold && !car.takenDownAt && (await hasModule("ai")) && (
@@ -165,9 +168,9 @@ export default async function Page({ params, searchParams }: { params: Promise<{
           {held ? (
             <p className="max-w-measure text-body">A deposit is held on this car. <Link href={`/stock/${car.id}/reserve`} className="underline">End the reservation</Link> before deleting it.</p>
           ) : (
-          <ActButton act={deleteCarAction.bind(null, car.id)} confirm={{ title: `Delete ${carName(car)}?`, text: "This cannot be undone. Its cost and prep go with it.", yes: "Delete" }} className={`${dangerButton} w-fit`}>
+          <ActButton act={deleteCarAction.bind(null, car.id)} confirm={{ title: `Delete ${carName(car)}?`, text: "This cannot be undone. Its cost and prep go with it.", yes: "Delete" }} label={`Delete car: ${carName(car)}`} className={`${dangerButton} w-fit`}>
             <TrashIcon className="shrink-0 size-4" />
-            Delete {carName(car)}
+            Delete car
           </ActButton>
           )}
         </Panel>
