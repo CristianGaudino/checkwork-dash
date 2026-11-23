@@ -19,8 +19,8 @@ export function StaffForm({ id, p, allowed }: { id: string; p?: StaffPhone; allo
         <legend className="mb-1 text-meta font-semibold">Alerts to get</legend>
         <div className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
           {allowed.map((e) => (
-            <label key={e.id} className="flex min-h-11 items-center gap-2.5 text-body">
-              <input type="checkbox" name="alert" value={e.id} defaultChecked={(p?.alerts ?? []).includes(e.id)} className="size-5 accent-accent" />
+            <label key={e.id} className="flex min-h-11 items-center gap-3 text-body">
+              <input type="checkbox" name="alert" value={e.id} defaultChecked={(p?.alerts ?? []).includes(e.id)} className="size-5 shrink-0 accent-accent" />
               {e.label}
             </label>
           ))}

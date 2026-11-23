@@ -44,7 +44,7 @@ export function LimitsForm({ scopes, caps, ceilings, alertAt80 }: { scopes: Scop
         })}
       </div>
       <label className="flex min-h-11 items-center gap-3 text-body">
-        <input type="checkbox" name="alertAt80" defaultChecked={alertAt80} className="size-5 shrink-0" />
+        <input type="checkbox" name="alertAt80" defaultChecked={alertAt80} className="size-5 shrink-0 accent-accent" />
         Tell me when usage reaches 80% of a limit
       </label>
       {f.errors.form && <p role="alert" className="text-meta text-destructive">{f.errors.form}</p>}
