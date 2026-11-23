@@ -76,7 +76,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
     <>
       {/* Printing leaves out the menu, the demo bar and the picker: the page alone, in the browser's own PDF. */}
       <style>{"@media print { aside, [data-demo-bar], .no-print { display: none !important; } main { padding: 0 !important; } * { box-shadow: none !important; } }"}</style>
-      <PageHeader title="Monthly report" text={`${whole ? "" : `${me.name}, `}${monthLabel(month)}, compared with ${monthLabel(prevMonth)}.`} actions={
+      <PageHeader title="Monthly report" text={`${whole ? "" : `${me.name}, `}${monthLabel(month)}, compared with ${monthLabel(prevMonth)}`} actions={
           // The months before and after, one tap each, as the Marketing calendar moves by week; twelve months back at most.
           <>
             {/* Both always there, the one with no month to go to disabled, so neither moves under a second click. */}
@@ -127,7 +127,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
       {a && (
         <>
           <h2 className="text-heading font-semibold">Visitors</h2>
-          <Panel plain title="Where visits came from" text="Compared with the month before">
+          <Panel plain title="Where visits came from">
             <VisitSources now={a.channels} before={a.previous.channels} />
           </Panel>
           <Panel title="Top 5 cars viewed">
@@ -145,7 +145,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
           <StatGrid>
             <StatCard label="Visits that became leads" value={fmtPct(real.now.totals.conversion)} />
           </StatGrid>
-          <Panel plain title="Where visits came from" text="Compared with the month before">
+          <Panel plain title="Where visits came from">
             <VisitSources now={real.now.channels} before={real.before.channels} />
             {real.now.unknownLeads > 0 && <p className="text-meta text-text-2">{plural(real.now.unknownLeads, "website lead")} came with no source known.</p>}
           </Panel>

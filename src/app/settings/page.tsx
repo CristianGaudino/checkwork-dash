@@ -84,7 +84,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
   );
   return (
     <>
-      <PageHeader title="Settings" text={edit ? "How your site and dashboard work for you and your team." : undefined} />
+      <PageHeader title="Settings" />
       {edit ? (
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[16rem_minmax(0,1fr)] lg:items-start">
         <TabRow current={section} aria-label="Settings" className="scrollbar-none -mx-4 -my-1 flex gap-1 overflow-x-auto px-4 py-1 sm:-mx-1 sm:px-1 lg:sticky lg:top-24 lg:flex-col lg:overflow-visible">
@@ -243,7 +243,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
               For your web developer
             </summary>
           {section === "services" && edit && (
-            <Panel title="Website connection" text="Your website sends its leads here, and reads your cars, with a key made here.">
+            <Panel title="Website connection" text="The key your website uses to send leads and read your cars">
               {/* No SITE_PHOTO_SECRET (docs/site-api.md, "Car photos"): the stock answer leaves out photos added here. Ours to set, as in Connected services. */}
               {!process.env.SITE_PHOTO_SECRET && (
                 <p className="max-w-measure text-body">

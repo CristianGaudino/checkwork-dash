@@ -62,7 +62,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
   };
   return (
     <>
-      <PageHeader title="Activity" text="Every change made in the dashboard, newest first, kept for 12 months." />
+      <PageHeader title="Activity" text="Every change in the dashboard, kept for 12 months" />
       <SummaryTabs
         label="Area"
         items={[

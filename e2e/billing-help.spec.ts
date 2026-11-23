@@ -57,7 +57,7 @@ test("with our prices hidden, the owner still has Billing: the plan and its modu
 
 test("sales has no Billing page: it says who it is for", async ({ page, context }) => {
   await as(context, "Sales");
-  await notForRole(page, "/billing", "What you pay us each month");
+  await notForRole(page, "/billing", "Your plan, this month");
   expect((await page.request.get(`/billing/${lastMonth}`)).status()).toBe(404); // a bill is hidden for now (SHOW_PRICING)
 });
 

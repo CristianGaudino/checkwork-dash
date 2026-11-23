@@ -43,7 +43,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
   const scopes: Scope[] = [...services, "total"];
   return (
     <>
-      <PageHeader title="Billing" text="What you pay us each month, and what you have used so far." />
+      <PageHeader title="Billing" text="Your plan, this month's use and your bills" />
       <Segmented label="Billing sections" items={SECTIONS.map(([k, label]) => ({ label, href: k === "plan" ? "/billing" : `/billing?section=${k}`, active: k === section }))} />
 
       {section === "plan" && <PlanAndUsage modules={modules} services={services} usage={usage} counts={counts} b={b} now={today()} />}
@@ -315,7 +315,7 @@ async function WithoutPrices() {
   const off = MODULES.filter((m) => !modules.has(m.id));
   return (
     <>
-      <PageHeader title="Billing" text="What you pay us each month, and what you have used so far." />
+      <PageHeader title="Billing" text="Your plan, this month's use and your bills" />
       <Panel title={`Your plan: ${planFor(modules, b).name}`}>
         {on.length > 0 ? (
           // Folded: a long list would bury the billing details below it on a phone.

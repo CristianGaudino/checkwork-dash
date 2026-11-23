@@ -48,9 +48,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ f
 
   return (
     <>
-      <PageHeader title="Help" text="How to do the everyday jobs, and how to reach us." />
+      <PageHeader title="Help" />
 
-      <Panel title="Talk to us" text={`We are here ${SUPPORT.hours}.`}>
+      <Panel title="Talk to us" text={SUPPORT.hours}>
         <ul className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <li>
             <a href={supportTel} className={contact}>
@@ -86,7 +86,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ f
 
       <Columns
         aside={
-          <Panel title="Send us a message" text="A question, a change to your site, or something not working. Our reply shows on this page.">
+          <Panel title="Send us a message" text="Questions, site changes or problems. We reply here">
             <HelpForm types={types} first={first} from={safeFrom(sp.from)} />
           </Panel>
         }

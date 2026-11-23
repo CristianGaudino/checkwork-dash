@@ -49,7 +49,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ r
 
   return (
     <>
-      <PageHeader title="Analytics" text="How many people found your site, how many got in touch, and where they came from." />
+      <PageHeader title="Analytics" />
       <Segmented label="Period" items={RANGES.map((r) => ({ label: `${r} days`, href: `/analytics?range=${r}`, active: range === r }))} />
 
       {/* The answer first, in words; the figures behind it follow. */}
@@ -65,7 +65,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ r
         <StatCard label="Visitors who got in touch" value={fmtPct(a.totals.conversion)} hint={changeText(a.totals.conversion, convBefore, true)} tone={changeTone(a.totals.conversion, convBefore, true)} />
       </StatGrid>
 
-      <Panel plain title="Where visits come from" text={`Last ${range} days, compared with the ${range} before`}>
+      <Panel plain title="Where visits come from" text={`Compared with the ${range} days before`}>
         <VisitSources now={a.channels} before={a.previous.channels} />
       </Panel>
 
@@ -125,7 +125,7 @@ async function RealAnalytics({ range }: { range: Range }) {
 
   return (
     <>
-      <PageHeader title="Analytics" text="Who visits your site, where they come from and what they look at." />
+      <PageHeader title="Analytics" />
       <Segmented label="Period" items={RANGES.map((r) => ({ label: `${r} days`, href: `/analytics?range=${r}`, active: range === r }))} />
 
       <StatGrid>
@@ -134,7 +134,7 @@ async function RealAnalytics({ range }: { range: Range }) {
         <StatCard label="Visits that became leads" value={fmtPct(f.totals.conversion)} />
       </StatGrid>
 
-      <Panel plain title="Where visits come from" text={`Last ${range} days, compared with the ${range} before`}>
+      <Panel plain title="Where visits come from" text={`Compared with the ${range} days before`}>
         <VisitSources now={src.now} before={src.before} />
         {src.unknownLeads > 0 && <p className="text-meta text-text-2">{plural(src.unknownLeads, "website lead")} came with no source known.</p>}
       </Panel>

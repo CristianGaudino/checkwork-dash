@@ -48,7 +48,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ n
 
   return (
     <>
-      <PageHeader title="WhatsApp" text="New leads reach your phone. Tap a reply and the site does the rest." />
+      <PageHeader title="WhatsApp" text="New leads on your phone, answered with a tap" />
       {note && <Notice tone={note.tone}>{note.text}</Notice>}
 
       <Panel title="Staff phones">

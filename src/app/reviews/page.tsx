@@ -32,7 +32,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ f
 
   return (
     <>
-      <PageHeader title="Reviews" text={`Your Google reviews. Replies are posted on Google as ${name}.`} />
+      <PageHeader title="Reviews" text={`Replies are posted on Google as ${name}`} />
       {notice && (
         <Notice tone={notice.tone}>{notice.text}</Notice>
       )}
