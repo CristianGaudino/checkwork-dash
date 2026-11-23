@@ -1,10 +1,12 @@
 import { sourceText } from "@/lib/visit-rules";
 import Link from "next/link";
 import { LeadStatusBadge } from "@/components/admin/badges";
-import { Avatar, Badge, DataTable, EmptyState, PageHeader, Panel, SummaryTabs, TableFooter, TableToolbar, Task, TaskList, WhoseSwitch, pageOf, sortRows, type Column, type FilterGroup } from "@/components/admin/kit";
+import { Avatar, Badge, DataTable, EmptyState, PageHeader, Panel, SummaryTabs, TableFooter, TableToolbar, Task, WhoseSwitch, pageOf, sortRows, type Column, type FilterGroup } from "@/components/admin/kit";
 import { Suspense } from "react";
 import { Skeleton, TableBones } from "@/components/admin/Skeleton";
-import { LeadMenu, NextStatusButton, ReachButton, SpamButton } from "@/components/admin/LeadActions";
+import { CloseChoices, NextStatusButton, ReachButton, SpamButton } from "@/components/admin/LeadActions";
+import { RowMenu } from "@/components/admin/RowMenu";
+import { HeldTasks, RowActions } from "@/components/admin/HeldTasks";
 import { CalendarIcon, InboxIcon } from "@/components/stock/icons";
 import { can, currentMember } from "@/lib/permissions";
 import { LEAD_SOURCES, LEAD_STATUSES, LEAD_STATUS_LABELS, LEAD_TYPE_LABELS, getSettings, leadsStore, type Lead } from "@/lib/admin/collections";
@@ -112,13 +114,15 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
           count={todo.length}
           action={whose}
         >
-          {todo.length === 0 ? (
-            <p className="text-body text-text-2">All caught up. No new leads and no follow-ups due.</p>
-          ) : (
-            <TaskList label="Leads to answer now">
-              {todo.slice(0, SHOWN).map(({ lead: l, why, urgency, kind }) => (
+          {/* A row a press takes off the list stays, faded, saying what it became, until the page is left (#94). The count is the live ones. */}
+          <HeldTasks
+            key={mine ? "mine" : (f.with ?? "")}
+            label="Leads to answer now"
+            empty={<p className="text-body text-text-2">All caught up. No new leads and no follow-ups due.</p>}
+            rows={todo.slice(0, SHOWN).map(({ lead: l, why, urgency, kind }) => ({
+              id: l.id,
+              node: (
                 <Task
-                  key={l.id}
                   href={`/leads/${l.id}`}
                   urgency={urgency}
                   icon={kind === "follow" ? <CalendarIcon /> : <InboxIcon />}
@@ -133,26 +137,17 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
                       {possibleSpam(l) && <span className="flex"><Badge tone="warn">Possible spam</Badge></span>}
                     </span>
                   }
+                  // The row rule: the next action (reach them the way they asked) and the menu with the rest.
                   action={
-                    <>
+                    <RowActions>
                       <ReachButton lead={l} />
-                      <span className="contents max-sm:hidden">
-                        <NextStatusButton lead={l} />
-                      </span>
-                      {/* Possible spam: the person decides in one press, so a real customer is never hidden (#56). */}
-                      {possibleSpam(l) && (
-                        <>
-                          <SpamButton lead={l} to="yes" />
-                          <SpamButton lead={l} to="no" />
-                        </>
-                      )}
-                      <LeadMenu lead={l} spam={!possibleSpam(l)} />
-                    </>
+                      <LeadRowMenu lead={l} />
+                    </RowActions>
                   }
                 />
-              ))}
-            </TaskList>
-          )}
+              ),
+            }))}
+          />
           {todo.length > SHOWN && (
             <p className="flex flex-wrap gap-x-4 text-meta text-text-2">
               {todo.length - SHOWN} more waiting.
@@ -244,9 +239,9 @@ async function LeadsTable({ sp, all, f, today, leadSlaHours, at, me }: { sp: Par
     },
     { key: "owner", header: "Who has it", hide: "2xl", nowrap: true, sort: (l) => l.assignedTo, cell: (l) => (l.assignedTo ? <span className="inline-flex items-center gap-2"><Avatar name={l.assignedTo} />{l.assignedTo === me ? "You" : l.assignedTo.split(" ")[0]}</span> : <span className="text-text-2">Not taken</span>) },
     { key: "when", header: "Received", sort: (l) => l.createdAt, cell: (l) => <span className={l.status === "new" ? "font-medium" : "text-text-2"}>{fmtAgo(l.createdAt)}</span>, align: "right", nowrap: true, hide: "2xl" }, // below 2xl it is in the Status column
-    // The two things done most from the list: reach them the way they asked, and move it on a step. Above the row's link.
-    // Two fixed slots, so the buttons line up from row to row whichever are there.
-    { key: "act", header: "Next step", quietHeader: true, hide: "lg", nowrap: true, cell: (l) => <span className="relative z-10 grid grid-cols-[7.5rem_12.5rem] gap-2"><span>{isOpenLead(l) && <ReachButton lead={l} />}</span><span>{l.status === "spam" ? <SpamButton lead={l} to="no" /> : <NextStatusButton lead={l} />}</span></span> },
+    // The row rule: the next action (reach them the way they asked, on an open lead) and the menu with the rest, right-aligned, above the
+    // row's link. The menu is always last, so it lines up from row to row.
+    { key: "act", header: "Next step", quietHeader: true, hide: "lg", nowrap: true, align: "right", cell: (l) => <span className="relative z-10 flex justify-end gap-2">{isOpenLead(l) && <ReachButton lead={l} />}<LeadRowMenu lead={l} /></span> },
   ];
   const ordered = sortRows(filterLeads(all, f, today, leadSlaHours, at), columns, sp, { key: "when", dir: "desc" });
   // Unless a column was chosen, the ones To answer now shows red come first, by its rule (answerNow).
@@ -261,5 +256,25 @@ async function LeadsTable({ sp, all, f, today, leadSlaHours, at, me }: { sp: Par
       {/* The list as it is filtered now, as a CSV: owners and managers only. */}
       <TableFooter page={paged.page} pageCount={paged.pageCount} total={paged.total} per={paged.per} exportHref={canExport ? "/leads/export" : undefined} />
     </>
+  );
+}
+
+// A lead row's menu (the row rule: the row shows its next action, the rest are here): the next step, Spam and Not spam (#56), and Close
+// with a reason (#55), each with Undo. A spam lead has Not spam only; a won, lost or closed one has none, so no menu.
+function LeadRowMenu({ lead: l }: { lead: Lead }) {
+  if (l.status !== "spam" && !isOpenLead(l)) return null;
+  return (
+    <RowMenu label={`More for ${l.name}`}>
+      {l.status === "spam" ? (
+        <SpamButton lead={l} to="no" />
+      ) : (
+        <>
+          <NextStatusButton lead={l} />
+          <SpamButton lead={l} to="yes" />
+          {possibleSpam(l) && <SpamButton lead={l} to="no" />}
+          <CloseChoices lead={l} />
+        </>
+      )}
+    </RowMenu>
   );
 }
