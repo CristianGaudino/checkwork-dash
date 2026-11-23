@@ -309,6 +309,24 @@ export function Segmented({ items, label }: { items: { label: string; href: stri
   );
 }
 
+// Everyone | For me (#126): a small pill sized to sit beside a title, the chosen half a raised thumb that slides across. Links, as it
+// changes ?mine= in the URL. 36px tall, each half's hit area 44px. In dark the track is the deeper surface and the thumb the lighter
+// hairline, so it still reads as raised.
+export function WhoseSwitch({ label, everyone, forMe, mine }: { label: string; everyone: string; forMe: string; mine: boolean }) {
+  const half = (text: string, href: string, on: boolean) => (
+    <Link href={href} aria-current={on ? "page" : undefined} className={`relative z-10 inline-flex h-8 items-center justify-center whitespace-nowrap rounded-full px-3.5 text-meta font-medium transition-colors after:absolute after:inset-x-0 after:-inset-y-1.5 motion-reduce:transition-none ${on ? "text-text" : "text-text-2 hover:text-text"}`}>
+      {text}
+    </Link>
+  );
+  return (
+    <nav aria-label={label} className="relative inline-grid shrink-0 grid-cols-2 rounded-full bg-hairline p-0.5 dark:bg-surface dark:ring-1 dark:ring-inset dark:ring-hairline">
+      <span aria-hidden="true" className={`absolute inset-y-0.5 left-0.5 w-[calc(50%-2px)] rounded-full bg-card shadow-[0_1px_3px_rgb(22_26_51/0.18)] transition-transform duration-200 ease-out motion-reduce:transition-none dark:bg-hairline ${mine ? "translate-x-full" : ""}`} />
+      {half("Everyone", everyone, !mine)}
+      {half("For me", forMe, mine)}
+    </nav>
+  );
+}
+
 // A one-line result at the top of a page (saved, deleted, not connected). Only fixed text the page knows, never text from the URL.
 const NOTICE_TONES = { good: "bg-ok-soft text-ok", warn: "bg-warn-soft text-warn", neutral: "bg-hairline text-text" } as const;
 export function Notice({ tone = "good", children }: { tone?: keyof typeof NOTICE_TONES; children: React.ReactNode }) {
@@ -410,8 +428,8 @@ export function TaskList({ children, label }: { children: React.ReactNode; label
 // `mark`: a small mark before the title, on every screen (a network's logo), where `icon` is the big one from 640px.
 export function Task({ title, detail, href, action, icon, mark, urgency = "info", count }: { title: string; detail?: React.ReactNode; href?: string; action?: React.ReactNode; icon?: React.ReactNode; mark?: React.ReactNode; urgency?: TaskUrgency; count?: number }) {
   return (
-    // On a phone the buttons always take their own line under the words, starting at the text column (the icon is hidden there), so a
-    // name is never squeezed and every row's buttons line up. A quiet first button (no fill) moves left by its padding, so its word does too.
+    // On a phone the buttons always take their own line under the words, at the row's right edge as on a laptop (#126), so a name is never
+    // squeezed and every row's buttons line up on the right.
     <li className="relative flex min-h-16 flex-wrap items-center gap-x-3 gap-y-2 py-3 pl-4 pr-1 transition-colors has-[>a:hover]:bg-surface">
       <span aria-hidden="true" className={`absolute inset-y-3 left-0 w-1 rounded-full ${TASK_MARK[urgency]}`} />
       {icon && <span aria-hidden="true" className={`hidden size-10 shrink-0 place-items-center sm:grid rounded-control bg-row-alt text-text-2 [&>svg]:size-5`}>{icon}</span>}
@@ -424,7 +442,7 @@ export function Task({ title, detail, href, action, icon, mark, urgency = "info"
         {detail && <span className="text-meta text-text-2">{detail}</span>}
       </span>
       {href && <Link href={href} aria-label={count !== undefined ? `${count} ${title}` : title} className="absolute inset-0" />}
-      {action && <span className="relative z-10 flex shrink-0 flex-wrap gap-2 max-sm:basis-full max-sm:[&>:is(a,button):first-child:not([class~=bg-accent-soft])]:-ml-3 sm:ml-auto sm:justify-end">{action}</span>}
+      {action && <span className="relative z-10 flex shrink-0 flex-wrap justify-end gap-2 max-sm:basis-full sm:ml-auto">{action}</span>}
     </li>
   );
 }

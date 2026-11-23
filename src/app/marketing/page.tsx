@@ -252,7 +252,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
                         // Held until the network approves us: it has not gone out, so no figures.
                         !prepared(item.p) && <Results items={[[item.p.reach ?? 0, "saw it"], [item.p.clicks ?? 0, "clicks"]]} />
                       ) : (
-                        <PostNow p={item.p} />
+                        <PostNow p={item.p} className="ml-auto" />
                       )}
                     </li>
                   ) : (
@@ -266,7 +266,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
                         <span className="truncate text-meta text-text-2">{item.a.carTitle}, {fmtEur(item.a.budgetEur)}</span>
                       </div>
                       {item.a.status === "draft" ? (
-                        <ActButton act={startAdAction.bind(null, item.a.id)} confirm={{ title: "Start this ad?", text: `It runs on ${AD_PLATFORM_LABELS[item.a.platform]} with a budget of ${fmtEur(item.a.budgetEur)}.`, yes: "Start ad", safe: true }} label={`Start ad: ${AD_PLATFORM_LABELS[item.a.platform]} ad, ${item.a.carTitle}`} className={rowButtonStrong}>Start ad</ActButton>
+                        <ActButton act={startAdAction.bind(null, item.a.id)} confirm={{ title: "Start this ad?", text: `It runs on ${AD_PLATFORM_LABELS[item.a.platform]} with a budget of ${fmtEur(item.a.budgetEur)}.`, yes: "Start ad", safe: true }} label={`Start ad: ${AD_PLATFORM_LABELS[item.a.platform]} ad, ${item.a.carTitle}`} className={`${rowButtonStrong} ml-auto`}>Start ad</ActButton>
                       ) : (
                         <Results items={[[item.a.impressions, "saw it"], [item.a.clicks, "clicks"], [item.a.leads, "leads"]]} />
                       )}
@@ -409,7 +409,8 @@ function Calendar({ posts, ads, week }: { posts: Awaited<ReturnType<typeof posts
 
 // Post a waiting post now. Anything on TikTok is held until TikTok approves us (PUBLISH_MODE), and says so.
 const prepared = (p: Pick<SocialPost, "network" | "format">) => PUBLISH_MODE[p.network][p.format ?? "post"] === "prepare";
-function PostNow({ p }: { p: SocialPost }) {
+// `className`: ml-auto in a list row, so a button that wraps under the words keeps to the right edge (#126).
+function PostNow({ p, className = "" }: { p: SocialPost; className?: string }) {
   const ready = prepared(p);
   const verb = ready ? "Finish post" : "Post now";
   return (
@@ -417,7 +418,7 @@ function PostNow({ p }: { p: SocialPost }) {
       act={publishPostAction.bind(null, p.id)}
       confirm={ready ? { title: "Finish this post?", text: `It is saved and goes out once ${p.network} approves us.`, yes: verb, safe: true } : { title: "Post this now?", text: `It goes out on ${p.network} at once.`, yes: verb, safe: true }}
       label={`${verb}: ${postName(p)}${p.carTitle ? `, ${p.carTitle}` : ""}`}
-      className={rowButtonStrong}
+      className={`${rowButtonStrong} ${className}`}
     >
       {verb}
     </ActButton>

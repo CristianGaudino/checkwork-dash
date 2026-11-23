@@ -1,7 +1,9 @@
 import { sourceText } from "@/lib/visit-rules";
 import Link from "next/link";
 import { LeadStatusBadge } from "@/components/admin/badges";
-import { Avatar, Badge, DataTable, EmptyState, PageHeader, Panel, Segmented, SummaryTabs, TableFooter, TableToolbar, Task, TaskList, pageOf, sortRows, type Column, type FilterGroup } from "@/components/admin/kit";
+import { Avatar, Badge, DataTable, EmptyState, PageHeader, Panel, SummaryTabs, TableFooter, TableToolbar, Task, TaskList, WhoseSwitch, pageOf, sortRows, type Column, type FilterGroup } from "@/components/admin/kit";
+import { Suspense } from "react";
+import { Skeleton, TableBones } from "@/components/admin/Skeleton";
 import { LeadMenu, NextStatusButton, ReachButton, SpamButton } from "@/components/admin/LeadActions";
 import { CalendarIcon, InboxIcon } from "@/components/stock/icons";
 import { can, currentMember } from "@/lib/permissions";
@@ -47,89 +49,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
   const due = all.filter((l) => followUpDue(l, today)).length;
   // New leads waiting past the reply target, counted for the filter.
   const late = filterLeads(all, { q: "", late: true }, today, leadSlaHours, at).length;
-  const STATUS_ORDER = Object.fromEntries(LEAD_STATUSES.map((s, i) => [s, i]));
   const me = await currentMember();
   // Whose it is, as To do says it: You, a name, or Not taken.
   const who = (name?: string) => (!name ? "Not taken" : name === me.name ? "You" : name);
-  const columns: Column<Lead>[] = [
-    {
-      key: "who",
-      header: "Who",
-      sort: (l) => l.name,
-      // The name is the row's title. On a phone, where the About column is hidden, what it is about is here too: the kind, where it came
-      // from and the car. The form's tags stay on the lead's page, so a row is a few lines, not a stack of chips.
-      cell: (l) => (
-        <span className="flex min-w-0 flex-col gap-1">
-          <Link href={`/leads/${l.id}`} className="font-bold text-text [overflow-wrap:anywhere] after:absolute after:inset-0">
-            {l.name}
-          </Link>
-          <KindSource l={l} className="sm:hidden" />
-          {l.carTitle && <span className="truncate text-meta font-medium text-text sm:hidden">{l.carTitle}</span>}
-        </span>
-      ),
-      className: "max-sm:w-full sm:max-w-[14rem]",
-    },
-    // What kind of request and where it came from, the form's answers as tags in full, then the car, else the first words of their
-    // message, quoted and muted so the two never read alike.
-    {
-      key: "about",
-      header: "About",
-      sort: (l) => l.carTitle,
-      cell: (l) => {
-        const { text } = readLead(l); // their words only, never the form's answers run together (#59)
-        return (
-          <span className="flex min-w-0 flex-col gap-1">
-            <KindSource l={l} />
-            <LeadTags tags={leadChips(l.type, l.topic, l.answers)} />
-            <span title={l.carTitle ?? text} className="line-clamp-2">{l.carTitle ? <span className="font-medium">{l.carTitle}</span> : text ? <span className="text-text-2">&ldquo;{text.split("\n")[0]}&rdquo;</span> : null}</span>
-          </span>
-        );
-      },
-      className: "max-w-[20rem]",
-      hide: "sm",
-    },
-    {
-      key: "status",
-      header: "Status",
-      sort: (l) => STATUS_ORDER[l.status],
-      // A new lead waiting past the reply target says so, filled: it is the one to answer now. The badges may wrap, each whole, so the
-      // row's Next step fits a laptop card and a phone has no sideways scroll.
-      cell: (l) => {
-        const flag = leadFlag(l, leadSlaHours, at);
-        return (
-        <span className="flex flex-col items-start gap-1">
-          <span className="inline-flex flex-wrap items-center gap-1.5">
-            <LeadStatusBadge status={l.status} type={l.type} />
-            {/* One badge for a lead that cannot wait (leadFlag). These and overdue follow-ups sit at the top of the list: urgentFirst pins them. */}
-            {flag === "late" ? <Badge tone="bad" strong>Late</Badge> : flag === "urgent" && <Badge tone="warn">Urgent</Badge>}
-            {possibleSpam(l) && <Badge tone="warn">Possible spam</Badge>}
-          </span>
-          {/* The follow-up, when there is one, under the status: one place to look for what to do next. Muted: the words say overdue or
-              today, and the row is already pinned and badged. */}
-          {l.followUpOn && isOpenLead(l) && (
-            <span className="text-meta text-text-2">
-              Follow up {l.followUpOn === today ? "today" : l.followUpOn < today ? "overdue" : fmtDate(`${l.followUpOn}T12:00:00Z`)}
-            </span>
-          )}
-          {l.status === "closed" && l.closedReason && <span className="text-meta text-text-2">{l.closedReason}</span>}
-          {/* Below 2xl the Received column is hidden, so About has room; when it came in sits here, under its status. */}
-          <span className={`text-meta 2xl:hidden ${l.status === "new" ? "font-medium text-text" : "text-text-2"}`}>{fmtAgo(l.createdAt)}</span>
-        </span>
-        );
-      },
-    },
-    { key: "owner", header: "Who has it", hide: "2xl", nowrap: true, sort: (l) => l.assignedTo, cell: (l) => (l.assignedTo ? <span className="inline-flex items-center gap-2"><Avatar name={l.assignedTo} />{l.assignedTo === me.name ? "You" : l.assignedTo.split(" ")[0]}</span> : <span className="text-text-2">Not taken</span>) },
-    { key: "when", header: "Received", sort: (l) => l.createdAt, cell: (l) => <span className={l.status === "new" ? "font-medium" : "text-text-2"}>{fmtAgo(l.createdAt)}</span>, align: "right", nowrap: true, hide: "2xl" }, // below 2xl it is in the Status column
-    // The two things done most from the list: reach them the way they asked, and move it on a step. Above the row's link.
-    // Two fixed slots, so the buttons line up from row to row whichever are there.
-    { key: "act", header: "Next step", quietHeader: true, hide: "lg", nowrap: true, cell: (l) => <span className="relative z-10 grid grid-cols-[7.5rem_12.5rem] gap-2"><span>{isOpenLead(l) && <ReachButton lead={l} />}</span><span>{l.status === "spam" ? <SpamButton lead={l} to="no" /> : <NextStatusButton lead={l} />}</span></span> },
-  ];
-  const ordered = sortRows(filterLeads(all, f, today, leadSlaHours, at), columns, sp, { key: "when", dir: "desc" });
-  // Unless a column was chosen, the ones To answer now shows red come first, by its rule (answerNow).
-  const sorted = sp.sort ? ordered.rows : urgentFirst(ordered.rows, at, today, leadSlaHours);
-  const sort = ordered.sort;
-  const paged = pageOf(sorted, sp);
-  const rows = paged.rows;
   // Every filter in one panel: what kind of lead, whether it needs a reply, who has it, where it came from.
   const filters: FilterGroup[] = [
     { name: "type", label: "What they want", any: "Anything", options: SALES_LEAD_TYPES.map((t) => [t, LEAD_TYPE_LABELS[t]] as const) },
@@ -138,7 +60,6 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
     { name: "with", label: "Who has it", any: "Anyone", options: [["none", "Not taken"], ...team.map((t) => [t.name, t.name] as const)] },
     { name: "source", label: "Where it came from", any: "Any source", options: LEAD_SOURCES.map((s) => [s, s] as const) },
   ];
-  const canExport = await can("data");
   // A status tile keeps everything else in the URL (search, filters, sort), so picking a status does not forget the rest.
   const href = ({ status }: { status?: string }) => {
     const p = new URLSearchParams(Object.entries(sp).filter((e): e is [string, string] => typeof e[1] === "string" && e[0] !== "page"));
@@ -170,7 +91,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
   };
 
   const whose = me.name && !f.with && (
-    <Segmented label="Whose leads" items={[{ label: "Everyone", href: mineHref(false), active: !mine }, { label: "For me", href: mineHref(true), active: mine }]} />
+    <WhoseSwitch label="Whose leads" everyone={mineHref(false)} forMe={mineHref(true)} mine={mine} />
   );
   // Closed and Spam only when they hold a lead (or are open), as Stock does with Hidden and Drafts: an empty one is noise.
   const statusTabs = (
@@ -242,6 +163,100 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
         </Panel>
       )}
       <TableToolbar search={{ placeholder: "Search", label: "Search leads" }} filters={filters} />
+      {/* The rows stream in under the tiles, To answer now and the search, so a tap on a tile works from the first paint (#109), as on Stock.
+          Keyed by the status only: a new status shows the bones, a search, sort or page keeps the old rows until the new ones come. */}
+      <Suspense key={f.status ?? ""} fallback={<Skeleton><TableBones /></Skeleton>}>
+        <LeadsTable sp={sp} all={all} f={f} today={today} leadSlaHours={leadSlaHours} at={at} me={me.name} />
+      </Suspense>
+    </>
+  );
+}
+
+// The table: its columns, sort and page, and the export link. Rendering a page of leads with their buttons is the slow part.
+async function LeadsTable({ sp, all, f, today, leadSlaHours, at, me }: { sp: Params; all: Lead[]; f: ReturnType<typeof parseLeadFilter>; today: string; leadSlaHours: number; at: number; me: string }) {
+  const STATUS_ORDER = Object.fromEntries(LEAD_STATUSES.map((s, i) => [s, i]));
+  const columns: Column<Lead>[] = [
+    {
+      key: "who",
+      header: "Who",
+      sort: (l) => l.name,
+      // The name is the row's title. On a phone, where the About column is hidden, what it is about is here too: the kind, where it came
+      // from and the car. The form's tags stay on the lead's page, so a row is a few lines, not a stack of chips.
+      cell: (l) => (
+        <span className="flex min-w-0 flex-col gap-1">
+          <Link href={`/leads/${l.id}`} className="font-bold text-text [overflow-wrap:anywhere] after:absolute after:inset-0">
+            {l.name}
+          </Link>
+          <KindSource l={l} className="sm:hidden" />
+          {l.carTitle && <span className="truncate text-meta font-medium text-text sm:hidden">{l.carTitle}</span>}
+        </span>
+      ),
+      className: "max-sm:w-full sm:max-w-[14rem]",
+    },
+    // What kind of request and where it came from, the form's answers as tags in full, then the car, else the first words of their
+    // message, quoted and muted so the two never read alike.
+    {
+      key: "about",
+      header: "About",
+      sort: (l) => l.carTitle,
+      cell: (l) => {
+        const { text } = readLead(l); // their words only, never the form's answers run together (#59)
+        return (
+          <span className="flex min-w-0 flex-col gap-1">
+            <KindSource l={l} />
+            <LeadTags tags={leadChips(l.type, l.topic, l.answers)} />
+            <span title={l.carTitle ?? text} className="line-clamp-2">{l.carTitle ? <span className="font-medium">{l.carTitle}</span> : text ? <span className="text-text-2">&ldquo;{text.split("\n")[0]}&rdquo;</span> : null}</span>
+          </span>
+        );
+      },
+      className: "max-w-[20rem]",
+      hide: "sm",
+    },
+    {
+      key: "status",
+      header: "Status",
+      sort: (l) => STATUS_ORDER[l.status],
+      // A new lead waiting past the reply target says so, filled: it is the one to answer now. The badges may wrap, each whole, so the
+      // row's Next step fits a laptop card and a phone has no sideways scroll.
+      cell: (l) => {
+        const flag = leadFlag(l, leadSlaHours, at);
+        return (
+        <span className="flex flex-col items-start gap-1">
+          <span className="inline-flex flex-wrap items-center gap-1.5">
+            <LeadStatusBadge status={l.status} type={l.type} />
+            {/* One badge for a lead that cannot wait (leadFlag). These and overdue follow-ups sit at the top of the list: urgentFirst pins them. */}
+            {flag === "late" ? <Badge tone="bad" strong>Late</Badge> : flag === "urgent" && <Badge tone="warn">Urgent</Badge>}
+            {possibleSpam(l) && <Badge tone="warn">Possible spam</Badge>}
+          </span>
+          {/* The follow-up, when there is one, under the status: one place to look for what to do next. Muted: the words say overdue or
+              today, and the row is already pinned and badged. */}
+          {l.followUpOn && isOpenLead(l) && (
+            <span className="text-meta text-text-2">
+              Follow up {l.followUpOn === today ? "today" : l.followUpOn < today ? "overdue" : fmtDate(`${l.followUpOn}T12:00:00Z`)}
+            </span>
+          )}
+          {l.status === "closed" && l.closedReason && <span className="text-meta text-text-2">{l.closedReason}</span>}
+          {/* Below 2xl the Received column is hidden, so About has room; when it came in sits here, under its status. */}
+          <span className={`text-meta 2xl:hidden ${l.status === "new" ? "font-medium text-text" : "text-text-2"}`}>{fmtAgo(l.createdAt)}</span>
+        </span>
+        );
+      },
+    },
+    { key: "owner", header: "Who has it", hide: "2xl", nowrap: true, sort: (l) => l.assignedTo, cell: (l) => (l.assignedTo ? <span className="inline-flex items-center gap-2"><Avatar name={l.assignedTo} />{l.assignedTo === me ? "You" : l.assignedTo.split(" ")[0]}</span> : <span className="text-text-2">Not taken</span>) },
+    { key: "when", header: "Received", sort: (l) => l.createdAt, cell: (l) => <span className={l.status === "new" ? "font-medium" : "text-text-2"}>{fmtAgo(l.createdAt)}</span>, align: "right", nowrap: true, hide: "2xl" }, // below 2xl it is in the Status column
+    // The two things done most from the list: reach them the way they asked, and move it on a step. Above the row's link.
+    // Two fixed slots, so the buttons line up from row to row whichever are there.
+    { key: "act", header: "Next step", quietHeader: true, hide: "lg", nowrap: true, cell: (l) => <span className="relative z-10 grid grid-cols-[7.5rem_12.5rem] gap-2"><span>{isOpenLead(l) && <ReachButton lead={l} />}</span><span>{l.status === "spam" ? <SpamButton lead={l} to="no" /> : <NextStatusButton lead={l} />}</span></span> },
+  ];
+  const ordered = sortRows(filterLeads(all, f, today, leadSlaHours, at), columns, sp, { key: "when", dir: "desc" });
+  // Unless a column was chosen, the ones To answer now shows red come first, by its rule (answerNow).
+  const sorted = sp.sort ? ordered.rows : urgentFirst(ordered.rows, at, today, leadSlaHours);
+  const sort = ordered.sort;
+  const paged = pageOf(sorted, sp);
+  const rows = paged.rows;
+  const canExport = await can("data");
+  return (
+    <>
       <DataTable label="Leads" linkRows rows={rows} rowKey={(l) => l.id} columns={columns} sort={sp.sort ? sort : { key: "", dir: "desc" }} empty={<EmptyState title="No leads match" text="Try another filter or search." />} />
       {/* The list as it is filtered now, as a CSV: owners and managers only. */}
       <TableFooter page={paged.page} pageCount={paged.pageCount} total={paged.total} per={paged.per} exportHref={canExport ? "/leads/export" : undefined} />

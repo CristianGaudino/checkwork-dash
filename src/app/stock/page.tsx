@@ -170,7 +170,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sto
                   <span className="font-medium">{carName(c)}</span>
                   <span className="text-meta text-text-2">Ad came down {fmtDate(Date.parse(`${c.takenDownAt}T12:00:00Z`))}</span>
                 </span>
-                <span className="flex flex-wrap gap-2">
+                <span className="ml-auto flex flex-wrap justify-end gap-2">
                   <Link href={`/stock/${c.id}/sale`} className={rowButtonStrong}>It sold</Link>
                   <ActButton act={withdrawnAction.bind(null, c.id)} confirm={{ title: `${carName(c)} did not sell?`, text: `It stays off the website. If the ad goes back up on ${listingSite}, the car comes back too.`, yes: "It did not sell" }} className={rowButton}>
                     It did not sell

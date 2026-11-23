@@ -3,7 +3,7 @@ import type { Hours } from "@/lib/tenancy/profile";
 import Link from "next/link";
 import { DriveStatusBadge } from "@/components/admin/badges";
 import { DriveSteps } from "@/components/admin/DriveSteps";
-import { Badge, DataTable, EmptyState, PageHeader, Panel, Segmented, TableFooter, TableToolbar, adminButton, pageOf, sortRows, type Column, type FilterGroup } from "@/components/admin/kit";
+import { Badge, DataTable, EmptyState, PageHeader, Panel, Segmented, TableFooter, WhoseSwitch, TableToolbar, adminButton, pageOf, sortRows, type Column, type FilterGroup } from "@/components/admin/kit";
 import { ChevronLeftIcon, ChevronRightIcon, PlusIcon } from "@/components/stock/icons";
 import { card } from "@/components/ui";
 import { DRIVE_STATUSES, DRIVE_STATUS_LABELS, drivesStore, getSettings, type DriveStatus, type TestDrive } from "@/lib/admin/collections";
@@ -65,7 +65,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
         }
       />
       {/* A little less padding on a phone, so the two switches share one line from 390px. */}
-      <div className="flex flex-wrap items-center justify-between gap-3 max-sm:[&_a]:px-2.5">
+      <div className="flex flex-wrap items-center justify-between gap-3 max-sm:gap-x-2 max-sm:[&_a]:px-2.5">
         <Segmented
           label="View"
           items={[
@@ -74,7 +74,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
             { label: "List", href: link({ view: "list", day: undefined }), active: view === "list" },
           ]}
         />
-        <Segmented label="Whose test drives" items={[{ label: "Everyone", href: link({ mine: undefined, page: undefined }), active: !mine }, { label: "For me", href: link({ mine: "1", page: undefined }), active: mine }]} />
+        <WhoseSwitch label="Whose test drives" everyone={link({ mine: undefined, page: undefined })} forMe={link({ mine: "1", page: undefined })} mine={mine} />
       </div>
 
       {view === "today" && (
@@ -122,7 +122,7 @@ function Agenda({ drives, gone, me, empty = "Nothing booked.", withDay = false, 
         const ahead = dublinDay(d.startsAt) > today;
         return (
         <li key={d.id} className="relative grid grid-cols-1 items-center gap-x-4 gap-y-2 px-5 py-3 even:bg-row-alt hover:bg-surface sm:grid-cols-[3.5rem_minmax(0,1fr)] md:grid-cols-[3.5rem_minmax(0,1fr)_auto]">
-          {/* On a phone the time leads the name line instead (below), so the buttons get the row's whole width and line up with the name. */}
+          {/* On a phone the time leads the name line instead (below), so the buttons get the row's whole width, at its right edge. */}
           <span className="self-start font-medium tabular-nums max-sm:hidden md:self-center">
             {fmtTime(d.startsAt)}
             {withDay && <span className="block text-meta font-normal text-text-2">{fmtDay(dublinDay(d.startsAt), "weekday")} {fmtDay(dublinDay(d.startsAt), "day")}</span>}
@@ -147,7 +147,7 @@ function Agenda({ drives, gone, me, empty = "Nothing booked.", withDay = false, 
             </span>
           </span>
           {/* Call them, then the next step, one press each. One strong button a row: Call is quiet when a step (Confirm, Mark done) is the strong one. */}
-          <span className="relative z-10 flex flex-wrap gap-2 sm:col-start-2 md:col-start-3 md:justify-end">
+          <span className="relative z-10 flex flex-wrap justify-end gap-2 sm:col-start-2 md:col-start-3">
             {isOpenDrive(d) && <CallButton phone={d.phone} name={d.name} quiet={d.status === "requested" || !ahead} />}
             <DriveSteps drive={d} ahead={ahead} />
           </span>

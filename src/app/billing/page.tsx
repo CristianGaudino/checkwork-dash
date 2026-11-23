@@ -84,7 +84,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
                     <span>
                       Tell me when {scopeName(a.scope).toLowerCase()} passes {eur(a.amountEur)}
                     </span>
-                    <ActButton act={removeAlertAction.bind(null, a.scope, a.amountEur)} done="Alert removed" confirm={{ title: "Remove this alert?", text: `You will no longer be told when this passes ${eur(a.amountEur)}.`, yes: "Remove" }} label={`Remove the ${scopeName(a.scope)} alert at ${eur(a.amountEur)}`} className={rowButton}>
+                    <ActButton act={removeAlertAction.bind(null, a.scope, a.amountEur)} done="Alert removed" confirm={{ title: "Remove this alert?", text: `You will no longer be told when this passes ${eur(a.amountEur)}.`, yes: "Remove" }} label={`Remove the ${scopeName(a.scope)} alert at ${eur(a.amountEur)}`} className={`${rowButton} ml-auto`}>
                       Remove
                     </ActButton>
                   </li>
@@ -206,7 +206,7 @@ function PlanAndUsage({ modules, services, usage, counts, b, now }: { modules: M
                   <span>
                     {m.label} <span className="text-text-2">{addEur(m.id) ? `${eur(addEur(m.id))} a month` : "Included in your plan"}</span>
                   </span>
-                  <ActButton act={askModuleAction.bind(null, m.id)} done="We have your request. Our reply will show in Help." label={`Ask us to add ${m.label}`} className={rowButton}>
+                  <ActButton act={askModuleAction.bind(null, m.id)} done="We have your request. Our reply will show in Help." label={`Ask us to add ${m.label}`} className={`${rowButton} ml-auto`}>
                     Ask us to add
                   </ActButton>
                 </li>
@@ -341,7 +341,7 @@ async function WithoutPrices() {
               {off.map((m) => (
                 <li key={m.id} className="flex flex-wrap items-center justify-between gap-3 py-2">
                   <span>{m.label}</span>
-                  <ActButton act={askModuleAction.bind(null, m.id)} done="We have your request. Our reply will show in Help." label={`Ask us to add ${m.label}`} className={rowButton}>
+                  <ActButton act={askModuleAction.bind(null, m.id)} done="We have your request. Our reply will show in Help." label={`Ask us to add ${m.label}`} className={`${rowButton} ml-auto`}>
                     Ask us to add
                   </ActButton>
                 </li>

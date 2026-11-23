@@ -21,6 +21,7 @@ const TAPS: [path: string, link: (page: Page) => ReturnType<Page["getByRole"]>, 
   ["/reports", (page) => page.getByRole("navigation", { name: "Period" }).getByRole("link", { name: "6 months" }), /period=6$/],
   ["/monthly-report", (page) => page.getByRole("link", { name: "Previous month" }), /month=\d{4}-\d{2}$/],
   ["/stock", (page) => page.getByRole("navigation", { name: "Stock views" }).getByRole("link", { name: /^Sold/ }), /view=sold/],
+  ["/leads", (page) => page.getByRole("navigation", { name: "Lead status" }).getByRole("link", { name: /^Won/ }), /status=won/],
 ];
 
 for (const [path, link, to] of TAPS) {

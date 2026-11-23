@@ -73,8 +73,10 @@ misalignment, uneven spacing, controls that do not line up, text that wraps badl
   two and one). A single action keeps its size.
 - Dashboard tables: the floor is 18rem, not 22rem, so two-column tables (stock, leads, team) fit a phone. The stock list drops the
   thumbnail under 400px to keep the car's name readable. Customers shows Marketing from 640px.
-- Task rows (Overview, To do, Leads, Stock, Marketing): from 640px the buttons sit on the right; on a phone they take their own line
-  under the words, starting at the text column.
+- Task rows (Overview, To do, Leads, Stock, Marketing) and the other lists with row buttons (Test drives, Customers, Billing): the
+  buttons sit at the row's right edge; on a phone they take their own line under the words, still on the right (#126).
+- Everyone | For me (Overview, To do, Leads, Test drives): a small pill switch (WhoseSwitch), the chosen half a raised thumb that
+  slides across. The view tabs (Today, Week, List; periods) stay Segmented.
 - Home: the finance band's two buttons are full width on a phone, like the hero's.
 - Stock list: Filters is a box the same height as the sort select beside it.
 - Car page: Compare and Price alert sit side by side, like Call us and WhatsApp.

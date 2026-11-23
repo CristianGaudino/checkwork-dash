@@ -127,7 +127,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
                         </span>
                       </span>
                       {!s.returnedOn && (
-                        <span className="flex flex-wrap items-center gap-2">
+                        <span className="ml-auto flex flex-wrap items-center justify-end gap-2">
                           <CoverBadge inCover={coverEnds(s) >= today} />
                           {service && <Link href={`/aftersales/new?sale=${s.id}`} className={rowButton}>Open a claim</Link>}
                         </span>
