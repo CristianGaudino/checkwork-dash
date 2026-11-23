@@ -38,6 +38,10 @@ test("write a post with AI, adjust it, undo, and edit it: it is marked as AI and
 });
 
 test("make a story from a car: pick the layout, see it drawn on the photo, and publish it", async ({ page }) => {
+  // Counted before and after: other specs post at the same time, so the list's first story may not be this one.
+  await page.goto("/marketing");
+  const posted = () => page.getByRole("listitem").filter({ hasText: "Facebook story" }).filter({ hasText: "Posted" }).count();
+  const before = await posted();
   await startPost(page);
   await page.getByRole("radio", { name: "Story" }).click();
   await expect(page.getByRole("radio", { name: "Reel or video" })).toBeVisible();
@@ -54,7 +58,7 @@ test("make a story from a car: pick the layout, see it drawn on the photo, and p
   await expect(preview).toContainText("See it");
   await page.getByRole("button", { name: "Post now", exact: true }).click();
   await expect(page.getByRole("status")).toContainText("Post published."); // a story goes out through the API like a feed post
-  await expect(page.getByRole("listitem").filter({ hasText: "Facebook story" }).first()).toContainText("Posted");
+  await expect.poll(posted).toBeGreaterThan(before);
 });
 
 test("a TikTok has no story", async ({ page }) => {
@@ -67,6 +71,9 @@ test("a TikTok has no story", async ({ page }) => {
 
 // TikTok keeps an unaudited app's posts private, so a TikTok post is saved and held until TikTok approves us (PUBLISH_MODE), and says so.
 test("a TikTok post is held until TikTok approves us, and says so", async ({ page }) => {
+  await page.goto("/marketing");
+  const held = () => page.getByRole("listitem").filter({ hasText: "TikTok post" }).filter({ hasText: "Waiting for TikTok" }).count();
+  const before = await held();
   await startPost(page);
   await page.getByRole("radio", { name: "TikTok" }).click();
   await next(page);
@@ -74,7 +81,7 @@ test("a TikTok post is held until TikTok approves us, and says so", async ({ pag
   await expect(page.getByText("It is saved and goes out once TikTok approves us.")).toBeVisible();
   await page.getByRole("button", { name: "Post now", exact: true }).click();
   await expect(page.getByRole("status")).toContainText("Saved. It goes out once TikTok approves us.");
-  await expect(page.getByRole("listitem").filter({ hasText: "TikTok post" }).first()).toContainText("Waiting for TikTok");
+  await expect.poll(held).toBeGreaterThan(before);
   await expect(page.getByText(/your phone/)).toHaveCount(0);
 });
 
