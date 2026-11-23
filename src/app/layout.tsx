@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
@@ -40,6 +40,10 @@ const inter = localFont({ src: "./fonts/inter-latin.woff2", weight: "100 900", d
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = { title: { default: "Dealer dashboard", template: "%s | Dealer dashboard" }, robots: { index: false } };
+
+// cover: on an iPhone the page runs to the screen's rounded corners, so env(safe-area-inset-*) has values and the tab bar, the demo bar and
+// the toasts sit clear of the corners and the home indicator. Without it every inset is 0 and the tab bar's ends are cut off.
+export const viewport: Viewport = { viewportFit: "cover" };
 
 // The app on a phone's home screen (#11). The manifest is a static file with its own link, not app/manifest.ts: a browser fetches a manifest
 // without cookies unless the link says use-credentials, and Cloudflare Access turns a request without its cookie away. Next's own link
