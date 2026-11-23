@@ -137,7 +137,7 @@ export function PostComposer({ cars, initialSlug, initialFormat = "post", initia
               </button>
             ))}
           </div>
-          <div role="radiogroup" aria-label="Format" className="flex flex-wrap gap-2">
+          <div role="radiogroup" aria-label="Format" className="grid grid-cols-2 gap-2 max-sm:[&>*]:justify-center sm:flex sm:flex-wrap">
             {FORMATS_FOR[network].map((f) => (
               <button key={f} type="button" role="radio" aria-checked={format === f} onClick={() => { setFormat(f); setChosen(null); }} className={chip(format === f)}>
                 {FORMAT_LABELS[f]}

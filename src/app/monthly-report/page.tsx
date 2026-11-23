@@ -1,5 +1,5 @@
 import { BarList } from "@/components/admin/charts";
-import { DataTable, PageHeader, Panel, StatCard, StatGrid, adminButtonQuiet, rowButton } from "@/components/admin/kit";
+import { DataTable, PageHeader, Panel, StatCard, StatGrid, rowButton } from "@/components/admin/kit";
 import Link from "next/link";
 import { LEAD_TYPE_LABELS, type LeadType } from "@/lib/admin/collections";
 import { buildAnalytics } from "@/lib/admin/analytics";
@@ -21,10 +21,12 @@ import { PrintButton } from "./PrintButton";
 import { VisitSources } from "@/components/admin/VisitSources";
 import { NotForRole } from "@/components/admin/NotForRole";
 import { ReportViews } from "@/app/reports/views";
+import { ChevronLeftIcon, ChevronRightIcon } from "@/components/stock/icons";
 
 export const metadata = { title: "Monthly report" };
 
 const today = () => Date.now(); // lint: a page may not call Date.now directly
+const arrow = "inline-flex size-11 items-center justify-center rounded-control bg-hairline text-text transition-colors hover:bg-accent-soft hover:text-accent-text";
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ month?: string }> }) {
@@ -76,17 +78,18 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
     <>
       {/* Printing leaves out the menu, the demo bar and the picker: the page alone, in the browser's own PDF. */}
       <style>{"@media print { aside, [data-demo-bar], .no-print { display: none !important; } main { padding: 0 !important; } * { box-shadow: none !important; } }"}</style>
-      <PageHeader title="Monthly report" text={`${whole ? "" : `${me.name}, `}${monthLabel(month)}, compared with ${monthLabel(prevMonth)}`} actions={
-          // The months before and after, one tap each, as the Marketing calendar moves by week; twelve months back at most.
-          <>
-            {/* Both always there, the one with no month to go to disabled, so neither moves under a second click. */}
-            {earlier ? <Link href={`/monthly-report?month=${earlier}`} className={`${adminButtonQuiet} no-print`}>Previous month</Link> : <button type="button" disabled className={`${adminButtonQuiet} no-print disabled:opacity-50`}>Previous month</button>}
-            {later ? <Link href={`/monthly-report?month=${later}`} className={`${adminButtonQuiet} no-print`}>Next month</Link> : <button type="button" disabled className={`${adminButtonQuiet} no-print disabled:opacity-50`}>Next month</button>}
-            <PrintButton />
-          </>
-        } />
+      {/* The same header as Reports' (no actions), so the views control sits where it does there. */}
+      <PageHeader title="Monthly report" text={`${whole ? "" : `${me.name}, `}${monthLabel(month)}, compared with ${monthLabel(prevMonth)}`} />
       {/* A view of Reports: its other views, for a dealer who has Reports (the Margins module). */}
       {hasMargins && <div className="no-print"><ReportViews /></div>}
+      {/* The months before and after, one tap each, as Test drives moves by week; twelve months back at most. Both arrows always there,
+          the one with no month to go to dimmed, so neither moves under a second click. */}
+      <div className="no-print flex items-center gap-2">
+        {earlier ? <Link href={`/monthly-report?month=${earlier}`} aria-label="Previous month" className={arrow}><ChevronLeftIcon className="size-4 shrink-0" /></Link> : <span aria-hidden="true" className={`${arrow} opacity-50`}><ChevronLeftIcon className="size-4 shrink-0" /></span>}
+        {later ? <Link href={`/monthly-report?month=${later}`} aria-label="Next month" className={arrow}><ChevronRightIcon className="size-4 shrink-0" /></Link> : <span aria-hidden="true" className={`${arrow} opacity-50`}><ChevronRightIcon className="size-4 shrink-0" /></span>}
+        <h2 className="ml-2 min-w-0 text-heading font-semibold">{monthLabel(month)}</h2>
+        <div className="ml-auto"><PrintButton /></div>
+      </div>
 
       <Panel title="What to do" action={whole && s.stock.oldStock > 0 ? <Link href="/stock?view=old" className={rowButton}>See the old stock</Link> : undefined}>
         <p className="text-body">{advice(s, oldDays)}</p>

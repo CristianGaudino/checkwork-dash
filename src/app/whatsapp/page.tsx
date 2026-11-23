@@ -64,12 +64,14 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ n
                   <summary className="flex min-h-16 cursor-pointer list-none items-center gap-3 py-2 [&::-webkit-details-marker]:hidden">
                     <Avatar name={t.name} className="size-10" />
                     <span className="flex min-w-0 flex-1 flex-col">
-                      <span className="text-body font-medium">
-                        {t.name} <span className="font-normal text-text-2">{t.role}</span>
+                      <span className="text-body font-medium">{t.name}</span>
+                      {/* Two even lines: the number itself is in the opened form. */}
+                      <span className="text-meta text-text-2">
+                        {t.role} · <span className="whitespace-nowrap">{p?.phone ? `${count} of ${allowed.length} alerts` : "No number yet"}</span>
                       </span>
-                      <span className="text-meta text-text-2">{p?.phone ? `${p.phone} · ${count} of ${allowed.length} alerts` : "No number yet"}</span>
                     </span>
-                    {p?.phone ? <Badge tone="good">Linked</Badge> : <Badge>Not linked</Badge>}
+                    {/* Not on a phone: the line under the name already says it, and the name and that line keep the width. */}
+                    <span className="shrink-0 max-sm:hidden">{p?.phone ? <Badge tone="good">Linked</Badge> : <Badge>Not linked</Badge>}</span>
                     <span className={`${rowButton} max-sm:hidden`}>{canEdit ? "Change" : "See"}</span>
                     {/* A phone has no room for the button; the chevron says the row opens. */}
                     <ChevronDownIcon aria-hidden="true" className="size-5 shrink-0 text-text-2 transition-transform group-open:rotate-180 sm:hidden" />
