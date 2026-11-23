@@ -47,11 +47,11 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
       cell: (c) => (
         <span className="flex min-w-0 flex-col">
           <Link href={`/customers/${c.id}`} className="font-medium text-text after:absolute after:inset-0">{c.name}</Link>
-          <span className="truncate text-meta text-text-2">{c.email || c.phone}</span>
+          {/* w-0 min-w-full: on a phone a long email is cut to the column, never widening the table past the screen. */}
+          <span className="w-0 min-w-full truncate text-meta text-text-2 sm:w-auto">{c.email || c.phone}</span>
         </span>
       ),
-      // A long email still asks for its whole width: the cap keeps Last contact on a phone screen.
-      className: "max-w-[12rem] sm:max-w-none",
+      className: "sm:max-w-[14rem]",
     },
     {
       key: "bought",
@@ -82,13 +82,28 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
     },
   ];
   const alertColumns: Column<StockAlert>[] = [
-    { key: "kind", header: "Alert", sort: (a) => ALERT_KIND_LABELS[a.kind], cell: (a) => ALERT_KIND_LABELS[a.kind] },
-    { key: "criteria", header: "Looking for", sort: (a) => a.criteria, cell: (a) => (<span className="flex min-w-0 flex-col"><span>{a.criteria}</span><span className="truncate text-meta text-text-2">{a.email}</span></span>) },
-    { key: "status", header: "Status", sort: (a) => (a.active ? 0 : 1), cell: (a) => (a.active ? <Badge tone="good">Active</Badge> : <Badge>Stopped</Badge>) },
+    { key: "kind", header: "Alert", hide: "sm", sort: (a) => ALERT_KIND_LABELS[a.kind], cell: (a) => ALERT_KIND_LABELS[a.kind] },
+    // On a phone the kind and the status move in here, so the row keeps its buttons on screen.
+    {
+      key: "criteria",
+      header: "Looking for",
+      sort: (a) => a.criteria,
+      cell: (a) => (
+        <span className="flex min-w-0 flex-col">
+          <span>{a.criteria}</span>
+          <span className="flex w-0 min-w-full items-center gap-2">
+            <span className="shrink-0 sm:hidden">{a.active ? <Badge tone="good">Active</Badge> : <Badge>Stopped</Badge>}</span>
+            <span className="truncate text-meta text-text-2"><span className="sm:hidden">{ALERT_KIND_LABELS[a.kind]} · </span>{a.email}</span>
+          </span>
+        </span>
+      ),
+    },
+    { key: "status", header: "Status", hide: "sm", sort: (a) => (a.active ? 0 : 1), cell: (a) => (a.active ? <Badge tone="good">Active</Badge> : <Badge>Stopped</Badge>) },
     { key: "since", header: "Since", sort: (a) => a.createdAt, cell: (a) => fmtDate(a.createdAt), hide: "md", nowrap: true },
     {
       key: "actions",
       header: "",
+      nowrap: true,
       cell: (a) => (
         <div className="flex justify-end gap-2">
           {/* Stop only: an alert starts again only when the person signs up again (actions.ts). */}
@@ -101,9 +116,20 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
     },
   ];
   const subColumns: Column<Subscriber>[] = [
-    { key: "email", header: "Email", sort: (s) => s.email, cell: (s) => s.email },
-    { key: "status", header: "Status", sort: (s) => s.status, cell: (s) => (s.status === "subscribed" ? <Badge tone="good">Subscribed</Badge> : <Badge>Unsubscribed</Badge>) },
-    { key: "since", header: "Joined", sort: (s) => s.createdAt, cell: (s) => fmtDate(s.createdAt), nowrap: true },
+    {
+      key: "email",
+      header: "Email",
+      sort: (s) => s.email,
+      cell: (s) => (
+        <span className="flex min-w-0 flex-col items-start gap-1">
+          <span className="w-0 min-w-full truncate sm:w-auto">{s.email}</span>
+          <span className="sm:hidden">{s.status === "subscribed" ? <Badge tone="good">Subscribed</Badge> : <Badge>Unsubscribed</Badge>}</span>
+        </span>
+      ),
+      className: "sm:max-w-[20rem]",
+    },
+    { key: "status", header: "Status", hide: "sm", sort: (s) => s.status, cell: (s) => (s.status === "subscribed" ? <Badge tone="good">Subscribed</Badge> : <Badge>Unsubscribed</Badge>) },
+    { key: "since", header: "Joined", hide: "md", sort: (s) => s.createdAt, cell: (s) => fmtDate(s.createdAt), nowrap: true },
     {
       key: "actions",
       header: "",

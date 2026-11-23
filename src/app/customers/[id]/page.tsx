@@ -3,11 +3,12 @@ import { notFound } from "next/navigation";
 import { ClaimStatusBadge, CoverBadge, DriveStatusBadge, LeadStatusBadge, OrderBadge } from "@/components/admin/badges";
 import { Badge, PageHeader, Panel, Task, TaskList, rowButton } from "@/components/admin/kit";
 import { CalendarIcon, CarIcon, InboxIcon, ReceiptIcon, WrenchIcon } from "@/components/stock/icons";
-import { LEAD_TYPE_LABELS, claimOpen, claimsStore, coverEnds, customersStore, drivesStore, leadsStore, orderOpen, ordersStore, reservationsStore, salesStore } from "@/lib/admin/collections";
+import { LEAD_TYPE_LABELS, claimOpen, getSettings, claimsStore, coverEnds, customersStore, drivesStore, leadsStore, orderOpen, ordersStore, reservationsStore, salesStore } from "@/lib/admin/collections";
 import { monthLabel } from "@/lib/admin/reports";
 import { dublinDay, fmtDate, fmtEur, fmtTime } from "@/lib/admin/format";
 import { isOpenDrive } from "@/lib/admin/drives";
-import { isOpenLead, openWarrantyRequests } from "@/lib/admin/leads";
+import { answerNow, isOpenLead, openWarrantyRequests } from "@/lib/admin/leads";
+import { currentMember } from "@/lib/permissions";
 import { matchesAny, parsePersonQuery, type PersonQuery } from "@/lib/admin/person-match";
 import { hasModule } from "@/lib/modules";
 import { NotInPlan } from "@/components/admin/NotInPlan";
@@ -15,6 +16,9 @@ import { ContactButtons } from "@/components/admin/ContactButtons";
 import { stockSource } from "@/lib/stock-source";
 
 export const metadata = { title: "Customer" };
+
+// The time, read once a request (a plain Date.now() in the render trips the purity lint), as on Leads.
+const now = () => Date.now();
 
 // One customer. At the top: how to reach them and what is still open for them (a deposit held, a claim, a car on order, a lead, a test
 // drive), each a link to it. Below: what they bought (with the warranty on each), and their history. Aftersales starts here: a claim is
@@ -32,7 +36,10 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   // Orders and deposits are our version only: with DoneDeal stock their pages are not there.
   const synced = (await stockSource()) === "donedeal";
   const ordersOn = newCars && !synced;
-  const [sales, reservations, claims, leads, drives, orders] = await Promise.all([salesStore.list(), reservationsStore.list(), claimsStore.list(), leadsStore.list(), drivesStore.list(), ordersStore.list()]);
+  const [sales, reservations, claims, leads, drives, orders, { leadSlaHours }, me] = await Promise.all([salesStore.list(), reservationsStore.list(), claimsStore.list(), leadsStore.list(), drivesStore.list(), ordersStore.list(), getSettings(), currentMember()]);
+  const at = now();
+  // Whose it is, as on To do: a name, You, or Not taken.
+  const who = (name?: string) => (!name ? "Not taken" : name === me.name ? "You" : name);
   const today = dublinDay();
   const day = (d: string) => fmtDate(`${d}T12:00:00Z`);
   const qs = [c.email, c.phone].map((v) => (v ? parsePersonQuery(v) : null)).filter((q): q is PersonQuery => q !== null);
@@ -52,7 +59,11 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const openLeads = theirLeads.filter((l) => (l.type === "warranty" ? service && openRequests.has(l.id) : isOpenLead(l)));
   const openClaims = service ? theirClaims.filter((k) => claimOpen(k.status)) : [];
   const openOrders = ordersOn ? theirOrders.filter((o) => orderOpen(o.status)) : [];
-  const pastOrders = theirOrders.filter((o) => !openOrders.includes(o)); // an open one is under Open for them, not twice
+  // An open one is under Open for them, not twice.
+  const pastOrders = theirOrders.filter((o) => !openOrders.includes(o));
+  const pastLeads = theirLeads.filter((l) => !openLeads.includes(l));
+  const pastDrives = theirDrives.filter((d) => !openDrives.includes(d));
+  const pastClaims = theirClaims.filter((k) => !openClaims.includes(k));
   const held = synced ? [] : deposits.filter((r) => r.status === "held");
   const openCount = openDrives.length + openLeads.length + openClaims.length + openOrders.length + held.length;
 
@@ -79,10 +90,10 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             ) : (
               <TaskList label="Open for them">
                 {openDrives.map((d) => (
-                  <Task key={d.id} href={`/test-drives/${d.id}`} urgency={dublinDay(d.startsAt) === today ? "now" : "soon"} icon={<CalendarIcon />} title={`Test drive, ${d.carTitle}`} detail={`${fmtDate(d.startsAt)}, ${fmtTime(d.startsAt)}`} action={<DriveStatusBadge status={d.status} />} />
+                  <Task key={d.id} href={`/test-drives/${d.id}`} urgency={dublinDay(d.startsAt) === today ? "now" : "soon"} icon={<CalendarIcon />} title={`Test drive, ${d.carTitle}`} detail={`${who(d.assignedTo)} · ${fmtDate(d.startsAt)}, ${fmtTime(d.startsAt)}`} action={<DriveStatusBadge status={d.status} />} />
                 ))}
                 {openLeads.map((l) => (
-                  <Task key={l.id} href={leadHref(l)} urgency={l.status === "new" ? "now" : "soon"} icon={<InboxIcon />} title={`${LEAD_TYPE_LABELS[l.type]}${l.carTitle ? `, ${l.carTitle}` : ""}`} detail={`Came in ${fmtDate(l.createdAt)}`} action={<LeadStatusBadge status={l.status} type={l.type} />} />
+                  <Task key={l.id} href={leadHref(l)} urgency={answerNow(l, at, today, leadSlaHours) ? "now" : "soon"} icon={<InboxIcon />} title={`${LEAD_TYPE_LABELS[l.type]}${l.carTitle ? `, ${l.carTitle}` : ""}`} detail={`${who(l.assignedTo)} · came in ${fmtDate(l.createdAt)}`} action={<LeadStatusBadge status={l.status} type={l.type} />} />
                 ))}
                 {openClaims.map((k) => (
                   <Task key={k.id} href={`/aftersales/${k.id}`} icon={<WrenchIcon />} title={`Warranty claim, ${k.carTitle}`} detail={<span className="line-clamp-1">{k.fault}</span>} action={<ClaimStatusBadge status={k.status} />} />
@@ -141,10 +152,10 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
               </ul>
             </Panel>
           )}
-          {service && theirClaims.length > 0 && (
+          {service && pastClaims.length > 0 && (
             <Panel title="Warranty claims">
               <ul className={list}>
-                {theirClaims.map((k) => (
+                {pastClaims.map((k) => (
                   <li key={k.id} className={item}>
                     {/* The text takes the room left (a long fault is cut short, whole on hover), so the status stays on the right. */}
                     <Link href={`/aftersales/${k.id}`} className="flex min-w-0 flex-1 flex-col">
@@ -175,11 +186,11 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         </div>
         <div className="flex min-w-0 flex-col gap-6">
           <Panel title="Leads" quiet>
-            {theirLeads.length === 0
-              ? none("No leads from them yet.")
+            {pastLeads.length === 0
+              ? none(theirLeads.length ? "No past leads." : "No leads from them yet.")
               : (
                 <ul className={list}>
-                  {theirLeads.map((l) => (
+                  {pastLeads.map((l) => (
                     <li key={l.id} className={item}>
                       <Link href={leadHref(l)} className="flex min-w-0 flex-1 flex-col">
                         <span className="font-medium underline-offset-2 hover:underline">{LEAD_TYPE_LABELS[l.type]}{l.carTitle ? `, ${l.carTitle}` : ""}</span>
@@ -191,10 +202,10 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
                 </ul>
               )}
           </Panel>
-          {theirDrives.length > 0 && (
+          {pastDrives.length > 0 && (
             <Panel title="Test drives" quiet>
               <ul className={list}>
-                {theirDrives.map((d) => (
+                {pastDrives.map((d) => (
                   <li key={d.id} className={item}>
                     {drivesOn ? (
                       <Link href={`/test-drives/${d.id}`} className="flex min-w-0 flex-1 flex-col">

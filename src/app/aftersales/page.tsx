@@ -47,18 +47,22 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
       cell: (c) => (
         <span className="flex min-w-0 flex-col">
           <Link href={`/aftersales/${c.id}`} title={c.carTitle} className="line-clamp-2 font-medium text-text after:absolute after:inset-0">{c.carTitle}</Link>
-          <span className="truncate text-meta text-text-2">{(c.customerId && names.get(c.customerId)) || "Customer not on file"}</span>
-          <span className="mt-1 sm:hidden"><ClaimStatusBadge status={c.status} /></span>
+          {/* On a phone the status goes beside the customer, so the row stays two lines. */}
+          {/* w-0 min-w-full: the line takes the cell's width without widening it, so a long name is cut, not the table pushed off screen. */}
+          <span className="flex w-0 min-w-full items-center gap-2">
+            <span className="truncate text-meta text-text-2">{(c.customerId && names.get(c.customerId)) || "Customer not on file"}</span>
+            <span className="shrink-0 sm:hidden"><ClaimStatusBadge status={c.status} /></span>
+          </span>
         </span>
       ),
-      className: "max-w-[12rem] sm:max-w-[20rem]",
+      className: "sm:max-w-[20rem]",
     },
     { key: "fault", header: "Fault", hide: "lg", cell: (c) => <span title={c.fault} className="line-clamp-1 max-w-[24rem] text-text-2">{c.fault}</span> },
     { key: "cover", header: "Cover", hide: "md", sort: (c) => (c.inCover ? 0 : 1), cell: (c) => <CoverBadge inCover={c.inCover} /> },
     { key: "status", header: "Status", hide: "sm", sort: (c) => CLAIM_STATUSES.indexOf(c.status), cell: (c) => <ClaimStatusBadge status={c.status} /> },
     { key: "opened", header: "Opened", hide: "md", nowrap: true, sort: (c) => c.openedOn, cell: (c) => fmtDate(`${c.openedOn}T12:00:00Z`) },
     // The job that moves it on, in the row, so a claim is booked in or closed without opening it.
-    { key: "next", header: "Next step", align: "right", nowrap: true, cell: (c) => <NextStep c={c} /> },
+    ...(view === "closed" ? [] : [{ key: "next", header: "Next step", align: "right" as const, nowrap: true, className: "w-px", cell: (c: Claim) => <NextStep c={c} /> }]),
   ];
   const matching = view === "requests" ? [] : claims.filter((c) => VIEWS[view].test(c) && (!sp.cover || String(c.inCover) === sp.cover) && (!q || `${c.carTitle} ${c.fault} ${(c.customerId && names.get(c.customerId)) || ""}`.toLowerCase().includes(q)));
   const { rows: sorted, sort } = sortRows(matching, columns, sp, { key: "opened", dir: "desc" });

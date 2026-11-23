@@ -85,12 +85,15 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
       cell: (o) => (
         <span className="flex min-w-0 flex-col">
           <Link href={`/orders/${o.id}`} title={`${o.regPeriod} ${o.make} ${o.model}`} className="line-clamp-2 font-medium text-text after:absolute after:inset-0">{o.regPeriod} {o.make} {o.model}</Link>
-          <span className="truncate text-meta text-text-2">{(o.customerId && names.get(o.customerId)) || "Customer not on file"}</span>
-          {/* On a phone where it is goes under the car, so the row keeps room for its next step. */}
-          <span className="mt-1 sm:hidden"><OrderBadge status={o.status} /></span>
+          {/* On a phone where it is goes beside the customer, so the row stays two lines and keeps room for its next step. */}
+          {/* w-0 min-w-full: the line takes the cell's width without widening it, so a long name is cut, not the table pushed off screen. */}
+          <span className="flex w-0 min-w-full items-center gap-2">
+            <span className="truncate text-meta text-text-2">{(o.customerId && names.get(o.customerId)) || "Customer not on file"}</span>
+            <span className="shrink-0 sm:hidden"><OrderBadge status={o.status} /></span>
+          </span>
         </span>
       ),
-      className: "max-w-[8.5rem] min-[25rem]:max-w-[12rem] sm:max-w-[20rem]", // narrow on a small phone, so the status beside it fits
+      className: "sm:max-w-[20rem]",
     },
     { key: "spec", header: "Spec", hide: "xl", cell: (o) => <span title={[o.spec, o.colour].filter(Boolean).join(", ")} className="line-clamp-1 text-text-2">{[o.spec, o.colour].filter(Boolean).join(", ")}</span> },
     { key: "due", header: "Due", hide: "md", nowrap: true, sort: (o) => o.expected, cell: (o) => monthLabel(o.expected) },
@@ -108,7 +111,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
       ),
     },
     // The job that moves it on, in the row: no need to open the order to say it was built or has arrived.
-    ...(view === "open" || view === "arrived" ? [{ key: "next", header: "Next step", align: "right" as const, nowrap: true, cell: (o: Order) => <NextStep o={o} /> }] : []),
+    ...(view === "open" || view === "arrived" ? [{ key: "next", header: "Next step", align: "right" as const, nowrap: true, className: "w-px", cell: (o: Order) => <NextStep o={o} /> }] : []),
   ];
   const matching = orders.filter((o) => VIEWS[view].test(o) && (!sp.period || o.regPeriod === sp.period) && (!sp.by || o.salesperson === sp.by) && (!q || `${o.make} ${o.model} ${o.spec ?? ""} ${(o.customerId && names.get(o.customerId)) || ""}`.toLowerCase().includes(q)));
   // No sort chosen: the soonest due first.

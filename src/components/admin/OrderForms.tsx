@@ -74,10 +74,10 @@ export function PlaceOrderForm({ periods, month, team, me, customers, leadId }: 
           <Select name="regPeriod" defaultValue={periods[1]} options={periods.map((p) => [p, regPeriodLabel(p)] as const)} />
         </Field>
         <Field label="Taken by" error={e.salesperson}>
-          <Select name="salesperson" defaultValue={me ?? ""} options={[["", "Not set"], ...team.map((t) => [t, t] as const)]} />
+          <Select name="salesperson" defaultValue={me ?? ""} options={[["", "Not taken"], ...team.map((t) => [t, t] as const)]} />
         </Field>
       </Step>
-      <div className="border-t border-hairline pt-6">
+      <div className="flex justify-end border-t border-hairline pt-6">
         <button type="submit" disabled={pending} className={adminButton}>{pending ? "Saving" : "Place order"}</button>
       </div>
     </form>
