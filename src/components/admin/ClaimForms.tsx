@@ -22,7 +22,7 @@ export function OpenClaimForm({ sales, today, defaults }: { sales: { id: string;
       <Field label="Day they told us" error={e.openedOn}>
         <input name="openedOn" type="date" max={today} defaultValue={today} className={adminInput} />
       </Field>
-      <div className="sm:col-span-2">
+      <div className="flex justify-end sm:col-span-2">
         <button type="submit" disabled={pending} className={adminButton}>{pending ? "Saving" : "Open the claim"}</button>
       </div>
     </form>

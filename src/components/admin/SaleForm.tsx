@@ -44,7 +44,7 @@ export function SaleForm({ carId, defaults, today, team, customers, leads, submi
           <Select name="leadId" defaultValue={defaults.leadId ?? ""} options={[["", "None"], ...leads.map((l) => [l.id, l.label] as const)]} />
         </Field>
       )}
-      <div className="sm:col-span-2 lg:col-span-3">
+      <div className="flex justify-end sm:col-span-2 lg:col-span-3">
         <button type="submit" disabled={pending} className={adminButton}>
           {pending ? "Saving" : submit}
         </button>

@@ -41,11 +41,11 @@ test("a filter narrows the list and stays in the link; Compact tightens the rows
   await page.goto("/leads");
   // Every filter behind one button; a choice applies at once and shows as a chip that takes it off.
   await page.getByRole("button", { name: "Filters" }).click();
-  await page.getByRole("radio", { name: "Nobody" }).check();
+  await page.getByRole("radio", { name: "Not taken" }).check();
   await expect(page).toHaveURL(/with=none/);
   await page.getByRole("button", { name: "Done", exact: true }).click();
-  await expect(page.getByRole("table").getByRole("row").nth(1)).toContainText("Nobody");
-  const chip = page.getByRole("group", { name: "Filters on" }).getByRole("link", { name: /Who has it: Nobody/ });
+  await expect(page.getByRole("table").getByRole("row").nth(1)).toContainText("Not taken");
+  const chip = page.getByRole("group", { name: "Filters on" }).getByRole("link", { name: /Who has it: Not taken/ });
   await expect(chip).toBeVisible();
   await chip.click();
   await expect(page).not.toHaveURL(/with=/);

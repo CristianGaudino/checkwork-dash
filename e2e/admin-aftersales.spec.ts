@@ -17,9 +17,9 @@ test("a claim opens from a customer's purchase, in cover, and moves to Booked in
   await expect(page.getByRole("region", { name: "Status" }).getByText("Booked in", { exact: true }).first()).toBeVisible();
   await page.goto("/aftersales?view=open");
   await expect(page.getByRole("row").filter({ hasText: "Booked in" }).first()).toBeVisible();
-  // The customer's page lists the claim.
+  // The customer's page lists the claim, open, under Open for them (not twice).
   await page.goto("/customers/cust-300");
-  await expect(page.getByRole("region", { name: "Warranty claims" })).toContainText("Engine light on since Monday");
+  await expect(page.getByRole("list", { name: "Open for them" })).toContainText("Engine light on since Monday");
 });
 
 test("a lost lead asks why", async ({ page }) => {

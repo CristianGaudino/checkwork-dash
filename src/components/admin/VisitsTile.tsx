@@ -10,7 +10,7 @@ import { sourceTiles, type ChannelCount } from "@/lib/admin/visit-sources";
 export function VisitsTile({ now, before }: { now: ChannelCount[]; before: Pick<ChannelCount, "channel" | "visits">[] }) {
   const total = fmtNum(now.reduce((n, c) => n + c.visits, 0));
   return (
-    <Link href="/analytics" className={`${card} row-span-3 grid min-w-0 grid-rows-subgrid gap-1 p-4 transition-colors hover:border-control ${press}`}>
+    <Link href="/analytics?range=7" className={`${card} row-span-3 grid min-w-0 grid-rows-subgrid gap-1 p-4 transition-colors hover:border-control ${press}`}>
       <p className="text-meta text-text-2">Visits this week</p>
       <div className="@container min-w-0">
         <p className={`font-display font-semibold leading-[1.1] tracking-[-0.02em] tabular-nums ${figureSize(total)}`}>{total}</p>

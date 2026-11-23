@@ -38,7 +38,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const late = held.until < today;
   return (
     <>
-      <PageHeader title="Reserved" text={`${carName(car)}. Mark it sold when they pay the rest`} back={back} />
+      <PageHeader title="Reserved" text={carName(car)} back={back} />
       <Panel title="The deposit">
         <Facts
           items={[
@@ -49,6 +49,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             ["Taken by", held.salesperson ?? "Not set"],
           ] as const}
         />
+        <p className="max-w-measure text-body text-text-2">Mark it sold when they pay the rest.</p>
         <Link href={`/stock/${car.id}/sale`} className={`${adminButton} w-fit`}>Mark sold</Link>
       </Panel>
       {/* Money going back, or kept: owners and managers only, and the server refuses anyone else. */}

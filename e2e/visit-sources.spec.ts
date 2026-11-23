@@ -22,7 +22,7 @@ for (const width of [390, 1280]) {
     for (const c of await channels.all()) await expect(c.locator("svg").first()).toBeVisible();
     expect(await noSideways(page)).toBe(true);
     await tile.click();
-    await expect(page).toHaveURL(/\/analytics$/);
+    await expect(page).toHaveURL(/\/analytics\?range=7$/); // the tile counts this week, so Analytics opens on 7 days
   });
 
   test(`analytics shows each group, and a group opens into its networks, at ${width}px`, async ({ page }) => {

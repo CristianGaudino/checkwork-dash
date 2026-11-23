@@ -45,7 +45,7 @@ test("a request's row has one strong button, Confirm; on its own page Confirm is
   await expect(status.getByRole("button", { name: `Confirm: ${who}` })).toHaveClass(/(^|\s)bg-accent(\s|$)/);
 });
 
-test("the list filters, Only mine keeps the bookings given to me, and a booking opens on its own page", async ({ page }) => {
+test("the list filters, For me keeps the bookings given to me or nobody yet, and a booking opens on its own page", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto("/test-drives?view=list");
   await page.getByRole("button", { name: "Filters" }).click();
@@ -54,11 +54,11 @@ test("the list filters, Only mine keeps the bookings given to me, and a booking 
   await page.getByRole("button", { name: "Done", exact: true }).click();
   const rows = page.getByRole("table").getByRole("row");
   await expect(rows.nth(1)).toContainText("Completed");
-  await page.getByRole("link", { name: "Only mine" }).click();
+  await page.getByRole("link", { name: "For me" }).click();
   await expect(page).toHaveURL(/mine=1/);
   const me = "Aoife Brennan"; // the demo's owner, the role the tests run as
-  for (const row of await rows.all().then((r) => r.slice(1))) await expect(row).toContainText(me);
-  await rows.nth(1).getByRole("link").first().click();
+  for (const row of await rows.all().then((r) => r.slice(1))) await expect(row).toContainText(/You|Not taken/);
+  await rows.filter({ hasText: "You" }).first().getByRole("link").first().click();
   await expect(page).toHaveURL(/\/test-drives\/drive-/);
   await expect(page.getByRole("region", { name: "Taking them out" }).getByRole("button", { name: me })).toHaveAttribute("aria-pressed", "true");
 });

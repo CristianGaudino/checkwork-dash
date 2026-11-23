@@ -65,7 +65,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
                 const on = (d.assignedTo ?? "") === name;
                 return (
                   <ActButton key={name || "none"} act={assignDriveAction.bind(null, d.id, name)} undo={assignDriveAction.bind(null, d.id, d.assignedTo ?? "")} done={name ? `Given to ${name}` : "Given to nobody"} pressed={on} className={choicePill(on)}>
-                    {name || "Nobody"}
+                    {name || "Not taken"}
                   </ActButton>
                 );
               })}

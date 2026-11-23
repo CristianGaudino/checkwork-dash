@@ -1,6 +1,6 @@
 # Owner API
 
-For the owner's own program (#62): how each dealer uses the app, and, since #80, the dealers' outside-service keys. One app serves every dealer, so every figure is for the dealer named in the call. Counts only, never personal data (no names, phones, emails, registrations or IPs). Built for #174.
+For the owner's own program (#62): how each dealer uses the app, and, since #80 and #118, the dealers' outside-service keys and website keys. One app serves every dealer, so every figure is for the dealer named in the call. Counts only, never personal data (no names, phones, emails, registrations or IPs). Built for #174.
 
 ## Set up (once)
 
@@ -31,6 +31,19 @@ Checkwork sets and removes each dealer's outside-service keys (Facebook, ads, Wh
 curl -H "Authorization: Bearer $OWNER_API_TOKEN" https://www.dash.checkwork.ie/api/owner/v1/dealers/test-motors/keys
 curl -X PUT -H "Authorization: Bearer $OWNER_API_TOKEN" -H "Content-Type: application/json"   -d '{"META_PAGE_ID":"111","META_PAGE_ACCESS_TOKEN":"...","META_INSTAGRAM_ID":"222"}'   https://www.dash.checkwork.ie/api/owner/v1/dealers/test-motors/keys/social
 curl -X DELETE -H "Authorization: Bearer $OWNER_API_TOKEN" https://www.dash.checkwork.ie/api/owner/v1/dealers/test-motors/keys/social
+```
+
+## Dealer website keys (#118)
+
+The key a dealer's website uses for the site API (`docs/site-api.md`). Checkwork makes and revokes them; the dealer's dashboard has none of this. The same bearer token; no token or a wrong one: `404`. Only a key's hash is kept, so the key is in the answer that makes it and never again. The activity history names the key's label only ("Made a website key: Website", by Checkwork).
+
+- `GET /api/owner/v1/dealers/{dealerId}/site-keys`: `{"version": 1, "keys": [{"id", "dealerId", "label", "createdAt", "lastUsedAt", "revokedAt"}]}`, newest first, revoked ones too. Times in ms; `lastUsedAt` is written at most once an hour.
+- `POST /api/owner/v1/dealers/{dealerId}/site-keys`: optional JSON `{"label": "Main website"}` (one line, up to 60 characters; no body: "Website"). `201` with the key's fields and `key`. `400` a bad label; `404` no such dealer.
+- `DELETE /api/owner/v1/dealers/{dealerId}/site-keys/{keyId}`: revokes it at once. `204`; `404` no such key still on, or another dealer's.
+
+```sh
+curl -X POST -H "Authorization: Bearer $OWNER_API_TOKEN" -H "Content-Type: application/json" -d '{"label":"Main website"}' https://www.dash.checkwork.ie/api/owner/v1/dealers/test-motors/site-keys
+curl -X DELETE -H "Authorization: Bearer $OWNER_API_TOKEN" https://www.dash.checkwork.ie/api/owner/v1/dealers/test-motors/site-keys/<keyId>
 ```
 
 ## Shape of `summary` (version 1)

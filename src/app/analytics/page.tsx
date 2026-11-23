@@ -83,10 +83,20 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ r
           rows={a.topCars}
           rowKey={(t) => t.slug}
           columns={[
-            { key: "car", header: "Car", cell: (t) => (siteUrl ? <a href={siteCarUrl(siteUrl, t.slug)} {...NEW_TAB} className="font-semibold underline-offset-2 hover:underline">{t.title}</a> : <span className="font-semibold">{t.title}</span>) },
-            { key: "views", header: "Views", align: "right", cell: (t) => fmtNum(t.views) },
+            {
+              key: "car",
+              header: "Car",
+              cell: (t) => (
+                <>
+                  {siteUrl ? <a href={siteCarUrl(siteUrl, t.slug)} {...NEW_TAB} className="font-semibold underline-offset-2 hover:underline">{t.title}</a> : <span className="font-semibold">{t.title}</span>}
+                  {/* On a phone the figures move under the name, so the car keeps the width. */}
+                  <span className="block text-meta text-text-2 tabular-nums sm:hidden">{plural(t.views, "view")} · {plural(t.leads, "lead")}</span>
+                </>
+              ),
+            },
+            { key: "views", header: "Views", align: "right", cell: (t) => fmtNum(t.views), hide: "sm" },
             { key: "saves", header: "Saved", align: "right", cell: (t) => fmtNum(t.saves), hide: "sm" },
-            { key: "leads", header: "Leads", align: "right", cell: (t) => fmtNum(t.leads) },
+            { key: "leads", header: "Leads", align: "right", cell: (t) => fmtNum(t.leads), hide: "sm" },
           ]}
         />
       </Panel>

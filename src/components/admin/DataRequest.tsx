@@ -2,7 +2,7 @@
 
 import { useKeptForm } from "@/components/admin/useKeptForm";
 import { useState } from "react";
-import { Field, Panel, adminButton, adminButtonQuiet, adminInput } from "@/components/admin/kit";
+import { Field, Panel, adminButton, adminButtonQuiet, adminInput, dangerButton } from "@/components/admin/kit";
 import { eraseAction, exportAction, findAction, type FindState } from "@/app/data-requests/actions";
 import { SubmitButton } from "@/components/admin/SubmitButton";
 
@@ -56,7 +56,7 @@ export function DataRequest() {
                     <input type="checkbox" name="checked" checked={checked} onChange={(e) => setCheckedFor(e.target.checked ? state.q : undefined)} className="size-5 accent-accent" />
                     I have checked this is the person asking
                   </label>
-                  <SubmitButton disabled={!checked} className="inline-flex h-11 items-center rounded-control border border-bad px-4 text-meta font-semibold text-bad disabled:opacity-50">
+                  <SubmitButton disabled={!checked} className={`${dangerButton} self-start disabled:opacity-50`}>
                     Erase everything above
                   </SubmitButton>
                 </form>

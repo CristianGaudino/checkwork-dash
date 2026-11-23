@@ -15,6 +15,10 @@ export type Confirm = { title: string; text?: string; yes: string; safe?: boolea
 // An action that redirects (a delete that leaves the page) goes there itself; the toast is for the actions that stay.
 // The dialog is made when asked for, in the page's body, so a button inside a menu that closes (RowMenu) can still ask.
 // `pressed`: the button is one choice of a few (a status, who has it) and this is the one now; choosing it again does nothing.
+// A button whose action is running (aria-busy): dimmed, a wait cursor and a gentle pulse that stands still under reduced motion, so a tap
+// that takes a second is seen to be working. SubmitButton uses it too.
+export const BUSY = "aria-busy:cursor-progress aria-busy:opacity-70 motion-safe:aria-busy:animate-pulse";
+
 const errorOf = (r: unknown) => (r && typeof r === "object" && "error" in r && typeof r.error === "string" ? r.error : undefined);
 
 export function ActButton({ act, undo, done, confirm, label, pressed, className, children }: { act: () => Promise<unknown>; undo?: () => Promise<unknown>; done?: string; confirm?: Confirm; label?: string; pressed?: boolean; className: string; children: React.ReactNode }) {
@@ -38,7 +42,7 @@ export function ActButton({ act, undo, done, confirm, label, pressed, className,
     });
   return (
     <>
-      <button type="button" aria-label={label} aria-pressed={pressed} disabled={pending} aria-busy={pending || undefined} onClick={() => (pressed ? undefined : confirm ? setAsking(true) : run())} className={className}>
+      <button type="button" aria-label={label} aria-pressed={pressed} disabled={pending} aria-busy={pending || undefined} onClick={() => (pressed ? undefined : confirm ? setAsking(true) : run())} className={`${className} ${BUSY}`}>
         {children}
       </button>
       {confirm && asking && <ConfirmDialog confirm={confirm} onYes={run} onClose={() => setAsking(false)} yesClassName={confirm.safe ? adminButton : danger} />}

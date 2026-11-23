@@ -61,7 +61,7 @@ export async function runSync({ force = false, now = Date.now() } = {}): Promise
   const today = dublinDay(now); // the Irish day, as the rest of the dashboard dates a sale
   const current = await adminCars();
   const plan = planSync(current, feed.listings, today, { force, site });
-  if (plan.held) return failed(prev, `${plan.held} The site kept its stock. Check ${site}, then sync again.`, true, now, site);
+  if (plan.held) return failed(prev, `${plan.held} The site kept its stock. Check ${site}, then refresh stock.`, true, now, site);
   // Car by car: one that cannot be saved (an ad whose address clashes with another car's) is skipped and counted, never stops the rest.
   // shortcut: a cron run and Sync now at the same moment both apply the plan; the stock ends the same but the history shows each change
   // twice. Fine while syncs take seconds; add a lock if it shows up.
@@ -102,7 +102,7 @@ async function failed(prev: SyncStatus, problem: string, held: boolean, now: num
   const failingSince = prev.problem && prev.failingSince !== undefined ? prev.failingSince : now;
   const status: SyncStatus = { ...prev, lastRunAt: now, problem, held, failingSince };
   // In the bell once an outage starts, not every 15 minutes it lasts.
-  if (failingSince === now) await notify({ kind: "sync", text: `${site} stock did not update`, detail: problem, href: "/stock" }, now);
+  if (failingSince === now) await notify({ kind: "sync", text: "Stock did not update", detail: problem, href: "/stock" }, now);
   const due = now - failingSince >= ALERT_AFTER && !(prev.alertedAt !== undefined && prev.alertedAt >= failingSince);
   if (due && (await alertOwners(problem, site, prev.lastOkAt))) status.alertedAt = now;
   await statusStore.put(status);
@@ -115,7 +115,7 @@ async function alertOwners(problem: string, site: string, lastOkAt?: number): Pr
   try {
     await sendTo(to, {
       subject: `${(await currentDealer()).name}: the ${site} stock has not updated ${since}`,
-      text: `${problem}\n\nThe website still shows the cars from the last update ${since}. New cars, price changes and sales on ${site} will not show until it works again. Open the dealer dashboard, Stock, to see the latest attempt and to sync again.`,
+      text: `${problem}\n\nThe website still shows the cars from the last update ${since}. New cars, price changes and sales on ${site} will not show until it works again. Open the dealer dashboard, Stock, to see the latest attempt and to refresh stock.`,
     });
     return true;
   } catch {

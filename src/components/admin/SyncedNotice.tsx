@@ -7,8 +7,7 @@ import { listing } from "@/lib/stock-source";
 export async function SyncedNotice() {
   const { site, url } = await listing();
   return (
-    <Panel title={`This stock comes from ${site}`}>
-      <p className="max-w-measure text-body text-text-2">Add, edit and sell cars on {site}. The site updates within 15 minutes.</p>
+    <Panel title={`This stock comes from ${site}`} text="Add, edit and sell cars there; your website updates within 15 minutes">
       <a href={url} {...NEW_TAB} className={`${adminButton} self-start`}>
         Open {site}
         <ExternalIcon className="shrink-0 size-4" />

@@ -6,8 +6,8 @@ How a dealer's website (a Showroom site made from `checkwork-demo`) talks to the
 
 ## Keys
 
-- Each website has its own key: `cw_site_` and 32 random bytes in base64url. An owner or manager makes one in Settings, Connected services, For your web developer,
-  Website connection. The key is shown once, with a copy button; only its SHA-256 is kept, in the directory (`site_keys`, with the dealer,
+- Each website has its own key: `cw_site_` and 32 random bytes in base64url. Checkwork makes and revokes them through the owner API (`docs/owner-api.md`,
+  "Dealer website keys", #118); the dealer never sees them. The key is in the answer that makes it, never again; only its SHA-256 is kept, in the directory (`site_keys`, with the dealer,
   a name, when it was made, when it was last used and when it was revoked). Last used is written at most once an hour per key.
 - The key decides the dealer. Nothing in a request names one, and the work runs inside that dealer's store (`runAsDealer`).
 - A request carries it as `Authorization: Bearer <key>`. It is looked up by its hash, and the hash compared in constant time. A revoked
@@ -197,7 +197,7 @@ its next stock read.
 - **Rate limit:** `SITE_LIMITER` uses namespace `3004` in production and `4004` in dev (`wrangler.jsonc`); change one if that id is taken in the account.
 - **Photo secret:** set `SITE_PHOTO_SECRET` in each environment, a long random value of its own (`openssl rand -base64 32 | npx wrangler
   secret put SITE_PHOTO_SECRET`, and again with `--env production`). Until it is set, a website shows no photo added in
-  the dashboard, and Settings, Website connection says so to owners and managers.
+  the dashboard. It is Checkwork's to set, so the dealer's dashboard does not mention it.
 - **Access and photos:** the photos load in the visitor's browser, over the internet, so they pass through Access even when the website's
   Worker reads the API through the service binding. The `/api/site/*` Bypass above covers the photo route.
 - **Directory:** apply the new migration (`npm run directory:migrate`, and `directory:migrate:prod`), which adds `site_keys`.

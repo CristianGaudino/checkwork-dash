@@ -39,7 +39,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
                 ["Price", fmtEur(o.priceEur)],
                 ["Deposit", o.depositEur ? `${fmtEur(o.depositEur)}, ${o.depositMethod?.toLowerCase()}${o.refundEur ? `, ${fmtEur(o.refundEur)} refunded` : ""}` : "None"],
                 ["Due", monthLabel(o.expected)],
-                ["Taken by", o.salesperson ?? "Not set"],
+                ["Taken by", o.salesperson ?? "Not taken"],
               ] as const}
             />
             {o.leadId && <Link href={`/leads/${o.leadId}`} className={`w-fit text-meta underline ${tapArea}`}>The website request</Link>}

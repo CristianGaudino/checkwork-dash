@@ -133,26 +133,21 @@ test("a test drive booking, a price alert and a claim on a car bought here each 
   await expect(page.getByRole("table")).toContainText(claimer);
 });
 
-test("Settings makes a website key, shows it once, and revokes it", async ({ page }) => {
-  const name = who("Site");
-  await page.goto("/settings?section=services");
-  await page.getByText("For your web developer").click();
-  const panel = page.getByRole("region", { name: "Website connection" });
-  // No SITE_PHOTO_SECRET in this run (playwright.config.ts): the panel says so, in the dealer's words.
-  await expect(panel).toContainText("Photos added here can't show on your website yet.");
-  await expect(panel.getByRole("link", { name: "Ask us to connect it" })).toBeVisible();
-  await panel.getByRole("textbox", { name: "Name" }).fill(name);
-  await panel.getByRole("button", { name: "Make a key" }).click();
-  const shown = panel.getByRole("textbox", { name: "New website key" });
-  await expect(shown).toHaveValue(/^cw_site_[A-Za-z0-9_-]{43}$/);
-  const row = panel.getByRole("row").filter({ hasText: name });
-  await expect(row).toContainText("Not yet");
-  await page.reload();
-  await expect(page.getByRole("textbox", { name: "New website key" })).toHaveCount(0); // shown once
-  await page.getByText("For your web developer").click(); // folded again after the reload
-  await row.getByRole("button", { name: "Revoke" }).click();
-  await page.getByRole("dialog").getByRole("button", { name: "Revoke" }).click();
-  await expect(row).toContainText("Revoked");
+// Checkwork makes and revokes a dealer's website keys through the owner API (#118, docs/owner-api.md); the dealer's Settings has none.
+test("the owner API makes a website key, shows it once, and revokes it", async ({ request }) => {
+  const owner = { authorization: "Bearer e2e-owner-token" };
+  const base = "/api/owner/v1/dealers/checkwork-motors/site-keys";
+  expect((await request.post(base, { data: { label: "Nope" } })).status()).toBe(404); // no token
+  const made = await request.post(base, { headers: owner, data: { label: who("Site") } });
+  expect(made.status()).toBe(201);
+  const { key, id } = await made.json();
+  expect(key).toMatch(/^cw_site_[A-Za-z0-9_-]{43}$/);
+  expect((await request.get("/api/site/v1/stock", { headers: auth(key) })).status()).toBe(200);
+  const listed = await (await request.get(base, { headers: owner })).text();
+  expect(listed).toContain(id);
+  expect(listed).not.toContain(key); // shown once
+  expect((await request.delete(`${base}/${id}`, { headers: owner })).status()).toBe(204);
+  expect((await request.get("/api/site/v1/stock", { headers: auth(key) })).status()).toBe(401);
 });
 
 // #72: the times already booked for a car, for the website's form. Times only.

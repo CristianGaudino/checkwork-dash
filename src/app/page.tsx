@@ -72,7 +72,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
                     {o.nextDrives.map((d) => {
                       const passed = d.startsAt < o.now;
                       const when = day(d.startsAt);
-                      const staff = !d.assignedTo ? "Not taken" : d.assignedTo === me.name ? "With you" : `With ${d.assignedTo}`;
+                      const staff = !d.assignedTo ? "Not taken" : d.assignedTo === me.name ? "You" : d.assignedTo;
                       return (
                         <li key={d.id} className={row}>
                           <span className={`flex w-16 shrink-0 flex-col ${passed ? "text-text-2" : ""}`}>
@@ -81,7 +81,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
                           </span>
                           <span className="flex min-w-0 flex-1 flex-col">
                             <span className={`truncate font-medium ${passed ? "text-text-2" : ""}`}>{d.name}</span>
-                            <span className="truncate text-meta text-text-2">{[passed && "Passed", staff, d.carTitle].filter(Boolean).join(" · ")}</span>
+                            <span className="truncate text-meta text-text-2">{[passed && "Passed", d.carTitle, staff].filter(Boolean).join(" · ")}</span>
                           </span>
                           <Link href={`/test-drives/${d.id}`} aria-label={`${d.name}, ${when ? `${when} ` : ""}${fmtTime(d.startsAt)}`} className="absolute inset-0" />
                           {!passed && <span className="relative z-10 flex shrink-0 gap-2">{d.status === "requested" && !confirmInToDo.has(`drive-${d.id}`) ? <ConfirmDrive id={d.id} name={d.name} status={d.status} /> : <CallButton phone={d.phone} name={d.name} />}</span>}
@@ -94,10 +94,11 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
             )}
             <Panel plain title="Numbers">
               <StatGrid>
-                <StatCard href="/leads" label="Leads this week" value={fmtNum(thisWeek)} hint={`${fmtNum(o.usualWeek)} in a usual week`} tone={thisWeek > o.usualWeek ? "good" : undefined} />
+                {/* This week's leads: Leads has no date filter, Analytics over 7 days does. */}
+                <StatCard href={mods.has("analytics") ? "/analytics?range=7" : "/leads"} label="Leads this week" value={fmtNum(thisWeek)} hint={`${fmtNum(o.usualWeek)} in a usual week`} tone={thisWeek > o.usualWeek ? "good" : undefined} />
                 <StatCard href="/stock" label="Cars for sale" value={fmtNum(cars.filter(forSale).length)} hint={o.oldStock ? `${o.oldStock} for sale ${rules.oldStockDays} days or more` : undefined} tone={o.oldStock ? "warn" : undefined} />
                 {visits && <VisitsTile now={visits.now} before={visits.before} />}
-                {active !== null && <StatCard label="Active now" value={fmtNum(active)} hint="On your website" />}
+                {active !== null && <StatCard href="/analytics" label="Active now" value={fmtNum(active)} hint="On your website" />}
               </StatGrid>
             </Panel>
           </>

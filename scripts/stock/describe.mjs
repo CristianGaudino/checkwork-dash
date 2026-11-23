@@ -18,5 +18,5 @@ export function describeCar(c) {
   const kit = HEADLINE.filter((f) => c.features?.includes(f)).slice(0, 4);
   const lines = [`${name}${spec ? `, ${spec}` : ""}.`, `${facts.filter(Boolean).join(". ")}.`, kit.length > 1 && `Equipment includes ${list(kit.map((f) => f.toLowerCase()))}.`];
   // `story`: the dealer's own paragraph about this car, when the catalogue has one (build.mjs passes it in).
-  return `${lines.filter(Boolean).join(" ")}${c.story ? `\n\n${c.story}` : ""}\n\nCall in to see it, or book a test drive. Part exchange welcome and finance available.`;
+  return `${lines.filter(Boolean).join(" ")}${c.story ? `\n\n${c.story}` : ""}\n\nCall in to see it, or book a test drive. Trade-ins welcome and finance available.`;
 }

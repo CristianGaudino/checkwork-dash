@@ -3,8 +3,8 @@ import type { Hours } from "@/lib/tenancy/profile";
 import Link from "next/link";
 import { DriveStatusBadge } from "@/components/admin/badges";
 import { DriveSteps } from "@/components/admin/DriveSteps";
-import { Badge, DataTable, EmptyState, PageHeader, Panel, Segmented, TableFooter, TableToolbar, adminButton, choicePill, pageOf, sortRows, type Column, type FilterGroup } from "@/components/admin/kit";
-import { CheckIcon, ChevronLeftIcon, ChevronRightIcon, PlusIcon } from "@/components/stock/icons";
+import { Badge, DataTable, EmptyState, PageHeader, Panel, Segmented, TableFooter, TableToolbar, adminButton, pageOf, sortRows, type Column, type FilterGroup } from "@/components/admin/kit";
+import { ChevronLeftIcon, ChevronRightIcon, PlusIcon } from "@/components/stock/icons";
 import { card } from "@/components/ui";
 import { DRIVE_STATUSES, DRIVE_STATUS_LABELS, drivesStore, getSettings, type DriveStatus, type TestDrive } from "@/lib/admin/collections";
 import { filterDrives, isOpenDrive, waitingDrives } from "@/lib/admin/drives";
@@ -20,6 +20,8 @@ export const metadata = { title: "Test drives" };
 
 // The Monday of a day's week.
 const mondayOf = (iso: string) => addDays(iso, -((new Date(`${iso}T12:00:00Z`).getUTCDay() + 6) % 7));
+// Who takes a booking out, as To do and the Overview say it.
+const whoHas = (d: TestDrive, me: string) => (d.assignedTo === me ? "You" : (d.assignedTo ?? "Not taken"));
 // A booking's colour in the week: its status's urgency, the same as its badge.
 const EDGE: Record<DriveStatus, string> = { requested: "border-l-warn", confirmed: "border-l-info", completed: "border-l-ok", "no-show": "border-l-bad", cancelled: "border-l-hairline opacity-60" };
 const VIEWS = ["today", "week", "list"] as const;
@@ -27,15 +29,15 @@ type View = (typeof VIEWS)[number];
 type Params = { view?: string; day?: string; mine?: string; q?: string; status?: string; with?: string; when?: string; car?: string; sort?: string; dir?: string; page?: string; per?: string };
 
 // The diary. Today: the day's bookings in order, and the requests still to confirm. Week: a calendar of seven days (on a phone, a strip of
-// days and the one chosen). List: every booking in a table, searched and filtered. "Only mine" keeps the bookings given to whoever is
-// looking. A booking opens on its own page, where it is moved or given to someone.
+// days and the one chosen). List: every booking in a table, searched and filtered. For me keeps the bookings given to whoever is
+// looking and the ones nobody has taken yet, as on To do and Leads. A booking opens on its own page, where it is moved or given to someone.
 export default async function Page({ searchParams }: { searchParams: Promise<Params> }) {
   const sp = await searchParams;
   const view: View = (VIEWS as readonly string[]).includes(sp.view ?? "") ? (sp.view as View) : "today";
   const mine = sp.mine === "1";
   const [all, cars, me, { team }, { hours }] = await Promise.all([drivesStore.list(), adminCars(), currentMember(), getSettings(), dealerProfile()]);
   const gone = new Set(cars.filter((c) => !forSale(c)).map((c) => c.id)); // by id; a booking still open on a car no longer for sale needs a call
-  const drives = mine ? all.filter((d) => d.assignedTo === me.name) : all;
+  const drives = mine ? all.filter((d) => !d.assignedTo || d.assignedTo === me.name) : all;
   const today = dublinDay();
   const day = sp.day && isIsoDay(sp.day) ? sp.day : today;
   const link = (over: Partial<Params>) => {
@@ -62,7 +64,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
           </Link>
         }
       />
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      {/* A little less padding on a phone, so the two switches share one line from 390px. */}
+      <div className="flex flex-wrap items-center justify-between gap-3 max-sm:[&_a]:px-2.5">
         <Segmented
           label="View"
           items={[
@@ -71,21 +74,18 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
             { label: "List", href: link({ view: "list", day: undefined }), active: view === "list" },
           ]}
         />
-        <Link href={link({ mine: mine ? undefined : "1", page: undefined })} aria-current={mine ? "true" : undefined} className={choicePill(mine)}>
-          {mine && <CheckIcon className="shrink-0 size-4" />}
-          Only mine
-        </Link>
+        <Segmented label="Whose test drives" items={[{ label: "Everyone", href: link({ mine: undefined, page: undefined }), active: !mine }, { label: "For me", href: link({ mine: "1", page: undefined }), active: mine }]} />
       </div>
 
       {view === "today" && (
         <>
           <Panel title={`Today, ${fmtDay(today)}`} count={onDay(today).length || undefined}>
-            <Agenda drives={onDay(today)} gone={gone} empty={driveTimes(today, hours).length ? "Nothing booked today." : "We're closed today."} />
+            <Agenda drives={onDay(today)} gone={gone} me={me.name} empty={driveTimes(today, hours).length ? "Nothing booked today." : "We're closed today."} />
           </Panel>
           {/* Today's are listed above with their buttons; this is the rest, so no booking shows twice. */}
           {later.length > 0 && (
             <Panel title="Still to confirm" count={later.length}>
-              <Agenda drives={later.slice(0, 8)} gone={gone} status="requested" withDay />
+              <Agenda drives={later.slice(0, 8)} gone={gone} me={me.name} status="requested" withDay />
               {later.length > 8 && <Link href={link({ view: "list", status: "requested", when: "ahead", day: undefined })} className="w-fit text-meta font-medium underline">See all {later.length}</Link>}
             </Panel>
           )}
@@ -96,7 +96,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
               ahead.map(([iso, list]) => (
                 <section key={iso} aria-label={fmtDay(iso)} className="flex flex-col gap-1">
                   <h3 className="text-meta font-semibold text-text-2">{fmtDay(iso)}</h3>
-                  <Agenda drives={list} gone={gone} status="confirmed" />
+                  <Agenda drives={list} gone={gone} me={me.name} status="confirmed" />
                 </section>
               ))
             )}
@@ -104,16 +104,16 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
         </>
       )}
 
-      {view === "week" && <Week day={day} today={today} onDay={onDay} gone={gone} link={link} hours={hours} />}
+      {view === "week" && <Week day={day} today={today} onDay={onDay} gone={gone} me={me.name} link={link} hours={hours} />}
 
-      {view === "list" && <List drives={drives} sp={sp} team={team.map((t) => t.name)} gone={gone} />}
+      {view === "list" && <List drives={drives} sp={sp} team={team.map((t) => t.name)} gone={gone} me={me.name} />}
     </>
   );
 }
 
 // A day's bookings in time order. Each opens its booking; the next steps (confirm, done, no show, cancel) are on the row, with Undo.
 // status: the one the section's title already names, so its rows leave the badge out.
-function Agenda({ drives, gone, empty = "Nothing booked.", withDay = false, status }: { drives: TestDrive[]; gone: Set<string>; empty?: string; withDay?: boolean; status?: TestDrive["status"] }) {
+function Agenda({ drives, gone, me, empty = "Nothing booked.", withDay = false, status }: { drives: TestDrive[]; gone: Set<string>; me: string; empty?: string; withDay?: boolean; status?: TestDrive["status"] }) {
   if (drives.length === 0) return <p className="text-body text-text-2">{empty}</p>;
   const today = dublinDay();
   return (
@@ -121,13 +121,21 @@ function Agenda({ drives, gone, empty = "Nothing booked.", withDay = false, stat
       {drives.map((d) => {
         const ahead = dublinDay(d.startsAt) > today;
         return (
-        <li key={d.id} className="relative grid grid-cols-[3.5rem_minmax(0,1fr)] items-center gap-x-4 gap-y-2 px-5 py-3 even:bg-row-alt hover:bg-surface md:grid-cols-[3.5rem_minmax(0,1fr)_auto]">
-          <span className="self-start font-medium tabular-nums md:self-center">
+        <li key={d.id} className="relative grid grid-cols-1 items-center gap-x-4 gap-y-2 px-5 py-3 even:bg-row-alt hover:bg-surface sm:grid-cols-[3.5rem_minmax(0,1fr)] md:grid-cols-[3.5rem_minmax(0,1fr)_auto]">
+          {/* On a phone the time leads the name line instead (below), so the buttons get the row's whole width and line up with the name. */}
+          <span className="self-start font-medium tabular-nums max-sm:hidden md:self-center">
             {fmtTime(d.startsAt)}
             {withDay && <span className="block text-meta font-normal text-text-2">{fmtDay(dublinDay(d.startsAt), "weekday")} {fmtDay(dublinDay(d.startsAt), "day")}</span>}
           </span>
           <span className="flex min-w-0 flex-col">
             <span className="flex flex-wrap items-center gap-2">
+              <span className="font-medium tabular-nums sm:hidden">
+
+                {fmtTime(d.startsAt)}
+
+                {withDay && <span className="font-normal text-text-2"> {fmtDay(dublinDay(d.startsAt), "weekday")} {fmtDay(dublinDay(d.startsAt), "day")}</span>}
+
+              </span>
               <Link href={`/test-drives/${d.id}`} data-name className="font-medium after:absolute after:inset-0">
                 {d.name}
               </Link>
@@ -135,11 +143,11 @@ function Agenda({ drives, gone, empty = "Nothing booked.", withDay = false, stat
               {isOpenDrive(d) && gone.has(slugId(d.carSlug)) && <Badge tone="warn">No longer for sale</Badge>}
             </span>
             <span className="text-meta text-text-2">
-              {d.carTitle} · {d.assignedTo ?? "Not assigned"}
+              {d.carTitle} · {whoHas(d, me)}
             </span>
           </span>
           {/* Call them, then the next step, one press each. One strong button a row: Call is quiet when a step (Confirm, Mark done) is the strong one. */}
-          <span className="relative z-10 col-start-2 flex flex-wrap gap-2 md:col-start-3 md:justify-end">
+          <span className="relative z-10 flex flex-wrap gap-2 sm:col-start-2 md:col-start-3 md:justify-end">
             {isOpenDrive(d) && <CallButton phone={d.phone} name={d.name} quiet={d.status === "requested" || !ahead} />}
             <DriveSteps drive={d} ahead={ahead} />
           </span>
@@ -151,11 +159,15 @@ function Agenda({ drives, gone, empty = "Nothing booked.", withDay = false, stat
 }
 
 // Seven days from Monday. From 1024px a column a day; on a phone a strip of the seven days, each with its count, and the chosen day below.
-function Week({ day, today, onDay, gone, link, hours }: { day: string; today: string; onDay: (iso: string) => TestDrive[]; gone: Set<string>; link: (over: Partial<Params>) => string; hours: Hours }) {
+function Week({ day, today, onDay, gone, me, link, hours }: { day: string; today: string; onDay: (iso: string) => TestDrive[]; gone: Set<string>; me: string; link: (over: Partial<Params>) => string; hours: Hours }) {
   const monday = mondayOf(day);
   const days = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
   const sunday = days[6];
-  const range = monday.slice(5, 7) === sunday.slice(5, 7) ? `${fmtDay(monday, "day")} to ${fmtDay(sunday, "dayMonth")}` : `${fmtDay(monday, "dayMonth")} to ${fmtDay(sunday, "dayMonth")}`;
+  const same = monday.slice(5, 7) === sunday.slice(5, 7);
+  const range = same ? `${fmtDay(monday, "day")} to ${fmtDay(sunday, "dayMonth")}` : `${fmtDay(monday, "dayMonth")} to ${fmtDay(sunday, "dayMonth")}`;
+  // On a phone the months are short, so the range keeps to one line beside the arrows: "28 Dec to 3 Jan".
+  const short = (iso: string) => `${fmtDay(iso, "day")} ${fmtDay(iso, "month")}`;
+  const rangeShort = same ? `${fmtDay(monday, "day")} to ${short(sunday)}` : `${short(monday)} to ${short(sunday)}`;
   const arrow = "inline-flex size-11 items-center justify-center rounded-control bg-hairline text-text transition-colors hover:bg-accent-soft hover:text-accent-text";
   return (
     <>
@@ -166,9 +178,12 @@ function Week({ day, today, onDay, gone, link, hours }: { day: string; today: st
         <Link href={link({ day: addDays(monday, 7) })} aria-label="Week after" className={arrow}>
           <ChevronRightIcon className="shrink-0 size-4" />
         </Link>
-        <h2 className="ml-2 text-heading font-semibold">{range}</h2>
+        <h2 className="min-w-0 text-heading font-semibold sm:ml-2">
+          <span className="sm:hidden">{rangeShort}</span>
+          <span className="max-sm:hidden">{range}</span>
+        </h2>
         {mondayOf(today) !== monday && (
-          <Link href={link({ day: undefined })} className="ml-auto text-meta font-medium underline">
+          <Link href={link({ day: undefined })} className="ml-auto shrink-0 whitespace-nowrap text-meta font-medium underline">
             This week
           </Link>
         )}
@@ -190,7 +205,7 @@ function Week({ day, today, onDay, gone, link, hours }: { day: string; today: st
           })}
         </nav>
         <Panel title={fmtDay(day)}>
-          <Agenda drives={onDay(day)} gone={gone} empty={driveTimes(day, hours).length ? "Nothing booked." : "Closed."} />
+          <Agenda drives={onDay(day)} gone={gone} me={me} empty={driveTimes(day, hours).length ? "Nothing booked." : "Closed."} />
         </Panel>
       </div>
 
@@ -210,7 +225,8 @@ function Week({ day, today, onDay, gone, link, hours }: { day: string; today: st
                   <span className="font-semibold tabular-nums">{fmtTime(x.startsAt)}</span>
                   <span className={`truncate font-medium ${x.status === "cancelled" ? "line-through" : ""}`}>{x.name}</span>
                   <span title={x.carTitle} className="truncate text-text-2">{x.carTitle}</span>
-                  {isOpenDrive(x) && gone.has(slugId(x.carSlug)) && <span className="text-warn">No longer for sale</span>}
+                  <span className="truncate text-text-2">{whoHas(x, me)}</span>
+                  {isOpenDrive(x) && gone.has(slugId(x.carSlug)) && <Badge tone="warn">No longer for sale</Badge>}
                 </Link>
               ))}
             </section>
@@ -230,33 +246,46 @@ function Week({ day, today, onDay, gone, link, hours }: { day: string; today: st
 }
 
 // Every booking as a table: searched by name, phone or car; filtered by status, who has it and whether it has happened; sorted; in pages.
-function List({ drives, sp, team, gone }: { drives: TestDrive[]; sp: Params; team: string[]; gone: Set<string> }) {
+function List({ drives, sp, team, gone, me }: { drives: TestDrive[]; sp: Params; team: string[]; gone: Set<string>; me: string }) {
   const rows = filterDrives(drives, sp, undefined, gone);
   const columns: Column<TestDrive>[] = [
-    { key: "when", header: "When", sort: (d) => d.startsAt, nowrap: true, cell: (d) => <span className="tabular-nums">{fmtDate(d.startsAt)}, {fmtTime(d.startsAt)}</span> },
+    { key: "when", header: "When", sort: (d) => d.startsAt, nowrap: true, cell: (d) => <span className="flex flex-col tabular-nums"><span className="sm:hidden">{fmtDay(dublinDay(d.startsAt), "day")} {fmtDay(dublinDay(d.startsAt), "month")}</span><span className="max-sm:hidden">{fmtDate(d.startsAt)}</span><span className="text-meta text-text-2">{fmtTime(d.startsAt)}</span></span> },
     {
       key: "who",
       header: "Customer",
       sort: (d) => d.name,
+      className: "max-sm:w-full max-sm:max-w-0",
       cell: (d) => (
         <span className="flex min-w-0 flex-col">
-          <Link href={`/test-drives/${d.id}`} className="font-medium after:absolute after:inset-0">
-            {d.name}
-          </Link>
-          <span className="text-meta text-text-2 md:hidden">{d.carTitle}</span>
+          {/* One line: a long name is cut short, so every row is the same height. */}
+          <span className="flex min-w-0 items-center gap-x-2">
+            <Link href={`/test-drives/${d.id}`} className="min-w-0 truncate font-medium after:absolute after:inset-0">
+              {d.name}
+            </Link>
+            {/* The Status column is left out on a phone, so the name and car keep their width; the badge sits by the name instead. */}
+            <span className="shrink-0 sm:hidden">
+              <DriveStatusBadge status={d.status} />
+            </span>
+          </span>
+          {/* Taking them out is left out below 1024px, so it joins the car line. */}
+          <span className="flex min-w-0 gap-1 text-meta text-text-2 lg:hidden">
+            <span className="truncate md:hidden">{d.carTitle}</span>
+            <span className="md:hidden">·</span>
+            <span className="shrink-0">{whoHas(d, me)}</span>
+          </span>
         </span>
       ),
     },
     { key: "car", header: "Car", sort: (d) => d.carTitle, cell: (d) => <span className="line-clamp-2 max-w-[16rem]">{d.carTitle}</span>, hide: "md" },
-    { key: "with", header: "Taking them out", sort: (d) => d.assignedTo, cell: (d) => d.assignedTo ?? <span className="text-text-2">Not assigned</span>, hide: "lg" },
-    { key: "status", header: "Status", sort: (d) => DRIVE_STATUSES.indexOf(d.status), nowrap: true, cell: (d) => <DriveStatusBadge status={d.status} /> },
+    { key: "with", header: "Taking them out", sort: (d) => d.assignedTo, cell: (d) => (d.assignedTo ? whoHas(d, me) : <span className="text-text-2">Not taken</span>), hide: "lg" },
+    { key: "status", header: "Status", sort: (d) => DRIVE_STATUSES.indexOf(d.status), nowrap: true, cell: (d) => <DriveStatusBadge status={d.status} />, hide: "sm" },
   ];
   const { rows: sorted, sort } = sortRows(rows, columns, sp, { key: "when", dir: "desc" });
   const paged = pageOf(sorted, sp);
   const filters: FilterGroup[] = [
     { name: "when", label: "When", any: "Any time", options: [["ahead", "Coming up"], ["past", "Past"]] },
     { name: "status", label: "Status", any: "Any status", options: DRIVE_STATUSES.map((s) => [s, DRIVE_STATUS_LABELS[s]] as const) },
-    { name: "with", label: "Taking them out", any: "Anyone", options: [["none", "Not assigned"], ...team.map((t) => [t, t] as const)] },
+    { name: "with", label: "Taking them out", any: "Anyone", options: [["none", "Not taken"], ...team.map((t) => [t, t] as const)] },
     { name: "car", label: "Car", any: "Any car", options: [["gone", "No longer for sale"]] },
   ];
   return (

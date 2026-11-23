@@ -150,7 +150,7 @@ function seedLeads(): Lead[] {
 // break-ui: records at the realistic edges of what a form produces, kept in the seed so the lists and pages are always judged against them:
 // a long double-barrelled surname, an email at the length real domains reach, a name that is one letter, a long pasted message, no car.
 const EDGE_LEADS = (now: number): Lead[] => [
-  { id: "lead-edge-1", type: "enquiry", status: "contacted", name: "Aleksandra Wiśniewska-Kowalczyk", email: "bartholomew.fitzgerald@northwind-industries-holdings.example.com", phone: "+353 83 000 1111", source: "Website", message: "Hello, I saw the listing on your website yesterday evening and I would like to know whether the car is still available, whether it has a full service history from a main dealer, whether you would consider a part exchange against my 2016 estate, and whether it can be collected on a weekday after six because I work in the city centre until late.", carSlug: livePicks(rng(5)).slug, carTitle: carTitleOf(livePicks(rng(5))), assignedTo: "Aoife Brennan", notes: [], createdAt: now - 3 * DAY },
+  { id: "lead-edge-1", type: "enquiry", status: "contacted", name: "Aleksandra Wiśniewska-Kowalczyk", email: "bartholomew.fitzgerald@northwind-industries-holdings.example.com", phone: "+353 83 000 1111", source: "Website", message: "Hello, I saw the listing on your website yesterday evening and I would like to know whether the car is still available, whether it has a full service history from a main dealer, whether you would consider a trade-in against my 2016 estate, and whether it can be collected on a weekday after six because I work in the city centre until late.", carSlug: livePicks(rng(5)).slug, carTitle: carTitleOf(livePicks(rng(5))), assignedTo: "Aoife Brennan", notes: [], createdAt: now - 3 * DAY },
   { id: "lead-edge-2", type: "general", status: "new", name: "Jo", email: "j@example.com", phone: "+353 83 000 2222", source: "Phone", message: "Call me.", notes: [], createdAt: now - 5 * DAY },
 ];
 // The website requests behind the demo's stories below (a warranty claim, a factory order), from the same customers, and a few still waiting.
@@ -492,7 +492,7 @@ export type Sale = {
   customerId?: string;
   depositEur?: number; // taken earlier as a reservation, and part of the price
   coverMonths?: number; // the warranty from the day of sale: the included cover, or longer if extended cover was bought. Absent: the included.
-  tradeIn?: { reg: string; allowanceEur: number }; // the buyer's car taken in part exchange
+  tradeIn?: { reg: string; allowanceEur: number }; // the buyer's car taken as a trade-in
   leadId?: string; // the lead the sale came from, marked won with it
   returnedOn?: string;
   kind?: "cancelled" | "returned";
