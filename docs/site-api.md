@@ -105,7 +105,7 @@ monthly report show their website's figures. Same key, auth, 64 KB cap and rate 
 
 ## `POST /api/site/v1/presence`
 
-An open tab on the website (#111), for the Overview's Active now figure: how many tabs pinged in the last 3 minutes. Same key, auth and
+An open tab on the website (#111), for the Overview's On your site figure: how many tabs pinged in the last 30 minutes. Same key, auth and
 rate limit as the leads POST; the body is capped at 256 bytes. Code: `src/lib/site-api/presence.ts`.
 
 ```json
@@ -117,10 +117,10 @@ rate limit as the leads POST; the body is capped at 256 bytes. Code: `src/lib/si
   no IP, no user agent, no cookie, no page, nothing about the person or the device.
 - **What the website does:** the page sends a ping to its own Worker, and the Worker sends it on with the key (the key never reaches the
   browser). Ping when a page loads, then once a minute while the tab is visible (`document.visibilityState` is `visible`), and once more
-  when it becomes visible again. Stop while it is hidden, and send nothing on close: the tab drops off the figure 3 minutes after its last
+  when it becomes visible again. Stop while it is hidden, and send nothing on close: the tab drops off the figure 30 minutes after its last
   ping. Not more often than once a minute: every tab's pings share the key's limit. A failed ping is not retried; the next one will do.
 - Kept in the dealer's store, one record per tab id with when it was last seen, plus one record of when the website last pinged at all.
-  An id not seen for 5 minutes is deleted on the next ping. Never logged.
+  An id not seen for 35 minutes is deleted on the next ping. Never logged.
 - The figure is left off the Overview until the website has sent its first ping. A demo dealer shows a made-up figure instead.
 - The pings share the key's limit of 60 a minute, so about 60 tabs open at once is the most it counts exactly; past that some pings get
   429 and the figure reads low.

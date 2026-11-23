@@ -136,7 +136,7 @@ async function WebsiteTiles({ leads, analytics }: { leads: Lead[]; analytics: bo
   return (
     <>
       {visits && <VisitsTile now={visits.now} before={visits.before} />}
-      {active !== null && <StatCard href="/analytics" label="Active now" value={fmtNum(active)} hint="On your website" />}
+      {active !== null && <StatCard href="/analytics" label="On your site" value={fmtNum(active)} hint="Last 30 minutes" />}
     </>
   );
 }
