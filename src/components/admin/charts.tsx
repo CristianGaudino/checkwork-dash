@@ -1,5 +1,5 @@
 import { Meter } from "@/components/admin/kit";
-import { BrandIcon } from "@/components/admin/BrandIcon";
+import { BrandIcon, brandsIn } from "@/components/admin/BrandIcon";
 import { fmtNum } from "@/lib/admin/format";
 
 // Charts drawn by hand in SVG and HTML: no library, nothing to load. Colours come from the tokens, so both themes work. Each chart
@@ -67,12 +67,14 @@ export function AreaChart({ data, summary, format = fmtNum }: { data: Point[]; s
 // Horizontal bars with the number beside each. `of` is what a full bar means (the biggest value by default).
 export function BarList({ items, of, format = fmtNum }: { items: { label: string; value: number; note?: string }[]; of?: number; format?: (n: number) => string }) {
   const full = of ?? Math.max(1, ...items.map((i) => i.value));
+  // A list with any network's mark keeps a mark's room on every row, so Website and Phone start where WhatsApp does.
+  const marks = items.some((i) => brandsIn(i.label).length > 0);
   return (
     <ul className="flex flex-col gap-3">
       {items.map((i) => (
         <li key={i.label} className="flex flex-col gap-1">
           <div className="flex items-baseline justify-between gap-3 text-body">
-            <span className="inline-flex min-w-0 items-center gap-1.5"><BrandIcon name={i.label} />{i.label}</span>
+            <span className="inline-flex min-w-0 items-center gap-1.5">{marks ? <span className="inline-flex min-w-4 shrink-0"><BrandIcon name={i.label} /></span> : null}{i.label}</span>
             <span className="shrink-0 font-semibold tabular-nums">
               {format(i.value)}
               {i.note && <span className="ml-2 text-meta font-normal text-text-2">{i.note}</span>}
