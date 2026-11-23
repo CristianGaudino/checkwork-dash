@@ -116,12 +116,12 @@ export function DemoBar({ demo, donedeal }: { demo: boolean; donedeal: boolean }
       {/* A phone or tablet: the pill, and the controls above it when open. It stays a pill until 1024px, above the tab bar that
           shows until then, so the two are never stacked at the foot of a tablet. The controls are a native popover: a tap anywhere else, or
           Escape, folds them again. Placed 3rem above the pill's foot: its 2.5rem and an 0.5rem gap. */}
-      <div className={`fixed right-3 z-40 bottom-[calc(4rem+env(safe-area-inset-bottom))] lg:hidden`}>
+      <div className={`fixed right-[max(0.75rem,env(safe-area-inset-right))] z-40 bottom-[calc(4rem+env(safe-area-inset-bottom))] lg:hidden`}>
         <div
           id={panelId}
           popover="auto"
           onToggle={(e) => setOpen(e.newState === "open")}
-          className={`fixed inset-auto right-3 m-0 w-[min(20rem,calc(100vw-1.5rem))] flex-col items-start gap-1 rounded-card border border-hairline bg-band p-2 text-text shadow-panel bottom-[calc(7rem+env(safe-area-inset-bottom))] max-lg:[&:popover-open]:flex lg:hidden`}
+          className={`fixed inset-auto right-[max(0.75rem,env(safe-area-inset-right))] m-0 w-[min(20rem,calc(100vw-1.5rem))] flex-col items-start gap-1 rounded-card border border-hairline bg-band p-2 text-text shadow-panel bottom-[calc(7rem+env(safe-area-inset-bottom))] max-lg:[&:popover-open]:flex lg:hidden`}
         >
           {controls(true)}
         </div>

@@ -210,6 +210,9 @@
   }
   body {
     padding-bottom: var(--demo-bar-h, 0px); /* the demo bar is fixed at the foot of the screen */
+    /* A phone on its side: the page keeps clear of the notch and the rounded corners (viewportFit cover, layout.tsx). 0 everywhere else. */
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
     background-image: var(--atmosphere);
     background-color: var(--color-surface);
   }
