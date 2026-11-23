@@ -11,7 +11,7 @@ export type NavIcon = "home" | "inbox" | "car" | "calendar" | "users" | "megapho
 export type NavItem = { href: string; label: string; icon: NavIcon; group?: string; permission?: Permission; ours?: true; module?: ModuleId | readonly ModuleId[]; also?: string[] };
 
 export const DEALER_NAV: NavItem[] = [
-  { href: "/", label: "Overview", icon: "home" },
+  { href: "/", label: "Overview", icon: "home", also: ["/to-do"] },
   // The places staff use all day stand alone at the top, never folded away.
   { href: "/leads", label: "Leads", icon: "inbox" },
   { href: "/test-drives", label: "Test drives", icon: "calendar" },

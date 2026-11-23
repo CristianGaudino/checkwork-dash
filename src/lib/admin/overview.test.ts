@@ -28,9 +28,10 @@ describe("overview", () => {
     const closed = { ...lead("closed", 3 * DAY), status: "closed" as const, closedReason: "Duplicate" as const };
     expect(overview({ rules: DEMO_PROFILE.rules, listingSite: "DoneDeal", leads: [lead("a", 1 * DAY), spam, closed], drives: [], reviews: [], now }).weeks.at(-1)).toBe(2); // spam is no lead (#56); a closed one is
   });
-  it("lists drives in the next 7 days in date order, ignoring past, far-off and closed ones", () => {
-    const o = overview({ rules: DEMO_PROFILE.rules, listingSite: "DoneDeal", leads: [], drives: [drive("late", 5 * DAY, "confirmed"), drive("soon", DAY, "requested"), drive("past", -DAY, "confirmed"), drive("far", 9 * DAY, "confirmed"), drive("done", DAY, "cancelled")], reviews: [], now });
-    expect(o.upcomingDrives.map((d) => d.id)).toEqual(["soon", "late"]);
+  it("lists the next three drives in the coming week in date order, after the last one earlier today, ignoring far-off and cancelled ones", () => {
+    const o = overview({ rules: DEMO_PROFILE.rules, listingSite: "DoneDeal", leads: [], drives: [drive("late", 5 * DAY, "confirmed"), drive("soon", DAY, "requested"), drive("yesterday", -DAY, "confirmed"), drive("far", 9 * DAY, "confirmed"), drive("off", DAY, "cancelled"), drive("first", -3 * HOUR, "completed"), drive("morning", -HOUR, "completed"), drive("later", 3 * DAY, "confirmed"), drive("last", 4 * DAY, "confirmed")], reviews: [], now });
+    expect(o.nextDrives.map((d) => d.id)).toEqual(["morning", "soon", "later", "last"]);
+    expect(overview({ rules: DEMO_PROFILE.rules, listingSite: "DoneDeal", leads: [], drives: [drive("yesterday", -DAY, "confirmed")], reviews: [], now }).nextDrives).toEqual([]);
   });
   it("flags what needs attention and leaves out what does not", () => {
     const o = overview({ rules: DEMO_PROFILE.rules, listingSite: "DoneDeal", leads: [lead("old", 30 * HOUR), lead("fresh", HOUR)], drives: [drive("d", DAY, "requested")], reviews: [review("r", 5), review("s", 4, "thanks")], now });
@@ -56,11 +57,10 @@ describe("overview", () => {
     expect(o.unrecorded.map((c) => c.id)).toEqual(["long-ago", "recent"]); // as many as the Sold view's Record sale buttons
     expect(o.attention.find((a) => a.key === "sales")?.count).toBe(2);
   });
-  it("lists the records behind the to-dos in the order to work them, and today's open drives", () => {
+  it("lists the records behind the to-dos in the order to work them", () => {
     const o = overview({ rules: DEMO_PROFILE.rules, listingSite: "DoneDeal", leads: [lead("newer", 30 * HOUR), lead("older", 50 * HOUR), lead("fresh", HOUR)], drives: [drive("later", 2 * DAY, "requested"), drive("sooner", HOUR, "requested"), drive("past", -HOUR, "confirmed"), drive("off", 2 * HOUR, "cancelled")], reviews: [], now });
     expect(o.reply.map((t) => t.lead.id)).toEqual(["older", "newer", "fresh"]); // the late ones first, the longest waiting first
     expect(o.toConfirm.map((d) => d.id)).toEqual(["sooner", "later"]);
-    expect(o.todayDrives.map((d) => d.id)).toEqual(["past", "sooner"]); // this morning's still counts; a cancelled one does not
   });
   it("counts each lead waiting on you once, by one rule: a follow-up due, else a new lead", () => {
     const today = "2026-11-10";
@@ -92,7 +92,7 @@ describe("overview", () => {
     expect(o.answer.length).toBe(7);
     expect(o.attention.filter((a) => a.key === "reply" || a.key === "follow").reduce((n, a) => n + a.count, 0)).toBe(7);
   });
-  it("Only mine keeps what is given to that person or to nobody yet, and agrees with their report's follow-ups and with Leads", () => {
+  it("For me keeps what is given to that person or to nobody yet, and agrees with their report's follow-ups and with Leads", () => {
     const leads = [
       { ...lead("a", 5 * DAY, "contacted"), assignedTo: "Ciara", followUpOn: "2026-11-09" },
       { ...lead("b", 5 * DAY, "new"), assignedTo: "Ciara", followUpOn: "2026-11-10" },
@@ -111,9 +111,5 @@ describe("overview", () => {
     expect(o.due.length).toBe(personalReport({ name: "Ciara", sales: [], leads, period: 3, now }).totals.followUpsDue);
     // Without it, the whole team's.
     expect(overview({ rules: DEMO_PROFILE.rules, listingSite: "DoneDeal", leads, drives, reviews: [], now }).answer).toHaveLength(6);
-  });
-  it("averages ratings, and is 0 with no reviews", () => {
-    expect(overview({ rules: DEMO_PROFILE.rules, listingSite: "DoneDeal", leads: [], drives: [], reviews: [review("a", 5), review("b", 4)], now }).averageRating).toBe(4.5);
-    expect(overview({ rules: DEMO_PROFILE.rules, listingSite: "DoneDeal", leads: [], drives: [], reviews: [], now }).averageRating).toBe(0);
   });
 });

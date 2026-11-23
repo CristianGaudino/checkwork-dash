@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
-// Where visits come from (#35): on the Overview the busiest channels, on Analytics the groups opening into their networks. Each tile has
+// Where visits come from (#35): on the Overview the three busiest under the week's visits, on Analytics the groups opening into their networks. Each tile has
 // its mark, its visits and its leads, two across on a phone, with nothing scrolling sideways.
 const noSideways = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
 
@@ -13,17 +13,15 @@ async function expectTiles(tiles: Locator) {
 }
 
 for (const width of [390, 1280]) {
-  test(`the overview shows the four busiest channels, with marks and numbers, at ${width}px`, async ({ page }) => {
+  test(`the overview's Visits tile shows the three busiest channels with their marks, and opens Analytics, at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/");
-    const strip = page.getByRole("region", { name: "Where visits come from" });
-    const tiles = strip.locator("[data-tile]");
-    await expect(tiles).toHaveCount(4);
-    await expectTiles(tiles);
-    const [a, b] = [await tiles.nth(0).boundingBox(), await tiles.nth(1).boundingBox()];
-    expect(Math.abs(a!.y - b!.y)).toBeLessThan(2); // two across
+    const tile = page.getByRole("region", { name: "Numbers" }).getByRole("link", { name: /^Visits this week/ });
+    const channels = tile.getByRole("listitem");
+    await expect(channels).toHaveCount(3);
+    for (const c of await channels.all()) await expect(c.locator("svg").first()).toBeVisible();
     expect(await noSideways(page)).toBe(true);
-    await strip.getByRole("link", { name: "Analytics" }).click();
+    await tile.click();
     await expect(page).toHaveURL(/\/analytics$/);
   });
 
