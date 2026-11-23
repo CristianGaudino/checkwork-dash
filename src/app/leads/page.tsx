@@ -199,7 +199,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
                         <LeadKind type={l.type} topic={l.topic} />
                         {l.carTitle && <span className="text-text">{l.carTitle}</span>}
                       </span>
-                      <span className={urgency === "now" ? "font-medium text-bad" : undefined}>{why}</span>
+                      <span>{why}</span>
                       {possibleSpam(l) && <span className="flex"><Badge tone="warn">Possible spam</Badge></span>}
                     </span>
                   }

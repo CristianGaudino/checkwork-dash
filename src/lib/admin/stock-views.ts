@@ -28,9 +28,11 @@ export function parseStockList(sp: { view?: string; status?: string; q?: string;
   return { view, q: (sp.q ?? "").trim().toLowerCase().slice(0, 60), make: sp.make?.slice(0, 40) || undefined, fuel: sp.fuel?.slice(0, 20) || undefined, gearbox: sp.gearbox?.slice(0, 20) || undefined };
 }
 
+// A registration matches however it is typed: "191d12345" finds 191-D-12345.
+const squash = (s: string) => s.toLowerCase().replace(/[\s-]/g, "");
 export const stockList = (all: Car[], view: StockView, q: string, oldDays: number, { make, fuel, gearbox }: StockFilters = {}) =>
   all
     .filter(stockViews(oldDays)[view].test)
-    .filter((c) => !q || `${c.make} ${c.model} ${c.variant ?? ""} ${c.year}`.toLowerCase().includes(q))
+    .filter((c) => !q || `${c.make} ${c.model} ${c.variant ?? ""} ${c.year}`.toLowerCase().includes(q) || (!!c.reg && !!squash(q) && squash(c.reg).includes(squash(q))))
     .filter((c) => (!make || c.makeSlug === make) && (!fuel || c.fuel === fuel) && (!gearbox || c.gearbox === gearbox))
     .sort((a, b) => Number(b.id) - Number(a.id));

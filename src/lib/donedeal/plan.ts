@@ -14,8 +14,8 @@ export type Plan = { added: Car[]; changed: Change[]; gone: Car[]; held?: string
 const HOLD_SHARE = 0.5;
 const HOLD_MIN_GONE = 3;
 // Fields only the site keeps: never overwritten by DoneDeal's copy, and never a difference.
-const OURS = ["soldAt", "listedAt", "listing", "takenDownAt"] as const;
-const comparable = (c: Car) => JSON.stringify({ ...c, soldAt: undefined, listedAt: undefined, listing: undefined, takenDownAt: undefined });
+const OURS = ["soldAt", "listedAt", "listing", "takenDownAt", "reg"] as const; // reg: typed in the dashboard, DoneDeal never sends one
+const comparable = (c: Car) => JSON.stringify({ ...c, soldAt: undefined, listedAt: undefined, listing: undefined, takenDownAt: undefined, reg: undefined });
 
 // `site`: the dealer's listing site, as its messages name it.
 export function planSync(current: Car[], listings: Car[], today: string, { force = false, site }: { force?: boolean; site: string }): Plan {

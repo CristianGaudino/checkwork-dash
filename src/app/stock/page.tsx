@@ -97,14 +97,17 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
           <div className="h-9 w-12 shrink-0 overflow-hidden rounded-control bg-photo-bg min-[25rem]:h-12 min-[25rem]:w-16 group-data-[density=compact]/shell:hidden">
             <CarThumb src={c.photos[0]?.src} />
           </div>
-          {/* The name, then the year and variant, then what needs doing about the car (few photos, hidden, in stock too long). */}
+          {/* The name, then the year, variant and registration, then what needs doing about the car (few photos, hidden, in stock too long). */}
           <div className="flex min-w-0 flex-col gap-1 py-1">
             <span className="min-w-0">
               <Link href={open(c)} {...(open(c).startsWith("/") ? {} : NEW_TAB)} title={`${c.make} ${c.model}`} className="line-clamp-2 font-medium after:absolute after:inset-0">
                 {c.make} {c.model}
               </Link>
-              <span title={[c.year, c.variant].filter(Boolean).join(" · ")} className="line-clamp-2 text-meta text-text-2">
-                {[c.year, c.variant].filter(Boolean).join(" · ")}
+              {/* The reg before the variant, so a long variant never clamps it away on a phone; kept on one line, never split at a dash. */}
+              <span title={[c.year, c.reg, c.variant].filter(Boolean).join(" · ")} className="line-clamp-2 text-meta text-text-2">
+                {c.year}
+                {c.reg && <> · <span className="whitespace-nowrap">{c.reg}</span></>}
+                {c.variant && ` · ${c.variant}`}
                 {/* The days in stock have their own column from 1024px. */}
                 {c.listedAt && !isSold(c) && <span className="lg:hidden"> · {daysInStock(c.listedAt)}</span>}
               </span>

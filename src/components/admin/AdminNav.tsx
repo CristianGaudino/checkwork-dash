@@ -103,12 +103,13 @@ function NavLink({ item, on, iconOnly = false }: { item: NavItem; on: boolean; i
       href={item.href}
       aria-current={on ? "page" : undefined}
       aria-label={iconOnly ? item.label : undefined}
-      className={`group/link flex min-h-9 items-center gap-3 whitespace-nowrap rounded-control text-meta font-medium transition-colors ${iconOnly ? "size-10 justify-center" : "px-3"} ${on ? "bg-card text-text ring-1 ring-inset ring-hairline" : "text-text-2 hover:bg-card hover:text-text"} ${press}`}
+      className={`group/link flex min-h-9 items-center gap-3 whitespace-nowrap rounded-control text-meta font-medium transition-colors ${iconOnly ? "size-10 justify-center hover:filter-none" : "px-3"} ${on ? "bg-card text-text ring-1 ring-inset ring-hairline" : "text-text-2 hover:bg-card hover:text-text"} ${press}`}
     >
       <Icon className={`${iconOnly ? "size-5" : "size-4.5"} shrink-0 ${on ? "text-accent-text" : ""}`} />
       {iconOnly ? (
         // The rail's name for the icon, on hover and on keyboard focus. Fixed at its own place in the link (no top or left), so the rail's
-        // scrolling sides never clip it, then moved off to the right of the icon.
+        // scrolling sides never clip it, then moved off to the right of the icon. The link drops the global hover brightness (globals.css):
+        // a filter would make the link the box `fixed` is placed in, and the rail would clip the name again.
         <span aria-hidden className="pointer-events-none fixed z-50 hidden translate-x-[calc(50%+1.75rem)] rounded-control bg-text px-2 py-1 text-meta text-ink shadow-panel group-hover/link:block group-focus-visible/link:block">
           {item.label}
         </span>

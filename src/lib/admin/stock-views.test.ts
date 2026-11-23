@@ -22,6 +22,11 @@ describe("the stock list", () => {
     expect(stockList(all, "all", "", 120, { gearbox: "automatic" }).map((c) => c.id)).toEqual(["2"]);
     expect(stockList(all, "all", "", 120, { make: "nope" })).toEqual([]);
   });
+  it("finds a car by its registration however it is typed", () => {
+    const all = [car("1", { reg: "191-D-12345" }), car("2")];
+    for (const q of ["191-d-12345", "191d12345", "191 d 123"]) expect(stockList(all, "all", q, 120).map((c) => c.id), q).toEqual(["1"]);
+    expect(stockList(all, "all", "-", 120)).toEqual([]);
+  });
   it("each view picks the cars it names", () => {
     const old = "2020-01-01";
     const all = [

@@ -101,7 +101,7 @@ test("the website reads its cars: on the site only, public fields only", async (
   expect(res.status()).toBe(200);
   const { cars } = (await res.json()) as { cars: Record<string, unknown>[] };
   expect(cars.length).toBeGreaterThan(10);
-  expect(cars.some((c) => "listing" in c || "takenDownAt" in c)).toBe(false);
+  expect(cars.some((c) => "listing" in c || "takenDownAt" in c || "reg" in c)).toBe(false); // the reg is dashboard only
   expect((await request.get("/api/site/v1/stock")).status()).toBe(401);
 });
 

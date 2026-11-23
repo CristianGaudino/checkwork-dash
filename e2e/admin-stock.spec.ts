@@ -35,6 +35,28 @@ test("the form checks the car, says what is wrong, and keeps what was typed", as
   await expect(page.locator("input[name=year]")).toHaveValue("1850");
 });
 
+test("a car keeps its registration: on the list, found by a search however it is typed, and changed on its page", async ({ page }) => {
+  await page.goto("/stock/new");
+  await page.getByRole("textbox", { name: /^Registration/ }).fill("191-ww-48213");
+  await page.getByLabel("Make", { exact: true }).fill(MAKE);
+  await page.getByLabel("Model", { exact: true }).fill("Roadster");
+  await page.getByLabel("Year", { exact: true }).fill("2019");
+  await page.getByLabel("Price (€)", { exact: true }).fill("19950");
+  await page.getByRole("button", { name: "Add car" }).click();
+  await expect(page.getByRole("status")).toContainText("Saved 2019 Zztest Roadster");
+
+  await page.goto("/stock?q=191ww48213");
+  const row = page.getByRole("row", { name: new RegExp(MAKE) });
+  await expect(row).toContainText("191-WW-48213");
+  await row.getByRole("link").first().click();
+  await expect(page.getByRole("region", { name: "This car", exact: true })).toContainText("191-WW-48213");
+  await page.getByLabel("Registration", { exact: true }).fill("192-D-7");
+  await page.getByRole("button", { name: "Save changes" }).click();
+  await expect(page).toHaveURL(/saved=/);
+  await page.goto("/stock?q=" + MAKE);
+  await expect(page.getByRole("row", { name: new RegExp(MAKE) })).toContainText("192-D-7");
+});
+
 test("add a car, change its price to a drop, mark it sold, delete it", async ({ page }) => {
   await page.goto("/stock/new");
   await page.getByLabel("Make", { exact: true }).fill(MAKE);

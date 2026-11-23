@@ -41,7 +41,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
                 ["Car", car ? <span key="c" className="flex flex-wrap items-center gap-2"><Link href={`/stock/${car.id}`} className="underline">{d.carTitle}</Link>{open && !forSale(car) && <Badge tone="warn">No longer for sale</Badge>}</span> : d.carTitle],
                 ["Phone", <a key="p" href={telHref(d.phone) ?? undefined} className="underline">{d.phone}</a>],
                 ["Email", d.email ? <a key="e" href={`mailto:${d.email}`} className="underline [overflow-wrap:anywhere]">{d.email}</a> : "Not given"],
-                ["Notes", d.notes || "None"],
+                ...(d.notes ? [["Notes", d.notes] as const] : []),
                 ["Booked", fmtDateTime(d.createdAt)],
               ] as const}
             />

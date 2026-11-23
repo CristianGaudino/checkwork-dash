@@ -37,7 +37,7 @@ export function AdminShell({ title, profile, subtitle, nav, navLabel, openGroups
   return (
     <Density.Provider value={{ compact, setCompact }}>
       <div data-density={compact ? "compact" : "comfortable"} className={`group/shell flex-1 lg:grid lg:transition-[grid-template-columns] lg:duration-200 lg:ease-out motion-reduce:transition-none ${rail ? "lg:grid-cols-[4.5rem_minmax(0,1fr)]" : "lg:grid-cols-[16rem_minmax(0,1fr)]"}`}>
-        <aside className="flex min-w-0 flex-col px-4 pt-4 sm:px-6 lg:sticky lg:top-0 lg:h-[calc(100dvh-var(--demo-bar-h,0px))] lg:self-start lg:overflow-x-hidden lg:overflow-y-auto lg:border-r lg:border-hairline lg:bg-rail lg:px-0 lg:pt-0">
+        <aside className="flex min-w-0 flex-col px-4 pt-4 sm:px-6 lg:sticky lg:top-0 lg:z-30 lg:h-[calc(100dvh-var(--demo-bar-h,0px))] lg:self-start lg:overflow-x-hidden lg:overflow-y-auto lg:border-r lg:border-hairline lg:bg-rail lg:px-0 lg:pt-0">
           <div className={`flex items-center justify-between gap-2 lg:pb-3 lg:pt-5 ${rail ? "lg:flex-col lg:px-0" : "lg:pl-6 lg:pr-3"}`}>
             {/* The dealer's own logo (the public site's, light and dark), in a box that keeps its shape: a wide wordmark or a square crest.
                 Its name is the logo's text for screen readers and shows on hover, so a long name is never cut short. */}

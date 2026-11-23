@@ -53,7 +53,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           )}
         </div>
         <div className="flex min-w-0 flex-col gap-6 max-lg:order-first">
-          <Panel title="Where it is" action={<OrderBadge status={o.status} />}>
+          <Panel title="Where it is" action={open && o.status !== "arrived" ? undefined : <OrderBadge status={o.status} />}>
             {open && o.status !== "arrived" && (
               <div className="flex flex-wrap gap-2">
                 {STEPS.map((s) => (

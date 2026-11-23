@@ -4,6 +4,7 @@ import { useRef, useState, useTransition } from "react";
 import { SHOW_PRICING } from "@/lib/billing/rules";
 import { SearchIcon } from "@/components/stock/icons";
 import { secondaryButton } from "@/components/ui";
+import { adminButtonQuiet } from "@/components/admin/kit";
 import { regSummary } from "@/lib/reg";
 import { useModules } from "@/components/DealerFacts";
 import type { CarFound, RegLookup as Found } from "@/lib/reg-lookup";
@@ -34,7 +35,7 @@ export function RegLookup({ reg, onFound, lookup, place = "website", className =
   // `className` sets the height to match the box beside it (h-12 public, h-11 dashboard) and the offset past its label.
   return (
     <>
-      <button type="button" onClick={look} disabled={pending || !reg.trim()} className={`inline-flex shrink-0 items-center justify-center gap-2 px-5 disabled:opacity-60 ${secondaryButton} ${className}`}>
+      <button type="button" onClick={look} disabled={pending || !reg.trim()} className={`inline-flex shrink-0 items-center justify-center gap-2 px-5 disabled:opacity-60 ${place === "dashboard" ? adminButtonQuiet : secondaryButton} ${className}`}>
         <SearchIcon className="size-5" />
         {pending ? "Looking up" : "Look up"}
       </button>

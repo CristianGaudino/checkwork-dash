@@ -79,13 +79,13 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
 
       {view === "today" && (
         <>
-          <Panel title={`Today, ${fmtDay(today)}`} count={onDay(today).length}>
+          <Panel title={`Today, ${fmtDay(today)}`} count={onDay(today).length || undefined}>
             <Agenda drives={onDay(today)} gone={gone} empty={driveTimes(today, hours).length ? "Nothing booked today." : "We're closed today."} />
           </Panel>
           {/* Today's are listed above with their buttons; this is the rest, so no booking shows twice. */}
           {later.length > 0 && (
             <Panel title="Still to confirm" count={later.length}>
-              <Agenda drives={later.slice(0, 8)} gone={gone} withDay />
+              <Agenda drives={later.slice(0, 8)} gone={gone} status="requested" withDay />
               {later.length > 8 && <Link href={link({ view: "list", status: "requested", when: "ahead", day: undefined })} className="w-fit text-meta font-medium underline">See all {later.length}</Link>}
             </Panel>
           )}
@@ -96,7 +96,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
               ahead.map(([iso, list]) => (
                 <section key={iso} aria-label={fmtDay(iso)} className="flex flex-col gap-1">
                   <h3 className="text-meta font-semibold text-text-2">{fmtDay(iso)}</h3>
-                  <Agenda drives={list} gone={gone} />
+                  <Agenda drives={list} gone={gone} status="confirmed" />
                 </section>
               ))
             )}
@@ -112,7 +112,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
 }
 
 // A day's bookings in time order. Each opens its booking; the next steps (confirm, done, no show, cancel) are on the row, with Undo.
-function Agenda({ drives, gone, empty = "Nothing booked.", withDay = false }: { drives: TestDrive[]; gone: Set<string>; empty?: string; withDay?: boolean }) {
+// status: the one the section's title already names, so its rows leave the badge out.
+function Agenda({ drives, gone, empty = "Nothing booked.", withDay = false, status }: { drives: TestDrive[]; gone: Set<string>; empty?: string; withDay?: boolean; status?: TestDrive["status"] }) {
   if (drives.length === 0) return <p className="text-body text-text-2">{empty}</p>;
   const today = dublinDay();
   return (
@@ -130,7 +131,7 @@ function Agenda({ drives, gone, empty = "Nothing booked.", withDay = false }: { 
               <Link href={`/test-drives/${d.id}`} data-name className="font-medium after:absolute after:inset-0">
                 {d.name}
               </Link>
-              <DriveStatusBadge status={d.status} />
+              {d.status !== status && <DriveStatusBadge status={d.status} />}
               {isOpenDrive(d) && gone.has(slugId(d.carSlug)) && <Badge tone="warn">No longer for sale</Badge>}
             </span>
             <span className="text-meta text-text-2">
@@ -138,7 +139,7 @@ function Agenda({ drives, gone, empty = "Nothing booked.", withDay = false }: { 
             </span>
           </span>
           {/* Call them, then the next step, one press each. One strong button a row: Call is quiet when a step (Confirm, Mark done) is the strong one. */}
-          <span className="relative z-10 col-span-2 flex flex-wrap gap-2 md:col-span-1 md:col-start-3 md:justify-end">
+          <span className="relative z-10 col-start-2 flex flex-wrap gap-2 md:col-start-3 md:justify-end">
             {isOpenDrive(d) && <CallButton phone={d.phone} name={d.name} quiet={d.status === "requested" || !ahead} />}
             <DriveSteps drive={d} ahead={ahead} />
           </span>

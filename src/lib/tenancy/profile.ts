@@ -55,6 +55,7 @@ export const DEMO_PROFILE: DealerProfile = {
   address: { street: "Long Mile Road", town: "Dublin 12", county: "Co. Dublin", eircode: "D12 AF77" },
   hours: HOURS_OF([["09:30", "18:00"], ["09:30", "18:00"], ["09:30", "18:00"], ["09:30", "18:00"], ["09:30", "18:00"], ["10:00", "16:00"]]),
   logo: { onLight: "/brand/logo-on-light.svg", onDark: "/brand/logo.svg" },
+  mark: "/icon.svg", // the Checkwork check (src/app/icon.svg), so the folded menu shows the brand, not "CM"
   modules: "all",
 };
 export const DEMO_NAME = "Checkwork Motors";

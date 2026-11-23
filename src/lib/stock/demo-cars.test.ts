@@ -66,6 +66,8 @@ describe("generated demo cars", () => {
       expect([p.width, p.height]).toEqual([900, 675]);
       expect(existsSync(`public${p.src}`)).toBe(true);
     }
+    // An Irish plate for the car's year: 191-D-12345 from 2013, 11-D-12345 before.
+    expect(c.reg).toMatch(new RegExp(`^${String(c.year % 100).padStart(2, "0")}${c.year >= 2013 ? "[12]" : ""}-[A-Z]{1,2}-[0-9]{1,6}$`));
     for (const s of strings(c)) expect(s).not.toMatch(/[–—<]|&amp;|&#/);
   });
 
