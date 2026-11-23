@@ -1,29 +1,31 @@
 import Link from "next/link";
-import { DataTable, EmptyState, Notice, PageHeader, Panel, SummaryTabs, TableFooter, TableToolbar, Task, TaskList, adminButton, pageOf, rowButton, rowButtonStrong, sortRows, type Column, type FilterGroup } from "@/components/admin/kit";
+import { DataTable, EmptyState, Notice, PageHeader, Panel, SummaryTabs, TableFooter, TableToolbar, Task, TaskList, adminButton, adminButtonQuiet, pageOf, rowButton, rowButtonStrong, sortRows, type Column, type FilterGroup } from "@/components/admin/kit";
 import { CarFlags, ListingButton, PostToSocial, ViewOnSite, daysInStock } from "@/components/admin/CarActions";
 import { ActButton } from "@/components/admin/ActButton";
 import { RowMenu } from "@/components/admin/RowMenu";
-import { CameraIcon, CheckIcon, HistoryIcon, PencilIcon, PlusIcon, ReceiptIcon, SyncIcon } from "@/components/stock/icons";
+import { CameraIcon, CheckIcon, ExternalIcon, HistoryIcon, PencilIcon, PlusIcon, ReceiptIcon } from "@/components/stock/icons";
 import { NEW_TAB } from "@/components/ui";
 import { carCosts } from "@/lib/admin/costs";
 import { marginOf } from "@/lib/admin/margins";
 import { adminCars } from "@/lib/admin/stock-admin";
 import { can } from "@/lib/permissions";
-import { daysSince, fmtDate, fmtEur, fmtNum } from "@/lib/admin/format";
+import { daysSince, fmtAgo, fmtDate, fmtEur, fmtNum } from "@/lib/admin/format";
 import { carName, siteCarUrl, priceLabel } from "@/lib/stock/format";
 import { FUEL_LABELS, FUELS, GEARBOXES, GEARBOX_LABELS, forSale, isReduced, isSold, type Car, onPublicSite } from "@/lib/stock/types";
 import { stockSource } from "@/lib/stock-source";
 import { listingHref } from "@/lib/stock-source-rules";
 import { listing } from "@/lib/stock-source";
 import { dealerProfile } from "@/lib/tenancy/current";
-import { SyncPanel } from "@/components/admin/SyncPanel";
+import { counts, syncLine } from "@/components/admin/SyncPanel";
+import { RefreshStock } from "@/components/admin/RefreshStock";
 import { StockBulk, StockPick, StockPickToggle } from "@/components/admin/StockBulk";
 import { CarThumb } from "@/components/admin/CarThumb";
 import { AgeBar } from "@/components/admin/charts";
 import { FEW_PHOTOS, stockViews, parseStockList, stockList, type StockView } from "@/lib/admin/stock-views";
 import { salesStore } from "@/lib/admin/collections";
 import { syncStatus } from "@/lib/donedeal/sync";
-import { toggleSoldAction, withdrawnAction } from "./actions";
+import { syncNowAction, toggleSoldAction, withdrawnAction } from "./actions";
+import { SubmitButton } from "@/components/admin/SubmitButton";
 import { enabledModules, hasModule } from "@/lib/modules";
 import { conditionShown } from "@/lib/modules-rules";
 
@@ -31,7 +33,7 @@ export const metadata = { title: "Stock" };
 
 // The views (src/lib/admin/stock-views.ts) are the summary: each is a tile with its count, and the chosen one filters the table.
 
-export default async function Page({ searchParams }: { searchParams: Promise<{ view?: string; status?: string; q?: string; make?: string; fuel?: string; gearbox?: string; sort?: string; dir?: string; per?: string; saved?: string; deleted?: string; sale?: string; reserved?: string; undone?: string; page?: string }> }) {
+export default async function Page({ searchParams }: { searchParams: Promise<{ view?: string; status?: string; q?: string; make?: string; fuel?: string; gearbox?: string; sort?: string; dir?: string; per?: string; saved?: string; deleted?: string; sale?: string; reserved?: string; undone?: string; page?: string; synced?: string }> }) {
   const sp = await searchParams;
   const { view, q, make, fuel, gearbox } = parseStockList(sp);
   const [all, source, deposits, { site: listingSite, url: listingUrl }, { siteUrl, rules }] = await Promise.all([adminCars(), stockSource(), hasModule("sales"), listing(), dealerProfile()]);
@@ -268,15 +270,18 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
     <>
       <PageHeader
         title="Stock"
-        text={synced ? `Your cars come from ${listingSite}. Add, change and sell them there; changes show here within 15 minutes.` : "Every car on your website. Press a car to change its price, photos or details."}
+        text={sync ? (sync.lastOkAt ? `Last updated ${fmtAgo(sync.lastOkAt)}` : "Not updated yet") : "Press a car to change its price, photos or details"}
         actions={
           <>
             {synced ? (
-              <a href={listingUrl} {...NEW_TAB} className={adminButton}>
-                <SyncIcon className="shrink-0 size-4" />
-                Open {listingSite}
-                <span className="sr-only"> (opens in a new tab)</span>
-              </a>
+              <>
+                <RefreshStock />
+                <a href={listingUrl} {...NEW_TAB} className={adminButton}>
+                  <ExternalIcon className="shrink-0 size-4" />
+                  Open {listingSite}
+                  <span className="sr-only"> (opens in a new tab)</span>
+                </a>
+              </>
             ) : (
               <Link href="/stock/new" className={adminButton}>
                 <PlusIcon className="shrink-0 size-4" />
@@ -286,7 +291,18 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
           </>
         }
       />
-      {sync && <SyncPanel status={sync} canForce={await can("settings")} />}
+      {/* A failing sync stays in view while it fails. A held one (the answer looked wrong) can be applied by an owner or manager: the alert sends them here. */}
+      {sync?.problem && (
+        <div className="flex flex-col gap-2">
+          <Notice tone="warn">{syncLine(sync)}</Notice>
+          {sync.held && canUndo && (
+            <form action={syncNowAction.bind(null, true)}>
+              <SubmitButton className={adminButtonQuiet}>Apply anyway</SubmitButton>
+            </form>
+          )}
+        </div>
+      )}
+      {sync && sp.synced && !sync.problem && <Notice>Stock refreshed. {counts(sync.result ?? { added: 0, changed: 0, takenDown: 0 }, "No changes")}.</Notice>}
       {saved && (
         <Notice>
           Saved {carName(saved)}.
