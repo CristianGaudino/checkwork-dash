@@ -14,6 +14,8 @@ export const carFormSchema = z.object({
   make: z.string().trim().min(1, "Enter the make").max(40),
   model: z.string().trim().min(1, "Enter the model").max(60),
   variant: text(TEXT_LIMITS.variant),
+  // Kept as typed, in upper case; empty clears it.
+  reg: z.preprocess((v) => (typeof v === "string" ? v.trim().toUpperCase() || undefined : v), z.string().max(12, "Up to 12 characters").regex(/^[A-Z0-9 -]+$/, "Letters, numbers and dashes only").optional()),
   year: z.coerce.number().int().min(1980, "Enter a year from 1980").max(new Date().getFullYear() + 1),
   // 0 is Price on request; an empty box is still an error, never a silent 0.
   priceEur: z.preprocess(blank, z.coerce.number({ message: "Enter the price" }).int("Whole euros only").min(0, "Enter the price").max(1_000_000)),
@@ -66,6 +68,7 @@ export function carFromForm(data: FormData, id: string, existing?: Car, today = 
     makeSlug: slugify(f.make),
     modelSlug: slugify(f.model),
     variant: f.variant,
+    reg: f.reg,
     priceEur: f.priceEur,
     wasPriceEur: f.wasPriceEur,
     condition: f.condition,

@@ -11,6 +11,12 @@ describe("planSync", () => {
     expect(planSync(stock, [car("1"), car("2")], TODAY, { site: "DoneDeal" })).toEqual({ added: [], changed: [], gone: [] });
   });
 
+  it("keeps a registration typed in the dashboard: not a change, and kept when the car does change", () => {
+    const stock = [car("1", { reg: "191-D-12345" })];
+    expect(planSync(stock, [car("1")], TODAY, { site: "DoneDeal" })).toEqual({ added: [], changed: [], gone: [] });
+    expect(planSync(stock, [car("1", { priceEur: 9500 })], TODAY, { site: "DoneDeal" }).changed[0].after.reg).toBe("191-D-12345");
+  });
+
   it("adds a new listing, dated today unless DoneDeal dates it", () => {
     const p = planSync([car("1")], [car("1"), car("2", { listedAt: undefined }), car("3", { listedAt: "2026-11-09" })], TODAY, { site: "DoneDeal" });
     expect(p.added.map((c) => [c.id, c.listedAt])).toEqual([["2", TODAY], ["3", "2026-11-09"]]);

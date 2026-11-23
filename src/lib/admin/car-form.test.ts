@@ -57,6 +57,12 @@ describe("carFromForm", () => {
     if (r.ok) return;
     expect(Object.keys(r.errors).sort()).toEqual(["acChargeKw", "batteryKwh", "charge10To80Mins", "co2GKm", "dcChargeKw", "evRangeKm", "motorTaxEur"]);
   });
+  it("keeps the registration in upper case, clears it when emptied, and refuses odd characters", () => {
+    expect(carFromForm(form({ reg: " 191-d-12345 " }), "1")).toMatchObject({ car: { reg: "191-D-12345" } });
+    expect(carFromForm(form({ reg: "  " }), "1", { reg: "191-D-1" } as Car)).not.toHaveProperty("car.reg");
+    expect(carFromForm(form({ reg: "191<D>1" }), "1")).toMatchObject({ errors: { reg: "Letters, numbers and dashes only" } });
+    expect(carFromForm(form({ reg: "1".repeat(13) }), "1")).toMatchObject({ ok: false });
+  });
   it("rejects bad input with a message per field", () => {
     const r = carFromForm(form({ make: " ", year: "1850", priceEur: "12.5", nctExpiry: "07/2027" }), "1");
     expect(r.ok).toBe(false);

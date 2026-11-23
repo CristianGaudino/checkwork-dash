@@ -19,6 +19,8 @@ export const CAR_FIELDS: FieldSpec[] = [
   { name: "make", label: "Make", type: "text", group: "Basics" },
   { name: "model", label: "Model", type: "text", group: "Basics" },
   { name: "variant", label: "Variant", type: "text", group: "Basics", wide: true },
+  // A new car's is the lookup's box at the top of the form (CarForm).
+  { name: "reg", label: "Registration", type: "text", group: "Basics" },
   { name: "year", label: "Year", type: "number", group: "Basics" },
   { name: "condition", label: "Type", type: "select", group: "Basics", options: CONDITIONS.map((c) => [c, cap(c)] as const) },
   { name: "priceEur", label: "Price (€)", type: "number", group: "Price" },

@@ -44,6 +44,7 @@ export interface Car {
   model: string;
   modelSlug: string;
   variant?: string;
+  reg?: string; // the registration, upper case, e.g. "191-D-12345". Dashboard only: never public (the site API names its fields).
   year: number;
   priceEur: number; // whole euro, as advertised: see vat for whether VAT is in it
   wasPriceEur?: number; // the earlier price, when this one is a drop

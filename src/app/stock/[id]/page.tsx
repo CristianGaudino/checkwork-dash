@@ -89,6 +89,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
     sold && sale && canDelete && <Link key="undo" href={`/stock/${id}/undo-sale`} className={quiet}>Undo sale</Link>,
   ].filter(Boolean);
   const facts = [
+    car.reg,
     car.listedAt && !sold ? (daysInStock(car.listedAt) === "Today" ? "Added today" : `${daysInStock(car.listedAt)} in stock`) : sale ? `Sold for ${fmtEur(sale.priceEur)} on ${day(sale.soldOn)}` : sold ? `Sold ${day(car.soldAt!)}` : undefined,
     `${car.photos.length} ${car.photos.length === 1 ? "photo" : "photos"}`,
     car.mileageKm !== undefined ? `${fmtNum(car.mileageKm)} km` : undefined,

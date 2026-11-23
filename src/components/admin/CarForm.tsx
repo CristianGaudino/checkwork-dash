@@ -102,8 +102,8 @@ export function CarForm({ car, at, cost, reg: startReg = "", photosMax }: { car?
         <Panel title="1. Look up the registration">
           <p className="max-w-measure text-body text-text-2">It fills in the make, model, year and more. No registration? Fill in the boxes below.</p>
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start">
-            <Field label="Registration" className="flex-1 sm:max-w-xs">
-              <input value={reg} onChange={(e) => setReg(e.target.value.toUpperCase())} autoCapitalize="characters" spellCheck={false} maxLength={12} placeholder="191-KY-1234" className={adminInput} />
+            <Field label="Registration" error={errors.reg} className="flex-1 sm:max-w-xs">
+              <input name="reg" value={reg} aria-invalid={errors.reg ? true : undefined} onChange={(e) => setReg(e.target.value.toUpperCase())} autoCapitalize="characters" spellCheck={false} maxLength={12} placeholder="191-KY-1234" className={adminInput} />
             </Field>
             <RegLookup
               reg={reg}
@@ -121,7 +121,7 @@ export function CarForm({ car, at, cost, reg: startReg = "", photosMax }: { car?
       {(car ? EDIT_GROUPS : FIELD_GROUPS).map((group) => {
         const fields = (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {CAR_FIELDS.filter((f) => f.group === group).map((f) => f.name === "description" ? (
+            {CAR_FIELDS.filter((f) => f.group === group && (car || f.name !== "reg")).map((f) => f.name === "description" ? (
               // The description has the AI writer under it, so it is not inside the label the other boxes use.
               <div key={f.name} className="flex min-w-0 flex-col gap-1 sm:col-span-2 lg:col-span-3">
                 <span className="text-meta font-semibold">{f.label}</span>
@@ -137,7 +137,7 @@ export function CarForm({ car, at, cost, reg: startReg = "", photosMax }: { car?
                 ) : f.type === "textarea" ? (
                   <textarea name={f.name} defaultValue={value(f.name)} rows={f.name === "features" ? 6 : 5} className={`${adminInput} h-auto py-2`} />
                 ) : (
-                  <input name={f.name} type={f.type} step={f.step} inputMode={f.type === "number" ? "decimal" : undefined} defaultValue={value(f.name)} onInput={f.name === "priceEur" ? (e) => setOnRequest(e.currentTarget.value.trim() === "0") : undefined} aria-invalid={errors[f.name] ? true : undefined} className={adminInput} />
+                  <input name={f.name} type={f.type} step={f.step} inputMode={f.type === "number" ? "decimal" : undefined} defaultValue={value(f.name)} {...(f.name === "reg" && { autoCapitalize: "characters", spellCheck: false, maxLength: 12 })} onInput={f.name === "priceEur" ? (e) => setOnRequest(e.currentTarget.value.trim() === "0") : undefined} aria-invalid={errors[f.name] ? true : undefined} className={adminInput} />
                 )}
               </Field>
             ))}

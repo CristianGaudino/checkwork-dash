@@ -21,6 +21,7 @@ export async function GET(req: Request) {
     ["Model", (c) => c.model],
     ["Variant", (c) => c.variant],
     ["Year", (c) => c.year],
+    ["Registration", (c) => c.reg],
     ["Price (€)", (c) => c.priceEur],
     ["Earlier price (€)", (c) => c.wasPriceEur],
     ["Mileage (km)", (c) => c.mileageKm],
