@@ -54,12 +54,12 @@ const NOTICES: Record<string, { tone: "good" | "warn"; text: string }> = {
 const PENDING = new Set(["draft", "scheduled"]);
 const today = () => Date.now(); // lint: a page may not call Date.now directly
 
-// What each tab is for, in a line.
+// What each tab is for: one short line each, of about the same length, so the header keeps its height when the tab changes (#115).
 const TAB_TEXT: Record<string, string> = {
-  posts: "What went out, how it did and what is waiting.",
-  calendar: "What goes out each day of the week.",
-  media: "Your own photos and videos, ready to use in a post.",
-  newsletters: "An email with your newest cars, sent to the people who signed up for it on your site.",
+  posts: "What went out and what is waiting",
+  calendar: "What goes out each day of the week",
+  media: "Your own photos and videos for posts",
+  newsletters: "Your newest cars, emailed to subscribers",
 };
 
 const STATUS: Record<string, { tone: Tone; label: string }> = {
@@ -113,7 +113,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
         title="Marketing"
         text={TAB_TEXT[tab]}
         actions={
-          social && (tab === "posts" || tab === "calendar") && (
+          // On every tab, so the header does not change shape when the tab does.
+          social && (
             <Link href="/marketing/new" className={adminButton}>
               <PlusIcon className="shrink-0 size-4" />
               New post
