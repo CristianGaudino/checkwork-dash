@@ -118,13 +118,21 @@ function Agenda({ drives, gone, empty = "Nothing booked.", withDay = false, stat
       {drives.map((d) => {
         const ahead = dublinDay(d.startsAt) > today;
         return (
-        <li key={d.id} className="relative grid grid-cols-[3.5rem_minmax(0,1fr)] items-center gap-x-4 gap-y-2 px-5 py-3 even:bg-row-alt hover:bg-surface md:grid-cols-[3.5rem_minmax(0,1fr)_auto]">
-          <span className="self-start font-medium tabular-nums md:self-center">
+        <li key={d.id} className="relative grid grid-cols-1 items-center gap-x-4 gap-y-2 px-5 py-3 even:bg-row-alt hover:bg-surface sm:grid-cols-[3.5rem_minmax(0,1fr)] md:grid-cols-[3.5rem_minmax(0,1fr)_auto]">
+          {/* On a phone the time leads the name line instead (below), so the buttons get the row's whole width and line up with the name. */}
+          <span className="self-start font-medium tabular-nums max-sm:hidden md:self-center">
             {fmtTime(d.startsAt)}
             {withDay && <span className="block text-meta font-normal text-text-2">{fmtDay(dublinDay(d.startsAt), "weekday")} {fmtDay(dublinDay(d.startsAt), "day")}</span>}
           </span>
           <span className="flex min-w-0 flex-col">
             <span className="flex flex-wrap items-center gap-2">
+              <span className="font-medium tabular-nums sm:hidden">
+
+                {fmtTime(d.startsAt)}
+
+                {withDay && <span className="font-normal text-text-2"> {fmtDay(dublinDay(d.startsAt), "weekday")} {fmtDay(dublinDay(d.startsAt), "day")}</span>}
+
+              </span>
               <Link href={`/test-drives/${d.id}`} data-name className="font-medium after:absolute after:inset-0">
                 {d.name}
               </Link>
@@ -136,7 +144,7 @@ function Agenda({ drives, gone, empty = "Nothing booked.", withDay = false, stat
             </span>
           </span>
           {/* Call them, then the next step, one press each. One strong button a row: Call is quiet when a step (Confirm, Mark done) is the strong one. */}
-          <span className="relative z-10 col-start-2 flex flex-wrap gap-2 md:col-start-3 md:justify-end">
+          <span className="relative z-10 flex flex-wrap gap-2 sm:col-start-2 md:col-start-3 md:justify-end">
             {isOpenDrive(d) && <CallButton phone={d.phone} name={d.name} quiet={d.status === "requested" || !ahead} />}
             <DriveSteps drive={d} ahead={ahead} />
           </span>
@@ -230,23 +238,29 @@ function Week({ day, today, onDay, gone, link, hours }: { day: string; today: st
 function List({ drives, sp, team, gone }: { drives: TestDrive[]; sp: Params; team: string[]; gone: Set<string> }) {
   const rows = filterDrives(drives, sp, undefined, gone);
   const columns: Column<TestDrive>[] = [
-    { key: "when", header: "When", sort: (d) => d.startsAt, nowrap: true, cell: (d) => <span className="tabular-nums">{fmtDate(d.startsAt)}, {fmtTime(d.startsAt)}</span> },
+    { key: "when", header: "When", sort: (d) => d.startsAt, nowrap: true, cell: (d) => <span className="flex flex-col tabular-nums"><span className="sm:hidden">{fmtDay(dublinDay(d.startsAt), "day")} {fmtDay(dublinDay(d.startsAt), "month")}</span><span className="max-sm:hidden">{fmtDate(d.startsAt)}</span><span className="text-meta text-text-2">{fmtTime(d.startsAt)}</span></span> },
     {
       key: "who",
       header: "Customer",
       sort: (d) => d.name,
       cell: (d) => (
         <span className="flex min-w-0 flex-col">
-          <Link href={`/test-drives/${d.id}`} className="font-medium after:absolute after:inset-0">
-            {d.name}
-          </Link>
+          <span className="flex flex-wrap items-center gap-x-2">
+            <Link href={`/test-drives/${d.id}`} className="font-medium after:absolute after:inset-0">
+              {d.name}
+            </Link>
+            {/* The Status column is left out on a phone, so the name and car keep their width; the badge sits by the name instead. */}
+            <span className="sm:hidden">
+              <DriveStatusBadge status={d.status} />
+            </span>
+          </span>
           <span className="text-meta text-text-2 md:hidden">{d.carTitle}</span>
         </span>
       ),
     },
     { key: "car", header: "Car", sort: (d) => d.carTitle, cell: (d) => <span className="line-clamp-2 max-w-[16rem]">{d.carTitle}</span>, hide: "md" },
     { key: "with", header: "Taking them out", sort: (d) => d.assignedTo, cell: (d) => d.assignedTo ?? <span className="text-text-2">Not assigned</span>, hide: "lg" },
-    { key: "status", header: "Status", sort: (d) => DRIVE_STATUSES.indexOf(d.status), nowrap: true, cell: (d) => <DriveStatusBadge status={d.status} /> },
+    { key: "status", header: "Status", sort: (d) => DRIVE_STATUSES.indexOf(d.status), nowrap: true, cell: (d) => <DriveStatusBadge status={d.status} />, hide: "sm" },
   ];
   const { rows: sorted, sort } = sortRows(rows, columns, sp, { key: "when", dir: "desc" });
   const paged = pageOf(sorted, sp);
