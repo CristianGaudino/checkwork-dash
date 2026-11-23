@@ -1,6 +1,6 @@
 "use server";
 
-import { currentDealer, dealerProfile } from "@/lib/tenancy/current";
+import { dealerProfile } from "@/lib/tenancy/current";
 import { askedCar } from "@/lib/leads/journey";
 import { revalidatePath } from "next/cache";
 import { AD_PLATFORMS, FORMATS_FOR, FORMAT_LIMITS, POST_FORMATS, POST_LIMITS, PUBLISH_MODE, STORY_LAYOUTS } from "@/lib/admin/networks";
@@ -10,7 +10,7 @@ import { dropMedia, storeMedia } from "@/lib/admin/media";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { NETWORKS, adsStore, getSettings, mediaStore, newslettersStore, postsStore, subscribersStore, type Ad, type MediaItem, type SocialPost } from "@/lib/admin/collections";
-import { newestForSale, simulatedAd, simulatedLetter, simulatedPost, writeNewsletter, writePost, type SendResult } from "@/lib/admin/marketing";
+import { readyToPost, simulatedAd, simulatedLetter, simulatedPost, writePost, type SendResult } from "@/lib/admin/marketing";
 import { publishPost, sendNewsletter, startAd } from "@/lib/admin/publishers";
 import { adminCars } from "@/lib/admin/stock-admin";
 import { carName } from "@/lib/stock/format";
@@ -23,6 +23,8 @@ import { aOrAn } from "@/lib/admin/activity-text";
 import type { ComposerCar } from "@/components/admin/PostComposer";
 import { dublinMs } from "@/lib/admin/format";
 import { requireStaff } from "@/lib/staff";
+import { slugId } from "@/lib/admin/stock-admin-pure";
+import { CLAIM_MS } from "@/lib/admin/scheduler";
 
 const postRef = (p: SocialPost) => ({ kind: "post" as const, id: p.id, label: p.carTitle ?? "A post" });
 const adRef = (a: Ad) => ({ kind: "ad" as const, id: a.id, label: a.carTitle });
@@ -34,7 +36,9 @@ const go = (tab: string, notice: string): never => redirect(`/marketing?tab=${ta
 const outcome = (tab: string, kind: string, r: SendResult, ok: string) => go(tab, r.ok ? ok : r.reason === "not-connected" ? `${kind}-not-connected` : `${kind}-not-installed`);
 
 // The composer: one post, and an ad for the same car if the switch is on. A draft is kept first, so a post that cannot go out is not lost.
+// With `id` it saves over that draft or scheduled post (its edit page), under the same checks; a post that went out is never changed.
 const compose = z.object({
+  id: z.string().optional(),
   carSlug: z.string().min(1),
   network: z.enum(NETWORKS),
   text: z.string().trim().min(1).max(POST_LIMITS.text),
@@ -57,22 +61,27 @@ export async function composeAction(data: FormData) {
   if (!r.success || !car) return go("posts", "invalid");
   if (!forSale(car)) return go("posts", "car-gone"); // sold or hidden while the composer was open
   const d = r.data;
+  const existing = d.id ? await postsStore.get(d.id) : undefined;
+  if (d.id && (!existing || existing.status === "posted")) return go("posts", "invalid");
+  // shortcut: refuses only while the scheduler holds its claim, not a true conditional write; enough for one dealer's staff.
+  if (existing?.claimedAt && Date.now() - existing.claimedAt < CLAIM_MS) return go("posts", "invalid"); // being sent right now
   const later = d.intent === "publish" && d.timing === "later";
   // The time is typed in Irish time (datetime-local has no zone), like the test drive form.
   const [day = "", time = ""] = (d.when ?? "").split("T");
   const when = later ? dublinMs(day, time) : 0;
   if (later && (Number.isNaN(when) || when < Date.now())) return go("posts", "invalid-time");
-  // Only photos of this car, or from the dealer's own library, can go on a post; a video must be one from the library and short enough.
+  // Only photos of this car, from the dealer's own library or already on the post being edited (while it stays on the same car) can go
+  // on a post; a video must be one from the library and short enough.
   const library = await mediaStore.list();
-  const okPhoto = (src: string) => car.photos.some((p) => p.src === src) || library.some((m) => m.kind === "image" && m.src === src);
+  const okPhoto = (src: string) => car.photos.some((p) => p.src === src) || library.some((m) => m.kind === "image" && m.src === src) || (existing !== undefined && slugId(existing.carSlug ?? "") === slugId(car.slug) && Boolean(existing.photos?.includes(src)));
   const limits = FORMAT_LIMITS[d.format];
   const photos = data.getAll("photos").map(String).filter(okPhoto).slice(0, limits.photos[1]);
   const clip = limits.video ? library.find((m) => m.kind === "video" && m.src === d.video && (m.durationSec ?? 0) <= limits.maxSeconds) : undefined;
+  const post: SocialPost = { id: existing?.id ?? newId("post"), network: d.network, carSlug: car.slug, carTitle: carName(car), text: d.text, ...(photos.length && { photos }), ...(d.format !== "post" && { format: d.format }), ...(d.format === "story" && d.layout && { layout: d.layout }), ...(clip && { video: clip.src }), status: later ? "scheduled" : "draft", ...(later && { scheduledFor: when }), createdAt: existing?.createdAt ?? Date.now() };
   // A draft can be unfinished; what goes out (now or later) must have what its format needs.
-  const ready = d.format === "reel" ? Boolean(clip) : d.format === "story" ? photos.length + (clip ? 1 : 0) > 0 : photos.length >= limits.photos[0];
-  if (!(FORMATS_FOR[d.network] as readonly string[]).includes(d.format) || (d.intent === "publish" && !ready)) return go("posts", "invalid");
-  const post: SocialPost = { id: newId("post"), network: d.network, carSlug: car.slug, carTitle: carName(car), text: d.text, ...(photos.length && { photos }), ...(d.format !== "post" && { format: d.format }), ...(d.format === "story" && d.layout && { layout: d.layout }), ...(clip && { video: clip.src }), status: later ? "scheduled" : "draft", ...(later && { scheduledFor: when }), createdAt: Date.now() };
+  if (!(FORMATS_FOR[d.network] as readonly string[]).includes(d.format) || (d.intent === "publish" && !readyToPost(post))) return go("posts", "invalid");
   await postsStore.put(post);
+  if (existing) await dropUnused(existing); // a photo the edit took off is let go, as on delete
   const prepared = PUBLISH_MODE[d.network][d.format] === "prepare";
   // An ad starts with the post, so not for a scheduled one, nor for one held until the network approves us (it is not out yet).
   const withAd = d.ad === "on" && !later && !prepared && d.platform && d.budgetEur;
@@ -107,7 +116,7 @@ export async function publishPostAction(id: string) {
   await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
   await requireModule("social");
   const post = await postsStore.get(id);
-  if (!post || post.status === "posted") return go("posts", "invalid"); // a draft or a scheduled post only: never the same post twice
+  if (!post || post.status === "posted" || !readyToPost(post)) return go("posts", "invalid"); // a draft or a scheduled post only (never the same post twice), with what its format needs
   const held = PUBLISH_MODE[post.network][post.format ?? "post"] === "prepare";
   const r = held ? { ok: true as const } : await publishPost(post); // a held post never reaches a network
   if (r.ok) {
@@ -124,14 +133,18 @@ export async function deletePostAction(id: string) {
   await postsStore.remove(id);
   if (post) {
     await logActivity("marketing", `Deleted ${aOrAn(post.network)} post`, postRef(post));
-    // A library file stays while a library record or another post still uses it.
-    const [library, posts] = await Promise.all([mediaStore.list(), postsStore.list()]);
-    for (const src of [...(post.photos ?? []), ...(post.video ? [post.video] : [])]) {
-      if (src.startsWith("/media-files/") && !library.some((m) => m.src === src) && !posts.some((p) => p.video === src || p.photos?.includes(src))) await dropMedia(src);
-    }
+    await dropUnused(post);
   }
   revalidatePath("/marketing");
   go("posts", "deleted");
+}
+
+// Lets go of a post's stored files that nothing uses any more: a file stays while a library record or a post still uses it.
+async function dropUnused(post: SocialPost) {
+  const [library, posts] = await Promise.all([mediaStore.list(), postsStore.list()]);
+  for (const src of [...(post.photos ?? []), ...(post.video ? [post.video] : [])]) {
+    if (src.startsWith("/media-files/") && !library.some((m) => m.src === src) && !posts.some((p) => p.video === src || p.photos?.includes(src))) await dropMedia(src);
+  }
 }
 
 export async function startAdAction(id: string) {
@@ -168,25 +181,20 @@ export async function composerCarAction(slug: string): Promise<ComposerCar | nul
   return { slug: car.slug, title: carName(car), photos: car.photos.slice(0, 10), text: text("post"), byFormat: Object.fromEntries(POST_FORMATS.map((f) => [f, text(f)])) as ComposerCar["byFormat"], price: p.headline, was: isReduced(car) ? fmtEur(car.wasPriceEur!) : undefined };
 }
 
-// "Write from the newest cars" fills the letter from the stock; otherwise the dealer's own subject and text are used.
-const letter = z.object({ subject: z.string().trim().max(120), body: z.string().trim().max(4000) });
+// A newsletter draft, as the dealer wrote or reviewed it ("Write from the newest cars" fills the form first: /marketing/newsletters/new). With
+// `id` it saves over that draft (its edit page), under the same checks; a sent one is never changed.
+const letter = z.object({ id: z.string().optional(), subject: z.string().trim().min(1).max(120), body: z.string().trim().min(1).max(4000) });
 export async function createNewsletterAction(data: FormData) {
   await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
   await requireModule("newsletter");
-  const { marketing } = await getSettings();
-  let { subject, body } = { subject: "", body: "" };
-  if (data.get("intent") === "write") {
-    const cars = newestForSale(await adminCars(), 5);
-    const { name, profile } = await currentDealer();
-    ({ subject, body } = writeNewsletter(cars, marketing, { name, siteUrl: profile.siteUrl }));
-  } else {
-    const r = letter.safeParse(Object.fromEntries(data));
-    if (!r.success || !r.data.subject || !r.data.body) return go("newsletters", "invalid");
-    ({ subject, body } = r.data);
-  }
-  const letterDraft = { id: newId("nl"), subject, body, status: "draft" as const, createdAt: Date.now() };
+  const r = letter.safeParse(Object.fromEntries(data));
+  if (!r.success) return go("newsletters", "invalid");
+  const { id, subject, body } = r.data;
+  const existing = id ? await newslettersStore.get(id) : undefined;
+  if (id && existing?.status !== "draft") return go("newsletters", "invalid");
+  const letterDraft = { id: existing?.id ?? newId("nl"), subject, body, status: "draft" as const, createdAt: existing?.createdAt ?? Date.now() };
   await newslettersStore.put(letterDraft);
-  await logActivity("marketing", "Wrote a newsletter", letterRef(letterDraft));
+  await logActivity("marketing", existing ? "Edited a newsletter" : "Wrote a newsletter", letterRef(letterDraft));
   go("newsletters", "letter-created");
 }
 

@@ -1,23 +1,24 @@
 import { Badge, EmptyState, Notice, PageHeader, Panel, StatCard, StatGrid, SummaryTabs, TableFooter, TableToolbar, Task, TaskList, pageOf, adminButton, adminButtonQuiet, rowButton, rowButtonStrong, rowDanger, type FilterGroup, type Tone } from "@/components/admin/kit";
-import { PlusIcon, TrashIcon } from "@/components/stock/icons";
+import { PencilIcon, PlusIcon, TrashIcon } from "@/components/stock/icons";
 import { DAY } from "@/lib/time";
 import { ActButton } from "@/components/admin/ActButton";
 import { RowMenu } from "@/components/admin/RowMenu";
 import { sendDuePosts } from "@/lib/admin/scheduler";
-import { adsStore, mediaStore, newslettersStore, postsStore, subscribersStore, type SocialPost } from "@/lib/admin/collections";
+import { adsStore, mediaStore, newslettersStore, postsStore, subscribersStore, type Ad, type SocialPost } from "@/lib/admin/collections";
 import { LibraryUpload } from "@/components/admin/MediaUpload";
 import { NewsletterFields } from "@/components/admin/NewsletterFields";
 import { hasModule } from "@/lib/modules";
 import { notFound } from "next/navigation";
 import { TIME_ZONE } from "@/lib/site";
-import { AD_PLATFORM_LABELS, FORMAT_LABELS, PUBLISH_MODE } from "@/lib/admin/networks";
+import { AD_PLATFORM_LABELS } from "@/lib/admin/networks";
+import { PostNow, postLabel, postName, prepared } from "@/components/admin/PostNow";
 import { addDays, dublinDay, fmtDate, fmtDateTime, fmtEur, fmtNum, fmtPct, isIsoDay, plural, threeLetter } from "@/lib/admin/format";
 import Link from "next/link";
-import { calendarWeek, newestForSale, weekDays, worthPosting } from "@/lib/admin/marketing";
+import { calendarWeek, newestForSale, readyToPost, weekDays, worthPosting } from "@/lib/admin/marketing";
 import { adminCars } from "@/lib/admin/stock-admin";
 import { isUsable } from "@/lib/integrations";
 import { carName } from "@/lib/stock/format";
-import { createNewsletterAction, deleteAdAction, deleteMediaAction, deleteNewsletterAction, deletePostAction, publishPostAction, sendNewsletterAction, startAdAction } from "./actions";
+import { createNewsletterAction, deleteAdAction, deleteMediaAction, deleteNewsletterAction, deletePostAction, sendNewsletterAction, startAdAction } from "./actions";
 import { SubmitButton } from "@/components/admin/SubmitButton";
 import { BrandIcon } from "@/components/admin/BrandIcon";
 
@@ -150,15 +151,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
                           title={item.p.status === "draft" ? `Draft ${postName(item.p)}` : postName(item.p)}
                           mark={<BrandIcon name={item.p.network} />}
                           detail={[item.p.status === "scheduled" && `Goes out ${fmtDateTime(item.p.scheduledFor ?? item.p.createdAt)}`, item.p.carTitle].filter(Boolean).join(", ") || item.p.text}
-                          action={
-                            <>
-                              <PostNow p={item.p} />
-                              {/* Delete is rare: in More, so the row is not a red button beside every task. It still asks first. */}
-                              <RowMenu label={`More for the ${postName(item.p)}${item.p.carTitle ? `, ${item.p.carTitle}` : ""}`}>
-                                <ActButton act={deletePostAction.bind(null, item.p.id)} confirm={{ title: "Delete this post?", text: "This cannot be undone.", yes: "Delete" }} label={`Delete the ${postName(item.p)}${item.p.carTitle ? `, ${item.p.carTitle}` : ""}`} className={rowButton}><TrashIcon className="shrink-0 size-4" />Delete</ActButton>
-                              </RowMenu>
-                            </>
-                          }
+                          href={`/marketing/posts/${item.p.id}`}
+                          action={<PostActions p={item.p} />}
                         />
                       ) : (
                         <Task
@@ -167,14 +161,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
                           title={`${AD_PLATFORM_LABELS[item.a.platform]} ad, not started`}
                           mark={<BrandIcon name={AD_PLATFORM_LABELS[item.a.platform]} />}
                           detail={`${item.a.carTitle}, budget ${fmtEur(item.a.budgetEur)}`}
-                          action={
-                            <>
-                              <ActButton act={startAdAction.bind(null, item.a.id)} confirm={{ title: "Start this ad?", text: `It runs on ${AD_PLATFORM_LABELS[item.a.platform]} with a budget of ${fmtEur(item.a.budgetEur)}.`, yes: "Start ad", safe: true }} label={`Start ad: ${AD_PLATFORM_LABELS[item.a.platform]} ad, ${item.a.carTitle}`} className={rowButtonStrong}>Start ad</ActButton>
-                              <RowMenu label={`More for the ${AD_PLATFORM_LABELS[item.a.platform]} ad, ${item.a.carTitle}`}>
-                                <ActButton act={deleteAdAction.bind(null, item.a.id)} confirm={{ title: "Delete this ad?", text: "This cannot be undone.", yes: "Delete" }} label={`Delete the ${AD_PLATFORM_LABELS[item.a.platform]} ad, ${item.a.carTitle}`} className={rowButton}><TrashIcon className="shrink-0 size-4" />Delete</ActButton>
-                              </RowMenu>
-                            </>
-                          }
+                          action={<AdActions a={item.a} />}
                         />
                       ),
                     )}
@@ -235,7 +222,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
               <ul aria-label="Posts and ads" className="-mx-5 flex flex-col divide-y divide-hairline">
                 {paged.rows.map((item) =>
                   item.kind === "post" ? (
-                    <li key={item.p.id} className="flex flex-wrap items-center gap-3 px-5 py-3">
+                    <li key={item.p.id} className="relative flex flex-wrap items-center gap-3 px-5 py-3 transition-colors has-[>a:hover]:bg-surface">
                       <Thumb src={item.p.photos?.[0]} icon={<BrandIcon name={item.p.network} className="size-5" />} />
                       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -248,11 +235,13 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
                         </span>
                         <p className="line-clamp-1 max-w-measure text-meta text-text-2 max-sm:hidden">{item.p.text}</p>
                       </div>
+                      {/* The whole row opens the post: its edit page while it waits, how it did once it went out. */}
+                      <Link href={`/marketing/posts/${item.p.id}`} aria-label={`${postName(item.p)}${item.p.carTitle ? `, ${item.p.carTitle}` : ""}`} className="absolute inset-0" />
                       {item.p.status === "posted" ? (
                         // Held until the network approves us: it has not gone out, so no figures.
                         !prepared(item.p) && <Results items={[[item.p.reach ?? 0, "saw it"], [item.p.clicks ?? 0, "clicks"]]} />
                       ) : (
-                        <PostNow p={item.p} className="ml-auto" />
+                        <span className="relative z-10 ml-auto flex flex-wrap justify-end gap-2"><PostActions p={item.p} /></span>
                       )}
                     </li>
                   ) : (
@@ -266,7 +255,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
                         <span className="truncate text-meta text-text-2">{item.a.carTitle}, {fmtEur(item.a.budgetEur)}</span>
                       </div>
                       {item.a.status === "draft" ? (
-                        <ActButton act={startAdAction.bind(null, item.a.id)} confirm={{ title: "Start this ad?", text: `It runs on ${AD_PLATFORM_LABELS[item.a.platform]} with a budget of ${fmtEur(item.a.budgetEur)}.`, yes: "Start ad", safe: true }} label={`Start ad: ${AD_PLATFORM_LABELS[item.a.platform]} ad, ${item.a.carTitle}`} className={`${rowButtonStrong} ml-auto`}>Start ad</ActButton>
+                        <span className="ml-auto flex flex-wrap justify-end gap-2"><AdActions a={item.a} /></span>
                       ) : (
                         <Results items={[[item.a.impressions, "saw it"], [item.a.clicks, "clicks"], [item.a.leads, "leads"]]} />
                       )}
@@ -315,9 +304,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
       {tab === "newsletters" && (
         <>
           <div className="flex flex-wrap items-center gap-3">
-            <form action={createNewsletterAction}>
-              <SubmitButton name="intent" value="write" className={adminButton}>Write from the newest cars</SubmitButton>
-            </form>
+            {/* Opens the letter written from the stock to check first: nothing is saved until the dealer saves it. */}
+            <Link href="/marketing/newsletters/new" className={adminButton}>Write from the newest cars</Link>
             <p className="text-meta text-text-2">{fmtNum(live)} subscribers{sending ? "" : ", sending not connected"}</p>
           </div>
           <Panel title="Newsletters">
@@ -326,25 +314,34 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
             ) : (
               <ul className="-mx-5 flex flex-col">
                 {sentLetters.rows.map((n) => (
-                  <li key={n.id} className="flex flex-col gap-2 px-5 py-3 even:bg-row-alt">
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                      <span className="font-medium">{n.subject}</span>
-                      <Badge tone={n.status === "sent" ? "good" : "neutral"}>{n.status === "sent" ? "Sent" : "Draft"}</Badge>
-                      <span className="text-meta text-text-2">{fmtDate(n.sentAt ?? n.createdAt)}</span>
-                      {n.status === "sent" && n.recipients !== undefined && n.recipients > 0 && (
-                        <span className="text-meta text-text-2 sm:ml-auto">{fmtNum(n.recipients)} sent · {fmtPct(((n.opens ?? 0) / n.recipients) * 100)} opened · {fmtPct(((n.clicks ?? 0) / n.recipients) * 100)} clicked</span>
-                      )}
-                    </div>
-                    <p className="line-clamp-2 max-w-measure whitespace-pre-line text-body text-text-2">{n.body}</p>
-                    {n.status === "draft" && (
-                      <div className="flex flex-wrap items-center gap-2">
-                        {live > 0 ? (
-                          <ActButton act={sendNewsletterAction.bind(null, n.id)} confirm={{ title: `Send "${n.subject}"?`, text: `It goes to ${plural(live, "subscriber")} and cannot be taken back.`, yes: "Send" }} className={rowButtonStrong}>Send to {fmtNum(live)}</ActButton>
-                        ) : (
-                          <span className="text-meta text-text-2">No subscribers to send to yet</span>
+                  <li key={n.id} className="relative flex flex-wrap items-center gap-x-3 gap-y-2 px-5 py-3 transition-colors even:bg-row-alt has-[>a:hover]:bg-surface">
+                    <div className="flex min-w-[min(12rem,100%)] flex-1 flex-col gap-2">
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <span className="font-medium">{n.subject}</span>
+                        <Badge tone={n.status === "sent" ? "good" : "neutral"}>{n.status === "sent" ? "Sent" : "Draft"}</Badge>
+                        <span className="text-meta text-text-2">{fmtDate(n.sentAt ?? n.createdAt)}</span>
+                        {n.status === "sent" && n.recipients !== undefined && n.recipients > 0 && (
+                          <span className="text-meta text-text-2 sm:ml-auto">{fmtNum(n.recipients)} sent · {fmtPct(((n.opens ?? 0) / n.recipients) * 100)} opened · {fmtPct(((n.clicks ?? 0) / n.recipients) * 100)} clicked</span>
                         )}
-                        <ActButton act={deleteNewsletterAction.bind(null, n.id)} confirm={{ title: `Delete this newsletter?`, text: "This cannot be undone.", yes: "Delete" }} className={rowDanger}>Delete</ActButton>
                       </div>
+                      <p className="line-clamp-2 max-w-measure whitespace-pre-line text-body text-text-2">{n.body}</p>
+                    </div>
+                    {n.status === "draft" && (
+                      <>
+                        {/* A draft row opens it to edit. Send when there is someone to send to, else Edit; the rest in the menu. */}
+                        <Link href={`/marketing/newsletters/${n.id}`} aria-label={`Edit ${n.subject}`} className="absolute inset-0" />
+                        <span className="relative z-10 flex shrink-0 flex-wrap justify-end gap-2 max-sm:basis-full sm:ml-auto">
+                          {live > 0 ? (
+                            <ActButton act={sendNewsletterAction.bind(null, n.id)} confirm={{ title: `Send "${n.subject}"?`, text: `It goes to ${plural(live, "subscriber")} and cannot be taken back.`, yes: "Send" }} label={`Send ${n.subject} to ${plural(live, "subscriber")}`} className={rowButtonStrong}>Send to {fmtNum(live)}</ActButton>
+                          ) : (
+                            <Link href={`/marketing/newsletters/${n.id}`} aria-label={`Edit ${n.subject}`} className={rowButtonStrong}><PencilIcon className="shrink-0 size-4" />Edit</Link>
+                          )}
+                          <RowMenu label={`More for ${n.subject}`}>
+                            {live > 0 && <Link href={`/marketing/newsletters/${n.id}`} className={rowButton}><PencilIcon className="shrink-0 size-4" />Edit</Link>}
+                            <ActButton act={deleteNewsletterAction.bind(null, n.id)} confirm={{ title: `Delete this newsletter?`, text: "This cannot be undone.", yes: "Delete" }} label={`Delete ${n.subject}`} className={rowButton}><TrashIcon className="shrink-0 size-4" />Delete</ActButton>
+                          </RowMenu>
+                        </span>
+                      </>
                     )}
                   </li>
                 ))}
@@ -392,10 +389,12 @@ function Calendar({ posts, ads, week }: { posts: Awaited<ReturnType<typeof posts
             ) : (
               <ul className="flex flex-col gap-2">
                 {items[d].map((i) => (
-                  <li key={i.id} data-calendar-item className="flex min-w-0 flex-col gap-0.5 rounded-control bg-row-alt p-2">
+                  <li key={i.id} data-calendar-item className="relative flex min-w-0 flex-col gap-0.5 rounded-control bg-row-alt p-2 transition-colors has-[>a:hover]:bg-surface">
                     <span className="flex min-w-0 items-center gap-1.5 text-meta font-medium"><BrandIcon name={i.title} /><span className="truncate">{i.title}</span></span>
                     {i.sub && <span className="truncate text-meta text-text-2">{i.sub}</span>}
                     <span className="text-meta text-text-2">{new Date(i.at).toLocaleTimeString("en-IE", { hour: "2-digit", minute: "2-digit", timeZone: TIME_ZONE })} · {i.heldBy && i.status === "posted" ? `Waiting for ${i.heldBy}` : STATUS[i.status].label}</span>
+                    {/* A post opens: its edit page while it is scheduled, how it did once it went out. An ad has no page of its own. */}
+                    {i.kind === "post" && <Link href={`/marketing/posts/${i.id}`} aria-label={[i.title, i.sub].filter(Boolean).join(", ")} className="absolute inset-0 rounded-control" />}
                   </li>
                 ))}
               </ul>
@@ -407,24 +406,37 @@ function Calendar({ posts, ads, week }: { posts: Awaited<ReturnType<typeof posts
   );
 }
 
-// Post a waiting post now. Anything on TikTok is held until TikTok approves us (PUBLISH_MODE), and says so.
-const prepared = (p: Pick<SocialPost, "network" | "format">) => PUBLISH_MODE[p.network][p.format ?? "post"] === "prepare";
-// `className`: ml-auto in a list row, so a button that wraps under the words keeps to the right edge (#126).
-function PostNow({ p, className = "" }: { p: SocialPost; className?: string }) {
-  const ready = prepared(p);
-  const verb = ready ? "Finish post" : "Post now";
+// A waiting post's buttons (the row rule): only its next step, then the menu. A draft's next step is Post now (Finish post on TikTok) once it
+// has what its format needs, else Edit. A scheduled post has no step due: only the menu. Delete is rare, so it is in the menu, and still asks first.
+function PostActions({ p }: { p: SocialPost }) {
+  const ready = readyToPost(p);
+  const edit = `/marketing/posts/${p.id}`;
+  const due = p.status === "draft" ? (ready ? "post" : "edit") : null;
   return (
-    <ActButton
-      act={publishPostAction.bind(null, p.id)}
-      confirm={ready ? { title: "Finish this post?", text: `It is saved and goes out once ${p.network} approves us.`, yes: verb, safe: true } : { title: "Post this now?", text: `It goes out on ${p.network} at once.`, yes: verb, safe: true }}
-      label={`${verb}: ${postName(p)}${p.carTitle ? `, ${p.carTitle}` : ""}`}
-      className={`${rowButtonStrong} ${className}`}
-    >
-      {verb}
-    </ActButton>
+    <>
+      {due === "post" && <PostNow p={p} />}
+      {due === "edit" && <Link href={edit} aria-label={`Edit ${postLabel(p)}`} className={rowButtonStrong}><PencilIcon className="shrink-0 size-4" />Edit</Link>}
+      <RowMenu label={`More for ${postLabel(p)}`}>
+        {due !== "edit" && <Link href={edit} aria-label={`Edit ${postLabel(p)}`} className={rowButton}><PencilIcon className="shrink-0 size-4" />Edit</Link>}
+        {due !== "post" && ready && <PostNow p={p} strong={false} />}
+        <ActButton act={deletePostAction.bind(null, p.id)} confirm={{ title: "Delete this post?", text: "This cannot be undone.", yes: "Delete" }} label={`Delete ${postLabel(p)}`} className={rowButton}><TrashIcon className="shrink-0 size-4" />Delete</ActButton>
+      </RowMenu>
+    </>
   );
 }
-const postName = (p: { network: string; format?: keyof typeof FORMAT_LABELS }) => `${p.network} ${(p.format ? FORMAT_LABELS[p.format] : "Post").toLowerCase()}`;
+
+// An ad draft's buttons: Start ad, then the menu with Delete.
+function AdActions({ a }: { a: Ad }) {
+  const name = `${AD_PLATFORM_LABELS[a.platform]} ad, ${a.carTitle}`;
+  return (
+    <>
+      <ActButton act={startAdAction.bind(null, a.id)} confirm={{ title: "Start this ad?", text: `It runs on ${AD_PLATFORM_LABELS[a.platform]} with a budget of ${fmtEur(a.budgetEur)}.`, yes: "Start ad", safe: true }} label={`Start ad: ${name}`} className={rowButtonStrong}>Start ad</ActButton>
+      <RowMenu label={`More for the ${name}`}>
+        <ActButton act={deleteAdAction.bind(null, a.id)} confirm={{ title: "Delete this ad?", text: "This cannot be undone.", yes: "Delete" }} label={`Delete the ${name}`} className={rowButton}><TrashIcon className="shrink-0 size-4" />Delete</ActButton>
+      </RowMenu>
+    </>
+  );
+}
 
 // The post's first photo, or the network's mark when it has none.
 function Thumb({ src, icon }: { src?: string; icon: React.ReactNode }) {
