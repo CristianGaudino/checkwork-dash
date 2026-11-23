@@ -41,7 +41,7 @@ test("a salesperson sees only their own counts: no money, no one else", async ({
   await page.goto("/");
   await (await sideLink(page, "Reports")).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Reports");
-  await expect(page.getByText("Conor Doyle, the last 12 months")).toBeVisible();
+  await expect(page.getByText("Your own figures, the last 12 months")).toBeVisible();
   const main = page.locator("main");
   await expect(main).not.toContainText("€");
   await expect(main).not.toContainText("Profit");

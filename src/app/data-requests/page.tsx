@@ -13,7 +13,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ e
   const erased = sp.erased !== undefined && /^\d+$/.test(sp.erased) ? Number(sp.erased) : null;
   return (
     <>
-      <PageHeader title="Data requests" text="When someone asks what you hold about them, or to delete it." />
+      <PageHeader title="Data requests" text="Someone asks to see or delete what you hold on them" />
       {erased !== null && <Notice>Erased {plural(erased, "record")}. Sales stay for the books, without the person.</Notice>}
       {sp.notice === "confirm" && <Notice tone="warn">Nothing was erased. Tick that you have checked it is the person asking.</Notice>}
       {/* The job first; on a laptop how it works sits beside it, on a phone under it. */}

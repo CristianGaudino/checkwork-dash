@@ -25,11 +25,12 @@ export function PostPreview({ network, format, layout = "just-in", text, photos,
           <span className="inline-flex items-center gap-1 text-meta text-text-2"><BrandIcon name={network} />{network}</span>
         </div>
       )}
-      <div className={`relative overflow-hidden bg-photo-bg ${tall ? "aspect-[9/16]" : "aspect-[4/5]"}`}>
+      {/* A feed photo keeps its own shape (as cropped in the composer), no taller than 4:5, as the networks show it. */}
+      <div className={`relative overflow-hidden bg-photo-bg ${tall ? "aspect-[9/16]" : photos[0] ? "" : "aspect-[4/5]"}`}>
         {format === "reel" ? (
           video ? <video src={video} muted playsInline preload="metadata" className="size-full object-cover" /> : <div className="flex size-full items-center justify-center px-6 text-center text-meta text-text-2">Choose a video</div>
         ) : (
-          <Media src={photos[0]} />
+          <Media src={photos[0]} className={tall ? "" : "block max-h-[22.5rem]"} />
         )}
         {format === "carousel" && photos.length > 1 && <span className={`absolute right-2 top-2 rounded-full px-2 py-0.5 text-meta font-medium ${bar}`}>1/{photos.length}</span>}
         {format === "story" && (

@@ -20,7 +20,7 @@ const RANK: Record<Urgency, number> = { now: 0, soon: 1, info: 2 };
 // `cars`: the whole stock, sold too. `costs`: the car ids with a cost, only for staff with the margins permission. `syncProblem`: the
 // DoneDeal sync is failing (only for stock from DoneDeal).
 // `sales`: the car ids with a sale recorded. `reservations`: the deposits, for the ones past their date. `rules` and `listingSite`: the
-// dealer's, from their profile. `mine`: a person's name, for To do's Only mine: the leads and test drives given to them or to nobody yet
+// dealer's, from their profile. `mine`: a person's name, for To do's For me: the leads and test drives given to them or to nobody yet
 // (forPerson; their own follow-ups only, as in their report). The rest (stock, reviews) is nobody's, so it stays.
 export function overview(input: { leads: Lead[]; drives: TestDrive[]; reviews: AdminReview[]; rules: DealerRules; listingSite: string; cars?: Car[]; costs?: Set<string>; sales?: Set<string>; reservations?: Reservation[]; orders?: Order[]; warrantyRequests?: number; syncProblem?: boolean; now?: number; slaHours?: number; mine?: string }) {
   const now = input.now ?? Date.now();
@@ -28,7 +28,6 @@ export function overview(input: { leads: Lead[]; drives: TestDrive[]; reviews: A
   const { leads, drives, reviews, rules, listingSite } = input;
   const old = (c: Car) => isOldStock(c, now, rules.oldStockDays);
   const upcoming = drives.filter((d) => d.startsAt >= now && d.startsAt < now + 7 * DAY && isOpenDrive(d)).sort((a, b) => a.startsAt - b.startsAt);
-  const rated = reviews.filter((r) => r.rating > 0);
   const cars = input.cars ?? [];
   const today = dublinDay(now);
   const offSale = new Set(cars.filter((c) => !forSale(c)).map((c) => c.id));
@@ -77,13 +76,10 @@ export function overview(input: { leads: Lead[]; drives: TestDrive[]; reviews: A
     due,
     toConfirm,
     unrecorded,
-    // Today's open drives, the earlier ones too (a confirmed one this morning may still be out), in time order.
     now, // the time these were worked out at, for the page's own "has it started" checks
-    todayDrives: drives.filter((d) => isOpenDrive(d) && dublinDay(d.startsAt) === today).sort((a, b) => a.startsAt - b.startsAt),
+    // The next three open drives in the coming week, after the last one earlier today (cancelled ones aside), which may still be out.
+    nextDrives: [...drives.filter((d) => d.startsAt < now && d.status !== "cancelled" && dublinDay(d.startsAt) === today).sort((a, b) => a.startsAt - b.startsAt).slice(-1), ...upcoming.slice(0, 3)],
     oldStock: cars.filter(old).length,
-    upcomingDrives: upcoming,
-    averageRating: rated.length ? rated.reduce((s, r) => s + r.rating, 0) / rated.length : 0,
-    reviewCount: rated.length,
     attention,
   };
 }

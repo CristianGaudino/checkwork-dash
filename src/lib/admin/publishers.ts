@@ -13,6 +13,8 @@ const run = async (id: Parameters<typeof modeOf>[0]): Promise<SendResult> => {
   return mode === "simulated" ? { ok: true, simulated: true } : { ok: false, reason: "not-installed" };
 };
 
+// A story goes out like a feed post (PUBLISH_MODE): Instagram, a container with media_type STORIES and image_url or video_url, then
+// media_publish; Facebook, the Page's photo_stories (an uploaded unpublished photo id) or video_stories (start, upload, finish).
 export async function publishPost(post: SocialPost): Promise<SendResult> {
   void post; // for the adapter that replaces the body below
   return run("social");

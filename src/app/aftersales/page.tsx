@@ -69,7 +69,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
     <>
       <PageHeader
         title="Warranty claims"
-        text="On cars you sold. New requests from your website come first."
+        text="Requests from your website show first"
         actions={
           <Link href="/aftersales/new" className={adminButton}>
             <PlusIcon className="shrink-0 size-4" />

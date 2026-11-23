@@ -1,14 +1,19 @@
 import { expect, test } from "@playwright/test";
 import { demoBar } from "./open";
 
-test("on a phone the demo bar folds into a small pill that opens its controls and closes again", async ({ page }) => {
+test("on a phone the demo bar is a small pill: the role is on it, the rest opens above it and closes again", async ({ page }) => {
   await page.goto("/");
-  const role = page.locator("[data-demo-bar]").getByRole("combobox", { name: "Role" });
-  await expect(role).toBeHidden();
-  await demoBar(page);
+  const bar = page.locator("[data-demo-bar]");
+  const role = bar.getByRole("combobox", { name: "Role" });
+  const sync = bar.getByRole("button", { name: /sync/ });
   await expect(role).toBeVisible();
+  await expect(sync).toBeHidden();
+  await demoBar(page);
+  await expect(sync).toBeVisible();
+  await expect(role).toHaveCount(1); // the open panel holds no second role select
   await page.keyboard.press("Escape");
-  await expect(role).toBeHidden();
+  await expect(sync).toBeHidden();
+  await expect(role).toBeVisible();
 });
 
 test("on the narrowest phone the dealer's module switches open inside the panel and can be used", async ({ page }) => {

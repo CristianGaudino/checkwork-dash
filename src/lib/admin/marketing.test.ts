@@ -92,12 +92,15 @@ describe("the calendar week", () => {
       { ...base, id: "b", status: "posted" as const, postedAt: at("2026-11-19", 8) },
       { ...base, id: "c", status: "draft" as const },
       { ...base, id: "d", status: "scheduled" as const, scheduledFor: at("2026-12-25") },
+      { ...base, id: "t", network: "TikTok" as const, status: "posted" as const, postedAt: at("2026-11-20") },
     ];
     const ads = [{ id: "x", platform: "Meta" as const, name: "n", carTitle: "Car", budgetEur: 100, status: "running" as const, impressions: 0, clicks: 0, leads: 0, createdAt: at("2026-11-17") }];
     const week = calendarWeek(posts, ads, days);
     expect(week["2026-11-19"].map((i) => i.id)).toEqual(["b", "a"]); // by time of day
     expect(week["2026-11-19"][1].title).toBe("Facebook story");
+    expect(week["2026-11-19"][1].heldBy).toBeUndefined(); // a story goes out through the API
+    expect(week["2026-11-20"][0].heldBy).toBe("TikTok"); // held until TikTok approves us
     expect(week["2026-11-17"].map((i) => i.id)).toEqual(["x"]);
-    expect(Object.values(week).flat()).toHaveLength(3);
+    expect(Object.values(week).flat()).toHaveLength(4);
   });
 });

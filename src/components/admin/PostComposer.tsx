@@ -5,7 +5,8 @@ import { Field, adminButton, adminButtonQuiet, adminInput } from "@/components/a
 import { CarPicker } from "@/components/admin/CarPicker";
 import { Select } from "@/components/Select";
 import { Stepper, useStepHeading } from "@/components/leads/Stepper";
-import { CheckIcon } from "@/components/stock/icons";
+import { CalendarIcon, CheckIcon } from "@/components/stock/icons";
+import { CropIcon, PhotoEditor } from "@/components/admin/PhotoEditor";
 import type { CarCard } from "@/lib/admin/car-cards";
 import { AD_PLATFORMS, AD_PLATFORM_LABELS, FORMATS_FOR, FORMAT_LABELS, FORMAT_LIMITS, LAYOUT_LABELS, NETWORKS, POST_LIMITS, PUBLISH_MODE, STORY_LAYOUTS, type Network, type PostFormat, type StoryLayout } from "@/lib/admin/networks";
 import { AIWriter } from "@/components/admin/AIWriter";
@@ -70,6 +71,7 @@ export function PostComposer({ cars, initialSlug, initialFormat = "post", initia
   const clip = limits.video && videos.some((v) => v.src === video) ? video : "";
   const mode = PUBLISH_MODE[network][format];
   const [later, setLater] = useState(false);
+  const [editing, setEditing] = useState<string | null>(null); // the photo open in the crop and rotate editor
   const [ad, setAd] = useState(false);
   const picked = cars.find((c) => c.slug === slug);
 
@@ -83,7 +85,7 @@ export function PostComposer({ cars, initialSlug, initialFormat = "post", initia
   };
 
   return (
-    <form action={action} className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+    <form action={action} className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] lg:grid-rows-[auto_1fr]">
       {/* Until a car is picked there is no preview, so the cars take the full width. */}
       <div className={`flex min-w-0 flex-col gap-5 ${slug ? "" : "lg:col-span-2"}`}>
         <Stepper titles={STEPS} step={step} headingRef={heading} />
@@ -142,7 +144,6 @@ export function PostComposer({ cars, initialSlug, initialFormat = "post", initia
               </button>
             ))}
           </div>
-          {mode === "prepare" && <p className="text-meta text-text-2">A {FORMAT_LABELS[format].toLowerCase()} on {network} is made ready here and posted from your phone.</p>}
         </section>
 
         <section hidden={step !== 2} className="flex flex-col gap-4">
@@ -165,35 +166,60 @@ export function PostComposer({ cars, initialSlug, initialFormat = "post", initia
             </button>
           )}
           {car && limits.photos[1] > 0 && (
-            <fieldset className="flex flex-col gap-2">
+            <fieldset className="flex min-w-0 flex-col gap-2">
               <legend className="mb-2 text-meta font-medium">{format === "carousel" ? `Photos, ${limits.photos[0]} to ${limits.photos[1]}` : format === "story" ? "Photo" : `Photos, up to ${limits.photos[1]}`}</legend>
               <div className="flex gap-2 overflow-x-auto pb-1">
-                {[...car.photos.map((p) => p.src), ...mine.map((m) => m.src)].filter((src, i, all) => all.indexOf(src) === i).map((src) => {
+                {[...added, ...car.photos.map((p) => p.src), ...mine.map((m) => m.src)].filter((src, i, all) => all.indexOf(src) === i).map((src) => {
                   const on = photos.includes(src);
                   return (
-                    <button
-                      key={src}
-                      type="button"
-                      aria-pressed={on}
-                      aria-label={on ? "Remove photo" : "Add photo"}
-                      onClick={() => setChosen(on ? photos.filter((x) => x !== src) : limits.photos[1] === 1 ? [src] : [...photos, src].slice(0, limits.photos[1]))}
-                      className={`relative size-20 shrink-0 overflow-hidden rounded-control border-2 bg-photo-bg ${on ? "border-accent" : "border-transparent"} ${press}`}
-                    >
-                      <img src={src} alt="" className="size-full object-cover" />
+                    <span key={src} className="relative size-20 shrink-0">
+                      <button
+                        type="button"
+                        aria-pressed={on}
+                        aria-label={on ? "Remove photo" : "Add photo"}
+                        onClick={() => setChosen(on ? photos.filter((x) => x !== src) : limits.photos[1] === 1 ? [src] : [...photos, src].slice(0, limits.photos[1]))}
+                        className={`size-full overflow-hidden rounded-control border-2 bg-photo-bg ${on ? "border-accent" : "border-transparent"} ${press}`}
+                      >
+                        <img src={src} alt="" className="size-full object-cover" />
+                      </button>
                       {on && (
-                        <span className="absolute right-1 top-1 inline-flex size-5 items-center justify-center rounded-full bg-accent text-on-accent">
+                        <span aria-hidden="true" className="pointer-events-none absolute right-1 top-1 inline-flex size-5 items-center justify-center rounded-full bg-accent text-on-accent">
                           <CheckIcon className="shrink-0 size-3" />
                         </span>
                       )}
-                    </button>
+                      {on && (
+                        <button type="button" aria-label={`Crop and rotate photo ${photos.indexOf(src) + 1}`} aria-expanded={editing === src} onClick={() => setEditing(editing === src ? null : src)} className={`absolute bottom-0 left-0 inline-flex size-11 items-center justify-center ${press}`}>
+                          {/* 44px hit area, 32px visible circle */}
+                          <span className="inline-flex size-8 items-center justify-center rounded-full bg-card/90 text-text shadow-sm">
+                            <CropIcon className="size-4" />
+                          </span>
+                        </button>
+                      )}
+                    </span>
                   );
                 })}
               </div>
+              {editing && photos.includes(editing) && (
+                <PhotoEditor
+                  key={`${editing} ${network} ${format}`}
+                  src={editing}
+                  network={network}
+                  format={format}
+                  carSlug={slug}
+                  onCancel={() => setEditing(null)}
+                  onDone={(next) => {
+                    // The edited copy takes the original's place in the post, in the same position.
+                    setAdded((a) => [next, ...a]);
+                    setChosen(photos.map((x) => (x === editing ? next : x)));
+                    setEditing(null);
+                  }}
+                />
+              )}
               <MediaUpload accept="image/jpeg,image/png,image/webp" carSlug={slug} label="Add a photo from this device" onAdded={(m) => { if (m.kind === "image") { setAdded((a) => [m.src, ...a]); setChosen((c) => (limits.photos[1] === 1 ? [m.src] : [...(c ?? photos), m.src].slice(0, limits.photos[1]))); } }} />
             </fieldset>
           )}
           {car && limits.video && format === "reel" && (
-            <fieldset className="flex flex-col gap-2">
+            <fieldset className="flex min-w-0 flex-col gap-2">
               <legend className="mb-2 text-meta font-medium">Video, up to {limits.maxSeconds} seconds</legend>
               {videos.length > 0 && (
                 <div role="radiogroup" aria-label="Video" className="flex flex-wrap gap-2">
@@ -209,20 +235,38 @@ export function PostComposer({ cars, initialSlug, initialFormat = "post", initia
           )}
         </section>
 
+      </div>
+
+      {/* Beside the steps from 1024px once a car is chosen, across both rows; on a phone, at the top of the last step, so the post is seen
+          before it is sent. */}
+      <figure aria-label="Preview" className={`${step === 3 ? "flex" : "hidden"} ${slug ? "lg:flex" : "lg:hidden"} min-w-0 flex-col self-start overflow-hidden rounded-card border border-hairline bg-card lg:sticky lg:top-24 lg:col-start-2 lg:row-span-2 lg:row-start-1`}>
+        <figcaption className="flex items-center gap-1.5 px-4 py-3 text-meta font-medium"><BrandIcon name={network} />{network}{format !== "post" && ` ${FORMAT_LABELS[format].toLowerCase()}`}</figcaption>
+        <div className="px-4 pb-4">
+          <PostPreview network={network} format={format} layout={layout} text={text} photos={photos} video={clip || undefined} title={picked?.title ?? ""} price={car?.price} was={car?.was} />
+        </div>
+      </figure>
+
+      {/* Step 1 has no buttons (picking a car moves on), so nothing here either. */}
+      <div className={`${step > 0 ? "flex" : "hidden"} min-w-0 flex-col gap-5 self-start lg:col-start-1`}>
         <section hidden={step !== 3} className="flex flex-col gap-4">
-          <div role="radiogroup" aria-label="When" className="flex flex-wrap gap-2">
-            <button type="button" role="radio" aria-checked={!later} onClick={() => setLater(false)} className={chip(!later)}>Now</button>
-            <button type="button" role="radio" aria-checked={later} onClick={() => setLater(true)} className={chip(later)}>Later</button>
+          <div role="radiogroup" aria-label="When" className="grid grid-cols-2 gap-3">
+            {([[false, "Post now"], [true, "Schedule post"]] as const).map(([on, label]) => (
+              <button key={label} type="button" role="radio" aria-checked={later === on} onClick={() => setLater(on)} className={`${card(later === on)} flex min-h-14 items-center gap-2 whitespace-nowrap px-3 text-body font-medium sm:px-4`}>
+                {on && <CalendarIcon className="size-5 shrink-0" />}
+                {label}
+              </button>
+            ))}
           </div>
           {later && (
             <Field label="Date and time">
               <input name="when" type="datetime-local" required min={localNow()} className={`${adminInput} w-60`} />
             </Field>
           )}
-          {/* An ad starts with the post, so it is only offered for a post that goes out now, and that we send (not one made ready for the phone). */}
+          {mode === "prepare" && <p className="text-meta text-text-2">It is saved and goes out once {network} approves us.</p>}
+          {/* An ad starts with the post, so it is only offered for a post that goes out now, in a format the network's API takes (PUBLISH_MODE). */}
           {!later && mode === "auto" && (
             <label className="flex min-h-11 items-start gap-3 py-1">
-              <input type="checkbox" name="ad" checked={ad} onChange={(e) => setAd(e.target.checked)} className="mt-0.5 size-5 shrink-0 accent-[var(--color-accent)]" />
+              <input type="checkbox" name="ad" checked={ad} onChange={(e) => setAd(e.target.checked)} className="mt-0.5 size-5 shrink-0 accent-accent" />
               <span className="flex flex-col">
                 <span className="text-body">Also run it as an ad</span>
                 <span className="text-meta text-text-2">You pay to show it to more people near you. It never spends more than the budget you set.</span>
@@ -241,35 +285,23 @@ export function PostComposer({ cars, initialSlug, initialFormat = "post", initia
           )}
         </section>
 
-        {/* Step 1 has no buttons (picking a car moves on), so no empty divider either. */}
-        <div className={`${step > 0 ? "flex" : "hidden"} flex-wrap items-center gap-3 border-t border-hairline pt-4`}>
-          {step > 0 && (
-            <button type="button" onClick={() => setStep(step - 1)} className={adminButtonQuiet}>
-              Back
-            </button>
-          )}
+        {/* Bottom right, the main button right-most, where a thumb and the eye end up. */}
+        <div className="flex flex-wrap items-center justify-end gap-3 border-t border-hairline pt-4">
+          <button type="button" onClick={() => setStep(step - 1)} className={adminButtonQuiet}>
+            Back
+          </button>
           {step < STEPS.length - 1 ? (
-            step > 0 && (
-              <button type="button" disabled={!canNext} onClick={() => setStep(step + 1)} className={`${adminButton} disabled:opacity-50`}>
-                Next
-              </button>
-            )
+            <button type="button" disabled={!canNext} onClick={() => setStep(step + 1)} className={`${adminButton} disabled:opacity-50`}>
+              Next
+            </button>
           ) : (
             <>
-              <SubmitButton name="intent" value="publish" className={adminButton}>{later ? "Schedule" : mode === "prepare" ? `Get it ready for ${network}` : `Post to ${network} now`}</SubmitButton>
               <SubmitButton name="intent" value="draft" formNoValidate className={adminButtonQuiet}>Save draft</SubmitButton>
+              <SubmitButton name="intent" value="publish" className={adminButton}>{later ? "Schedule" : "Post now"}</SubmitButton>
             </>
           )}
         </div>
       </div>
-
-      {/* Beside the steps from 1024px once a car is chosen; on a phone, in the last step only. */}
-      <figure aria-label="Preview" className={`${step === 3 ? "flex" : "hidden"} ${slug ? "lg:flex" : "lg:hidden"} min-w-0 flex-col self-start overflow-hidden rounded-card border border-hairline bg-card lg:sticky lg:top-24`}>
-        <figcaption className="flex items-center gap-1.5 px-4 py-3 text-meta font-medium"><BrandIcon name={network} />{network}{format !== "post" && ` ${FORMAT_LABELS[format].toLowerCase()}`}</figcaption>
-        <div className="px-4 pb-4">
-          <PostPreview network={network} format={format} layout={layout} text={text} photos={photos} video={clip || undefined} title={picked?.title ?? ""} price={car?.price} was={car?.was} />
-        </div>
-      </figure>
     </form>
   );
 }

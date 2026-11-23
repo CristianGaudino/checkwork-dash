@@ -10,7 +10,7 @@ test("sales and finance have no Activity page; owners and managers do", async ({
     await as(context, role);
     await page.goto("/");
     await expect(await sideLink(page, "Activity")).toHaveCount(0);
-    await notForRole(page, "/activity", "Every change made in the dashboard");
+    await notForRole(page, "/activity", "Every change in the dashboard");
   }
   for (const role of ["Manager", "Owner"]) {
     await as(context, role);

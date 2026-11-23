@@ -27,8 +27,8 @@ section 7). The rules in `docs/dashboard-polish.md` still hold: quiet chrome, on
 - **From 1024px:** the groups are open columns, as now.
 
 ## 3. Demo bar
-- **Phone (under 640px):** a small pill at the bottom right, "Customer" or "Dealer" with an arrow. A tap opens the controls above it (view
-  as, role, DoneDeal, theme); a tap outside, Escape or the pill again closes them. It starts closed on each visit and stays as it is
+- **Phone (under 640px):** a small pill at the bottom right: the role select, and a button that opens the rest (sync, plan,
+  theme) above it; a tap outside, Escape or the button again closes them. It starts closed on each visit and stays as it is
   while you move between pages. The page keeps room for the pill only, so nothing sits under it.
 - **From 640px:** the one-line bar, as now.
 - In the dashboard the pill stays until 1024px, above the tab bar that shows until then, so the two never stack at the foot of a tablet.

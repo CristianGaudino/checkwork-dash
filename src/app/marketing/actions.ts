@@ -74,7 +74,7 @@ export async function composeAction(data: FormData) {
   const post: SocialPost = { id: newId("post"), network: d.network, carSlug: car.slug, carTitle: carName(car), text: d.text, ...(photos.length && { photos }), ...(d.format !== "post" && { format: d.format }), ...(d.format === "story" && d.layout && { layout: d.layout }), ...(clip && { video: clip.src }), status: later ? "scheduled" : "draft", ...(later && { scheduledFor: when }), createdAt: Date.now() };
   await postsStore.put(post);
   const prepared = PUBLISH_MODE[d.network][d.format] === "prepare";
-  // An ad starts with the post, so not for a scheduled one, nor for one made ready for the phone (it is not out yet).
+  // An ad starts with the post, so not for a scheduled one, nor for one held until the network approves us (it is not out yet).
   const withAd = d.ad === "on" && !later && !prepared && d.platform && d.budgetEur;
   const adDraft: Ad | null = withAd ? { id: newId("ad"), name: `${carName(car)} ${d.platform} ad`, platform: d.platform!, carTitle: carName(car), budgetEur: d.budgetEur!, status: "draft", impressions: 0, clicks: 0, leads: 0, createdAt: Date.now() } : null;
   if (adDraft) await adsStore.put(adDraft);
@@ -86,15 +86,15 @@ export async function composeAction(data: FormData) {
     await logActivity("marketing", `Scheduled ${aOrAn(d.network)} post`, postRef(post));
     return go("posts", "post-scheduled");
   }
-  const sent = await publishPost(post);
+  const sent = prepared ? { ok: true as const } : await publishPost(post); // a held post never reaches a network
   if (!sent.ok) {
     await logActivity("marketing", `Saved a draft ${d.network} post (it could not be posted)`, postRef(post));
     return outcome("posts", "social", sent, "");
   }
   await postsStore.put({ ...post, status: "posted", postedAt: Date.now(), ...(sent.simulated && { simulated: true, ...simulatedPost(post.id) }) });
-  await logActivity("marketing", prepared ? `Made ${aOrAn(d.network)} post ready to post from the phone` : `Published ${aOrAn(d.network)} post`, postRef(post));
-  // A story, or anything on TikTok, is made ready here and posted from the phone (PUBLISH_MODE): the notice says so.
-  if (!adDraft) return go("posts", prepared ? "post-ready" : "post-published");
+  await logActivity("marketing", prepared ? `Saved ${aOrAn(d.network)} post to go out once ${d.network} approves us` : `Published ${aOrAn(d.network)} post`, postRef(post));
+  // Anything on TikTok is held until TikTok approves us (PUBLISH_MODE): the notice says so.
+  if (!adDraft) return go("posts", prepared ? "post-held" : "post-published");
   const started = await startAd(adDraft);
   if (started.ok) {
     await adsStore.put({ ...adDraft, status: "running", startedAt: Date.now(), ...(started.simulated && simulatedAd(adDraft.id)) });
@@ -108,12 +108,13 @@ export async function publishPostAction(id: string) {
   await requireModule("social");
   const post = await postsStore.get(id);
   if (!post || post.status === "posted") return go("posts", "invalid"); // a draft or a scheduled post only: never the same post twice
-  const r = await publishPost(post);
+  const held = PUBLISH_MODE[post.network][post.format ?? "post"] === "prepare";
+  const r = held ? { ok: true as const } : await publishPost(post); // a held post never reaches a network
   if (r.ok) {
     await postsStore.put({ ...post, status: "posted", postedAt: Date.now(), ...(r.simulated && { simulated: true, ...simulatedPost(post.id) }) });
-    await logActivity("marketing", PUBLISH_MODE[post.network][post.format ?? "post"] === "prepare" ? `Made ${aOrAn(post.network)} post ready to post from the phone` : `Published ${aOrAn(post.network)} post`, postRef(post));
+    await logActivity("marketing", held ? `Saved ${aOrAn(post.network)} post to go out once ${post.network} approves us` : `Published ${aOrAn(post.network)} post`, postRef(post));
   }
-  outcome("posts", "social", r, PUBLISH_MODE[post.network][post.format ?? "post"] === "prepare" ? "post-ready" : "post-published");
+  outcome("posts", "social", r, held ? "post-held" : "post-published");
 }
 
 export async function deletePostAction(id: string) {

@@ -1,9 +1,9 @@
 import { sourceText } from "@/lib/visit-rules";
 import Link from "next/link";
 import { LeadStatusBadge } from "@/components/admin/badges";
-import { Avatar, Badge, DataTable, EmptyState, PageHeader, Panel, SummaryTabs, TableFooter, TableToolbar, Task, TaskList, choicePill, pageOf, sortRows, type Column, type FilterGroup } from "@/components/admin/kit";
+import { Avatar, Badge, DataTable, EmptyState, PageHeader, Panel, Segmented, SummaryTabs, TableFooter, TableToolbar, Task, TaskList, pageOf, sortRows, type Column, type FilterGroup } from "@/components/admin/kit";
 import { LeadMenu, NextStatusButton, ReachButton, SpamButton } from "@/components/admin/LeadActions";
-import { AlertIcon, CalendarIcon, CheckIcon, InboxIcon } from "@/components/stock/icons";
+import { AlertIcon, CalendarIcon, InboxIcon } from "@/components/stock/icons";
 import { can, currentMember } from "@/lib/permissions";
 import { LEAD_SOURCES, LEAD_STATUSES, LEAD_STATUS_LABELS, LEAD_TYPE_LABELS, getSettings, leadsStore, type Lead } from "@/lib/admin/collections";
 import { dublinDay, fmtAgo, fmtDate } from "@/lib/admin/format";
@@ -148,37 +148,37 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
   };
 
   // What to answer now, worked down from the top, by the same rule as the Overview's To do (leadsToAnswer). On the plain list, or one
-  // person's: Mine and unassigned (forPerson, as the Overview's, whose Reply to leads opens it so) or Who has it. Any other filter is
+  // person's: For me (forPerson, as the Overview's, whose Reply to leads opens it so) or Who has it. Any other filter is
   // looking for something else. A search keeps it, so the search box does not jump up under the cursor while typing (#85).
   const filtered = Boolean(f.status || f.type || f.topic || f.due || f.late || f.source || (sp.page && sp.page !== "1"));
   const me = await currentMember();
-  const mine = sp.mine === "1" && Boolean(me.name) && !f.with; // Who has it wins: its pill hides Mine and unassigned
+  const mine = sp.mine === "1" && Boolean(me.name) && !f.with; // Who has it wins: its pill hides Everyone | For me
   const why = ({ lead: l, kind, flag }: LeadTask) =>
     kind === "follow" ? (l.followUpOn! < today ? `Follow-up was due ${fmtDate(`${l.followUpOn}T12:00:00Z`)}` : "Follow up today") : flag === "late" ? `Came in ${fmtAgo(l.createdAt)}, past your reply time` : flag === "urgent" ? `In a hurry: ${leadTags(l.topic!, l.answers ?? {}).join(", ")}` : `New, came in ${fmtAgo(l.createdAt)}`;
   const every = leadsToAnswer(f.with ? filterLeads(all, { q: "", with: f.with }) : all, at, today, leadSlaHours);
   const todo = (mine ? forPerson(every, me.name) : every).map((t) => ({ ...t, why: why(t) }));
   const SHOWN = 8;
-  // The footer's links keep whose leads these are: new ones by Who has it, follow-ups by Who has it or Mine and unassigned (only their own).
+  // The footer's links keep whose leads these are: new ones by Who has it, follow-ups by Who has it or For me (only their own).
   const withWho = f.with ? `&with=${encodeURIComponent(f.with)}` : "";
   const replies = todo.filter((t) => t.kind === "reply").length;
   const follows = todo.length - replies;
-  const mineParams = new URLSearchParams(Object.entries(sp).filter((e): e is [string, string] => typeof e[1] === "string" && e[0] !== "page" && e[0] !== "mine"));
-  if (!mine) mineParams.set("mine", "1");
-  const mineHref = `/leads${mineParams.size ? `?${mineParams}` : ""}`;
+  // Everyone | For me: the same URL minus the page, with or without mine=1.
+  const mineHref = (on: boolean) => {
+    const p = new URLSearchParams(Object.entries(sp).filter((e): e is [string, string] => typeof e[1] === "string" && e[0] !== "page" && e[0] !== "mine"));
+    if (on) p.set("mine", "1");
+    return `/leads${p.size ? `?${p}` : ""}`;
+  };
 
   return (
     <>
-      <PageHeader title="Leads" text="Everyone who got in touch. Answer the ones at the top first." />
+      <PageHeader title="Leads" text="Every enquiry, the urgent ones first" />
       {!filtered && (
         <Panel
           title="To answer now"
           count={todo.length}
           action={
             me.name && !f.with && (
-              <Link href={mineHref} aria-current={mine ? "true" : undefined} className={choicePill(mine)}>
-                {mine && <CheckIcon className="shrink-0 size-4" />}
-                Mine and unassigned
-              </Link>
+              <Segmented label="Whose leads" items={[{ label: "Everyone", href: mineHref(false), active: !mine }, { label: "For me", href: mineHref(true), active: mine }]} />
             )
           }
         >

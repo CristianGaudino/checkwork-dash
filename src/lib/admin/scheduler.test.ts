@@ -35,4 +35,15 @@ describe("sendDuePosts", () => {
     });
     vi.unstubAllEnvs();
   });
+  it("holds a due TikTok post without calling a network, even where posting is not connected, and adds no figures", async () => {
+    const { runAsDealer } = await import("@/lib/tenancy/current");
+    await runAsDealer("test-motors", async () => {
+      await postsStore.put(post("tt", { network: "TikTok", scheduledFor: 1000 }));
+      expect(await sendDuePosts(5000)).toBe(1);
+      const held = await postsStore.get("tt");
+      expect(held?.status).toBe("posted");
+      expect(held?.simulated).toBeUndefined();
+      await postsStore.remove("tt");
+    });
+  });
 });

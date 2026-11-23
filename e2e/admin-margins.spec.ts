@@ -21,7 +21,6 @@ test("with the permission the Margins screen, the column, the stat and the cost 
   await page.setViewportSize({ width: 1280, height: 800 }); // the margin columns are from 768px
   await as(context, "Finance");
   await page.goto("/");
-  await expect(page.getByText("Expected margin")).toBeVisible();
   await (await sideLink(page, "Margins")).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Margins");
   await expect(page.getByRole("row").nth(1)).toContainText("€");

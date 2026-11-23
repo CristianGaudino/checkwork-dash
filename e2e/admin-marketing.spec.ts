@@ -25,7 +25,7 @@ test("the composer goes car, where, text, when: it suggests text for the car, sh
   const preview = page.getByRole("figure", { name: "Preview" });
   await expect(preview).toContainText("Facebook");
   await expect(preview).toContainText("Just in, come and see it.");
-  await page.getByRole("button", { name: /^Post to [A-Za-z]+ now$/ }).click();
+  await page.getByRole("button", { name: "Post now", exact: true }).click();
   await expect(page.getByRole("status")).toContainText("Post published");
   await expect(page).toHaveURL(/\/marketing\?tab=posts/);
 });
@@ -55,7 +55,7 @@ test("a post for a car can be scheduled, and is kept as a draft with Save draft"
   await next(page);
   await expect(page.getByLabel("Text")).not.toHaveValue("");
   await next(page);
-  await page.getByRole("radio", { name: "Later" }).click();
+  await page.getByRole("radio", { name: "Schedule post" }).click();
   await page.getByLabel("Date and time").fill("2031-01-01T10:00");
   await page.getByRole("button", { name: "Schedule", exact: true }).click();
   await expect(page.getByRole("status")).toContainText("Post scheduled");
@@ -66,7 +66,7 @@ test("a time in the past cannot be scheduled", async ({ page }) => {
   await next(page);
   await expect(page.getByLabel("Text")).not.toHaveValue("");
   await next(page);
-  await page.getByRole("radio", { name: "Later" }).click();
+  await page.getByRole("radio", { name: "Schedule post" }).click();
   const when = page.getByLabel("Date and time");
   await when.fill("2020-01-01T10:00");
   await page.getByRole("button", { name: "Schedule", exact: true }).click();
@@ -82,7 +82,7 @@ test("the ad switch adds a budget, and publishing starts the ad with the post", 
   await expect(page.getByLabel("Budget (€)")).toHaveCount(0);
   await page.getByLabel("Also run it as an ad").check();
   await page.getByLabel("Budget (€)").fill("150");
-  await page.getByRole("button", { name: /^Post to [A-Za-z]+ now$/ }).click();
+  await page.getByRole("button", { name: "Post now", exact: true }).click();
   await expect(page.getByRole("status")).toContainText("Post published and ad started");
   await expect(page.getByRole("listitem").filter({ hasText: "Facebook and Instagram ad" }).filter({ hasText: "Running" }).filter({ hasText: "€150" }).first()).toBeVisible();
 });

@@ -7,7 +7,7 @@ import { forSale, type Car } from "@/lib/stock/types";
 // - A car for sale here that DoneDeal no longer lists is hidden, and the dealer is asked whether it sold or was withdrawn (owner's decision,
 //   2026-11-12; it used to be marked sold, which was a guess). DoneDeal does not say why an ad came down.
 // - The sync is held, and nothing changes, when DoneDeal's answer looks wrong: no cars at all while we have some, or fewer than half of what
-//   we have (and more than a few gone). A dealer rarely sells half the forecourt in 15 minutes; a broken answer would empty the site.
+//   we have (and more than a few gone). A dealer rarely sells half the yard in 15 minutes; a broken answer would empty the site.
 export type Change = { before: Car; after: Car };
 export type Plan = { added: Car[]; changed: Change[]; gone: Car[]; held?: string };
 

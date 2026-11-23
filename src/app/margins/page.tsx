@@ -84,7 +84,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ q
 
   return (
     <>
-      <PageHeader title="Margins" text="Price less cost, prep and warranty repairs, before VAT. A sold car uses what it sold for." />
+      <PageHeader title="Margins" text="Asking or sale price, less cost, prep and warranty repairs, before VAT" />
       {/* The two figures an owner asks for first (what the stock should make, what the sales made), then what the stock is worth and cost. */}
       <StatGrid>
         <StatCard label="Expected margin on stock" value={fmtEur(stockMargin.eur)} hint={`${fmtPct(stockMargin.pct)}, if each sells at its price`} tone={stockMargin.eur >= 0 ? "good" : "bad"} href="/margins?state=stock" />

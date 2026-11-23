@@ -140,7 +140,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
 
   return (
     <>
-      <PageHeader title="Customers" text="People who bought from you, and those who asked to hear about cars and offers." />
+      <PageHeader title="Customers" text="Buyers, and people who signed up for alerts or news" />
       {/* The three lists are the summary: each tile is its count and opens its list. */}
       <SummaryTabs
         label="Customer lists"

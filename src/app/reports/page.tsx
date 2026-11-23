@@ -32,7 +32,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ p
 
   return (
     <>
-      <PageHeader title="Reports" text={`Your sales over the last ${period} months, this month included.`} />
+      <PageHeader title="Reports" text={`The last ${period} months, this one included`} />
       {tabs}
       {/* The answer first, in words. */}
       <p className="max-w-measure text-body">
@@ -81,7 +81,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ p
         </Panel>
       </div>
 
-      <Panel title="By salesperson" text="Cars sold is every sale in their name. Leads won is their leads marked won, out of all their leads.">
+      <Panel title="By salesperson" text="Leads won is out of all their leads">
         <DataTable
           bare
           label="By salesperson"
@@ -122,7 +122,7 @@ async function Personal({ period, tabs }: { period: Period; tabs: React.ReactNod
   const r = personalReport({ name: me.name, sales, leads, period, now: now() });
   return (
     <>
-      <PageHeader title="Reports" text={`Your own figures, ${me.name}, the last ${period} months, this month included.`} />
+      <PageHeader title="Reports" text={`Your own figures, the last ${period} months, this one included`} />
       {tabs}
       <StatGrid>
         <StatCard label="Cars sold" value={fmtNum(r.totals.sold)} />
