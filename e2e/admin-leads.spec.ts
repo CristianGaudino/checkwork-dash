@@ -33,7 +33,7 @@ test("open a lead, change who has it and its status, add a note", async ({ page 
 test("an unknown lead is a 404, and bad filters are ignored", async ({ page }) => {
   expect((await page.goto("/leads/not-a-lead"))!.status()).toBe(404);
   await page.goto("/leads?status=hacked&type=nope");
-  expect((await page.getByRole("row").count()) - 1).toBeGreaterThan(10);
+  await expect.poll(async () => (await page.getByRole("row").count()) - 1).toBeGreaterThan(10); // the table streams in after the page
 });
 
 test("the list opens with what to answer now, and a lead moves on a step from its row, with Undo", async ({ page, context }) => {
