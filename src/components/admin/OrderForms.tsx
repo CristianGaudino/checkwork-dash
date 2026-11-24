@@ -1,10 +1,12 @@
 "use client";
 
 import { useKeptForm } from "@/components/admin/useKeptForm";
-import { useRef, useState } from "react";
-import { ConfirmDialog } from "@/components/admin/ActButton";
+import { useState } from "react";
+import { BUSY } from "@/components/admin/ActButton";
+import { Dialog, DialogCancel } from "@/components/admin/Dialog";
+import { PersonPicker } from "@/components/admin/PersonPicker";
 import { Select } from "@/components/Select";
-import { Choice, Field, adminButton, adminInput, dangerButton } from "@/components/admin/kit";
+import { Choice, Field, FormActions, adminButton, adminInput, dangerButton } from "@/components/admin/kit";
 import { BuyerFields } from "@/components/admin/BuyerFields";
 import { cancelOrderAction, placeOrderAction } from "@/app/orders/actions";
 import { DEPOSIT_METHODS } from "@/lib/admin/deposits";
@@ -74,7 +76,7 @@ export function PlaceOrderForm({ periods, month, team, me, customers, leadId }: 
           <Select name="regPeriod" defaultValue={periods[1]} options={periods.map((p) => [p, regPeriodLabel(p)] as const)} />
         </Field>
         <Field label="Taken by" error={e.salesperson}>
-          <Select name="salesperson" defaultValue={me ?? ""} options={[["", "Not taken"], ...team.map((t) => [t, t] as const)]} />
+          <PersonPicker name="salesperson" team={team} value={me} me={me} />
         </Field>
       </Step>
       <div className="flex justify-end border-t border-hairline pt-6">
@@ -84,27 +86,50 @@ export function PlaceOrderForm({ periods, month, team, me, customers, leadId }: 
   );
 }
 
-export function CancelOrderForm({ id, depositEur }: { id: string; depositEur?: number }) {
+// Cancelling cannot be undone, so it is a button that opens the house dialog: what happened to the deposit, and the red button that cancels.
+// The dialog is the asking, so nothing asks a second time. The server checks again and refuses anyone but an owner or manager.
+export function CancelOrder({ id, depositEur }: { id: string; depositEur?: number }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <FormActions>
+        <button type="button" onClick={() => setOpen(true)} className={dangerButton}>
+          Cancel the order
+        </button>
+      </FormActions>
+      <Dialog open={open} onClose={() => setOpen(false)} title="Cancel this order?" text="This cannot be undone.">
+        <CancelOrderForm id={id} depositEur={depositEur} />
+      </Dialog>
+    </>
+  );
+}
+
+function CancelOrderForm({ id, depositEur }: { id: string; depositEur?: number }) {
   const [state, action, pending] = useKeptForm<FormState>(cancelOrderAction.bind(null, id), undefined);
   const [outcome, setOutcome] = useState(depositEur ? "refunded" : "none");
-  const [asking, setAsking] = useState(false);
-  const sure = useRef(false);
   const e = state?.errors ?? {};
   return (
-    // Cancelling cannot be undone, so it asks first in the dashboard's own dialog, as deleting a car does; yes sends the form as it is.
-    <form {...action} onSubmit={(ev) => (sure.current ? ((sure.current = false), action.onSubmit(ev)) : (ev.preventDefault(), setAsking(true)))} className="flex flex-col gap-4" noValidate>
+    <form {...action} className="flex flex-col gap-4" noValidate>
       {depositEur ? (
         <Choice name="outcome" legend="The deposit was" value={outcome} onChange={setOutcome} error={e.outcome} options={[["refunded", "Refunded"], ["kept", "Kept, under our terms"]]} />
       ) : (
-        <input type="hidden" name="outcome" value="none" />
+        <>
+          <input type="hidden" name="outcome" value="none" />
+          {e.outcome && <p role="alert" className="text-meta text-destructive">{e.outcome}</p>}
+        </>
       )}
       {outcome === "refunded" && (
-        <Field label="Refunded (€)" error={e.refundEur} className="sm:max-w-xs">
+        <Field label="Refunded (€)" error={e.refundEur}>
           <input name="refundEur" inputMode="numeric" defaultValue={depositEur} className={adminInput} />
         </Field>
       )}
-      <button type="submit" disabled={pending} className={`${dangerButton} self-start`}>{pending ? "Saving" : "Cancel the order"}</button>
-      {asking && <ConfirmDialog confirm={{ title: "Cancel this order?", text: "This cannot be undone.", yes: "Cancel the order" }} onYes={() => ((sure.current = true), action.ref.current?.requestSubmit())} onClose={() => setAsking(false)} />}
+      <FormActions>
+        {/* Not "Cancel": beside Cancel the order it would read as the same thing. */}
+        <DialogCancel>Keep the order</DialogCancel>
+        <button type="submit" disabled={pending} aria-busy={pending || undefined} className={`${dangerButton} ${BUSY}`}>
+          {pending ? "Cancelling" : "Cancel the order"}
+        </button>
+      </FormActions>
     </form>
   );
 }

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ActButton } from "@/components/admin/ActButton";
-import { adminButton, adminButtonQuiet, rowButton, rowButtonStrong, rowDanger } from "@/components/admin/kit";
+import { FormActions, adminButton, adminButtonQuiet, rowButton, rowButtonStrong, rowDanger } from "@/components/admin/kit";
 import { CallButton } from "@/components/admin/LeadActions";
 import { RowMenu } from "@/components/admin/RowMenu";
 import { DRIVE_STATUS_LABELS, type TestDrive } from "@/lib/admin/collections";
@@ -15,7 +15,7 @@ export const rebookHref = (id: string) => `/test-drives/new?rebook=${encodeURICo
 
 // A booking's next steps (confirm, done, no show, cancel), each with Undo in its toast. Mark done and No show only once the drive's time has
 // passed (driveSteps), so a double tap on Confirm never lands on Mark done. A booking that is over gets Rebook.
-// `page`: the booking's own page: every step in view, the first filled, Cancel at the far end. In a row (#95): only the first step, and
+// `page`: the booking's own page: every step in view, the first filled and right-most, Cancel at the far left. In a row (#95): only the first step, and
 // everything else (Call, the other steps, Cancel, Rebook) under the row's menu, out of a slipping thumb's way; with no step due, only the
 // menu. `primary` false: the step is a button elsewhere on the page (To do on the Overview), so the row has only its menu.
 export function DriveSteps({ drive, page = false, primary = true }: { drive: Drive; page?: boolean; primary?: boolean }) {
@@ -34,14 +34,19 @@ export function DriveSteps({ drive, page = false, primary = true }: { drive: Dri
       Rebook
     </Link>
   );
+  // On the page: bottom right with the next step right-most (#140), the others before it, and Cancel on the far left, away from it.
   if (page)
-    return over ? (
-      rebook(`${adminButtonQuiet} w-fit`)
-    ) : (
-      <span className="flex flex-wrap gap-2">
-        {rest.map((s, i) => step(s, i > 0 ? rowButton : adminButton))}
-        {cancel && step(cancel, `${rowDanger} ml-auto`)}
-      </span>
+    return (
+      <FormActions>
+        {over ? (
+          rebook(adminButtonQuiet)
+        ) : (
+          <>
+            {cancel && step(cancel, rest.length ? `${rowDanger} mr-auto` : rowDanger)}
+            {rest.map((s, i) => step(s, i > 0 ? rowButton : adminButton)).reverse()}
+          </>
+        )}
+      </FormActions>
     );
   const first = primary ? rest[0] : undefined;
   const others = rest.filter((s) => s !== first);

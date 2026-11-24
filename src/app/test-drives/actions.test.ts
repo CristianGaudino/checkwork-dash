@@ -99,11 +99,11 @@ describe("a booking's status and who takes it out", () => {
   it("is someone on the team, or nobody; any other name is refused", async () => {
     const drive = (await drivesStore.list())[0];
     const name = (await getSettings()).team[1].name;
-    await assignDriveAction(drive.id, name);
+    await assignDriveAction(drive.id, form({ assignedTo: name }));
     expect((await drivesStore.get(drive.id))!.assignedTo).toBe(name);
-    await assignDriveAction(drive.id, "Somebody Else");
+    await assignDriveAction(drive.id, form({ assignedTo: "Somebody Else" }));
     expect((await drivesStore.get(drive.id))!.assignedTo).toBe(name);
-    await assignDriveAction(drive.id, "");
+    await assignDriveAction(drive.id, form({ assignedTo: "" }));
     expect((await drivesStore.get(drive.id))!.assignedTo).toBeUndefined();
   });
 });
@@ -112,10 +112,10 @@ describe("giving a test drive to someone", () => {
   it("tells them in their bell", async () => {
     const drive = (await drivesStore.list())[1];
     const name = (await getSettings()).team[2].name;
-    await assignDriveAction(drive.id, "");
+    await assignDriveAction(drive.id, form({ assignedTo: "" }));
     const count = async () => (await noticesStore.list()).filter((n) => n.for === name && n.href === `/test-drives/${drive.id}`).length;
     const before = await count();
-    await assignDriveAction(drive.id, name);
+    await assignDriveAction(drive.id, form({ assignedTo: name }));
     expect(await count()).toBe(before + 1);
   });
 });

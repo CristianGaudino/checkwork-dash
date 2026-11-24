@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { AddTeamForm, BusinessForm, RoleForm, LeadEmailsForm, MarketingForm, NotificationsForm, TargetsForm } from "@/components/admin/SettingsForms";
-import { Badge, DataTable, PageHeader, Panel, dangerButton, rowDanger, tapArea } from "@/components/admin/kit";
+import { AddTeamForm, BusinessEdit, RoleForm, LeadEmailsForm, MarketingEdit, NotificationsForm, TargetsEdit } from "@/components/admin/SettingsForms";
+import { Badge, DataTable, Facts, FormActions, PageHeader, Panel, dangerButton, rowDanger, tapArea } from "@/components/admin/kit";
+import { formatHours } from "@/lib/dealer";
 import { TabRow } from "@/components/admin/TabRow";
 import { ActButton } from "@/components/admin/ActButton";
 import { RowMenu } from "@/components/admin/RowMenu";
@@ -118,12 +119,29 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
 
           {section === "business" && (
             <>
-              <Panel title="Business details">
-                <BusinessForm name={name} profile={profile} />
+              {/* Read first, changed in the house dialog (#141). The hours one day to a line, as a shop's door and Google show them. */}
+              <Panel title="Business details" action={<BusinessEdit name={name} profile={profile} />}>
+                <Facts
+                  items={[
+                    ["Name", name],
+                    ["Website", profile.siteUrl || "Not set", "[overflow-wrap:anywhere]"],
+                    ["Phone", profile.phone || "Not set"],
+                    ["Email", profile.email || "Not set", "[overflow-wrap:anywhere]"],
+                    ["Address", [profile.address.street, profile.address.town, profile.address.county, profile.address.eircode].filter(Boolean).join(", ") || "Not set"],
+                  ]}
+                />
+                <dl aria-label="Opening hours" className="grid max-w-sm grid-cols-[auto_minmax(0,1fr)] gap-x-6 gap-y-1 text-body">
+                  {profile.hours.map((h) => (
+                    <div key={h.day} className="contents">
+                      <dt className="text-text-2">{h.day}</dt>
+                      <dd className="tabular-nums">{formatHours(h)}</dd>
+                    </div>
+                  ))}
+                </dl>
               </Panel>
               {voice && (
-                <Panel title="How your posts sound">
-                  <MarketingForm settings={s} />
+                <Panel title="How your posts sound" action={<MarketingEdit settings={s} />}>
+                  <Facts items={[["How we sound", s.marketing.voice || "Not set"], ["Hashtags", s.marketing.hashtags || "None", "[overflow-wrap:anywhere]"], ["Sign-off line", s.marketing.signOff || "None"]]} />
                 </Panel>
               )}
               {/* The plan and what we set for you (stock, the old stock and sold car rules) are in Billing, beside what it costs. */}
@@ -135,8 +153,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
           )}
 
           {section === "targets" && (
-            <Panel title="Timings">
-              <TargetsForm settings={s} />
+            <Panel title="Timings" action={<TargetsEdit settings={s} />}>
+              <Facts items={[["Reply to a new lead within", `${s.leadSlaHours} hours`], ["Test drive slot", `${s.driveSlotMinutes} minutes`]]} />
             </Panel>
           )}
 
@@ -242,9 +260,11 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
           {section === "demo" && (
             <Panel title="Start again">
               <p className="max-w-measure text-body">Put the leads, bookings, reviews, marketing and settings back as they started.</p>
-              <ActButton act={resetDemoAction} confirm={{ title: "Lose every change and start again?", text: "Every lead, booking, review, post and setting goes back to how it started. This cannot be undone.", yes: "Lose every change" }} className={`${dangerButton} w-fit`}>
-                Start again
-              </ActButton>
+              <FormActions>
+                <ActButton act={resetDemoAction} confirm={{ title: "Lose every change and start again?", text: "Every lead, booking, review, post and setting goes back to how it started. This cannot be undone.", yes: "Lose every change" }} className={dangerButton}>
+                  Start again
+                </ActButton>
+              </FormActions>
             </Panel>
           )}
         </div>

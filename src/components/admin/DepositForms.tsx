@@ -4,7 +4,10 @@ import Link from "next/link";
 import { useKeptForm } from "@/components/admin/useKeptForm";
 import { useState } from "react";
 import { Select } from "@/components/Select";
-import { Choice, Field, adminButton, adminButtonQuiet, adminInput } from "@/components/admin/kit";
+import { Choice, Field, FormActions, adminButton, adminButtonQuiet, adminInput } from "@/components/admin/kit";
+import { BUSY } from "@/components/admin/ActButton";
+import { Dialog, DialogCancel } from "@/components/admin/Dialog";
+import { PersonPicker } from "@/components/admin/PersonPicker";
 import { BuyerFields } from "@/components/admin/BuyerFields";
 import { endReservationAction, reserveAction, undoSaleAction } from "@/app/stock/actions";
 import { DEPOSIT_METHODS } from "@/lib/admin/deposits";
@@ -33,31 +36,54 @@ export function ReserveForm({ carId, today, latest, team, me, customers }: { car
         <input name="until" type="date" min={today} max={latest} className={adminInput} />
       </Field>
       <Field label="Taken by" error={e.salesperson}>
-        <Select name="salesperson" defaultValue={me ?? ""} options={[["", "Not set"], ...team.map((t) => [t, t] as const)]} />
+        <PersonPicker name="salesperson" team={team} value={me} me={me} none="Not set" />
       </Field>
       <BuyerFields customers={customers} errors={e} />
       <div className={full}>
-        <button type="submit" disabled={pending} className={adminButton}>{pending ? "Saving" : "Reserve"}</button>
+        <FormActions>
+          <button type="submit" disabled={pending} className={adminButton}>{pending ? "Saving" : "Reserve"}</button>
+        </FormActions>
       </div>
     </form>
   );
 }
 
-export function EndReservationForm({ carId, depositEur }: { carId: string; depositEur: number }) {
+// Ending a reservation opens the house dialog: what happened to the deposit, then End reservation. The car goes back on sale.
+export function EndReservation({ carId, depositEur }: { carId: string; depositEur: number }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <FormActions>
+        <button type="button" onClick={() => setOpen(true)} className={adminButtonQuiet}>
+          End reservation
+        </button>
+      </FormActions>
+      <Dialog open={open} onClose={() => setOpen(false)} title="End the reservation?" text="The car goes back on sale. Keep or refund the deposit as your terms say.">
+        <EndReservationForm carId={carId} depositEur={depositEur} />
+      </Dialog>
+    </>
+  );
+}
+
+function EndReservationForm({ carId, depositEur }: { carId: string; depositEur: number }) {
   const [state, action, pending] = useKeptForm<FormState>(endReservationAction.bind(null, carId), undefined);
   const [outcome, setOutcome] = useState("refunded");
   const e = state?.errors ?? {};
   return (
-    <form {...action} className={grid} noValidate>
-      <Choice className={full} name="outcome" legend="The deposit was" value={outcome} onChange={setOutcome} error={e.outcome} options={[["refunded", "Refunded"], ["kept", "Kept, under our terms"]]} />
+    <form {...action} className="flex flex-col gap-4" noValidate>
+      <Choice name="outcome" legend="The deposit was" value={outcome} onChange={setOutcome} error={e.outcome} options={[["refunded", "Refunded"], ["kept", "Kept, under our terms"]]} />
       {outcome === "refunded" && (
         <Field label="Refunded (€)" error={e.refundEur}>
           <input name="refundEur" inputMode="numeric" defaultValue={depositEur} className={adminInput} />
         </Field>
       )}
-      <div className={full}>
-        <button type="submit" disabled={pending} className={adminButtonQuiet}>{pending ? "Saving" : "End reservation"}</button>
-      </div>
+      <FormActions>
+        {/* Not "Cancel": beside End reservation it could read as ending it. */}
+        <DialogCancel>Keep it</DialogCancel>
+        <button type="submit" disabled={pending} aria-busy={pending || undefined} className={`${adminButton} ${BUSY}`}>
+          {pending ? "Saving" : "End reservation"}
+        </button>
+      </FormActions>
     </form>
   );
 }
@@ -86,10 +112,13 @@ export function UndoSaleForm({ carId, soldOn, today }: { carId: string; soldOn: 
       <Field label={kind === "returned" ? "Why it came back" : "Why (optional)"} error={e.reason} className={full}>
         <textarea name="reason" maxLength={300} className={textarea} />
       </Field>
-      <div className={`${full} flex flex-wrap gap-3`}>
-        <button type="submit" disabled={pending} className={adminButton}>{pending ? "Saving" : kind === "returned" ? "Take it back" : "Cancel the sale"}</button>
-        {/* The way out without undoing anything. Not "Cancel": next to Cancel the sale it would read as the same thing. */}
-        <Link href="/stock?view=sold" className={adminButtonQuiet}>Keep the sale</Link>
+      {/* Bottom right, the main one right-most (#140). Keep the sale is the way out without undoing anything; not "Cancel": next to Cancel the
+          sale it would read as the same thing. */}
+      <div className={full}>
+        <FormActions>
+          <Link href="/stock?view=sold" className={adminButtonQuiet}>Keep the sale</Link>
+          <button type="submit" disabled={pending} className={adminButton}>{pending ? "Saving" : kind === "returned" ? "Take it back" : "Cancel the sale"}</button>
+        </FormActions>
       </div>
     </form>
   );

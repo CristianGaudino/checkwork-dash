@@ -6,7 +6,6 @@ import { RowMenu } from "@/components/admin/RowMenu";
 import { sendDuePosts } from "@/lib/admin/scheduler";
 import { adsStore, mediaStore, newslettersStore, postsStore, subscribersStore, type Ad, type SocialPost } from "@/lib/admin/collections";
 import { LibraryUpload } from "@/components/admin/MediaUpload";
-import { NewsletterFields } from "@/components/admin/NewsletterFields";
 import { hasModule } from "@/lib/modules";
 import { notFound } from "next/navigation";
 import { TIME_ZONE } from "@/lib/site";
@@ -18,8 +17,7 @@ import { calendarWeek, newestForSale, readyToPost, weekDays, worthPosting } from
 import { adminCars } from "@/lib/admin/stock-admin";
 import { isUsable } from "@/lib/integrations";
 import { carName } from "@/lib/stock/format";
-import { createNewsletterAction, deleteAdAction, deleteMediaAction, deleteNewsletterAction, deletePostAction, sendNewsletterAction, startAdAction } from "./actions";
-import { SubmitButton } from "@/components/admin/SubmitButton";
+import { deleteAdAction, deleteMediaAction, deleteNewsletterAction, deletePostAction, sendNewsletterAction, startAdAction } from "./actions";
 import { BrandIcon } from "@/components/admin/BrandIcon";
 
 export const metadata = { title: "Marketing" };
@@ -303,10 +301,12 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
 
       {tab === "newsletters" && (
         <>
-          <div className="flex flex-wrap items-center gap-3">
-            {/* Opens the letter written from the stock to check first: nothing is saved until the dealer saves it. */}
+          {/* Opens the letter written from the stock to check first: nothing is saved until the dealer saves it. Write your own opens the
+              same page empty (#141), never a form folded open under the list. The buttons on the right, the main one right-most (#140). */}
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            <p className="mr-auto text-meta text-text-2">{fmtNum(live)} subscribers{sending ? "" : ", sending not connected"}</p>
+            <Link href="/marketing/newsletters/new?own=1" className={adminButtonQuiet}>Write your own</Link>
             <Link href="/marketing/newsletters/new" className={adminButton}>Write from the newest cars</Link>
-            <p className="text-meta text-text-2">{fmtNum(live)} subscribers{sending ? "" : ", sending not connected"}</p>
           </div>
           <Panel title="Newsletters">
             {letters.length === 0 ? (
@@ -349,15 +349,6 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
             )}
           </Panel>
           <TableFooter page={sentLetters.page} pageCount={sentLetters.pageCount} total={sentLetters.total} per={sentLetters.per} />
-          <details className="group">
-            <summary className="flex min-h-11 cursor-pointer list-none items-center text-meta font-medium text-accent-text underline [&::-webkit-details-marker]:hidden">Write your own</summary>
-            <Panel className="mt-3">
-              <form action={createNewsletterAction} className="flex flex-col gap-4">
-                <NewsletterFields />
-                <SubmitButton name="intent" value="save" className={`${adminButtonQuiet} self-start`}>Save draft</SubmitButton>
-              </form>
-            </Panel>
-          </details>
         </>
       )}
     </>

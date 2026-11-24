@@ -1,16 +1,16 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CoverBadge } from "@/components/admin/badges";
-import { ChoiceAct } from "@/components/admin/ActButton";
+import { ActSelect } from "@/components/admin/ActSelect";
 import { Facts, PageHeader, Panel } from "@/components/admin/kit";
-import { CostForm } from "@/components/admin/ClaimForms";
+import { CostPanel } from "@/components/admin/ClaimForms";
 import { CLAIM_STATUSES, CLAIM_STATUS_LABELS, claimsStore, coverEnds, customersStore, salesStore } from "@/lib/admin/collections";
 import { TimeLeft } from "@/components/admin/charts";
 import { dublinDay, fmtDate } from "@/lib/admin/format";
-import { can } from "@/lib/permissions";
+import { can, currentMember } from "@/lib/permissions";
 import { hasModule } from "@/lib/modules";
 import { addClaimNoteAction, setClaimCostAction, setClaimStatusAction } from "../actions";
-import { NotesPanel } from "@/components/admin/NotesPanel";
+import { Notes } from "@/components/admin/Notes";
 
 export const metadata = { title: "Warranty claim" };
 
@@ -19,7 +19,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const { id } = await params;
   const claim = await claimsStore.get(id);
   if (!claim) notFound();
-  const [sale, buyer, margins] = await Promise.all([salesStore.get(claim.saleId), claim.customerId ? customersStore.get(claim.customerId) : undefined, can("margins")]);
+  const [sale, buyer, margins, me] = await Promise.all([salesStore.get(claim.saleId), claim.customerId ? customersStore.get(claim.customerId) : undefined, can("margins"), currentMember()]);
   const day = (d: string) => fmtDate(`${d}T12:00:00Z`);
   // The warranty as time: from the sale to the last day of cover, how much is used and how much is left (or when it ended).
   const ends = sale ? coverEnds(sale) : undefined;
@@ -43,17 +43,12 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
               ] as const}
             />
           </Panel>
-          <NotesPanel notes={claim.notes} action={addClaimNoteAction.bind(null, claim.id)} />
+          <Notes notes={claim.notes} action={addClaimNoteAction.bind(null, claim.id)} me={me.name} />
         </div>
         <div className="flex min-w-0 flex-col gap-6">
-          <Panel title="Status">
-            <div className="flex flex-wrap gap-2">
-              {CLAIM_STATUSES.map((s) => (
-                <ChoiceAct key={s} action={setClaimStatusAction.bind(null, claim.id)} set={{ status: s }} back={{ status: claim.status }} active={claim.status === s} done={`Claim: ${CLAIM_STATUS_LABELS[s]}`}>
-                  {CLAIM_STATUS_LABELS[s]}
-                </ChoiceAct>
-              ))}
-            </div>
+          {/* Where it stands: one drop-down of the six stages, as the lead's stage (#136), never a block of chips. */}
+          <Panel title="Status" quiet>
+            <ActSelect label="Status" value={claim.status} options={CLAIM_STATUSES.map((s) => [s, CLAIM_STATUS_LABELS[s]] as const)} action={setClaimStatusAction.bind(null, claim.id)} field="status" extra={{ from: claim.status }} back={{ status: claim.status }} done="Claim: " />
           </Panel>
           {sale && ends && (
             <Panel title="Cover" quiet>
@@ -61,9 +56,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             </Panel>
           )}
           {margins && (
-            <Panel title="Cost">
-              <CostForm act={setClaimCostAction.bind(null, claim.id)} label="Repair cost to us (€)" hint="Counts against the car's margin. Leave empty to clear it." costEur={claim.costEur} />
-            </Panel>
+            <CostPanel title="Repair cost" act={setClaimCostAction.bind(null, claim.id)} label="Repair cost to us (€)" hint="Counts against the car's margin. Leave empty to clear it." costEur={claim.costEur} />
           )}
         </div>
       </div>

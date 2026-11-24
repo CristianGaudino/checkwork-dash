@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Facts, PageHeader, Panel, adminButton } from "@/components/admin/kit";
-import { EndReservationForm, ReserveForm } from "@/components/admin/DepositForms";
+import { Facts, FormActions, PageHeader, Panel, adminButton } from "@/components/admin/kit";
+import { EndReservation, ReserveForm } from "@/components/admin/DepositForms";
 import { customersStore, getSettings, heldFor, reservationsStore } from "@/lib/admin/collections";
 import { addMonths, dublinDay, fmtDate, fmtEur } from "@/lib/admin/format";
 import { adminCar } from "@/lib/admin/stock-admin";
@@ -50,13 +50,15 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           ] as const}
         />
         <p className="max-w-measure text-body text-text-2">Mark it sold when they pay the rest.</p>
-        <Link href={`/stock/${car.id}/sale`} className={`${adminButton} w-fit`}>Mark sold</Link>
+        <FormActions>
+          <Link href={`/stock/${car.id}/sale`} className={adminButton}>Mark sold</Link>
+        </FormActions>
       </Panel>
       {/* Money going back, or kept: owners and managers only, and the server refuses anyone else. */}
       {canEnd && (
         <Panel title="End the reservation">
           <p className="max-w-measure text-body text-text-2">The car goes back on sale. Keep or refund the deposit as your terms say.</p>
-          <EndReservationForm carId={car.id} depositEur={held.depositEur} />
+          <EndReservation carId={car.id} depositEur={held.depositEur} />
         </Panel>
       )}
     </>

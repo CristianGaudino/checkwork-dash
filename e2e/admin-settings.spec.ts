@@ -3,12 +3,17 @@ import { as } from "./open";
 
 test("a target is checked, saved, and changes what the overview calls late", async ({ page }) => {
   await page.goto("/settings?section=targets");
-  await page.locator('input[name="leadSlaHours"]').fill("0");
-  await page.locator("form").filter({ has: page.locator('input[name="leadSlaHours"]') }).getByRole("button", { name: "Save" }).click();
-  await expect(page.getByText("At least 1 hour")).toBeVisible();
-  await page.locator('input[name="leadSlaHours"]').fill("2");
-  await page.locator("form").filter({ has: page.locator('input[name="leadSlaHours"]') }).getByRole("button", { name: "Save" }).click();
-  await expect(page.getByRole("status").filter({ hasText: "Saved" })).toBeVisible();
+  // Read first, changed in the house dialog.
+  await page.getByRole("button", { name: "Edit timings" }).click();
+  const dialog = page.getByRole("dialog", { name: "Timings" });
+  await dialog.locator('input[name="leadSlaHours"]').fill("0");
+  await dialog.getByRole("button", { name: "Save" }).click();
+  await expect(dialog.getByText("At least 1 hour")).toBeVisible(); // a refused save keeps it open, the error by its field
+  await dialog.locator('input[name="leadSlaHours"]').fill("2");
+  await dialog.getByRole("button", { name: "Save" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByText("Saved. It works from now on")).toBeVisible();
+  await expect(page.getByText("2 hours", { exact: true })).toBeVisible();
   await page.goto("/");
   await expect(page.getByRole("list", { name: "To do" }).getByText(/^(Reply to|Follow up with) /).first()).toBeVisible();
 });
@@ -29,12 +34,18 @@ test("a team member is added, shows in the lead owner choices, and cannot be add
   await expect(page.getByText("already on the team")).toHaveCount(0);
   await page.goto("/leads");
   await page.getByRole("row").nth(1).getByRole("link").first().click();
-  await expect(page.getByRole("region", { name: "Who has it" }).getByRole("button", { name })).toHaveCount(1);
+  await page.getByRole("combobox", { name: "Who has it" }).click(); // a drop-down of the team (#135)
+  await expect(page.getByRole("option", { name })).toHaveCount(1);
 });
 
 test("the sections are one at a time; services say what is connected and how to ask for the rest, and the business details are shown", async ({ page }) => {
   await page.goto("/settings");
-  await expect(page.getByRole("main").getByRole("textbox", { name: "Name", exact: true })).toHaveValue("Checkwork Motors"); // the business details, not the menu
+  // The business details are read first, and changed in the house dialog (#141).
+  const details = page.getByRole("region", { name: "Business details" });
+  await expect(details).toContainText("Checkwork Motors");
+  await details.getByRole("button", { name: "Edit business details" }).click();
+  await expect(page.getByRole("dialog", { name: "Business details" }).getByRole("textbox", { name: "Name", exact: true })).toHaveValue("Checkwork Motors");
+  await page.keyboard.press("Escape");
   await expect(page.getByRole("region", { name: "Team" })).toHaveCount(0); // one section at a time
   await expect(page.getByRole("region", { name: "Your plan" })).toHaveCount(0); // in Billing now, with a link
   await expect(page.getByRole("main").getByRole("link", { name: "Billing", exact: true })).toHaveAttribute("href", "/billing");

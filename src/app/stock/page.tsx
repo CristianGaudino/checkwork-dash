@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { DataTable, EmptyState, Notice, PageHeader, Panel, SummaryTabs, TableFooter, TableToolbar, Task, TaskList, adminButton, adminButtonQuiet, pageOf, rowButton, rowButtonStrong, sortRows, type Column, type FilterGroup } from "@/components/admin/kit";
+import { DataTable, EmptyState, FormActions, Notice, PageHeader, Panel, SummaryTabs, TableFooter, TableToolbar, Task, TaskList, adminButton, adminButtonQuiet, pageOf, rowButton, rowButtonStrong, sortRows, type Column, type FilterGroup } from "@/components/admin/kit";
 import { CarFlags, ListingButton, PostToSocial, ViewOnSite, daysInStock } from "@/components/admin/CarActions";
 import { ActButton } from "@/components/admin/ActButton";
 import { RowMenu } from "@/components/admin/RowMenu";
@@ -127,7 +127,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sto
           <Notice tone="warn">{syncLine(sync)}</Notice>
           {sync.held && canUndo && (
             <form action={syncNowAction.bind(null, true)}>
-              <SubmitButton className={adminButtonQuiet}>Apply anyway</SubmitButton>
+              <FormActions>
+                <SubmitButton className={adminButtonQuiet}>Apply anyway</SubmitButton>
+              </FormActions>
             </form>
           )}
         </div>

@@ -1,4 +1,4 @@
-import { Badge, EmptyState, Meter, Notice, PageHeader, Panel, SummaryTabs, TableFooter, pageOf, rowButton, rowButtonStrong } from "@/components/admin/kit";
+import { Badge, EmptyState, Meter, Notice, PageHeader, Panel, SummaryTabs, TableFooter, pageOf } from "@/components/admin/kit";
 import { Stars } from "@/components/admin/Stars";
 import { reviewsStore, type AdminReview } from "@/lib/admin/collections";
 import { fmtDate, plural } from "@/lib/admin/format";
@@ -82,7 +82,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ f
   );
 }
 
-// Each review with its Reply in place: pressing it opens the box under the review, with Write with AI, and Post reply sends it to Google.
+// Each review with its Reply under it, on the right: pressing it opens the reply in the house dialog, with Write with AI, and Post reply
+// sends it to Google.
 // A review of 3 stars or fewer with no reply is marked: it is the one to answer first.
 function ReviewList({ rows, label, filter }: { rows: AdminReview[]; label: string; filter: ReviewFilter }) {
   return (
@@ -102,10 +103,7 @@ function ReviewList({ rows, label, filter }: { rows: AdminReview[]; label: strin
               {r.reply}
             </p>
           )}
-          <details className="group">
-            <summary className={`${r.reply ? rowButton : rowButtonStrong} w-fit cursor-pointer list-none [&::-webkit-details-marker]:hidden`} aria-label={`${r.reply ? "Edit reply" : "Reply"} to ${r.author}`}>{r.reply ? "Edit reply" : "Reply"}</summary>
-            <ReplyForm action={replyAction.bind(null, r.id)} id={r.id} author={r.author} reply={r.reply} filter={filter} />
-          </details>
+          <ReplyForm action={replyAction.bind(null, r.id)} id={r.id} author={r.author} review={r.text} reply={r.reply} filter={filter} />
         </li>
       ))}
     </ul>

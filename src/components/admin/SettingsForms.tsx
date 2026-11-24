@@ -3,13 +3,15 @@
 import { useKeptForm } from "@/components/admin/useKeptForm";
 import { Select } from "@/components/Select";
 import { startTransition, useActionState, useEffect, useState } from "react";
-import { Field, adminButton, adminButtonQuiet, adminInput } from "@/components/admin/kit";
+import { Field, FormActions, adminButton, adminButtonQuiet, adminInput } from "@/components/admin/kit";
+import { DialogCancel } from "@/components/admin/Dialog";
+import { EditDialog, useDoneOnSave } from "@/components/admin/EditDialog";
 import { addTeamAction, setRoleAction, saveBusinessAction, saveLeadEmailsAction, saveMarketingAction, sendTestEmailAction, saveNotificationsAction, saveTargetsAction, type SettingsState } from "@/app/settings/actions";
 import type { DealerSettings, TeamMember } from "@/lib/admin/collections";
 import { ROLES } from "@/lib/permission-rules";
 import type { DealerProfile } from "@/lib/tenancy/profile";
 import { CheckIcon } from "@/components/stock/icons";
-import { ConfirmDialog } from "@/components/admin/ActButton";
+import { BUSY, ConfirmDialog } from "@/components/admin/ActButton";
 
 const ROLE_OPTIONS = ROLES.map((r) => [r, r] as const);
 
@@ -44,9 +46,43 @@ function Save({ pending, saved, add = false, label = "Save" }: { pending: boolea
   );
 }
 
+// A dialog's Cancel and Save, bottom right with Save right-most.
+function DialogSave({ pending }: { pending: boolean }) {
+  return (
+    <FormActions>
+      <DialogCancel />
+      <button type="submit" disabled={pending} aria-busy={pending || undefined} className={`${adminButton} ${BUSY}`}>
+        {pending ? "Saving" : "Save"}
+      </button>
+    </FormActions>
+  );
+}
+
+const SAVED = "Saved. It works from now on";
+type Business = { name: string; profile: Pick<DealerProfile, "siteUrl" | "phone" | "email" | "address" | "hours"> };
+
+// The panels of Settings are read first (the page shows the values) and changed in the house dialog (#141). A save that works closes it and
+// says so; a refused one keeps it open with the errors by their fields.
+export const BusinessEdit = (props: Business) => (
+  <EditDialog title="Business details" what="business details" saved={SAVED}>
+    {(done) => <BusinessForm {...props} done={done} />}
+  </EditDialog>
+);
+export const MarketingEdit = ({ settings }: { settings: DealerSettings }) => (
+  <EditDialog title="How your posts sound" what="how your posts sound" saved={SAVED}>
+    {(done) => <MarketingForm settings={settings} done={done} />}
+  </EditDialog>
+);
+export const TargetsEdit = ({ settings }: { settings: DealerSettings }) => (
+  <EditDialog title="Timings" what="timings" saved={SAVED}>
+    {(done) => <TargetsForm settings={settings} done={done} />}
+  </EditDialog>
+);
+
 // The dealer's own facts. Hours: a time each for opening and closing, empty for a closed day.
-export function BusinessForm({ name, profile }: { name: string; profile: Pick<DealerProfile, "siteUrl" | "phone" | "email" | "address" | "hours"> }) {
+function BusinessForm({ name, profile, done }: Business & { done: () => void }) {
   const f = useSave(saveBusinessAction);
+  useDoneOnSave(f.state, f.pending, done);
   return (
     <form {...f.run} className="flex flex-col gap-4" noValidate>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -90,24 +126,23 @@ export function BusinessForm({ name, profile }: { name: string; profile: Pick<De
           </div>
         ))}
       </fieldset>
-      <Save pending={f.pending} saved={f.state?.saved} label="Save details" />
+      <DialogSave pending={f.pending} />
     </form>
   );
 }
 
-export function TargetsForm({ settings }: { settings: DealerSettings }) {
+function TargetsForm({ settings, done }: { settings: DealerSettings; done: () => void }) {
   const f = useSave(saveTargetsAction);
+  useDoneOnSave(f.state, f.pending, done);
   return (
-    <form {...f.run} className="grid grid-cols-1 gap-4 sm:grid-cols-2" noValidate>
+    <form {...f.run} className="flex flex-col gap-4" noValidate>
       <Field label="Reply to a new lead within (hours)" hint="Leads waiting longer show on the overview" error={f.errors.leadSlaHours}>
         <input name="leadSlaHours" type="number" inputMode="numeric" defaultValue={settings.leadSlaHours} className={adminInput} />
       </Field>
       <Field label="Test drive slot (minutes)" hint="The same car cannot be booked twice within this time" error={f.errors.driveSlotMinutes}>
         <input name="driveSlotMinutes" type="number" inputMode="numeric" defaultValue={settings.driveSlotMinutes} className={adminInput} />
       </Field>
-      <div className="sm:col-span-2">
-        <Save pending={f.pending} saved={f.state?.saved} />
-      </div>
+      <DialogSave pending={f.pending} />
     </form>
   );
 }
@@ -158,8 +193,9 @@ export function NotificationsForm({ settings, emailConnected }: { settings: Deal
   );
 }
 
-export function MarketingForm({ settings }: { settings: DealerSettings }) {
+function MarketingForm({ settings, done }: { settings: DealerSettings; done: () => void }) {
   const f = useSave(saveMarketingAction);
+  useDoneOnSave(f.state, f.pending, done);
   return (
     <form {...f.run} className="grid grid-cols-1 gap-4" noValidate>
       <Field label="How we sound" hint="Used when posts and newsletters are written" error={f.errors.voice}>
@@ -173,7 +209,7 @@ export function MarketingForm({ settings }: { settings: DealerSettings }) {
           <input name="signOff" defaultValue={settings.marketing.signOff} className={adminInput} />
         </Field>
       </div>
-      <Save pending={f.pending} saved={f.state?.saved} label="Save post wording" />
+      <DialogSave pending={f.pending} />
     </form>
   );
 }

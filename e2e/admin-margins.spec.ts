@@ -47,12 +47,14 @@ test("the demo bar's role decides what the dealer sees, the owner by default", a
 test("only an owner or manager changes the team and the settings; a manager cannot change an owner", async ({ page, context }) => {
   await as(context, "Sales");
   await page.goto("/settings?section=targets");
-  await expect(page.getByLabel("Reply to a new lead within (hours)")).toHaveCount(0); // not theirs: only their own notifications show
+  await expect(page.getByRole("button", { name: "Edit timings" })).toHaveCount(0); // not theirs: only their own notifications show
   await page.goto("/settings?section=team");
   await expect(page.getByRole("button", { name: "Remove" })).toHaveCount(0);
   await as(context, "Manager");
   await page.goto("/settings?section=targets");
+  await page.getByRole("button", { name: "Edit timings" }).click();
   await expect(page.getByLabel("Reply to a new lead within (hours)")).toBeEnabled();
+  await page.keyboard.press("Escape");
   await page.goto("/settings?section=team");
   await expect(page.getByLabel("Role for Conor Doyle")).toBeVisible();
   await expect(page.getByLabel("Role for Aoife Brennan")).toHaveCount(0); // the owner: a badge, not a picker

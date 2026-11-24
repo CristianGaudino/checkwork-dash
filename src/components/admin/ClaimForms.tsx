@@ -2,7 +2,11 @@
 
 import { useKeptForm } from "@/components/admin/useKeptForm";
 import { Select } from "@/components/Select";
-import { Field, adminButton, adminInput } from "@/components/admin/kit";
+import { Field, FormActions, Panel, adminButton, adminInput } from "@/components/admin/kit";
+import { DialogCancel } from "@/components/admin/Dialog";
+import { EditDialog, useDoneOnSave } from "@/components/admin/EditDialog";
+import { BUSY } from "@/components/admin/ActButton";
+import { fmtEur } from "@/lib/admin/format";
 import { openClaimAction, type CostState } from "@/app/aftersales/actions";
 import type { FormState } from "@/lib/admin/validation";
 
@@ -29,17 +33,37 @@ export function OpenClaimForm({ sales, today, defaults }: { sales: { id: string;
   );
 }
 
-// A cost saved in place (a warranty repair, a car's cost price): a refused figure says why under the box, and each save says Saved. again.
-export function CostForm({ act, label, hint, costEur }: { act: (prev: CostState, data: FormData) => Promise<CostState>; label: string; hint: string; costEur?: number }) {
-  const [state, action, pending] = useKeptForm<CostState>(act, undefined);
+// A cost on a car (a warranty repair, a car's cost price), read first: the figure, and Edit to change it in the house dialog (#141). A
+// refused figure says why under the box and keeps the dialog open; a save closes it and says so.
+export function CostPanel({ title, act, label, hint, costEur }: { title: string; act: (prev: CostState, data: FormData) => Promise<CostState>; label: string; hint: string; costEur?: number }) {
   return (
-    <form {...action} className="flex flex-wrap items-end gap-3">
-      <Field label={label} hint={hint} error={state?.error} className="sm:max-w-xs">
-        <input name="costEur" inputMode="numeric" defaultValue={costEur ?? ""} className={adminInput} />
+    <Panel
+      title={title}
+      action={
+        <EditDialog title={title} what={title.toLowerCase()} saved="Cost saved">
+          {(done) => <CostForm act={act} label={label} hint={hint} costEur={costEur} done={done} />}
+        </EditDialog>
+      }
+    >
+      <p className={`text-heading font-semibold tabular-nums ${costEur === undefined ? "text-text-2" : ""}`}>{costEur === undefined ? "Not entered" : fmtEur(costEur)}</p>
+    </Panel>
+  );
+}
+
+function CostForm({ act, label, hint, costEur, done }: { act: (prev: CostState, data: FormData) => Promise<CostState>; label: string; hint: string; costEur?: number; done: () => void }) {
+  const [state, action, pending] = useKeptForm<CostState>(act, undefined);
+  useDoneOnSave(state, pending, done);
+  return (
+    <form {...action} className="flex flex-col gap-4" noValidate>
+      <Field label={label} hint={hint} error={state?.error}>
+        <input name="costEur" inputMode="numeric" defaultValue={costEur ?? ""} data-autofocus className={adminInput} />
       </Field>
-      <button type="submit" disabled={pending} className={adminButton}>{pending ? "Saving" : "Save cost"}</button>
-      {/* Keyed by the save's time, so a second save shows it afresh. */}
-      {state?.saved && <p key={state.saved} role="status" className="text-meta text-ok motion-safe:animate-[reveal-in_300ms_ease-out]">Saved.</p>}
+      <FormActions>
+        <DialogCancel />
+        <button type="submit" disabled={pending} aria-busy={pending || undefined} className={`${adminButton} ${BUSY}`}>
+          {pending ? "Saving" : "Save"}
+        </button>
+      </FormActions>
     </form>
   );
 }

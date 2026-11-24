@@ -31,12 +31,14 @@ test("Test Motors shows its own name and its plan's smaller menu, and the demo b
   await expect(bar.getByRole("button", { name: /^Plan/ })).toHaveCount(0);
   await expect(bar.getByRole("button", { name: /^(Light|Dark)$/ })).toBeVisible();
   // Its own facts are its owner's to change, here.
-  const phone = page.getByRole("textbox", { name: "Phone", exact: true });
-  await phone.fill("01 555 0101");
-  await page.getByRole("button", { name: "Save" }).first().click();
-  await expect(page.getByRole("status").filter({ hasText: "Saved" })).toBeVisible();
+  await page.getByRole("button", { name: "Edit business details" }).click();
+  const dialog = page.getByRole("dialog", { name: "Business details" });
+  await dialog.getByRole("textbox", { name: "Phone", exact: true }).fill("01 555 0101");
+  await dialog.getByRole("button", { name: "Save" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByTestId("toast")).toContainText("Saved");
   await page.reload();
-  await expect(page.getByRole("textbox", { name: "Phone", exact: true })).toHaveValue("01 555 0101");
+  await expect(page.getByRole("region", { name: "Business details" })).toContainText("01 555 0101");
 });
 
 test("the demo dealer still shows everything: its logo, its website and every module", async ({ page, context, baseURL }) => {
