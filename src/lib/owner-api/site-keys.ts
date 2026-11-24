@@ -2,13 +2,10 @@ import "server-only";
 import { logActivity } from "@/lib/admin/activity";
 import { runAsDealerRow } from "@/lib/tenancy/current";
 import { dealerById, makeSiteKey, revokeSiteKey, siteKeysOf } from "@/lib/tenancy/directory";
-import { readCapped } from "@/lib/site-api/request";
-import { ownerAuth } from "./auth";
+import { HEADERS, ownerAuth, readJson, say } from "./auth";
 
 // A dealer's website keys (the site API, docs/site-api.md), made and revoked by Checkwork with the owner token (#118): the dealer never sees
 // them. A new key is in the one answer that makes it, never again (only its hash is kept); the log and history name the key's label only.
-const HEADERS = { "Cache-Control": "no-store", "X-Robots-Tag": "noindex" };
-const say = (status: number, error?: string) => (error ? Response.json({ error }, { status, headers: HEADERS }) : new Response(null, { status, headers: HEADERS }));
 
 export async function ownerSiteKeys(req: Request, dealerId: string, keyId?: string): Promise<Response> {
   if (!ownerAuth(req).ok) return say(404);
@@ -27,13 +24,8 @@ export async function ownerSiteKeys(req: Request, dealerId: string, keyId?: stri
   }
   if (req.method === "GET") return Response.json({ version: 1, keys: await siteKeysOf(dealerId) }, { headers: HEADERS });
   if (req.method !== "POST") return say(405);
-  const text = await readCapped(req, 1_000);
-  let body: unknown;
-  try {
-    body = text === null ? null : text ? JSON.parse(text) : {}; // null: over the cap
-  } catch {
-    body = null;
-  }
+  const sent = await readJson(req, 1_000); // null: over the cap or not JSON
+  const body = sent === undefined ? {} : sent; // no body: "Website"
   const raw = body && typeof body === "object" && !Array.isArray(body) ? (body as { label?: unknown }).label ?? "Website" : null;
   const label = typeof raw === "string" ? raw.trim() : "";
   // One line of up to 60 characters, as the history shows it.

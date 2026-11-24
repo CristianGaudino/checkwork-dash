@@ -29,7 +29,7 @@ describe("owner API billing terms (#177)", () => {
   });
   it("answers 404 for an unknown dealer and 400 for a bad body", async () => {
     expect((await call("GET", "nobody")).status).toBe(404);
-    for (const b of [{}, { term: 3 }, { term: "2" }, { term: 2, freeMonth: "2026-13" }, { term: 2, freeMonth: "2026-1" }, { term: 2, freeMonth: month(-2) }, { term: 2, freeMonth: month(13) }, { term: 2, extra: 1 }, [], "x", null])
+    for (const b of [{}, { term: 3 }, { term: "2" }, { term: 2, freeMonth: "2026-13" }, { term: 2, freeMonth: "2026-1" }, { term: 2, freeMonth: month(-1) }, { term: 2, freeMonth: month(13) }, { term: 2, extra: 1 }, [], "x", null])
       expect((await call("PUT", "test-motors", b)).status).toBe(400);
     expect((await stored()).term).toBe(1);
   });

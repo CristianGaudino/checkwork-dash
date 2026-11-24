@@ -6,13 +6,10 @@ import { removeSyncedCars } from "@/lib/donedeal/sync";
 import { listing } from "@/lib/stock-source";
 import { runAsDealerRow } from "@/lib/tenancy/current";
 import { dealerById } from "@/lib/tenancy/directory";
-import { readCapped } from "@/lib/site-api/request";
-import { ownerAuth } from "./auth";
+import { HEADERS, ownerAuth, readJson, say } from "./auth";
 
 // Checkwork, not the dealer, sets a dealer's outside-service keys (#80), with the owner token. A value is sealed on the Worker and never
 // comes back: no answer carries one, and the log names the dealer, service and outcome only.
-const HEADERS = { "Cache-Control": "no-store", "X-Robots-Tag": "noindex" };
-const say = (status: number, error?: string) => (error ? Response.json({ error }, { status, headers: HEADERS }) : new Response(null, { status, headers: HEADERS }));
 const MAX_BODY = 16_000;
 const perDealer = INTEGRATIONS.filter((i) => i.perDealer);
 
@@ -41,14 +38,7 @@ export async function ownerKeys(req: Request, dealerId: string, service?: string
     return say(204);
   }
   if (!secretsKeyReady()) { log("no sealing key"); return say(503, "Keys cannot be saved yet: DEALER_SECRETS_KEY is not set on this app"); }
-  const text = await readCapped(req, MAX_BODY);
-  let body: unknown;
-  try {
-    body = text === null ? null : JSON.parse(text);
-  } catch {
-    body = null;
-  }
-  const o = body as Record<string, unknown> | null;
+  const o = (await readJson(req, MAX_BODY)) as Record<string, unknown> | null;
   const bad = !o || typeof o !== "object" || Array.isArray(o) || Object.keys(o).sort().join() !== [...names].sort().join() || Object.values(o).some((v) => typeof v !== "string" || !v.trim() || v.trim().length > 4000);
   if (bad) {
     log("refused");

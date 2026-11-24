@@ -153,7 +153,6 @@ async function SetForYou({ b }: { b: BillingSettings }) {
     <Panel title="What we set for you" quiet>
       <Facts
         items={[
-          ["Contract", b.term === 2 ? "2 years" : "1 year"],
           ...(b.freeMonth ? [["First month free", fmtMonth(b.freeMonth)] as const] : []),
           ["Stock", source === "donedeal" ? `From ${site}` : "Kept here"],
           ["Old stock after", `${r.oldStockDays} days`],
