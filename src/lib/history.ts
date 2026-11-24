@@ -4,6 +4,7 @@ import { dublinDay } from "@/lib/admin/format";
 import { mockHistory, type VehicleHistory } from "@/lib/history-rules";
 import { modeOf } from "@/lib/integrations";
 import { parseIrishReg } from "@/lib/reg";
+import { REG_CACHE_DAYS } from "@/lib/leads/constants";
 import { DAY } from "@/lib/time";
 import { historyByReg } from "@/lib/vehicle-data/one-auto";
 
@@ -11,7 +12,7 @@ import { historyByReg } from "@/lib/vehicle-data/one-auto";
 // src/lib/vehicle-data/one-auto.ts). A paid use: a plate checked in the last HISTORY_CACHE_DAYS is answered from the cache, free, even past
 // the limit; otherwise `meter` is asked first and counted after a check that came back. Simulated (the demo, dev, E2E): mockHistory, cached
 // and metered the same way. Off (no key): nothing. The plate is never logged.
-export const HISTORY_CACHE_DAYS = 30;
+export const HISTORY_CACHE_DAYS = REG_CACHE_DAYS; // the daily purge clears both caches by it (src/lib/leads/purge.ts)
 export const historyCache = defineCollection<{ id: string; history: VehicleHistory; at: number }>("history-cache", () => []);
 // A car in stock's last check, by the car's id (synced stock is rewritten by the sync, so it is kept beside it). A lead's is on the lead,
 // a sale's trade-in's on the sale, so each goes with its record.
@@ -34,7 +35,7 @@ export async function checkHistory(raw: string, meter: Meter, service: (reg: str
   } catch {
     return { error: "failed" }; // a failed check is neither paid nor cached
   }
-  if (history === "not-installed") return { error: "failed" };
+  if (history === "not-installed") return { error: "off" }; // the key is set, the adapter not yet: not connected, not a passing failure
   if (!history) return { error: "unknown" };
   await meter.paid();
   await historyCache.put({ id: facts.reg, history, at: now });

@@ -60,10 +60,10 @@ describe("checkHistory with the paid service", () => {
     expect(m.paid).toHaveBeenCalledTimes(2);
   }));
 
-  it("a check that fails, or an adapter not installed yet, is neither paid nor cached", asReal(async () => {
+  it("a check that fails, or an adapter not installed yet (not connected), is neither paid nor cached", asReal(async () => {
     vi.stubEnv("ONE_AUTO_API_KEY", "key");
     const m = meter();
-    expect(await checkHistory("191-KY-1234", m, async () => "not-installed")).toEqual({ error: "failed" });
+    expect(await checkHistory("191-KY-1234", m, async () => "not-installed")).toEqual({ error: "off" });
     expect(await checkHistory("191-KY-1234", m, async () => Promise.reject(new Error("down")))).toEqual({ error: "failed" });
     expect(await checkHistory("191-KY-1234", m, async () => null)).toEqual({ error: "unknown" });
     expect(m.paid).not.toHaveBeenCalled();

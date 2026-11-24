@@ -373,8 +373,10 @@ kept, and the plate is never logged.
   refuses (`requireModule`). Code: `src/lib/history.ts` (cache, meter, modes), `src/lib/history-rules.ts` (summary, mock),
   `src/app/history-action.ts`, `src/components/admin/HistoryPanel.tsx`.
 - **Billing:** service `history` (`recordUsage("history", "dashboard")`, `usageAllowed("history")`), shown on Billing with its limit.
-  The same plate within 30 days (`HISTORY_CACHE_DAYS`) is answered from the cache, free, even past the limit. A check that fails is
-  neither paid nor cached.
+  The same plate within 30 days (`HISTORY_CACHE_DAYS`, the lookup's `REG_CACHE_DAYS`) is answered from the cache, free, even past the
+  limit, and Check again says when it was checked. A check that fails is neither paid nor cached. The daily purge clears the cache with
+  the lookup's (`src/lib/leads/purge.ts`), and the demo reset clears it and the cars' checks. With the key set but the adapter not
+  installed yet, a check says the service is not connected, as with no key.
 - **Provider:** One Auto API, the same service as the registration lookup (`reglookup` in `integrations.ts`, `ONE_AUTO_API_KEY`). The
   adapter (`src/lib/vehicle-data/one-auto.ts`) is a marked stub that answers "not-installed" until the owner has keys and their docs (see
   Connecting a service).

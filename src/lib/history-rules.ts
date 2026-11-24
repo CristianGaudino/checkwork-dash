@@ -14,9 +14,9 @@ export type VehicleHistory = {
   mileageOff: boolean; // the readings do not add up
   imported: boolean;
   importedFrom?: string;
-  owners: number;
+  owners?: number; // absent: the provider did not say
   nctExpiry?: string; // YYYY-MM-DD
-  firstRegistered: string; // YYYY-MM-DD
+  firstRegistered?: string; // YYYY-MM-DD; absent: the provider did not say
 };
 
 // A reading lower than the one before it: the mileage does not add up.
@@ -36,8 +36,8 @@ export const CLEAN = "No finance owed, never written off, and the mileage adds u
 export function historyFacts(h: VehicleHistory): string[] {
   const last = h.mileage.at(-1);
   return [
-    plural(h.owners, "owner"),
-    `First registered ${fmtDate(h.firstRegistered)}`,
+    ...(h.owners !== undefined ? [plural(h.owners, "owner")] : []),
+    ...(h.firstRegistered ? [`First registered ${fmtDate(h.firstRegistered)}`] : []),
     h.nctExpiry ? `NCT until ${fmtDate(h.nctExpiry)}` : "No NCT on record",
     ...(last ? [`${fmtNum(last.km)} km on ${fmtDate(last.on)}`] : []),
   ];

@@ -54,3 +54,12 @@ describe("checkHistoryAction", () => {
     expect(await checkHistoryAction("lead", "l1")).toEqual({ error: "Add the registration first." });
   });
 });
+
+describe("checkHistoryAction again within 30 days", () => {
+  it("says the plate was already checked and when, rather than that it was checked now", async () => {
+    lead = { id: "l1", type: "trade-in", reg: "151-D-1000" };
+    await historyCache.reset();
+    expect(await checkHistoryAction("lead", "l1")).toEqual({});
+    expect((await checkHistoryAction("lead", "l1")).error).toMatch(/^Already checked on .+\. A check is kept for 30 days\.$/);
+  });
+});

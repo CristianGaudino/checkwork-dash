@@ -63,9 +63,9 @@ export function mapHistory(a: HistoryAnswer, reg: string, today: string): Vehicl
     mileageOff: mileageOff(mileage),
     imported: Boolean(a.imported),
     ...(a.imported && a.import_country && { importedFrom: a.import_country }),
-    owners: a.number_of_owners ?? 0,
+    ...(typeof a.number_of_owners === "number" && { owners: a.number_of_owners }),
     ...(a.nct_expiry_date && { nctExpiry: a.nct_expiry_date.slice(0, 10) }),
-    firstRegistered: (a.first_registration_date ?? "").slice(0, 10),
+    ...(a.first_registration_date && { firstRegistered: a.first_registration_date.slice(0, 10) }),
   };
 }
 

@@ -386,8 +386,8 @@ export async function recordSaleAction(carId: string, _prev: FormState, data: Fo
     ...who,
     ...(depositEur && { depositEur }),
     ...(d.coverMonths && d.coverMonths !== COVER_MONTHS && { coverMonths: d.coverMonths }),
-    // The trade-in's history check stays while its plate does.
-    ...(d.tradeReg && d.tradeEur && { tradeIn: { reg: d.tradeReg, allowanceEur: d.tradeEur, ...(was?.tradeIn?.reg === d.tradeReg && was.tradeIn.history && { history: was.tradeIn.history }) } }),
+    // The trade-in's history check is kept; the panel shows it only while it is for the same plate.
+    ...(d.tradeReg && d.tradeEur && { tradeIn: { reg: d.tradeReg, allowanceEur: d.tradeEur, ...(was?.tradeIn?.history && { history: was.tradeIn.history }) } }),
     ...(leadId && { leadId }),
     ...(was?.reviewAskedOn && { reviewAskedOn: was.reviewAskedOn }), // asked once per sale, whatever is changed later
     createdAt: was?.createdAt ?? Date.now(),
