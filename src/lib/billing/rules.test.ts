@@ -5,7 +5,7 @@ import { AI_FAIR_USE, BILLING_DEFAULT, PLANS, inAllowance, allowanceFor, alertsC
 const c = (service: UsageCount["service"], kind: string, count: number): UsageCount => ({ id: `m:${service}:${kind}`, month: "2026-11", service, kind, count });
 
 const WEBSITE = ["tradeIn", "finance", "carFinder", "commercial", "lookupWebsite", "reviews"] as const;
-const DASHBOARD = ["dashboard", "testDrives", "sales", "margins", "service", "reviews", "newsletter", "analytics", "whatsapp", "ai", "lookupDashboard"] as const;
+const DASHBOARD = ["dashboard", "testDrives", "sales", "margins", "service", "reviews", "newsletter", "analytics", "whatsapp", "ai", "lookupDashboard", "history"] as const;
 const BOTH = [...WEBSITE, ...DASHBOARD];
 
 describe("usage costs", () => {
@@ -70,7 +70,7 @@ describe("the plans", () => {
     expect(old.term).toBe(2);
     expect(planFor(BOTH, old).eur).toBe(249);
     expect(allowanceFor(BOTH, old)).toEqual({ lookup: 100, whatsapp: 500 });
-    expect(old.ceilings).toEqual({ lookup: 15, whatsapp: 20 });
+    expect(old.ceilings).toEqual({ lookup: 15, history: 25, whatsapp: 20 });
     expect([termOf("monthly"), termOf("annual"), termOf(undefined), termOf(2)]).toEqual([1, 1, 1, 2]);
     for (const p of PLANS) expect(p).not.toHaveProperty("branchEur");
   });
@@ -94,6 +94,9 @@ describe("limits", () => {
     expect(withinCaps(usageCosts([c("lookup", "website", 26)], {}), b, "lookup")).toBe(true); // 7.80
     expect(withinCaps(usageCosts([c("lookup", "website", 27)], {}), b, "lookup")).toBe(false); // 8.10
     expect(withinCaps(usageCosts([c("ai", "opus", AI_FAIR_USE - 1)], {}), b, "ai")).toBe(true);
+    // History checks: none in any plan, so each is billed, and our default limit stops them at EUR 25 (10 checks).
+    expect(withinCaps(usageCosts([c("history", "dashboard", 9)], allowanceFor(BOTH, BILLING_DEFAULT)), BILLING_DEFAULT, "history")).toBe(true);
+    expect(withinCaps(usageCosts([c("history", "dashboard", 10)], allowanceFor(BOTH, BILLING_DEFAULT)), BILLING_DEFAULT, "history")).toBe(false);
     expect(withinCaps(usageCosts([c("ai", "opus", AI_FAIR_USE)], {}), b, "ai")).toBe(false);
   });
   it("sends one notice as a limit is reached, and none on the way to it", () => {

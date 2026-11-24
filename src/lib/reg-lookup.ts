@@ -5,6 +5,7 @@ import { getBindings } from "@/lib/leads/bindings";
 import { REG_CACHE_DAYS } from "@/lib/leads/constants";
 import { modeOf } from "@/lib/integrations";
 import { parseIrishReg, type RegFacts } from "@/lib/reg";
+import { carByReg } from "@/lib/vehicle-data/one-auto";
 import { DAY } from "@/lib/time";
 import type { Car, Fuel } from "@/lib/stock/types";
 
@@ -14,7 +15,8 @@ export type CarFound = { make: string; model: string; fuel?: Fuel; engineLitres?
 // `limited`: the dealer's monthly limit for lookups is reached (#181), so only the plate's own facts came back.
 export type RegLookup = RegFacts & { car?: CarFound; limited?: true };
 
-// Cartell is the service (issue #2). Each real lookup costs money, so a live one goes through these limits first, in this order:
+// One Auto (on Cartell in Ireland, src/lib/vehicle-data/one-auto.ts) is the service, as for the history check (#2, #170). Each real
+// lookup costs money, so a live one goes through these limits first, in this order:
 // 1. the cache: a plate looked up in the last 30 days is answered from it, free, however often it is asked for;
 // 2. a cap for the whole site a day (REG_LOOKUPS_A_DAY), so a bot that gets past the rest still has a ceiling on the bill;
 // 3. per visitor, REG_LOOKUPS_PER_VISITOR_A_DAY paid lookups a day: a trade-in needs one or two, so more is someone trying plates;
@@ -29,12 +31,6 @@ type Count = { id: string; n: number };
 export const regCache = defineCollection<Cached>("reg-cache", () => []);
 export const regCounts = defineCollection<Count>("reg-counts", () => []);
 
-// The service itself. ADAPTER GOES HERE: call Cartell with CARTELL_API_KEY and map its answer; null when it does not know the plate.
-export async function cartell(reg: string): Promise<CarFound | null> {
-  void reg;
-  throw new Error("Cartell adapter not installed");
-}
-
 // The visitor's count is kept under a hash of the day and their address, never the address: it cannot be read back, nor linked to the
 // same visitor on another day. The daily purge clears past days (src/lib/leads/purge.ts, by the "day-" prefix).
 async function visitorCountId(today: string, visitor: string): Promise<string> {
@@ -46,7 +42,7 @@ async function visitorCountId(today: string, visitor: string): Promise<string> {
 // (src/lib/billing/usage.ts): asked before a lookup that costs money (or would, on the demo), counted after it. A cached answer is free, so
 // it is given even past the limit and never counted. Past the limit the answer is the plate's own facts, marked `limited`.
 type Meter = { allowed(): Promise<boolean>; paid(): Promise<void> };
-export async function lookupReg(raw: string, visitor: string | null, service: (reg: string) => Promise<CarFound | null> = cartell, meter?: Meter): Promise<RegLookup | null> {
+export async function lookupReg(raw: string, visitor: string | null, service: (reg: string) => Promise<CarFound | null> = carByReg, meter?: Meter): Promise<RegLookup | null> {
   const facts = parseIrishReg(raw);
   if (!facts) return null;
   const mode = await modeOf("reglookup");

@@ -29,6 +29,7 @@ import { forSale, isSold, type Car } from "@/lib/stock/types";
 import { listing } from "@/lib/stock-source";
 import { requireStaff } from "@/lib/staff";
 import { requireModule } from "@/lib/modules";
+import { carHistoryStore } from "@/lib/history";
 import { alertNewIn, alertStaff } from "@/lib/whatsapp/alerts";
 import { STALE_CAR, STALE_STATUS, changedSince } from "@/lib/admin/stale";
 import { suggestedDrop } from "@/lib/admin/overview";
@@ -155,6 +156,7 @@ export async function deleteCarAction(id: string) {
   if ((await readOnly()) || !(await can("settings")) || heldFor(await reservationsStore.list(), id)) return;
   const car = await adminCar(id);
   await removeCar(id, car);
+  await carHistoryStore.remove(id);
   if (!(await salesStore.get(id))) {
     await costsStore.remove(id); // the cost and the prep go with the car, unless it was sold: they stay with the sale for the reports
     await prepStore.remove(id);
@@ -202,6 +204,7 @@ export async function bulkStockAction(data: FormData): Promise<BulkResult> {
     } else {
       if (heldFor(deposits, id)) continue;
       await removeCar(id, car);
+      await carHistoryStore.remove(id);
       if (!soldIds.has(id)) {
         await costsStore.remove(id);
         await prepStore.remove(id);
@@ -383,7 +386,8 @@ export async function recordSaleAction(carId: string, _prev: FormState, data: Fo
     ...who,
     ...(depositEur && { depositEur }),
     ...(d.coverMonths && d.coverMonths !== COVER_MONTHS && { coverMonths: d.coverMonths }),
-    ...(d.tradeReg && d.tradeEur && { tradeIn: { reg: d.tradeReg, allowanceEur: d.tradeEur } }),
+    // The trade-in's history check stays while its plate does.
+    ...(d.tradeReg && d.tradeEur && { tradeIn: { reg: d.tradeReg, allowanceEur: d.tradeEur, ...(was?.tradeIn?.reg === d.tradeReg && was.tradeIn.history && { history: was.tradeIn.history }) } }),
     ...(leadId && { leadId }),
     ...(was?.reviewAskedOn && { reviewAskedOn: was.reviewAskedOn }), // asked once per sale, whatever is changed later
     createdAt: was?.createdAt ?? Date.now(),

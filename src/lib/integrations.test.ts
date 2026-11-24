@@ -19,7 +19,7 @@ describe("integrations", () => {
     expect(await missingEnv(news)).toEqual(["NEWSLETTER_FROM_EMAIL", "UNSUBSCRIBE_SECRET"]);
   });
   it("treats an empty value as missing", async () => {
-    vi.stubEnv("CARTELL_API_KEY", "");
+    vi.stubEnv("ONE_AUTO_API_KEY", "");
     expect(await isConnected("reglookup")).toBe(false);
   });
   it("lists each service once, each with a setting but lead email, whose addresses are the dealer's (their profile, Settings)", () => {
@@ -66,7 +66,7 @@ describe("simulation follows the dealer, never the deploy", () => {
       expect(await modeOf("whatsapp")).toBe("off");
       for (const k of META) vi.stubEnv(k, "x");
       expect(await modeOf("social")).toBe("off"); // a leftover app-wide token is nobody's account
-      vi.stubEnv("CARTELL_API_KEY", "x");
+      vi.stubEnv("ONE_AUTO_API_KEY", "x");
       expect(await modeOf("reglookup")).toBe("live"); // ours: the Worker secret
     });
   });

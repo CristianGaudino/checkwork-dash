@@ -31,7 +31,7 @@ describe("lookupReg with the paid service", () => {
   const asReal = (fn: () => Promise<void>) => async () => (await import("@/lib/tenancy/current")).runAsDealer("test-motors", fn);
   const FOCUS = { make: "Ford", model: "Focus" };
   beforeEach(async () => {
-    vi.stubEnv("CARTELL_API_KEY", "key");
+    vi.stubEnv("ONE_AUTO_API_KEY", "key");
     allowed = true;
     await asReal(async () => {
       await regCache.reset();

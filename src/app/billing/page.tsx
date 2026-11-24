@@ -16,10 +16,11 @@ export const metadata = { title: "Billing" };
 
 const AT_LIMIT: Record<Scope, string> = {
   lookup: "The lookup button says the limit is reached, and the details are typed in.",
+  history: "Check history says the limit is reached. A plate checked in the last 30 days is checked again free.",
   whatsapp: "Replies go by email instead and marketing messages are not sent. Alerts your plan includes still go by WhatsApp.",
 };
-const USE_WORD: Record<Scope, [string, string]> = { lookup: ["lookup", "lookups"], whatsapp: ["message", "messages"] };
-const INCLUDED: Record<Scope, string> = { lookup: "lookups", whatsapp: "alerts" };
+const USE_WORD: Record<Scope, [string, string]> = { lookup: ["lookup", "lookups"], history: ["check", "checks"], whatsapp: ["message", "messages"] };
+const INCLUDED: Record<Scope, string> = { lookup: "lookups", history: "checks", whatsapp: "alerts" };
 
 // Owners and managers only (the "billing" permission): without it the page is not there, whatever the menu showed.
 // One page (#147): this month's bill with the plan, one limit per paid service, and the bills.

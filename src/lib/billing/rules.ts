@@ -4,25 +4,27 @@ import { MODULES, MODULE_IDS, modulesValue, parseModules, type ModuleId } from "
 // meters and the tests agree. The prices are the demo's: a real site reads the dealer's own prices and bills from the owner's billing
 // program, and these stand in until it does (docs/dealer-admin.md, Billing).
 
-// Usage counted per use. Lookups and WhatsApp messages are billed past the plan's monthly allowance (allowanceFor); AI writing is fair
-// use: counted, never billed, and stopped at our ceiling (AI_FAIR_USE).
-const SERVICES = ["lookup", "ai", "whatsapp"] as const;
+// Usage counted per use. Lookups, history checks and WhatsApp messages are billed past the plan's monthly allowance (allowanceFor; none
+// for history checks); AI writing is fair use: counted, never billed, and stopped at our ceiling (AI_FAIR_USE).
+const SERVICES = ["lookup", "history", "ai", "whatsapp"] as const;
 export type Service = (typeof SERVICES)[number];
-export const SERVICE_LABELS: Record<Service, string> = { lookup: "Registration lookup", ai: "AI writing", whatsapp: "WhatsApp" };
+export const SERVICE_LABELS: Record<Service, string> = { lookup: "Registration lookup", history: "History check", ai: "AI writing", whatsapp: "WhatsApp" };
 export type Scope = Exclude<Service, "ai">; // what is billed per use, and so has a limit
-export const PAID: Scope[] = ["lookup", "whatsapp"];
+export const PAID: Scope[] = ["lookup", "history", "whatsapp"];
 
 // What each use is, and its price. A lookup is on the website or in the dashboard; an AI action (a draft or an adjust) is counted by the
 // model that wrote it, Premium (Claude Opus) or Standard (Claude Sonnet) (BillingSettings.aiModel); the dealer never sees which model or
 // provider it is. A WhatsApp message is an alert or confirmation, a reply inside the 24 hours after a buyer writes, or a marketing message.
 export const KINDS = {
   lookup: { website: "On the website", dashboard: "In the dashboard" },
+  history: { dashboard: "In the dashboard" },
   ai: { opus: "Premium", sonnet: "Standard" },
   whatsapp: { alert: "Alerts and confirmations", reply: "Replies to buyers", marketing: "Marketing messages" },
 } as const satisfies Record<Service, Record<string, string>>;
 export type Kind<S extends Service = Service> = keyof (typeof KINDS)[S] & string;
 export const UNIT_PRICE_EUR: { [S in Service]: Record<Kind<S>, number> } = {
   lookup: { website: 0.3, dashboard: 0.3 },
+  history: { dashboard: 2.5 }, // TO CONFIRM against One Auto's price for a history check (#170): a placeholder until the owner has it
   ai: { opus: 0, sonnet: 0 }, // fair use: never billed
   whatsapp: { alert: 0.05, reply: 0.03, marketing: 0.12 },
 };
@@ -36,7 +38,8 @@ export const AI_FAIR_USE = 500;
 const WEBSITE_ONLY: ModuleId[] = ["tradeIn", "finance", "carFinder", "commercial", "lookupWebsite"];
 const ADD_ON_EUR: Partial<Record<ModuleId, number>> = { social: 99 };
 const ADD_ON_SETUP_EUR: Partial<Record<ModuleId, number>> = { social: 150 };
-// The dashboard plan: every other module (reviews is in both: shown on the website, answered from the dashboard).
+// The dashboard plan: every other module (reviews is in both: shown on the website, answered from the dashboard). No plan includes a
+// history check (#170): every one is billed, so none is in an allowance.
 const DASHBOARD = MODULE_IDS.filter((m) => !WEBSITE_ONLY.includes(m) && !ADD_ON_EUR[m]);
 export const PLANS: { id: string; label: string; modules: readonly ModuleId[]; eur: number; setupEur: number; allowance: Allowance }[] = [
   { id: "website", label: "Website", modules: [...WEBSITE_ONLY, "reviews"], eur: 149, setupEur: 500, allowance: { lookup: 25 } },
@@ -134,7 +137,7 @@ export type BillingSettings = {
 };
 // Every site starts with our limits past the allowance, so no paid service runs without one; the dealer can set lower, and the owner's
 // program can set others per dealer.
-const DEFAULT_CEILINGS: Partial<Record<Scope, number>> = { lookup: 15, whatsapp: 20 };
+const DEFAULT_CEILINGS: Partial<Record<Scope, number>> = { lookup: 15, history: 25, whatsapp: 20 };
 export const BILLING_DEFAULT: BillingSettings = { caps: {}, ceilings: DEFAULT_CEILINGS, aiModel: "opus", term: 1 };
 // A stored record over the defaults, the ceilings merged one level down: a record saved before a default ceiling existed still gets it.
 export const withBillingDefaults = (b?: Partial<BillingSettings>): BillingSettings => ({ ...BILLING_DEFAULT, ...b, ceilings: { ...BILLING_DEFAULT.ceilings, ...b?.ceilings }, term: termOf(b?.term) });
