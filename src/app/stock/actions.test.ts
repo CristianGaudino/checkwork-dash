@@ -15,7 +15,7 @@ vi.mock("next/headers", () => ({
   cookies: async () => ({ get: (n: string) => (n === "checkwork-demo-stock" ? { value: stockCookie } : n === "checkwork-demo-role" ? { value: role } : undefined) }),
   headers: async () => ({ get: () => null }),
 }));
-const { addCarPhotoAction, carPhotoAction, addPrepAction, removePrepAction, bulkStockAction, deleteCarAction, endReservationAction, recordSaleAction, reserveAction, saveCarAction, saveCostAction, setListingAction, toggleSoldAction, undoSaleAction, withdrawnAction } = await import("./actions");
+const { addCarPhotoAction, carPhotoAction, removePrepAction, savePrepAction, bulkStockAction, deleteCarAction, endReservationAction, recordSaleAction, reserveAction, saveCarAction, saveCostAction, setListingAction, toggleSoldAction, undoSaleAction, withdrawnAction } = await import("./actions");
 const { claimsStore, costsStore, customersStore, leadsStore, prepStore, reservationsStore, salesStore } = await import("@/lib/admin/collections");
 const { carCosts } = await import("@/lib/admin/costs");
 const { BAD_COST } = await import("@/lib/admin/margins");
@@ -256,15 +256,20 @@ describe("prep costs", () => {
     const car = (await adminCars()).find((c) => !c.soldAt)!;
     const before = (await prepStore.get(car.id))?.lines.length ?? 0;
     role = "Sales";
-    expect((await addPrepAction(car.id, undefined, form({ kind: "Tyres", eur: "300" })))?.errors?.kind).toMatch(/margins/);
+    expect((await savePrepAction(car.id, null, undefined, form({ kind: "Tyres", eur: "300" })))?.errors?.kind).toMatch(/margins/);
     role = "Finance";
-    expect(Object.keys((await addPrepAction(car.id, undefined, form({ kind: "Wheels", eur: "0" })))?.errors ?? {}).sort()).toEqual(["eur", "kind"]);
+    expect(Object.keys((await savePrepAction(car.id, null, undefined, form({ kind: "Wheels", eur: "0" })))?.errors ?? {}).sort()).toEqual(["eur", "kind"]);
     expect((await prepStore.get(car.id))?.lines.length ?? 0).toBe(before);
     await costsStore.put({ id: car.id, costEur: 10000 });
     const was = (await carCosts()).get(car.id)!;
-    expect((await addPrepAction(car.id, undefined, form({ kind: "Tyres", eur: "300", note: "Two fronts" })))?.added).toBeTruthy();
+    expect((await savePrepAction(car.id, null, undefined, form({ kind: "Tyres", eur: "300", note: "Two fronts" })))?.saved).toBeTruthy();
     expect((await carCosts()).get(car.id)).toEqual({ purchase: 10000, prep: was.prep + 300, claims: 0, total: was.total + 300 });
     const line = (await prepStore.get(car.id))!.lines.at(-1)!;
+    // A change keeps the line (its `at`) and moves the total; a line removed meanwhile is not brought back.
+    expect((await savePrepAction(car.id, line.at, undefined, form({ kind: "Tyres", eur: "350" })))?.saved).toBeTruthy();
+    expect((await prepStore.get(car.id))!.lines.find((l) => l.at === line.at)).toEqual({ kind: "Tyres", eur: 350, at: line.at });
+    expect((await carCosts()).get(car.id)!.total).toBe(was.total + 350);
+    expect((await savePrepAction(car.id, 1, undefined, form({ kind: "Tyres", eur: "350" })))?.errors?.kind).toMatch(/removed/);
     await removePrepAction(car.id, line.at);
     expect((await carCosts()).get(car.id)!.total).toBe(was.total);
   });

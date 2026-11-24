@@ -48,22 +48,34 @@ test("a salesperson sees only their own counts: no money, no one else", async ({
   await expect(main).not.toContainText("Aoife");
 });
 
-test("prep costs: margins roles add and remove a line on a car, and it counts in its cost; sales never see them", async ({ page, context }) => {
+test("prep costs: margins roles add, change and remove a line on a car, in the house dialog and the row's menu; sales never see them", async ({ page, context }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await as(context, "Finance");
   await page.goto("/stock/4710005");
   const panel = page.getByRole("region", { name: "Prep costs" });
-  await panel.getByText("Add a prep cost").click();
-  await panel.getByLabel("For").click();
+  const dialog = page.getByRole("dialog", { name: "Add a prep cost" });
+  const note = `Scratch ${Date.now()}`;
+  await panel.getByRole("button", { name: "Add a prep cost" }).click();
+  await dialog.getByLabel("For").click();
   await page.getByRole("listbox").getByRole("option", { name: "Bodywork" }).click();
-  await panel.getByLabel("Amount (€)").fill("275");
-  await panel.getByLabel("Note (optional)").fill(`Scratch ${Date.now()}`);
-  await panel.getByRole("button", { name: "Add" }).click();
-  const line = panel.getByRole("listitem").filter({ hasText: "Bodywork" }).filter({ hasText: "€275" }).last();
-  await expect(line).toBeVisible();
-  await line.getByRole("button", { name: /^Remove Bodywork/ }).click();
+  await dialog.getByLabel("Amount (€)").fill("275");
+  await dialog.getByLabel("Note (optional)").fill(note);
+  await dialog.getByRole("button", { name: "Add" }).click();
+  await expect(dialog).toBeHidden();
+  const line = panel.getByRole("listitem").filter({ hasText: note });
+  await expect(line).toContainText("€275");
+  await line.getByRole("button", { name: "More for Bodywork, €275" }).click();
+  await page.getByRole("button", { name: "Edit", exact: true }).click();
+  const change = page.getByRole("dialog", { name: "Change prep cost" });
+  await expect(change.getByLabel("Amount (€)")).toHaveValue("275");
+  await change.getByLabel("Amount (€)").fill("300");
+  await change.getByRole("button", { name: "Save" }).click();
+  await expect(change).toBeHidden();
+  await expect(line).toContainText("€300");
+  await line.getByRole("button", { name: "More for Bodywork, €300" }).click();
+  await page.getByRole("button", { name: "Remove", exact: true }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Remove" }).click();
-  await expect(panel.getByRole("listitem").filter({ hasText: "Bodywork" }).filter({ hasText: "€275" })).toHaveCount(0);
+  await expect(line).toHaveCount(0);
   await as(context, "Sales");
   await page.reload();
   await expect(page.getByRole("region", { name: "Prep costs" })).toHaveCount(0);

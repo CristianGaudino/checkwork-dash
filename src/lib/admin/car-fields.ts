@@ -50,7 +50,7 @@ export const CAR_FIELDS: FieldSpec[] = [
 
 export const FIELD_GROUPS = ["Basics", "Price", "Details", "Battery and charging", "Description and equipment"] as const;
 
-// A saved car as the form's boxes, cut to what the AI writer accepts: what "Improve this description" sends for a synced car, which has no form.
+// A saved car as the form's boxes, cut to what the AI writer accepts: what the Description panel (Edit, then Write with AI) sends for a synced car, which has no form.
 export const carFields = (car: object): Record<string, string> =>
   Object.fromEntries(CAR_FIELDS.map(({ name }) => {
     const v = name === "features" ? (car as { features?: string[] }).features?.join("\n") : (car as Record<string, unknown>)[name];
