@@ -11,6 +11,8 @@ describe("modules", () => {
   it("reads an empty setting as the base site only, and ignores what it does not know", () => {
     expect([...parseModules("")]).toEqual([]);
     expect([...parseModules("finance,rocket")]).toEqual(["finance"]);
+    // The website's lookup is gone (#182): a stored plan that lists it keeps the rest.
+    expect([...parseModules("tradeIn,lookupWebsite,dashboard,lookupDashboard")]).toEqual(["tradeIn", "dashboard", "lookupDashboard"]);
   });
 
   it("drops a module whose needs are off, through the chain", () => {

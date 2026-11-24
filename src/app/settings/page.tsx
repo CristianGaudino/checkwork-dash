@@ -53,7 +53,7 @@ const DEALERSHIP = [
 ] as const;
 // The module each outside service belongs to; a service without one is the base site's (lead email, the bot check).
 const SERVICE_MODULE: Partial<Record<IntegrationId, ModuleId | ModuleId[]>> = {
-  reviews: "reviews", gbp: "reviews", social: "social", ads: "social", newsletter: "newsletter", whatsapp: "whatsapp", ai: "ai", reglookup: ["lookupWebsite", "lookupDashboard", "history"],
+  reviews: "reviews", gbp: "reviews", social: "social", ads: "social", newsletter: "newsletter", whatsapp: "whatsapp", ai: "ai", reglookup: ["lookupDashboard", "history"],
 };
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ section?: string }> }) {

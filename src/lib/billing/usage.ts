@@ -90,8 +90,7 @@ function seedUsage(): UsageCount[] {
   const month = monthOf();
   const day = Number(dublinDay().slice(8, 10));
   const lines: [Service, string, number][] = [
-    ["lookup", "website", 2 * day],
-    ["lookup", "dashboard", day],
+    ["lookup", "dashboard", 3 * day],
     ["ai", "opus", 4 * day],
     ["ai", "sonnet", 3 * day],
     ["whatsapp", "alert", 6 * day],

@@ -47,8 +47,7 @@ function seedBills(): Bill[] {
     const issuedOn = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1)).toISOString().slice(0, 10);
     const grow = 12 - i; // older months used less
     const counts: { service: Service; kind: string; count: number }[] = [
-      { service: "lookup", kind: "website", count: 20 + grow * 4 },
-      { service: "lookup", kind: "dashboard", count: 10 + grow * 2 },
+      { service: "lookup", kind: "dashboard", count: 30 + grow * 6 },
       { service: "ai", kind: "opus", count: 30 + grow * 6 },
       { service: "ai", kind: "sonnet", count: 20 + grow * 4 },
       { service: "whatsapp", kind: "alert", count: 60 + grow * 8 },

@@ -6,7 +6,7 @@
 // `needs`: what must also be on. Stock kept in the dashboard is not a switch here: it follows where the stock comes from (stock-source).
 export const MODULES = [
   { id: "dashboard", label: "Dealer dashboard", blurb: "Leads inbox, follow-ups, staff logins and roles, activity, data requests.", pages: [], dashboard: [] }, // every page of this app: see pathAllowed
-  { id: "tradeIn", label: "Trade-in and sell your car", blurb: "Valuation forms with photos and the registration lookup.", pages: ["/trade-in", "/sell-your-car"], dashboard: [] },
+  { id: "tradeIn", label: "Trade-in and sell your car", blurb: "Valuation forms with photos.", pages: ["/trade-in", "/sell-your-car"], dashboard: [] },
   { id: "finance", label: "Finance", blurb: "Payment estimator with your lender's wording, and finance applications.", pages: ["/finance"], dashboard: [] },
   { id: "testDrives", label: "Test drives", blurb: "Slot booking on the site and a calendar in the dashboard.", pages: ["/test-drive"], dashboard: ["/test-drives"], needs: ["dashboard"] },
   { id: "carFinder", label: "Car finder", blurb: "Requests for cars not in stock.", pages: ["/find-a-car"], dashboard: [] },
@@ -21,8 +21,8 @@ export const MODULES = [
   { id: "analytics", label: "Site analytics", blurb: "Visitor numbers and where they came from.", pages: [], dashboard: ["/analytics"], needs: ["dashboard"] },
   { id: "whatsapp", label: "WhatsApp", blurb: "Leads to your phone, and replies from WhatsApp that the site sends on.", pages: [], dashboard: [], needs: ["dashboard"] }, // a channel in Settings, Notifications (#142), not a page
   { id: "ai", label: "AI writing", blurb: "Drafts of posts, descriptions and replies, with buttons to adjust them.", pages: [], dashboard: [], needs: ["dashboard"] },
-  // The registration lookup (#180), in each place on its own: buyers filling in their car, or only staff adding stock and checking leads.
-  { id: "lookupWebsite", label: "Registration lookup on the website", blurb: "Buyers fill in their car from the registration.", pages: [], dashboard: [], needs: ["tradeIn"] },
+  // The registration lookup (#180), for staff adding stock and checking leads. The website has none (#182): a plan that still lists
+  // "lookupWebsite" reads without it, as parseModules drops ids it does not know.
   { id: "lookupDashboard", label: "Registration lookup in the dashboard", blurb: "Staff fill in a car from its registration.", pages: [], dashboard: [], needs: ["dashboard"] },
   // A vehicle history check (#170), from the car's page, a trade-in or sell lead and a sale's trade-in. Its id is its billing service's.
   { id: "history", label: "Vehicle history check", blurb: "Finance owed, write-offs, mileage and imports, from the registration.", pages: [], dashboard: [], needs: ["dashboard"] },

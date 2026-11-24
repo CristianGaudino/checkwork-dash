@@ -43,7 +43,7 @@ describe("itemise", () => {
     expect(itemise({ ...bill, modules: [...bill.modules, { label: "First month free", eur: -278 }] }).planEur).toBe(0);
   });
   it("bills only the uses past what the plan includes, and never AI writing", () => {
-    const usage = usageLines([{ service: "lookup", kind: "website", count: 20 }, { service: "lookup", kind: "dashboard", count: 10 }, { service: "whatsapp", kind: "reply", count: 10 }, { service: "ai", kind: "opus", count: 50 }], { lookup: 25 });
+    const usage = usageLines([{ service: "lookup", kind: "dashboard", count: 30 }, { service: "whatsapp", kind: "reply", count: 10 }, { service: "ai", kind: "opus", count: 50 }], { lookup: 25 });
     expect(usage.some((u) => u.service === "ai")).toBe(false);
     const t = itemise({ ...bill, usage });
     expect(t.usage.map((l) => l.detail)).toEqual(["5 x €0.30", "10 x €0.03"]);

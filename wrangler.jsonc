@@ -37,12 +37,12 @@
 	// Lead emails to the dealer. No "remote": a local wrangler dev has no Cloudflare credentials, so it uses the local simulator.
 	// Dev never emails real people: only our own inbox (a verified Email Routing destination, or dev sends nothing at all).
 	"send_email": [{ "name": "EMAIL", "allowed_destination_addresses": ["contact@checkwork.ie"] }],
-	// LEAD_LIMITER: the registration lookup, 5 a minute per visitor (src/lib/reg-lookup.ts). AI_LIMITER: AI writing, per dealer.
+	// AI_LIMITER: AI writing, per dealer.
 	// SITE_LIMITER: the site API, 60 requests a minute per website key and route (`<keyId>:<route>`, src/lib/site-api/request.ts), and per visitor IP for
 	// the unsubscribe change, POST only (`unsub:<ip>`). SIGN_IN_LIMITER: sign-in, 30 a minute per hashed IP (src/app/sign-in/actions.ts). Namespace ids are account-wide: Cloudflare shares one
 	// counter between every Worker in the account that uses the same id, so they must be unique across all of them. Taken: 1001-1002 and
 	// 1003 demo site, 2001 checkwork site, 1001 cartwright, 3xxx this dashboard in production, 4xxx this dashboard in dev (#65).
-	"ratelimits": [{ "name": "LEAD_LIMITER", "namespace_id": "4001", "simple": { "limit": 5, "period": 60 } }, { "name": "AI_LIMITER", "namespace_id": "4003", "simple": { "limit": 10, "period": 60 } }, { "name": "SITE_LIMITER", "namespace_id": "4004", "simple": { "limit": 60, "period": 60 } }, { "name": "SIGN_IN_LIMITER", "namespace_id": "4005", "simple": { "limit": 30, "period": 60 } }],
+	"ratelimits": [{ "name": "AI_LIMITER", "namespace_id": "4003", "simple": { "limit": 10, "period": 60 } }, { "name": "SITE_LIMITER", "namespace_id": "4004", "simple": { "limit": 60, "period": 60 } }, { "name": "SIGN_IN_LIMITER", "namespace_id": "4005", "simple": { "limit": 30, "period": 60 } }],
 	// Lead photos, car photos, media and help screenshots: private, EU jurisdiction, read only through their routes. wrangler dev uses a local bucket.
 	"r2_buckets": [{ "binding": "LEAD_PHOTOS", "bucket_name": "checkwork-dash-dev-files", "jurisdiction": "eu" }],
 	// D1, EU jurisdiction. DIRECTORY lists the dealers and who works at each (src/lib/db/directory-schema.ts, drizzle-directory/). Each dealer
@@ -65,7 +65,7 @@
 				"APP_URL": "https://www.dash.checkwork.ie"
 			},
 			"send_email": [{ "name": "EMAIL" }],
-			"ratelimits": [{ "name": "LEAD_LIMITER", "namespace_id": "3001", "simple": { "limit": 5, "period": 60 } }, { "name": "AI_LIMITER", "namespace_id": "3003", "simple": { "limit": 10, "period": 60 } }, { "name": "SITE_LIMITER", "namespace_id": "3004", "simple": { "limit": 60, "period": 60 } }, { "name": "SIGN_IN_LIMITER", "namespace_id": "3005", "simple": { "limit": 30, "period": 60 } }],
+			"ratelimits": [{ "name": "AI_LIMITER", "namespace_id": "3003", "simple": { "limit": 10, "period": 60 } }, { "name": "SITE_LIMITER", "namespace_id": "3004", "simple": { "limit": 60, "period": 60 } }, { "name": "SIGN_IN_LIMITER", "namespace_id": "3005", "simple": { "limit": 30, "period": 60 } }],
 			"r2_buckets": [{ "binding": "LEAD_PHOTOS", "bucket_name": "checkwork-dash-files", "jurisdiction": "eu" }],
 			"d1_databases": [
 				{ "binding": "DIRECTORY", "database_name": "checkwork-directory", "database_id": "c46dbf9f-dd6b-42e8-91ac-914f5854ea12", "migrations_dir": "drizzle-directory" },

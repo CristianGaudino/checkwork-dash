@@ -71,9 +71,9 @@ export function usageLines(counts: { service: Service; kind: string; count: numb
 // What can have a limit, and is listed on the Billing page: each paid service the dealer has, and one used this month before it was
 // switched off. The page and the save action both use this, so a field shown is a field saved.
 export const billedServices = (modules: { has(m: ModuleId): boolean }, used: Record<Service, { count: number }>): Scope[] => PAID.filter((s) => servicesOf(modules).includes(s) || used[s].count > 0);
-// The paid services a dealer has, from their modules: the lookup in either place, WhatsApp.
+// The paid services a dealer has, from their modules: the lookup in the dashboard, the history check, WhatsApp.
 export function servicesOf(modules: { has(m: ModuleId): boolean }): Scope[] {
-  return PAID.filter((s) => (s === "lookup" ? modules.has("lookupWebsite") || modules.has("lookupDashboard") : modules.has(s)));
+  return PAID.filter((s) => (s === "lookup" ? modules.has("lookupDashboard") : modules.has(s)));
 }
 
 export const fmtMonth = (id: string) => new Intl.DateTimeFormat("en-IE", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${id}-01T12:00:00Z`));

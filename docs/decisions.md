@@ -30,7 +30,7 @@ Prices a month before VAT, for one dealership. No dealer had been quoted, so nob
 - Flat plans: the price does not grow with the number of cars. One dealership only; a price per extra dealership comes back with
   multi-dealership (#16).
 - Everything is included in its plan: the website plan has the site's modules (trade-in, finance, car finder, commercial vehicles,
-  reviews, the lookup on the website), the dashboard plan every dashboard module (test drives, sales and customers, margins, service,
+  reviews; no lookup, #182), the dashboard plan every dashboard module (test drives, sales and customers, margins, service,
   reviews, analytics, WhatsApp, AI writing, the lookup in the dashboard, stock alerts). Commercial vehicles and car finder are not paid
   modules. Marketing (Social and ads) keeps its add-on price until #148 decides it.
 - Paid per use past a monthly allowance: registration lookups and WhatsApp messages. AI writing is fair use: counted, never billed, up
