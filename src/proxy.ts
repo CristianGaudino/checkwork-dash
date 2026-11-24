@@ -61,8 +61,9 @@ export async function proxy(req: NextRequest) {
 }
 
 // Every page. Not the routes that check their own key (api: CRON_KEY, the owner token or a website key, /api/site; the photo and media
-// routes) nor the static files (Next's own, the seeded car photos in public/stock/<id>/*.webp, and the brand files in public/). Only the photo
-// files: the stock pages under /stock are gated like any other, and so are our sign-in's pages (SIGN_IN_PAGES above).
+// routes) nor the static files (Next's own, the seeded car photos in public/stock/<id>/*.webp, the brand files in public/, and the service
+// worker with its offline screen: gated, a worker installing without a session cached the sign-in page as the offline screen). Only the
+// photo files: the stock pages under /stock are gated like any other, and so are our sign-in's pages (SIGN_IN_PAGES above).
 export const config = {
-  matcher: ["/((?!api/|car-photos/|media-files/|_next/|stock/[^/]+/[^/]+\\.webp|brand/|brands/|icon\\.|favicon\\.ico).*)"],
+  matcher: ["/((?!api/|car-photos/|media-files/|_next/|stock/[^/]+/[^/]+\\.webp|brand/|brands/|icon\\.|favicon\\.ico|offline\\.html|sw\\.js).*)"],
 };

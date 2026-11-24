@@ -63,6 +63,14 @@ test.describe("SIGN_IN=own on a closed server", () => {
     expect(await location("/leads", { "x-cw-path": "//evil.example" })).toBe("/sign-in?next=%2Fleads"); // the browser's copy is ignored
   });
 
+  test("the service worker and its offline screen load with no session, so the worker never caches the sign-in page (#144)", async () => {
+    for (const path of ["/sw.js", "/offline.html"]) {
+      const res = await api.get(path, { maxRedirects: 0 });
+      expect(res.status(), path).toBe(200);
+    }
+    expect(await (await api.get("/offline.html", { maxRedirects: 0 })).text()).not.toContain("Email me a code");
+  });
+
   test("a dead session cookie passes the proxy, and the page then goes to sign in", async () => {
     expect(await location("/leads?status=new", DEAD)).toBe("/sign-in?next=%2Fleads%3Fstatus%3Dnew");
     expect(await location("/settings", { ...DEAD, "x-cw-path": "//evil.example" })).toBe("/sign-in?next=%2Fsettings");
@@ -128,6 +136,9 @@ test.describe("SIGN_IN=own on a closed server", () => {
 // The emailed code and link (docs/sign-in.md, section 3), on the closed server. Its mail is the in-memory outbox, read at /sign-in/outbox.
 test.describe("signing in by email on the closed server", () => {
   test.skip(!!process.env.E2E_BASE_URL, "needs the run's own closed server");
+  // Signing in loads the dashboard, which installs the service worker in the background, where it could outlive a test's clearCookies
+  // (#144). The worker has its own spec (app-install.spec.ts).
+  test.use({ serviceWorkers: "block" });
   test.beforeEach(({ page }) => stub(page));
   const mailTo = async (page: import("@playwright/test").Page, to: string) => {
     const get = async () => (await (await page.request.get(`${CLOSED}/sign-in/outbox?to=${encodeURIComponent(to)}`)).json()) as { subject: string; text: string }[];
@@ -191,7 +202,9 @@ test.describe("signing in by email on the closed server", () => {
     const again = await page.request.get(`${CLOSED}/sign-in/link`, { maxRedirects: 0 });
     expect(again.status()).toBe(200);
     expect(again.headers()["location"]).toBeUndefined();
-    // and the link was single use
+    // and the link was single use. Leave the dashboard first: its page can still be loading parts of itself, and with the cookie gone the
+    // next of those goes to sign in and takes the tab with it, over the link's load (#144).
+    await page.goto("about:blank");
     await page.context().clearCookies();
     await page.goto(link);
     await expect(page.getByRole("heading", { name: "This link has expired" })).toBeVisible();
