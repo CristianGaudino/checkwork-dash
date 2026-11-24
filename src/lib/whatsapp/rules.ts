@@ -133,7 +133,7 @@ Reg ${f.reg}.` : ""}${quoted(f.text)}`;
     case "review":
       return `New Google review, ${f.stars} stars, from ${f.author}:${quoted(f.text)}`;
     case "slow-stock":
-      return `The ${f.car} has been in stock ${f.days} days. Drop the price by ${fmtEur(f.dropEur ?? 0)}?`;
+      return `The ${f.car} has been in stock ${f.days} days.${f.dropEur ? ` Drop the price by ${fmtEur(f.dropEur)}?` : ""}`;
     case "new-in":
       return `New in: ${f.car}. Post it to Facebook, Instagram or TikTok?`;
     case "monday":

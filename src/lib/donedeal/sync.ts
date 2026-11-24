@@ -11,6 +11,7 @@ import { notify } from "@/lib/admin/notifications";
 import { TIME_ZONE } from "@/lib/site";
 import { currentDealer } from "@/lib/tenancy/current";
 import { listing, stockSource } from "@/lib/stock-source";
+import { modeOf } from "@/lib/integrations";
 import type { Car } from "@/lib/stock/types";
 import { HOUR, MINUTE } from "@/lib/time";
 import { fetchListings, type FeedResult } from "./feed";
@@ -68,6 +69,8 @@ export async function runSync({ force = false, now = Date.now() } = {}): Promise
   const current = await adminCars();
   const plan = planSync(current, feed.listings, today, { force, site });
   if (plan.held) return failed(prev, `${plan.held} The site kept its stock. Check ${site}, then refresh stock.`, true, now, site);
+  // The key removed while this ran (src/lib/owner-api/keys.ts removes its cars): applying the plan now would put them all back.
+  if ((await modeOf("donedeal")) === "off") return failed(await syncStatus(), problems(site)["not-connected"], false, now, site);
   // Car by car: one that cannot be saved (an ad whose address clashes with another car's) is skipped and counted, never stops the rest.
   // shortcut: a cron run and Sync now at the same moment both apply the plan; the stock ends the same but the history shows each change
   // twice. Fine while syncs take seconds; add a lock if it shows up.
@@ -111,7 +114,10 @@ export async function removeSyncedCars(why: string, actor: string): Promise<numb
   if ((await currentDealer()).demo || (await stockSource()) !== "donedeal") return 0;
   const cars = await adminCars();
   for (const c of cars) await removeCar(c.id, c);
-  if (cars.length) await logActivity("stock", `Removed ${cars.length === 1 ? "1 car" : `${cars.length} cars`}: ${why}`, undefined, actor);
+  if (cars.length) {
+    await logActivity("stock", `Removed ${cars.length === 1 ? "1 car" : `${cars.length} cars`}: ${why}`, undefined, actor);
+    await statusStore.put({ ...(await syncStatus()), removed: true }); // so Stock and a later email never say the site still shows them
+  }
   return cars.length;
 }
 
@@ -128,19 +134,20 @@ async function failed(prev: SyncStatus, problem: string, held: boolean, now: num
   // In the bell once an outage starts, not every 15 minutes it lasts.
   if (failingSince === now || firstRefusal || removed) await notify({ kind: "sync", text: removed ? `${site} cars removed` : "Stock did not update", detail: problem, href: "/stock" }, now);
   const due = removed > 0 || (now - failingSince >= ALERT_AFTER && !(prev.alertedAt !== undefined && prev.alertedAt >= failingSince));
-  if (due && (await alertOwners(problem, site, prev.lastOkAt, confirmed))) status.alertedAt = now;
+  if (due && (await alertOwners(problem, site, prev.lastOkAt, Boolean(status.removed)))) status.alertedAt = now;
   await statusStore.put(status);
   return status;
 }
 
-async function alertOwners(problem: string, site: string, lastOkAt?: number, refused = false): Promise<boolean> {
+// `removed`: the synced cars were removed (a refused key, or the key removed), so the email never says the site still shows them.
+async function alertOwners(problem: string, site: string, lastOkAt?: number, removed = false): Promise<boolean> {
   const to = leaderEmails((await getSettings()).team);
   const since = lastOkAt ? `since ${new Date(lastOkAt).toLocaleString("en-IE", { timeZone: TIME_ZONE, dateStyle: "medium", timeStyle: "short" })}` : "yet";
   const { name } = await currentDealer();
-  const mail = refused
+  const mail = removed
     ? {
-        subject: `${name}: ${site} refused the key, so its cars were removed`,
-        text: `${problem}\n\n${site} lets us show your cars only while you allow it, so when it refuses the key they come off the dashboard and the website. Your sales, leads and test drives are kept. Contact Checkwork to set up a new key: your cars come back on the first update after it.`,
+        subject: `${name}: the ${site} cars were removed`,
+        text: `${problem}\n\n${site} lets us show your cars only while you allow it, so when access ends they come off the dashboard and the website. Your sales, leads and test drives are kept. Contact Checkwork to set up a new key: your cars come back on the first update after it.`,
       }
     : {
         subject: `${name}: the ${site} stock has not updated ${since}`,

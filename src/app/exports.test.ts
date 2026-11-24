@@ -25,7 +25,7 @@ describe("the CSV exports", () => {
   it("are not there without the dashboard module, like every page", async () => {
     role = "Owner";
     modules = "finance"; // a plan with the website's finance page and no dashboard
-    for (const [route, path] of [[leads, "/leads/export"], [customers, "/customers/export"], [stock, "/stock/export"]] as const) expect((await get(route, path)).status).toBe(404);
+    for (const [route, path] of [[leads, "/leads/export"], [customers, "/customers/export"], [stock, "/stock/export"], [sales, "/reports/export"]] as const) expect((await get(route, path)).status).toBe(404);
     modules = undefined;
     expect((await get(stock, "/stock/export")).status).toBe(200);
   });

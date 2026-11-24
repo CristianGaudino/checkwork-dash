@@ -86,7 +86,7 @@ export function NotificationBell() {
                   <h3 className="sticky top-0 z-10 bg-card px-4 pb-1 pt-3 text-meta font-semibold text-text-2">{title}</h3>
                   <ul className="flex flex-col">
                     {items.map((n) => {
-                      const Icon = ICON[n.kind];
+                      const Icon = ICON[n.kind] ?? ICON.lead; // a kind no longer known ("order", before #168) reads as a lead
                       return (
                         <li key={n.id}>
                           <Link

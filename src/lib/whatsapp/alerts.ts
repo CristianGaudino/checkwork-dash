@@ -6,6 +6,7 @@ import { recordUsage, usageAllowed } from "@/lib/billing/usage";
 import { EVENTS, alertText, eventOfLead, firstName, inQuiet, type EventId, type Facts } from "./rules";
 import { enabledModules } from "@/lib/modules";
 import { mayGet } from "@/lib/notify-rules";
+import { roleCan } from "@/lib/permission-rules";
 import { TIME_ZONE } from "@/lib/site";
 import { currentDealer } from "@/lib/tenancy/current";
 import type { Lead } from "@/lib/admin/collections";
@@ -21,13 +22,14 @@ const clock = () => new Date().toLocaleTimeString("en-GB", { timeZone: TIME_ZONE
 type Draft = Omit<Msg, "id" | "at" | "via">;
 
 // Each team member's copy of one alert: still on the team, a linked phone, that alert on and theirs to get (never Finance's, the Monday
-// summary only for those who see the full reports, src/lib/notify-rules.ts), and outside their quiet hours.
-async function staffCopies(event: EventId, text: string, extra: Partial<Draft>): Promise<Draft[]> {
+// summary only for those who see the full reports, src/lib/notify-rules.ts), and outside their quiet hours. `plain`: the text, with no
+// buttons, for those without the settings permission (a slow car without the suggested drop, which is for owners and managers only).
+async function staffCopies(event: EventId, text: string, extra: Partial<Draft>, plain?: string): Promise<Draft[]> {
   const now = clock();
   const team = new Map((await getSettings()).team.map((t) => [t.id, t.role])); // only people still on the team
   return (await staffStore.list())
     .filter((p) => team.has(p.id) && p.phone && p.alerts.includes(event) && mayGet(team.get(p.id)!, "whatsapp", event) && !inQuiet(now, p.quietFrom, p.quietTo))
-    .map((p) => ({ thread: "staff", from: "site", to: p.name, event, text, buttons: EVENTS[event].buttons, ...extra }));
+    .map((p) => ({ thread: "staff", from: "site", to: p.name, event, text, buttons: EVENTS[event].buttons, ...extra, ...(plain !== undefined && !roleCan(team.get(p.id)!, "settings") && { text: plain, buttons: [] }) }));
 }
 
 // One cap check and one count for the whole batch, so a visitor's submit is not many round trips. Over the cap (or not connected) an alert
@@ -67,7 +69,8 @@ export async function alertStaff(event: EventId, facts: Facts, extra: Partial<Dr
   try {
     const modules = await enabledModules();
     if (!modules.has("whatsapp") || !modules.has(EVENTS[event].module)) return 0;
-    return await deliver(await staffCopies(event, alertText(event, facts), extra), EVENTS[event].kind);
+    const plain = event === "slow-stock" ? alertText(event, { ...facts, dropEur: undefined }) : undefined;
+    return await deliver(await staffCopies(event, alertText(event, facts), extra, plain), EVENTS[event].kind);
   } catch {
     return 0; // shortcut: as above
   }

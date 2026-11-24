@@ -1,10 +1,11 @@
 import "server-only";
 import { logActivity } from "@/lib/admin/activity";
-import { drivesStore, leadsStore, reservationsStore, reviewsStore, type Lead, type LeadStatus } from "@/lib/admin/collections";
+import { drivesStore, getSettings, leadsStore, reservationsStore, reviewsStore, type Lead, type LeadStatus } from "@/lib/admin/collections";
 import { dublinDay, fmtDateTime, fmtEur } from "@/lib/admin/format";
 import { isOpenLead } from "@/lib/admin/follow-ups";
 import { adminCar, adminCars, updateCar } from "@/lib/admin/stock-admin";
-import { droppedPrice } from "@/lib/admin/stock-admin-pure";
+import { suggestedDrop } from "@/lib/admin/overview";
+import { roleCan } from "@/lib/permission-rules";
 import { askedCar } from "@/lib/leads/journey";
 import { carEditSummary } from "@/lib/admin/activity-text";
 import { postReviewReply } from "@/lib/admin/publishers";
@@ -83,6 +84,12 @@ const markDone = async (all: Msg[]) => void (await Promise.all(all.map((m) => me
 async function linked(name: string) {
   return (await staffStore.list()).some((p) => p.name === name && p.phone);
 }
+// A team member's role, by their name in the conversation, or null when they are no longer on the team.
+async function roleOf(name: string) {
+  const [staff, { team }] = await Promise.all([staffStore.list(), getSettings()]);
+  const id = staff.find((p) => p.name === name)?.id;
+  return team.find((t) => t.id === id)?.role ?? null;
+}
 
 export async function tap(me: string, msgId: string, button: ButtonId): Promise<void> {
   const msg = await messagesStore.get(msgId);
@@ -123,16 +130,19 @@ export async function tap(me: string, msgId: string, button: ButtonId): Promise<
   if (button === "price") return void (await say(me, { leadId: msg.leadId, ref: msg.id, text: `What price do you want to offer${first ? ` ${first}` : ""}? Type it, like 8,500.`, expects: "price" }));
   if (button === "other") return void (await say(me, { leadId: msg.leadId, ref: msg.id, text: "What time suits? Type it, like Saturday at 11.", expects: "time" }));
   if (button === "drop") {
+    // The suggested drop is for owners and managers only (the settings permission), as on Stock; checked here whatever the alert showed.
+    if (!roleCan(await roleOf(me), "settings")) return void (await say(me, { text: "Only owners and managers can drop a price." }));
     if ((await stockSource()) === "donedeal") return void (await say(me, { text: `The price comes from ${(await listing()).site}. Change it there.` }));
     await markDone(all); // first, so a second tap while this runs finds it done
     const car = msg.ref ? await adminCar(msg.ref) : undefined;
     if (car && isSold(car)) return void (await say(me, { text: "That car is sold, so I left the price." }));
-    const eur = (await currentDealer()).profile.rules.slowDropEur;
+    const rules = (await currentDealer()).profile.rules;
     let before = car;
-    // Dropped from the price as it is when written, so a price changed meanwhile is dropped from, not written over.
+    // Dropped from the price as it is when written, so a price changed meanwhile is dropped from, not written over; and only the one
+    // suggested drop (suggestedDrop), so a car reduced since the alert is left alone.
     const next = car && (await updateCar(car.id, (cur) => {
       before = cur;
-      const drop = !isSold(cur) && droppedPrice(cur, eur, "eur");
+      const drop = suggestedDrop(cur, rules);
       return drop ? { ...cur, ...drop } : null;
     }));
     if (!before || !next) return void (await say(me, { text: "I could not change that price. Open the car to do it." }));

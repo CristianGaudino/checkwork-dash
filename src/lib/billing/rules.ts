@@ -6,7 +6,7 @@ import { MODULES, MODULE_IDS, modulesValue, parseModules, type ModuleId } from "
 
 // Usage counted per use. Lookups and WhatsApp messages are billed past the plan's monthly allowance (allowanceFor); AI writing is fair
 // use: counted, never billed, and stopped at our ceiling (AI_FAIR_USE).
-export const SERVICES = ["lookup", "ai", "whatsapp"] as const;
+const SERVICES = ["lookup", "ai", "whatsapp"] as const;
 export type Service = (typeof SERVICES)[number];
 export const SERVICE_LABELS: Record<Service, string> = { lookup: "Registration lookup", ai: "AI writing", whatsapp: "WhatsApp" };
 export type Scope = Exclude<Service, "ai">; // what is billed per use, and so has a limit
@@ -26,16 +26,15 @@ export const UNIT_PRICE_EUR: { [S in Service]: Record<Kind<S>, number> } = {
   ai: { opus: 0, sonnet: 0 }, // fair use: never billed
   whatsapp: { alert: 0.05, reply: 0.03, marketing: 0.12 },
 };
-export const AI_MODELS = ["opus", "sonnet"] as const;
-export type AiModel = (typeof AI_MODELS)[number];
-// Our ceiling on AI writing, in actions a month: about what the old EUR 50 limit allowed past a plan's 100.
+export type AiModel = "opus" | "sonnet";
+// Our ceiling on AI writing, in actions a month.
 export const AI_FAIR_USE = 500;
 
 // The plans (#147), a month before VAT, for one dealership. Everything in a plan is included; the only add-on is Social and ads, at its
 // own price until marketing is priced (#148). A setup fee for a plan with the website, none on a 2-year term.
 // shortcut: one dealership only; the price per extra dealership comes back with multi-dealership (#16).
 const WEBSITE_ONLY: ModuleId[] = ["tradeIn", "finance", "carFinder", "commercial", "lookupWebsite"];
-export const ADD_ON_EUR: Partial<Record<ModuleId, number>> = { social: 99 };
+const ADD_ON_EUR: Partial<Record<ModuleId, number>> = { social: 99 };
 const ADD_ON_SETUP_EUR: Partial<Record<ModuleId, number>> = { social: 150 };
 // The dashboard plan: every other module (reviews is in both: shown on the website, answered from the dashboard).
 const DASHBOARD = MODULE_IDS.filter((m) => !WEBSITE_ONLY.includes(m) && !ADD_ON_EUR[m]);
@@ -44,7 +43,7 @@ export const PLANS: { id: string; label: string; modules: readonly ModuleId[]; e
   { id: "dashboard", label: "Dashboard", modules: DASHBOARD, eur: 149, setupEur: 0, allowance: { lookup: 100, whatsapp: 500 } },
   { id: "both", label: "Website + Dashboard", modules: [...WEBSITE_ONLY, ...DASHBOARD], eur: 249, setupEur: 500, allowance: { lookup: 100, whatsapp: 500 } },
 ];
-export type Plan = (typeof PLANS)[number];
+type Plan = (typeof PLANS)[number];
 
 // The contract: 1 or 2 years. A record from before (#147) said "monthly", "annual" or "twoYear": read as 1, 1 and 2 years.
 export type Term = 1 | 2;
@@ -135,7 +134,7 @@ export type BillingSettings = {
 };
 // Every site starts with our limits past the allowance, so no paid service runs without one; the dealer can set lower, and the owner's
 // program can set others per dealer.
-export const DEFAULT_CEILINGS: Partial<Record<Scope, number>> = { lookup: 15, whatsapp: 20 };
+const DEFAULT_CEILINGS: Partial<Record<Scope, number>> = { lookup: 15, whatsapp: 20 };
 export const BILLING_DEFAULT: BillingSettings = { caps: {}, ceilings: DEFAULT_CEILINGS, aiModel: "opus", term: 1 };
 // A stored record over the defaults, the ceilings merged one level down: a record saved before a default ceiling existed still gets it.
 export const withBillingDefaults = (b?: Partial<BillingSettings>): BillingSettings => ({ ...BILLING_DEFAULT, ...b, ceilings: { ...BILLING_DEFAULT.ceilings, ...b?.ceilings }, term: termOf(b?.term) });

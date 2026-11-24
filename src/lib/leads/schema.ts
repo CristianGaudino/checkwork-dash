@@ -194,7 +194,7 @@ export const TYPE_LABELS: Record<LeadType, string> = {
   test_drive: "Test drive booking",
   alert: "Stock alert sign-up",
   general: "Message from the website",
-  order: "Enquiry",
+  order: "Car enquiry",
 };
 // Detail key to email label, in the order the email lists them; a new type's fields need only a line here.
 export const DETAIL_LABELS: Record<string, string> = {

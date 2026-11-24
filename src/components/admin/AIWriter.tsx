@@ -11,9 +11,9 @@ import { adminButtonQuiet, adminInput, rowButton } from "./kit";
 
 // The changes to a draft: small neutral chips, a quieter group than Write with AI, 44px on a phone and 36px from 640px.
 const chip = `inline-flex min-h-11 items-center rounded-full bg-hairline px-3.5 text-meta font-medium text-text transition-colors hover:bg-accent-soft hover:text-accent-text disabled:opacity-50 pointer-fine:min-h-9 ${press}`;
-// With our pricing hidden the limit is not on Billing, so the message says where to ask.
-const SAID = { limit: "The monthly AI limit is reached. Your text is unchanged.", failed: "Couldn't write that, try again. Your text is unchanged." };
-const BRIEF_SAID = { limit: "The monthly AI limit is reached.", failed: "Couldn't write that, try again." };
+// The AI limit is our fair use, not a limit the dealer sets on Billing, so the message says where to ask.
+const SAID = { limit: "The monthly AI limit is reached. Your text is unchanged. Ask us in Help to raise it.", failed: "Couldn't write that, try again. Your text is unchanged." };
+const BRIEF_SAID = { limit: "The monthly AI limit is reached. Ask us in Help to raise it.", failed: "Couldn't write that, try again." };
 
 // "Write with AI" for any text box (#179): a first draft from the record's facts, then buttons that rewrite it, Undo for one step back, and a
 // label so AI text is never taken for the dealer's own. The box stays the host's own and stays editable. `request` is read when a button is

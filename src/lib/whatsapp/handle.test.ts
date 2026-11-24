@@ -13,6 +13,7 @@ const db = vi.hoisted(() => ({
   modules: new Set<string>(),
   phone: "+353 83 000 1100",
   activity: [] as string[],
+  role: "Owner",
 }));
 vi.mock("@/lib/admin/activity", () => ({ logActivity: async (_area: string, text: string) => void db.activity.push(text) }));
 vi.mock("@/lib/modules", () => ({ enabledModules: async () => db.modules }));
@@ -44,6 +45,7 @@ vi.mock("@/lib/admin/collections", () => ({
   },
   reviewsStore: { get: async (id: string) => db.reviews.get(id), put: async (r: { id: string }) => void db.reviews.set(r.id, r) },
   reservationsStore: { get: async (id: string) => db.deposits.get(id) },
+  getSettings: async () => ({ team: [{ id: "t1", role: db.role }] }),
 }));
 vi.mock("@/lib/admin/stock-admin", () => ({ adminCar: async () => db.car, adminCars: async () => [db.car], updateCar: async (_: string, fn: (c: unknown) => Record<string, unknown> | null) => { const c = fn(db.car); if (c) db.saved.push(c); return c ?? undefined; } }));
 vi.mock("@/lib/stock-source", () => ({ stockSource: async () => db.source, listing: async () => ({ site: "DoneDeal", url: "https://www.donedeal.ie/" }) }));
@@ -70,7 +72,8 @@ beforeEach(() => {
   db.saved.length = 0;
   sent.length = 0;
   db.source = "demo";
-  db.car = { id: "c1", priceEur: 10000 };
+  db.car = { id: "c1", priceEur: 10000, listedAt: "2026-01-01" };
+  db.role = "Owner";
   db.drives.clear();
   db.reviews.clear();
   db.deposits.clear();
@@ -98,7 +101,21 @@ describe("Drop the price", () => {
     expect(db.msgs.get("a2")?.done).toBe(true);
   });
   it("leaves a sold car alone", async () => {
-    db.car = { id: "c1", priceEur: 10000, soldAt: "2026-11-01" };
+    db.car = { id: "c1", priceEur: 10000, listedAt: "2026-01-01", soldAt: "2026-11-01" };
+    alert("a1", ["drop"], { ref: "c1" });
+    await tap("Aoife", "a1", "drop");
+    expect(db.saved).toEqual([]);
+  });
+  it("is refused to a role without the settings permission (Sales), whatever the alert showed", async () => {
+    db.role = "Sales";
+    alert("a1", ["drop"], { ref: "c1" });
+    await tap("Aoife", "a1", "drop");
+    expect(db.saved).toEqual([]);
+    expect(said()).toContain("Only owners and managers can drop a price.");
+    expect(db.msgs.get("a1")?.done).toBeFalsy();
+  });
+  it("leaves a car already reduced alone: one suggested drop per car", async () => {
+    db.car = { id: "c1", priceEur: 9500, wasPriceEur: 10000, listedAt: "2026-01-01" };
     alert("a1", ["drop"], { ref: "c1" });
     await tap("Aoife", "a1", "drop");
     expect(db.saved).toEqual([]);

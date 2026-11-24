@@ -322,6 +322,7 @@ Orders pages and no factory orders.
   margin, warranty months, trade-in reg and allowance, salesperson. Sales undone in the period follow, marked Returned or Cancelled with the
   refund and no price or margin, so the columns add up to Reports (`salesCsv` in `reports.ts`, tested against it). No buyer details, and no
   VAT treatment (we do not record it). The file is named for the dealer and period, `sales-<dealer>-2026-11.csv`.
+  The registrations (the car sold and the trade-in taken in) are there for the dealer's margin-scheme stock book.
 - **Prep costs** (`prepStore`, kinds in `src/lib/admin/prep.ts`): lines on a car's dashboard page (Valet, Tyres, NCT, Service, Repairs,
   Bodywork, Transport, Other), each a row (what and its note, the day it was added, how much) over the total. Add opens the house dialog;
   a row's menu changes or removes it. Margins permission only. A car's whole cost is its cost price plus its prep

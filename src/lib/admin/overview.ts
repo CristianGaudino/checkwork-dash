@@ -1,6 +1,6 @@
 import type { AdminReview, Lead, Reservation, TestDrive } from "./collections";
 import { DAY } from "@/lib/time";
-import { forSale, isSold, onRequest, type Car } from "@/lib/stock/types";
+import { forSale, isReduced, isSold, onRequest, type Car } from "@/lib/stock/types";
 import { isOpenDrive } from "./drives";
 import { droppedPrice, slugId } from "./stock-admin-pure";
 import { dublinDay } from "./format";
@@ -11,9 +11,10 @@ import type { DealerRules } from "@/lib/tenancy/profile";
 // Old stock: for sale `oldDays` or more, the dealer's rule (their profile's oldStockDays).
 export const isOldStock = (c: Car, now: number, oldDays: number) => forSale(c) && c.listedAt !== undefined && now - Date.parse(`${c.listedAt}T00:00:00Z`) >= oldDays * DAY;
 // The price drop suggested on old stock: the dealer's slowDropEur off the price, as the WhatsApp slow-stock alert offers. The new price and
-// the earlier one (droppedPrice), or null: not old stock (so never sold, reserved or off the website), on request, or it would reach €0.
+// the earlier one (droppedPrice), or null: not old stock (so never sold, reserved or off the website), on request, already reduced (one
+// suggested drop per car, so it is not offered again straight after) or it would reach €0.
 export const suggestedDrop = (c: Car, rules: Pick<DealerRules, "oldStockDays" | "slowDropEur">, now = Date.now()) =>
-  isOldStock(c, now, rules.oldStockDays) && !onRequest(c) ? droppedPrice(c, rules.slowDropEur, "eur") : null;
+  isOldStock(c, now, rules.oldStockDays) && !onRequest(c) && !isReduced(c) ? droppedPrice(c, rules.slowDropEur, "eur") : null;
 
 // The numbers on the dealer's overview, worked out from the records. Pure, so the rules are tested.
 // How soon it needs doing, which is what its colour says: now (red, filled), soon (amber), or worth knowing (grey). Most urgent first.

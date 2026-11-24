@@ -11,7 +11,7 @@ import { billingSettings } from "@/lib/billing/usage";
 import { LayersIcon } from "@/components/stock/icons";
 
 // A dashboard page whose module the plan lacks: what it is, what it would add to the bill (owners and managers),
-// how to get it, and the way back. Owners and managers ask for it here, as on Billing; anyone else is told who can.
+// how to get it, and the way back. Owners and managers ask for it here; anyone else is told who can.
 export async function NotInPlan({ id }: { id: ModuleId }) {
   const m = MODULES.find((x) => x.id === id)!;
   const billing = await can("billing");

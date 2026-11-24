@@ -7,6 +7,12 @@ vi.mock("next/headers", () => ({ cookies: async () => ({ get: () => undefined })
 // The feed and the email are what a test changes: DoneDeal's answer, and whether the warning went.
 let feed: () => Promise<unknown> = async () => ({ ok: false, reason: "failed" });
 vi.mock("./feed", () => ({ fetchListings: () => feed() }));
+// Whether the DoneDeal key is connected when the sync is about to apply its plan ("off": removed meanwhile).
+let mode = "simulated";
+vi.mock("@/lib/integrations", async (orig) => {
+  const real = await orig<typeof import("@/lib/integrations")>();
+  return { ...real, modeOf: async (id: Parameters<typeof real.modeOf>[0]) => (id === "donedeal" ? mode : real.modeOf(id)) };
+});
 const sent: { to: string[]; subject: string }[] = [];
 // A car whose save fails (as an address clash with another car would in D1). `race`: a change someone makes to that car in the dashboard
 // after the sync planned and just before its write lands (#15).
@@ -31,7 +37,7 @@ vi.mock("@/lib/leads/mail", () => ({ sendTo: async (to: string[], m: { subject: 
 const dropped: string[] = [];
 vi.mock("@/lib/admin/car-photos", async (orig) => ({ ...(await orig<typeof import("@/lib/admin/car-photos")>()), dropCarPhotos: async (p: { src: string }[]) => void dropped.push(...p.map((x) => x.src)) }));
 
-const { runSync, syncStatus, resetSyncStatus, syncActor } = await import("./sync");
+const { runSync, syncStatus, resetSyncStatus, syncActor, removeSyncedCars } = await import("./sync");
 const { adminCars } = await import("@/lib/admin/stock-admin");
 const { listActivity } = await import("@/lib/admin/activity");
 const { HOUR, MINUTE } = await import("@/lib/time");
@@ -207,12 +213,36 @@ describe("a refused DoneDeal key (#158)", () => {
     expect(await asTest(adminCars)).toEqual([]);
     expect(dropped).toEqual([photo]);
     expect(await asTest(() => salesStore.get("900002"))).toMatchObject({ carTitle: "2019 Ford Focus" });
-    expect(sent.map((m) => m.subject)).toEqual(["Test Motors: DoneDeal refused the key, so its cars were removed"]);
+    expect(sent.map((m) => m.subject)).toEqual(["Test Motors: the DoneDeal cars were removed"]);
     const log = await asTest(() => listActivity({ actor: syncActor("DoneDeal") }, 1, 5));
     expect(log.rows.map((r) => r.summary)).toContain("Removed 2 cars: DoneDeal refused the key");
     await asTest(() => runSync({ now: 1_000 + HOUR }));
     await asTest(() => runSync({ now: 1_000 + 2 * HOUR }));
     expect(sent).toHaveLength(1); // once, not again an hour in
+  });
+
+  it("the key removed by Checkwork: the status says the cars were removed, and so does a later email", async () => {
+    expect(await asTest(() => removeSyncedCars("the DoneDeal key was removed", "Checkwork"))).toBe(2);
+    expect(await asTest(syncStatus)).toMatchObject({ removed: true });
+    mode = "off";
+    feed = async () => ({ ok: false, reason: "not-connected" });
+    await asTest(() => runSync({ now: 1_000 }));
+    await asTest(() => runSync({ now: 1_000 + HOUR }));
+    expect(sent.map((m) => m.subject)).toEqual(["Test Motors: the DoneDeal cars were removed"]);
+    mode = "simulated";
+  });
+
+  it("a sync running when the key is removed stops before it puts the cars back", async () => {
+    const listings = await asTest(adminCars);
+    feed = async () => {
+      await asTest(() => removeSyncedCars("the DoneDeal key was removed", "Checkwork"));
+      mode = "off"; // removed between the fetch and the plan being applied
+      return { ok: true, listings };
+    };
+    const s = await asTest(() => runSync({ now: 1_000 }));
+    mode = "simulated";
+    expect(await ids()).toEqual([]);
+    expect(s).toMatchObject({ removed: true, problem: expect.stringMatching(/not connected/) });
   });
 
   it("an outage keeps the stock", async () => {

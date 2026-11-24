@@ -32,7 +32,7 @@ export async function writeAction(req: WriteRequest, adjust?: Adjust, current = 
   if (!built) return { ok: false, reason: "failed" };
   // The dealer's draft too: no phone or email reaches the AI provider, and theirs go back into the answer.
   const masked = maskContacts(current, true); // masked before it is cut, so a cut never leaves part of a number
-  const { aiModel } = await billingSettings(); // the model the dealer pays for, counted as it
+  const { aiModel } = await billingSettings(); // the model we set for the dealer, counted as it
   const r = await writeWithAI(aiModel, built.task, built.facts as never, adjust, masked.text.slice(0, 4000).replace(/\[[a-z]*( \d*)?$/, "")); // a tag cut in half is dropped
   if (!r.ok) return { ok: false, reason: "failed" };
   await recordUsage("ai", aiModel);

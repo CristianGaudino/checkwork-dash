@@ -9,14 +9,17 @@ const { writeAction } = await import("./actions");
 const { saveBilling, monthCounts, recordUsage, usageStore } = await import("@/lib/billing/usage");
 const { adminCars } = await import("@/lib/admin/stock-admin");
 const { forSale } = await import("@/lib/stock/types");
-const { reviewsStore } = await import("@/lib/admin/collections");
-const { AI_FAIR_USE } = await import("@/lib/billing/rules");
+const { reviewsStore, settingsStore } = await import("@/lib/admin/collections");
+const { AI_FAIR_USE, withBillingDefaults } = await import("@/lib/billing/rules");
+// The model is ours to set (never from Billing), so the test writes it to the settings.
+const useModel = (aiModel: "opus" | "sonnet") => settingsStore.update("dealer", (s) => ({ ...s, billing: { ...withBillingDefaults(s.billing), aiModel } }));
 
 const count = async (kind: string) => (await monthCounts()).filter((c) => c.service === "ai" && c.kind === kind).reduce((n, c) => n + c.count, 0); // the demo's seeded line and its kept "real-" one
 
 describe("writeWithAI behind the dashboard", () => {
   afterEach(async () => {
-    await saveBilling({ caps: {}, aiModel: "opus" });
+    await saveBilling({ caps: {} });
+    await useModel("opus");
     plan = undefined;
   });
 
@@ -27,7 +30,7 @@ describe("writeWithAI behind the dashboard", () => {
     const first = await writeAction(req);
     expect(first).toMatchObject({ ok: true });
     expect(await count("opus")).toBe(opus + 1);
-    await saveBilling({ aiModel: "sonnet" });
+    await useModel("sonnet");
     const sonnet = await count("sonnet");
     const shorter = await writeAction(req, "shorter", first.ok ? first.text : "");
     expect(shorter).toMatchObject({ ok: true });

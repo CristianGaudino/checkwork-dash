@@ -21,6 +21,7 @@ const { carCosts } = await import("@/lib/admin/costs");
 const { BAD_COST } = await import("@/lib/admin/margins");
 const { adminCar, adminCars, saveCar } = await import("@/lib/admin/stock-admin");
 const { suggestedDrop } = await import("@/lib/admin/overview");
+const { isReduced } = await import("@/lib/stock/types");
 const { DEMO_PROFILE } = await import("@/lib/tenancy/profile");
 
 describe("stock synced from DoneDeal", () => {
@@ -349,7 +350,7 @@ describe("the suggested price drop on old stock", () => {
   // A car for sale made old stock here, so the test never depends on the seed's dates.
   const oldCar = async () => {
     const deposits = new Set((await reservationsStore.list()).map((r) => r.carId));
-    const c = (await adminCars()).find((c) => !c.soldAt && !c.reserved && !c.listing && c.priceEur > 1000 && !deposits.has(c.id))!;
+    const c = (await adminCars()).find((c) => !c.soldAt && !c.reserved && !c.listing && c.priceEur > 1000 && !isReduced(c) && !deposits.has(c.id))!;
     await saveCar({ ...c, listedAt: "2026-01-01" });
     expect(suggestedDrop((await adminCar(c.id))!, DEMO_PROFILE.rules)).toBeTruthy();
     return (await adminCar(c.id))!;
@@ -367,6 +368,7 @@ describe("the suggested price drop on old stock", () => {
     expect(await dropPriceAction(car.id, car.priceEur)).toBeUndefined();
     expect((await adminCar(car.id))!).toMatchObject({ priceEur: to, wasPriceEur: Math.max(car.wasPriceEur ?? 0, car.priceEur) });
     expect(await dropPriceAction(car.id, car.priceEur)).toEqual({ error: expect.any(String) }); // never taken twice
+    expect(suggestedDrop((await adminCar(car.id))!, DEMO_PROFILE.rules)).toBeNull(); // and not offered again once reduced
     role = "Sales";
     expect(await undoDropAction(car.id, car.priceEur, car.wasPriceEur ?? 0, to)).toEqual({ error: expect.any(String) });
     role = "Owner";

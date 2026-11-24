@@ -8,6 +8,7 @@ const ICONS = { enquiry: CarIcon, "test-drive": CalendarIcon, finance: PercentIc
 const TOPIC_TYPE: Record<string, LeadType> = { buying: "enquiry", selling: "sell", finance: "finance", service: "service", bought: "warranty" };
 
 export function leadKind(type: LeadType, topic?: string): { label: string; icon: LeadType } {
+  if (!Object.hasOwn(ICONS, type)) type = "enquiry"; // a type no longer known (an "order" the Worker before #168 stored mid-deploy)
   if (type !== "general" || !topic) return { label: LEAD_TYPE_LABELS[type], icon: type };
   return { label: TOPICS.find((t) => t.id === topic)?.subject ?? LEAD_TYPE_LABELS.general, icon: TOPIC_TYPE[topic] ?? "general" };
 }
