@@ -162,9 +162,36 @@ describe("a refused DoneDeal key (#158)", () => {
     dropped.length = 0;
   });
 
-  it("removes the synced cars and their stored photos, keeps the sale, says why and tells the owners once", async () => {
+  const ids = async () => (await asTest(adminCars)).map((c) => c.id).sort();
+
+  it("one refused answer keeps the cars and warns in the bell", async () => {
     feed = async () => ({ ok: false, reason: "refused" });
     const s = await asTest(() => runSync({ now: 1_000 }));
+    expect(s.problem).toBe("DoneDeal refused the key. If it still does at the next check, its cars come off the dashboard and the website.");
+    expect(await ids()).toEqual(["900001", "900002"]);
+    expect(sent).toHaveLength(0);
+  });
+
+  it("refused, then a good run, then refused again keeps the cars", async () => {
+    feed = async () => ({ ok: false, reason: "refused" });
+    await asTest(() => runSync({ now: 1_000 }));
+    feed = async () => ({ ok: true, listings: (await adminCars()).filter(isForSale) });
+    await asTest(() => runSync({ now: 2_000 }));
+    feed = async () => ({ ok: false, reason: "refused" });
+    await asTest(() => runSync({ now: 3_000 }));
+    expect(await ids()).toEqual(["900001", "900002"]);
+    feed = async () => ({ ok: false, reason: "failed" }); // an outage in between starts the count again too
+    await asTest(() => runSync({ now: 4_000 }));
+    feed = async () => ({ ok: false, reason: "refused" });
+    await asTest(() => runSync({ now: 5_000 }));
+    expect(await ids()).toEqual(["900001", "900002"]);
+    expect(dropped).toEqual([]);
+  });
+
+  it("refused twice in a row removes the synced cars and their stored photos, keeps the sale, says why and tells the owners once", async () => {
+    feed = async () => ({ ok: false, reason: "refused" });
+    await asTest(() => runSync({ now: 1_000 }));
+    const s = await asTest(() => runSync({ now: 2_000 }));
     expect(s).toMatchObject({ problem: "DoneDeal refused the key, so its cars were removed.", removed: true });
     expect(await asTest(adminCars)).toEqual([]);
     expect(dropped).toEqual([photo]);
@@ -180,13 +207,14 @@ describe("a refused DoneDeal key (#158)", () => {
   it("an outage keeps the stock", async () => {
     feed = async () => ({ ok: false, reason: "failed" });
     await asTest(() => runSync());
-    expect((await asTest(adminCars)).map((c) => c.id).sort()).toEqual(["900001", "900002"]);
+    expect(await ids()).toEqual(["900001", "900002"]);
     expect(dropped).toEqual([]);
   });
 
   it("the demo dealer never removes anything", async () => {
     const before = await adminCars();
     feed = async () => ({ ok: false, reason: "refused" });
+    await runSync();
     await runSync();
     expect(await adminCars()).toEqual(before);
     expect(dropped).toEqual([]);

@@ -118,7 +118,7 @@ In this order:
 3. DoneDeal issues the key. Set it with the owner API in each environment that uses it (`PUT /api/owner/v1/dealers/<id>/keys/donedeal`
    with `{"DONEDEAL_API_KEY": "..."}`, `docs/owner-api.md`), then set `{ "stock": { "source": "donedeal" } }` in their profile (below).
 
-If DoneDeal later refuses the key, the next sync removes the synced cars by itself (`docs/dealer-admin.md`, "Listing site stock").
+If DoneDeal later refuses the key on two syncs in a row, the sync removes the synced cars by itself (`docs/dealer-admin.md`, "Listing site stock").
 
 ## A dealer leaving
 

@@ -20,7 +20,7 @@ import { planSync } from "./plan";
 // activity history as "DoneDeal sync". Run every 15 minutes by the Worker (worker.mjs, through /api/donedeal/sync) and by Sync now.
 // A failed or held sync changes nothing: the site keeps the stock from the last good one. After an hour of failures the owners and
 // managers get one email, then no more until a sync works again. A refused key is not an outage: access has ended, so the dealer's synced
-// cars are removed at once and the owners and managers told then (DoneDeal's API policy, #158).
+// cars are removed once it is refused twice in a row and the owners and managers told then (DoneDeal's API policy, #158).
 export const syncActor = (site: string) => `${site} sync`;
 // Where the sync runs: a dealer whose stock comes from a listing site, and a demo dealer (which shows both versions; its feed changes nothing).
 export const syncRunsHere = async () => (await currentDealer()).demo || (await stockSource()) === "donedeal";
@@ -35,6 +35,7 @@ export type SyncStatus = {
   held?: boolean; // the problem is DoneDeal's answer looking wrong; Apply anyway runs it with force
   failingSince?: number; // the first failed run of this outage
   alertedAt?: number;
+  refusedSince?: number; // the first of this run of refused answers; cleared by any other run
   removed?: boolean; // the key was refused and the synced cars removed; until a sync works again
 };
 
@@ -115,13 +116,17 @@ export async function removeSyncedCars(why: string, actor: string): Promise<numb
 async function failed(prev: SyncStatus, problem: string, held: boolean, now: number, site: string, refused = false): Promise<SyncStatus> {
   // An outage starts at its first failed run (a site that has never synced too), and gets one email an hour in, none after it.
   const failingSince = prev.problem && prev.failingSince !== undefined ? prev.failingSince : now;
-  // A refused key removes the cars on the run that sees it; later runs find none, so its bell notice and email come once.
-  const removed = refused ? await removeSyncedCars(`${site} refused the key`, syncActor(site)) : 0;
-  const status: SyncStatus = { ...prev, lastRunAt: now, problem, held, failingSince, ...((removed || prev.removed) && { removed: true }) };
+  // A refused key counts on the second run in a row (15 minutes on, or Sync now), so one stray 401 or 403 never empties the site. That run
+  // removes the cars; later runs find none, so its bell notice and email come once. Any other run in between starts the count again.
+  const confirmed = refused && (prev.refusedSince !== undefined || Boolean(prev.removed));
+  const firstRefusal = refused && !confirmed;
+  if (firstRefusal) problem = `${site} refused the key. If it still does at the next check, its cars come off the dashboard and the website.`;
+  const removed = confirmed ? await removeSyncedCars(`${site} refused the key`, syncActor(site)) : 0;
+  const status: SyncStatus = { ...prev, lastRunAt: now, problem, held, failingSince, refusedSince: refused ? (prev.refusedSince ?? now) : undefined, ...((removed || prev.removed) && { removed: true }) };
   // In the bell once an outage starts, not every 15 minutes it lasts.
-  if (failingSince === now || removed) await notify({ kind: "sync", text: removed ? `${site} cars removed` : "Stock did not update", detail: problem, href: "/stock" }, now);
+  if (failingSince === now || firstRefusal || removed) await notify({ kind: "sync", text: removed ? `${site} cars removed` : "Stock did not update", detail: problem, href: "/stock" }, now);
   const due = removed > 0 || (now - failingSince >= ALERT_AFTER && !(prev.alertedAt !== undefined && prev.alertedAt >= failingSince));
-  if (due && (await alertOwners(problem, site, prev.lastOkAt, refused))) status.alertedAt = now;
+  if (due && (await alertOwners(problem, site, prev.lastOkAt, confirmed))) status.alertedAt = now;
   await statusStore.put(status);
   return status;
 }

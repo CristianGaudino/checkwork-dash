@@ -357,12 +357,15 @@ cars are added, changed and sold on DoneDeal only. The dashboard never edits the
 - **When it fails** the site keeps the stock from the last good sync, Stock, Overview and Settings say so, and after an hour the owners and
   managers get one email (not again until a sync works).
 - **When DoneDeal refuses the key** (401 or 403: the key was revoked or the dealer withdrew consent; it comes with no notice) it is not an
-  outage. DoneDeal's API policy asks for a dealer's data to go promptly when access ends, so that sync removes every synced car and any
-  photos stored for it: the dashboard and the website show none. The dealer's own records stay (sales, cost and prep, leads, test drives,
+  outage. DoneDeal's API policy asks for a dealer's data to go promptly when access ends. So that one stray answer never empties the site,
+  the first refused run changes nothing: Stock and Settings say "DoneDeal refused the key. If it still does at the next check, its cars
+  come off the dashboard and the website." and the bell says so. If the next run (15 minutes on, or Refresh stock) is refused too, it
+  removes every synced car and any photos stored for it: the dashboard and the website show none. Any other run in between (a good one,
+  or one DoneDeal did not answer) starts the count again. The dealer's own records stay (sales, cost and prep, leads, test drives,
   which keep the car's title as for a car deleted by hand). Stock and Settings say "DoneDeal refused the key, so its cars were removed.",
-  Activity has "Removed N cars: DoneDeal refused the key", and the owners and managers get one email and one notice at once. Later runs
+  Activity has "Removed N cars: DoneDeal refused the key", and the owners and managers get one email and one notice then. Later runs
   find nothing to remove, so neither repeats. A new key brings the cars back on the next sync. Never at a demo dealer. A dealer leaving:
-  `docs/new-dealer.md`.
+  `docs/new-dealer.md` (removing the key through the owner API removes the cars at once).
 - **The demo** cannot use a real dealer's account (DoneDeal's API is for one dealer's own site, with written consent). Its feed is the
   stock itself, so a sync shows working and finds nothing to change.
 - **Still to write:** the adapter that reads DoneDeal's API (`src/lib/donedeal/feed.ts`), once DoneDeal sends its docs and the full usage
