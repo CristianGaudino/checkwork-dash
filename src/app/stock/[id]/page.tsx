@@ -92,6 +92,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
   const facts = [
     car.reg,
     car.listedAt && !sold ? (daysInStock(car.listedAt) === "Today" ? "Added today" : `${daysInStock(car.listedAt)} in stock`) : sale ? `Sold for ${fmtEur(sale.priceEur)} on ${day(sale.soldOn)}` : sold ? `Sold ${day(car.soldAt!)}` : undefined,
+    sale?.reviewAskedOn ? `Asked for a review ${day(sale.reviewAskedOn)}` : undefined,
     `${car.photos.length} ${car.photos.length === 1 ? "photo" : "photos"}`,
     car.mileageKm !== undefined ? `${fmtNum(car.mileageKm)} km` : undefined,
   ].filter(Boolean).join(" · ");

@@ -15,6 +15,11 @@ vi.mock("next/headers", () => ({
   cookies: async () => ({ get: (n: string) => (n === "checkwork-demo-stock" ? { value: stockCookie } : n === "checkwork-demo-role" ? { value: role } : undefined) }),
   headers: async () => ({ get: () => null }),
 }));
+// A review link (#22), so the sale form's review ask can go.
+vi.mock("@/lib/tenancy/current", async (orig) => {
+  const m = await orig<typeof import("@/lib/tenancy/current")>();
+  return { ...m, dealerProfile: async () => ({ ...(await m.dealerProfile()), placeId: "ChIJtest" }) };
+});
 const { addCarPhotoAction, carPhotoAction, removePrepAction, savePrepAction, bulkStockAction, deleteCarAction, endReservationAction, recordSaleAction, reserveAction, saveCarAction, saveCostAction, setListingAction, toggleSoldAction, undoSaleAction, withdrawnAction } = await import("./actions");
 const { claimsStore, costsStore, customersStore, leadsStore, prepStore, reservationsStore, salesStore } = await import("@/lib/admin/collections");
 const { carCosts } = await import("@/lib/admin/costs");
@@ -177,6 +182,23 @@ describe("recording a sale", () => {
     role = "Manager";
     await expect(recordSaleAction(was.id, undefined, changed)).rejects.toThrow(/redirect/);
     expect((await salesStore.get(was.id))?.priceEur).toBe(1);
+  });
+
+  it("asks the buyer for a review when ticked, once, and never from Change the sale", async () => {
+    stockCookie = "checkwork";
+    const recorded = new Set((await salesStore.list()).flatMap((x) => [x.id, x.carId]));
+    const [car, other] = (await adminCars()).filter((c) => !c.soldAt && !c.listing && !c.reserved && !recorded.has(c.id));
+    const customer = (await customersStore.list()).find((c) => c.email)!;
+    await expect(recordSaleAction(car.id, undefined, form({ priceEur: "9000", soldOn: today, customerId: customer.id }))).rejects.toThrow(/redirect/);
+    expect((await salesStore.get(car.id))?.reviewAskedOn).toBeUndefined(); // no tick, no ask
+    await expect(recordSaleAction(other.id, undefined, form({ priceEur: "9000", soldOn: today, customerId: customer.id, askReview: "on" }))).rejects.toThrow(/redirect/);
+    expect((await salesStore.get(other.id))?.reviewAskedOn).toBe(today);
+    role = "Manager";
+    await expect(recordSaleAction(car.id, undefined, form({ priceEur: "9100", soldOn: today, customerId: customer.id, askReview: "on" }))).rejects.toThrow(/redirect/);
+    expect((await salesStore.get(car.id))?.reviewAskedOn).toBeUndefined(); // Change the sale never asks
+    await expect(recordSaleAction(other.id, undefined, form({ priceEur: "9100", soldOn: today, customerId: customer.id }))).rejects.toThrow(/redirect/);
+    expect((await salesStore.get(other.id))?.reviewAskedOn).toBe(today); // and keeps the day it was asked
+    role = "Sales";
   });
 
   it("refuses a missing buyer, a bad price and a day to come, and saves nothing", async () => {

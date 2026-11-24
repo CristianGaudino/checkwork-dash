@@ -512,6 +512,7 @@ export type Sale = {
   coverMonths?: number; // the warranty from the day of sale: the included cover, or longer if extended cover was bought. Absent: the included.
   tradeIn?: { reg: string; allowanceEur: number }; // the buyer's car taken as a trade-in
   leadId?: string; // the lead the sale came from, marked won with it
+  reviewAskedOn?: string; // the day the buyer was asked for a Google review (src/lib/admin/review-ask.ts), at most once
   returnedOn?: string;
   kind?: "cancelled" | "returned";
   refundEur?: number;
