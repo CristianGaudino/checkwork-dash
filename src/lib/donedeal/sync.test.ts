@@ -235,6 +235,35 @@ describe("a refused DoneDeal key (#158)", () => {
     mode = "simulated";
   });
 
+  it("refused twice, then an outage, then the key deleted: Stock and the email keep the removal's reason", async () => {
+    feed = async () => ({ ok: false, reason: "refused" });
+    await asTest(() => runSync({ now: 1_000 }));
+    await asTest(() => runSync({ now: 1_000 + 15 * MINUTE })); // removed, and the owners told
+    feed = async () => ({ ok: false, reason: "failed" });
+    expect((await asTest(() => runSync({ now: 1_000 + 30 * MINUTE }))).problem).toBe("DoneDeal did not answer.");
+    mode = "off";
+    feed = async () => ({ ok: false, reason: "not-connected" });
+    await asTest(() => removeSyncedCars("the DoneDeal key was removed", "Checkwork")); // no cars left to remove
+    const s = await asTest(() => runSync({ now: 1_000 + 3 * HOUR }));
+    mode = "simulated";
+    expect(s.problem).toBe("DoneDeal refused the key, so its cars were removed.");
+    expect(sent).toHaveLength(1); // the removal's, once for this outage
+    expect(sent[0]).toMatchObject({ subject: "Test Motors: the DoneDeal cars were removed", text: expect.stringMatching(/^DoneDeal refused the key, so its cars were removed\./) });
+  });
+
+  it("an outage already emailed, then the key deleted: the removal email goes, once", async () => {
+    feed = async () => ({ ok: false, reason: "failed" });
+    await asTest(() => runSync({ now: 1_000 }));
+    await asTest(() => runSync({ now: 1_000 + HOUR }));
+    expect(sent.map((m) => m.subject)).toEqual([expect.stringMatching(/has not updated/)]);
+    expect(await asTest(() => removeSyncedCars("the DoneDeal key was removed", "Checkwork"))).toBe(2);
+    mode = "off";
+    feed = async () => ({ ok: false, reason: "not-connected" });
+    for (const h of [2, 3, 4, 5]) await asTest(() => runSync({ now: 1_000 + h * HOUR }));
+    mode = "simulated";
+    expect(sent.map((m) => m.subject)).toEqual([expect.stringMatching(/has not updated/), "Test Motors: the DoneDeal cars were removed"]);
+  });
+
   it("a sync running when the key is removed stops before it puts the cars back", async () => {
     const listings = await asTest(adminCars);
     feed = async () => {

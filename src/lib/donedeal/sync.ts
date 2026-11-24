@@ -40,6 +40,7 @@ export type SyncStatus = {
   alertedAt?: number;
   refusedSince?: number; // the first of this run of refused answers; cleared by any other run
   removed?: boolean; // access ended (a refused or removed key) and the synced cars removed; until a sync works again
+  removedWhy?: string; // why they were removed, in the dealer's words, kept while the key stays gone whatever later runs say
 };
 
 // The demo's last sync, a few minutes ago with nothing to change (its feed is the stock itself). A real site starts with none.
@@ -65,7 +66,7 @@ export async function runSync({ force = false, now = Date.now() } = {}): Promise
   const { site } = await listing();
   const feed: FeedResult = await fetchListings().catch(() => ({ ok: false, reason: "failed" }) as const);
   // While the key stays gone after its cars were removed, the removal's reason stays what Stock and the email say.
-  const problemOf = (reason: keyof ReturnType<typeof problems>, s: SyncStatus) => (reason === "not-connected" && s.removed && s.problem ? s.problem : problems(site)[reason]);
+  const problemOf = (reason: keyof ReturnType<typeof problems>, s: SyncStatus) => (reason === "not-connected" && s.removedWhy ? s.removedWhy : problems(site)[reason]);
   if (!feed.ok) return failed(prev, problemOf(feed.reason, prev), false, now, site, feed.reason === "refused");
   const today = dublinDay(now); // the Irish day, as the rest of the dashboard dates a sale
   const current = await adminCars();
@@ -121,8 +122,10 @@ export async function removeSyncedCars(why: string, actor: string): Promise<numb
   for (const c of cars) await removeCar(c.id, c);
   if (cars.length) {
     await logActivity("stock", `Removed ${cars.length === 1 ? "1 car" : `${cars.length} cars`}: ${why}`, undefined, actor);
-    // So Stock and a later email never say the site still shows them.
-    await statusStore.put({ ...(await syncStatus()), removed: true, problem: `${(await listing()).site} cars were removed: ${why}.` });
+    // So Stock and a later email never say the site still shows them. A new outage from here, so its email goes even when an earlier
+    // outage's already went.
+    const said = `${(await listing()).site} cars were removed: ${why}.`;
+    await statusStore.put({ ...(await syncStatus()), removed: true, removedWhy: said, problem: said, failingSince: undefined, alertedAt: undefined });
   }
   return cars.length;
 }
@@ -136,7 +139,7 @@ async function failed(prev: SyncStatus, problem: string, held: boolean, now: num
   const firstRefusal = refused && prev.refusedSince === undefined && !prev.removed; // the bell, once
   if (refused && !confirmed) problem = `${site} refused the key. If it still does at the next check, its cars come off the dashboard and the website.`;
   const removed = confirmed ? await removeSyncedCars(`${site} refused the key`, syncActor(site)) : 0;
-  const status: SyncStatus = { ...prev, lastRunAt: now, problem, held, failingSince, refusedSince: refused ? (prev.refusedSince ?? now) : undefined, ...((removed || prev.removed) && { removed: true }) };
+  const status: SyncStatus = { ...prev, lastRunAt: now, problem, held, failingSince, refusedSince: refused ? (prev.refusedSince ?? now) : undefined, ...((removed || prev.removed) && { removed: true, removedWhy: removed ? problem : prev.removedWhy }) };
   // In the bell once an outage starts, not every 15 minutes it lasts.
   if (failingSince === now || firstRefusal || removed) await notify({ kind: "sync", text: removed ? `${site} cars removed` : "Stock did not update", detail: problem, href: "/stock" }, now);
   const due = removed > 0 || (now - failingSince >= ALERT_AFTER && !(prev.alertedAt !== undefined && prev.alertedAt >= failingSince));
