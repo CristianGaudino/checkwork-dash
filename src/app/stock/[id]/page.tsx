@@ -25,7 +25,8 @@ import { carName, priceLabel } from "@/lib/stock/format";
 import { stockSource } from "@/lib/stock-source";
 import { syncStatus } from "@/lib/donedeal/sync";
 import { forSale, isReduced, onPublicSite } from "@/lib/stock/types";
-import { deleteCarAction, saveCostAction } from "../actions";
+import { deleteCarAction, dropPriceAction, saveCostAction, undoDropAction } from "../actions";
+import { suggestedDrop } from "@/lib/admin/overview";
 import { enabledModules, hasModule } from "@/lib/modules";
 import { conditionShown } from "@/lib/modules-rules";
 
@@ -79,7 +80,15 @@ export default async function Page({ params, searchParams }: { params: Promise<{
     <Link href={`/stock/${id}/sale`} className={adminButton}><CheckIcon className="shrink-0 size-4" />Mark sold</Link>
   ) : undefined;
   const quiet = `${adminButtonQuiet} px-4`;
+  // The price drop suggested on old stock (#172), for owners and managers (the settings permission, as the action checks). Applied here in
+  // our version, with Undo; synced stock is changed on the listing site, the header's button.
+  const drop = canDelete ? suggestedDrop(car, rules) : null;
   const actions = [
+    drop && !synced && (
+      <ActButton key="drop" act={dropPriceAction.bind(null, id, car.priceEur)} undo={undoDropAction.bind(null, id, car.priceEur, car.wasPriceEur ?? 0, drop.priceEur)} done={`Price dropped to ${fmtEur(drop.priceEur)}`} className={quiet}>
+        Drop to {fmtEur(drop.priceEur)}
+      </ActButton>
+    ),
     (await hasModule("social")) && <PostToSocial key="post" car={car} className={quiet} />,
     <ViewOnSite key="view" car={car} shown={conditionShown(await enabledModules(), car.condition)} className={quiet} />,
     deposits && !synced && !sold && (held || forSale(car)) && <Link key="reserve" href={`/stock/${id}/reserve`} className={quiet}><TagIcon className="shrink-0 size-4" />{held ? "See the deposit" : "Reserve"}</Link>,
@@ -108,6 +117,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
             {isReduced(car) && <span className="block text-meta font-normal text-ok sm:ml-2 sm:inline">was {fmtEur(car.wasPriceEur!)}</span>}
           </p>
           <p className="text-meta text-text-2">{facts}</p>
+          {drop && <p className="text-meta text-text-2">Suggested price {fmtEur(drop.priceEur)}{synced && `: change it on ${listingSite}`}</p>}
           <CarFlags car={car} />
         </div>
       </div>

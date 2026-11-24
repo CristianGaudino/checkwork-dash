@@ -27,7 +27,8 @@ import type { DealerRules } from "@/lib/tenancy/profile";
 import { Suspense } from "react";
 import { Skeleton, TableBones } from "@/components/admin/Skeleton";
 import { syncStatus } from "@/lib/donedeal/sync";
-import { syncNowAction, toggleSoldAction, withdrawnAction } from "./actions";
+import { dropPriceAction, syncNowAction, toggleSoldAction, undoDropAction, withdrawnAction } from "./actions";
+import { suggestedDrop } from "@/lib/admin/overview";
 import { SubmitButton } from "@/components/admin/SubmitButton";
 import { enabledModules, hasModule } from "@/lib/modules";
 import { conditionShown } from "@/lib/modules-rules";
@@ -237,6 +238,20 @@ async function StockTable({ sp, matching, sales, view, q, synced, social, canUnd
       <ViewOnSite car={c} shown={conditionShown(mods, c.condition)} className={rowButton} />
     </>
   );
+  // The price drop suggested on old stock (#172), in the old stock view, for owners and managers (the settings permission, as the action
+  // checks). Our version applies it here; synced stock is changed on the listing site.
+  const drop = (c: Car) => (view === "old" && canUndo ? suggestedDrop(c, rules) : null);
+  const dropButton = (c: Car, to: number) => (
+    <ActButton act={dropPriceAction.bind(null, c.id, c.priceEur)} undo={undoDropAction.bind(null, c.id, c.priceEur, c.wasPriceEur ?? 0, to)} done={`${carName(c)} is now ${fmtEur(to)}`} label={`Drop ${carName(c)} to ${fmtEur(to)}`} className={rowButton}>
+      Drop to {fmtEur(to)}
+    </ActButton>
+  );
+  const editThere = (c: Car) => (
+    <a href={listingHref(c, listingUrl)} {...NEW_TAB} className={rowButton} aria-label={`Edit ${carName(c)} on ${listingSite} (opens in a new tab)`}>
+      <PencilIcon className="shrink-0 size-4" />
+      Edit on {listingSite}
+    </a>
+  );
   const anyShareItems = (c: Car) => (social && forSale(c)) || (conditionShown(mods, c.condition) && Boolean(siteUrl) && onPublicSite(c, rules.soldVisibleDays));
 
   const columns: Column<Car>[] = [
@@ -290,6 +305,8 @@ async function StockTable({ sp, matching, sales, view, q, synced, social, canUnd
           <span className="font-medium">{priceLabel(c)}</span>
           {isSold(c) && sales.has(c.id) ? (
             <span className="text-meta text-text-2">sold for {fmtEur(sales.get(c.id)!.priceEur)}</span>
+          ) : drop(c) ? (
+            <span className="text-meta text-text-2">suggested {fmtEur(drop(c)!.priceEur)}</span>
           ) : (
             isReduced(c) && <span className="text-meta text-ok max-sm:hidden">was {fmtEur(c.wasPriceEur!)}</span>
           )}
@@ -331,20 +348,20 @@ async function StockTable({ sp, matching, sales, view, q, synced, social, canUnd
         <div className="relative z-10 flex justify-end gap-2">
           {recordSale(c)}
           {synced ? (
-            (undoSale(c) || !c.takenDownAt || anyShareItems(c)) && (
-              <RowMenu label={`More for ${carName(c)}`}>
-                {undoSale(c)}
-                {!c.takenDownAt && (
-                  <a href={listingHref(c, listingUrl)} {...NEW_TAB} className={rowButton} aria-label={`Edit ${carName(c)} on ${listingSite} (opens in a new tab)`}>
-                    <PencilIcon className="shrink-0 size-4" />
-                    Edit on {listingSite}
-                  </a>
-                )}
-                {shareItems(c)}
-              </RowMenu>
-            )
+            <>
+              {/* With a suggested price, Edit on the listing site is the row's button: the price is changed there. */}
+              {drop(c) && editThere(c)}
+              {(undoSale(c) || (!c.takenDownAt && !drop(c)) || anyShareItems(c)) && (
+                <RowMenu label={`More for ${carName(c)}`}>
+                  {undoSale(c)}
+                  {!c.takenDownAt && !drop(c) && editThere(c)}
+                  {shareItems(c)}
+                </RowMenu>
+              )}
+            </>
           ) : (
             <>
+              {drop(c) && dropButton(c, drop(c)!.priceEur)}
               {!isSold(c) && (
                 <Link href={`/stock/${c.id}/sale`} aria-label={`Mark sold: ${carName(c)}`} className={rowButtonStrong}>
                   <CheckIcon className="shrink-0 size-4" />

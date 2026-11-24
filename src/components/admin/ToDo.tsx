@@ -61,7 +61,7 @@ export async function loadToDo(mineParam: string | undefined) {
   const sync = synced ? await syncStatus() : null;
   // Only for staff with the margins permission: the costs are not read without it.
   const costs = (await can("margins")) ? new Set((await carCosts()).keys()) : undefined;
-  const o = overview({ leads: leads.filter(isSalesLead), drives, reviews, rules, listingSite, cars: all, costs, sales: new Set(sales.map((s) => s.id)), reservations, orders, warrantyRequests: openWarrantyRequests(leads, claims).length, syncProblem: Boolean(sync?.problem), slaHours: settings.leadSlaHours, mine: mine ? me.name : undefined });
+  const o = overview({ leads: leads.filter(isSalesLead), drives, reviews, rules, listingSite, cars: all, costs, sales: new Set(sales.map((s) => s.id)), reservations, orders, warrantyRequests: openWarrantyRequests(leads, claims).length, syncProblem: Boolean(sync?.problem), slaHours: settings.leadSlaHours, mine: mine ? me.name : undefined, drops: await can("settings") });
   // What a module that is off would show goes with it (#173): its buttons, figures and to-dos.
   // Orders and deposits are our version only: with DoneDeal stock their pages are not there, so their to-dos go too.
   const attention = o.attention.filter((a) => (!MODULE_OF[a.key] || mods.has(MODULE_OF[a.key])) && !(synced && (a.key === "orders" || a.key === "deposits")));
@@ -107,7 +107,7 @@ export async function loadToDo(mineParam: string | undefined) {
         ];
       default: {
         const g = GROUPED[a.key];
-        return [<Task key={a.key} urgency={a.urgency} icon={g?.icon ?? <AlertIcon />} title={a.label} detail={a.key === "sync" ? undefined : plural(a.count, g?.noun ?? "item")} action={<Link href={a.href} aria-label={`${g?.verb ?? "Open"}: ${a.label}`} className={rowButtonStrong}>{g?.verb ?? "Open"}</Link>} />];
+        return [<Task key={a.key} urgency={a.urgency} icon={g?.icon ?? <AlertIcon />} title={a.label} detail={a.key === "sync" ? undefined : [plural(a.count, g?.noun ?? "item"), a.detail].filter(Boolean).join(" · ")} action={<Link href={a.href} aria-label={`${g?.verb ?? "Open"}: ${a.label}`} className={rowButtonStrong}>{g?.verb ?? "Open"}</Link>} />];
       }
     }
   });

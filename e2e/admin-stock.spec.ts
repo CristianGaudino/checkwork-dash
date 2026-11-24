@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { choose } from "./combo";
+import { as } from "./open";
 
 // The dealer adds, edits, sells and deletes a car. One made-up make, so no other test sees it, and it is
 // deleted at the end whatever happens.
@@ -235,6 +236,19 @@ test("tick several cars: drop their price at once, then delete them", async ({ p
   await page.getByRole("dialog").getByRole("button", { name: "Delete" }).click();
   await expect(page.getByText("Deleted 2 cars")).toBeVisible();
   await expect(page.getByRole("row", { name: new RegExp(MAKE) })).toHaveCount(0);
+});
+
+// The demo's oldest cars are past its old stock days. Only looked at: applying it would change prices other tests read.
+test("old stock: owners see a suggested price and Drop to; sales see neither", async ({ page, context }) => {
+  await page.goto("/stock?view=old");
+  const drop = page.getByRole("button", { name: /^Drop .+ to €[\d,]+$/ });
+  await expect(drop.first()).toBeVisible();
+  await expect(page.getByRole("row").filter({ has: drop.first() })).toContainText(/suggested €[\d,]+/);
+  await as(context, "Sales");
+  await page.goto("/stock?view=old");
+  await expect(page.getByRole("row").nth(1)).toBeVisible();
+  await expect(drop).toHaveCount(0);
+  await expect(page.getByText(/suggested €/)).toHaveCount(0);
 });
 
 test("add a car with its photos and battery figures", async ({ page }) => {
