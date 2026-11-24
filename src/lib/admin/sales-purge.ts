@@ -8,6 +8,7 @@ import { SALE_KEEP_YEARS } from "../leads/constants";
 // after that the daily job (worker.mjs) removes the link to the buyer and keeps the figures (price, day, salesperson) for the reports.
 // Each collection, with the field that dates it.
 const DATED = [["sales", "$.soldOn"], ["reservations", "$.paidOn"], ["claims", "$.openedOn"], ["orders", "$.orderedOn"]] as const;
+// A sale also loses the reminders sent to the buyer (#171; absent elsewhere, so removing it is a no-op there).
 // A claim and an order also lose their lead and their words (the fault and the notes may name the buyer), as an erasure does.
 const CLEARED: Record<string, SQL> = {
   claims: sql`json_set(json_remove(${adminDocs.data}, '$.customerId', '$.leadId'), '$.fault', 'Removed after six years', '$.notes', json('[]'))`,
@@ -23,7 +24,7 @@ export async function anonymiseOldSales(db: BaseSQLiteDatabase<"async", unknown,
   for (const [collection, dated] of DATED) {
     const rows = await db
       .update(adminDocs)
-      .set({ data: CLEARED[collection] ?? sql`json_remove(${adminDocs.data}, '$.customerId')`, updatedAt: now })
+      .set({ data: CLEARED[collection] ?? sql`json_remove(${adminDocs.data}, '$.customerId', '$.reminders')`, updatedAt: now })
       .where(and(eq(adminDocs.collection, collection), lt(sql`json_extract(${adminDocs.data}, ${dated})`, day), sql`json_extract(${adminDocs.data}, '$.customerId') IS NOT NULL`))
       .returning({ id: adminDocs.id });
     done += rows.length;

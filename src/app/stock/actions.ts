@@ -346,6 +346,8 @@ const sale = z.object({
   tradeReg: z.preprocess(blank, z.string().trim().toUpperCase().max(12).optional()),
   tradeEur: z.preprocess(blank, euros(1_000_000).optional()),
   leadId: z.string().max(60).optional(),
+  nctDue: z.preprocess(blank, isoDay("Choose the day the NCT is due").optional()),
+  serviceDue: z.preprocess(blank, isoDay("Choose the day the service is due").optional()),
   ...buyerFields,
 });
 
@@ -390,6 +392,9 @@ export async function recordSaleAction(carId: string, _prev: FormState, data: Fo
     ...(d.tradeReg && d.tradeEur && { tradeIn: { reg: d.tradeReg, allowanceEur: d.tradeEur, ...(was?.tradeIn?.history && { history: was.tradeIn.history }) } }),
     ...(leadId && { leadId }),
     ...(was?.reviewAskedOn && { reviewAskedOn: was.reviewAskedOn }), // asked once per sale, whatever is changed later
+    ...(d.nctDue && { nctDue: d.nctDue }),
+    ...(d.serviceDue && { serviceDue: d.serviceDue }),
+    ...(was?.reminders && { reminders: was.reminders }), // one per due date ever, whatever is changed later
     createdAt: was?.createdAt ?? Date.now(),
   });
   const markSold =

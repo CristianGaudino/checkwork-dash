@@ -84,7 +84,7 @@ What differs between dealers beyond their records is in their profile (#5): one 
   email, address and hours in Settings, Your business (`saveBusinessAction`, in the activity history); it merges into the profile, never
   over what is ours.
 - **Ours to set** (shown read only in Billing: the plan, and "What we set for you"): `modules` (the plan), `stock` (`source` "checkwork" or "donedeal",
-  `listingSite`, `listingUrl`), `rules` (`oldStockDays`, `slowDropEur`, `soldVisibleDays`), `placeId` (Google reviews)
+  `listingSite`, `listingUrl`), `rules` (`oldStockDays`, `slowDropEur`, `soldVisibleDays`, `serviceMonths`), `placeId` (Google reviews)
   and `leadEmail` (where leads go when Settings has no address). How to set them: `docs/new-dealer.md`.
 - **Defaults:** a dealer with nothing set has the dashboard alone, stock kept here, the usual rules, no website and no logo (the menu
   shows the name). A demo dealer's base is the made-up demo business (`DEMO_PROFILE`: every module, its facts and logo); the demo reset
@@ -242,6 +242,19 @@ with no D1). The actor is the signed-in person (`currentMember`), or a named one
   first lead email. Once per sale (`reviewAskedOn`), never for a sale undone, never to a buyer who stopped WhatsApp on any lead, and a demo
   dealer sends nothing outside. A failed ask never stops the sale: it logs the car's id and `review-ask-failed` (never the buyer) and Stock
   says "The review request did not go". The car's page and the customer show the day it was asked; Activity records it against the car.
+- **NCT and service reminders** (#171, `src/lib/admin/reminders.ts`, the sales module): a sale has its NCT due (typed on the sale form, else
+  the car's history check's NCT expiry, unless that ran out before the sale) and its service due (typed, else the dealer's `serviceMonths`
+  after the sale, 12 by default, then every `serviceMonths` after). The morning cron (`/api/reminders`, after the WhatsApp alerts in
+  `worker.mjs`) reminds the buyer 30 days before the NCT and on the service day (`REMINDER_LEAD_DAYS`; a run missed still sends within a
+  week), once per sale per due date ever (`reminders` on the sale: kind, due date, day sent and channel). Only a buyer with marketing
+  consent on their customer record, never one who stopped WhatsApp on any lead, never for a sale undone. As the review ask: WhatsApp if
+  they opted in and a marketing message can really go (counted as `marketing` usage: it is the dealer's offer, not an answer to them),
+  else email (free) with the dealer's lead email as reply-to and the way out. A demo dealer sends nothing outside and still records it.
+  Text: "Hi Pat, the NCT on your 2019 Ford Focus is due on 24 December. Byrne Motors can book it in for you: reply here or call 01 234
+  5678." (the service one: "your 2019 Ford Focus is due a service on ..."). The customer's purchases and the car's page show "NCT due",
+  "Service due" and the last "NCT reminder sent"; owners and managers see "Reminders due this month" on Customers, with what was sent.
+  Only dates and the channel are kept; a data request exports and erases them with the buyer, and the six-year purge removes them with
+  the buyer. The job logs counts only.
 - **A lost lead** asks why, from a fixed list, and Reports shows "Why leads were lost".
 - **Close a lead** (#55): a lead no longer active (No reply needed, Not interested, Duplicate, Wrong number) is closed from More, on the
   lead and in each Leads row's menu (To answer now and the list), with Undo. Status `closed` with `closedReason`, and `statusBefore`, the status it had: not open,

@@ -14,8 +14,9 @@ import type { FormState } from "@/lib/admin/validation";
 // `leads`: this car's leads, to say which one it came from (it is marked won). `askable`: the customers who can be asked for a Google review
 // (an email, or WhatsApp opted in); without it (no review link, or Change the sale) there is no tick. On by default for one of them, or a
 // new buyer with an email, until staff tick or untick it.
-export type SaleDefaults = { priceEur: number; soldOn: string; salesperson?: string; customerId?: string; coverMonths?: number; tradeIn?: { reg: string; allowanceEur: number }; leadId?: string };
-export function SaleForm({ carId, defaults, today, team, me, customers, leads, submit, askable }: { carId: string; defaults: SaleDefaults; today: string; team: string[]; me?: string; customers: { id: string; label: string }[]; leads: { id: string; label: string }[]; submit: string; askable?: string[] }) {
+export type SaleDefaults = { priceEur: number; soldOn: string; salesperson?: string; customerId?: string; coverMonths?: number; tradeIn?: { reg: string; allowanceEur: number }; leadId?: string; nctDue?: string; serviceDue?: string };
+// `serviceMonths`: the dealer's rule, said under the service box (left blank, the service is due that long after the sale).
+export function SaleForm({ carId, defaults, today, team, me, customers, leads, submit, askable, serviceMonths }: { carId: string; defaults: SaleDefaults; today: string; team: string[]; me?: string; customers: { id: string; label: string }[]; leads: { id: string; label: string }[]; submit: string; askable?: string[]; serviceMonths: number }) {
   const [state, action, pending] = useKeptForm<FormState>(recordSaleAction.bind(null, carId), undefined);
   const e = state?.errors ?? {};
   const [buyer, setBuyer] = useState(defaults.customerId ?? "");
@@ -46,7 +47,7 @@ export function SaleForm({ carId, defaults, today, team, me, customers, leads, s
           Ask them for a Google review
         </label>
       )}
-      <h2 className="mt-2 text-section font-semibold sm:col-span-2 lg:col-span-3">Warranty and trade-in</h2>
+      <h2 className="mt-2 text-section font-semibold sm:col-span-2 lg:col-span-3">Warranty, trade-in and reminders</h2>
       <Field label="Warranty" error={e.coverMonths}>
         <Select name="coverMonths" defaultValue={String(defaults.coverMonths ?? COVER_MONTHS)} options={COVER_CHOICES.map((m) => [String(m), m === COVER_MONTHS ? `${m} months, included` : `${m} months, extended`] as const)} />
       </Field>
@@ -55,6 +56,12 @@ export function SaleForm({ carId, defaults, today, team, me, customers, leads, s
       </Field>
       <Field label="Trade-in allowance (€)" error={e.tradeEur}>
         <input name="tradeEur" inputMode="numeric" defaultValue={defaults.tradeIn?.allowanceEur} className={adminInput} />
+      </Field>
+      <Field label="NCT due (optional)" hint="Leave blank to use the history check" error={e.nctDue}>
+        <input name="nctDue" type="date" defaultValue={defaults.nctDue} className={adminInput} />
+      </Field>
+      <Field label="Service due (optional)" hint={`Leave blank for ${serviceMonths} months after the sale`} error={e.serviceDue}>
+        <input name="serviceDue" type="date" defaultValue={defaults.serviceDue} className={adminInput} />
       </Field>
       {leads.length > 0 && (
         <Field label="From the lead (optional)" hint="It is marked won" error={e.leadId} className="sm:col-span-2 lg:col-span-3">

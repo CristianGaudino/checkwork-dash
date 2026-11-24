@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Badge, DataTable, EmptyState, PageHeader, SummaryTabs, TableFooter, TableToolbar, pageOf, rowButton, rowDanger, sortRows, type Column, type FilterGroup } from "@/components/admin/kit";
+import { Badge, DataTable, EmptyState, PageHeader, Panel, SummaryTabs, TableFooter, TableToolbar, Task, TaskList, pageOf, rowButton, rowDanger, sortRows, type Column, type FilterGroup } from "@/components/admin/kit";
 import { filterAlerts, filterCustomers } from "@/lib/admin/customer-lists";
 import { ActButton } from "@/components/admin/ActButton";
 import { can } from "@/lib/permissions";
@@ -7,7 +7,10 @@ import { notFound } from "next/navigation";
 import { hasModule } from "@/lib/modules";
 import { ALERT_KINDS, ALERT_KIND_LABELS, alertsStore, claimOpen, claimsStore, customersStore, reservationsStore, salesStore, type Customer, type StockAlert } from "@/lib/admin/collections";
 import { stockSource } from "@/lib/stock-source";
-import { fmtAgo, fmtDate, fmtNum } from "@/lib/admin/format";
+import { dublinDay, fmtAgo, fmtDate, fmtNum } from "@/lib/admin/format";
+import { dueThisMonth } from "@/lib/admin/reminders";
+import { carHistoryStore } from "@/lib/history";
+import { currentDealer } from "@/lib/tenancy/current";
 import { pauseAlertAction, removeAlertAction } from "./actions";
 import { CallButton } from "@/components/admin/LeadActions";
 import { RowMenu } from "@/components/admin/RowMenu";
@@ -36,6 +39,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
   if (!synced) for (const r of deposits) if (r.status === "held") add(r.customerId, "Deposit held");
   if (service) for (const k of claims) if (claimOpen(k.status)) add(k.customerId, "Warranty claim");
   const sources = [...new Set(customers.map((c) => c.source))].sort();
+  // Owners and managers: the buyers' NCT and service falling due this month (#171), with the reminder sent or why none goes.
+  const due = sales && tab === "customers" && (await can("settings")) ? await remindersPanel(sold, customers) : null;
 
   const customerColumns: Column<Customer>[] = [
     {
@@ -152,6 +157,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
         ]}
       />
 
+      {due}
       {tab === "customers" && (
         <>
           <TableToolbar search={{ placeholder: "Search", label: "Search customers" }} filters={filters.customers} />
@@ -168,5 +174,28 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
         </>
       )}
     </>
+  );
+}
+
+async function remindersPanel(sales: Parameters<typeof dueThisMonth>[0], customers: Customer[]) {
+  const [histories, { profile }] = await Promise.all([carHistoryStore.list(), currentDealer()]);
+  const historyOf = new Map(histories.map((h) => [h.id, h.history]));
+  const rows = dueThisMonth(sales, customers, (id) => historyOf.get(id), profile.rules.serviceMonths, dublinDay());
+  if (!rows.length) return null;
+  const day = (d: string) => fmtDate(`${d}T12:00:00Z`);
+  return (
+    <Panel title="Reminders due this month" quiet>
+      <TaskList label="Reminders due this month">
+        {rows.map((r) => (
+          <Task
+            key={`${r.sale.id}-${r.kind}`}
+            href={`/customers/${r.customer.id}`}
+            title={r.customer.name}
+            detail={`${r.kind === "nct" ? "NCT" : "Service"} due ${day(r.due)}, ${r.sale.carTitle}`}
+            action={r.sent ? <Badge tone="good">Sent {day(r.sent.on)}</Badge> : !r.customer.marketingConsent ? <Badge>No marketing</Badge> : undefined}
+          />
+        ))}
+      </TaskList>
+    </Panel>
   );
 }
