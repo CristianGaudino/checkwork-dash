@@ -12,18 +12,18 @@ export const SERVICE_LABELS: Record<Service, string> = { lookup: "Registration l
 export type Scope = Exclude<Service, "ai">; // what is billed per use, and so has a limit
 export const PAID: Scope[] = ["lookup", "history", "whatsapp"];
 
-// What each use is, and its price. A lookup is on the website or in the dashboard; an AI action (a draft or an adjust) is counted by the
-// model that wrote it, Premium (Claude Opus) or Standard (Claude Sonnet) (BillingSettings.aiModel); the dealer never sees which model or
-// provider it is. A WhatsApp message is an alert or confirmation, a reply inside the 24 hours after a buyer writes, or a marketing message.
+// What each use is, and its price. A lookup is in the dashboard (the website has none, #182: a stored bill's "website" line keeps its
+// label through itemise, and the demo's rebuilt bills have none). An AI action (a draft or an adjust) is counted by the model that wrote it, Premium (Claude Opus) or Standard (Claude
+// Sonnet) (BillingSettings.aiModel); the dealer never sees which model or provider it is. A WhatsApp message is an alert or confirmation, a reply inside the 24 hours after a buyer writes, or a marketing message.
 export const KINDS = {
-  lookup: { website: "On the website", dashboard: "In the dashboard" },
+  lookup: { dashboard: "In the dashboard" },
   history: { dashboard: "In the dashboard" },
   ai: { opus: "Premium", sonnet: "Standard" },
   whatsapp: { alert: "Alerts and confirmations", reply: "Replies to buyers", marketing: "Marketing messages" },
 } as const satisfies Record<Service, Record<string, string>>;
 export type Kind<S extends Service = Service> = keyof (typeof KINDS)[S] & string;
 export const UNIT_PRICE_EUR: { [S in Service]: Record<Kind<S>, number> } = {
-  lookup: { website: 0.3, dashboard: 0.3 },
+  lookup: { dashboard: 0.3 },
   history: { dashboard: 2.5 }, // TO CONFIRM against One Auto's price for a history check (#170): a placeholder until the owner has it
   ai: { opus: 0, sonnet: 0 }, // fair use: never billed
   whatsapp: { alert: 0.05, reply: 0.03, marketing: 0.12 },
@@ -35,14 +35,14 @@ export const AI_FAIR_USE = 500;
 // The plans (#147), a month before VAT, for one dealership. Everything in a plan is included; the only add-on is Social and ads, at its
 // own price until marketing is priced (#148). A setup fee for a plan with the website, none on a 2-year term.
 // shortcut: one dealership only; the price per extra dealership comes back with multi-dealership (#16).
-const WEBSITE_ONLY: ModuleId[] = ["tradeIn", "finance", "carFinder", "commercial", "lookupWebsite"];
+const WEBSITE_ONLY: ModuleId[] = ["tradeIn", "finance", "carFinder", "commercial"];
 const ADD_ON_EUR: Partial<Record<ModuleId, number>> = { social: 99 };
 const ADD_ON_SETUP_EUR: Partial<Record<ModuleId, number>> = { social: 150 };
 // The dashboard plan: every other module (reviews is in both: shown on the website, answered from the dashboard). No plan includes a
 // history check (#170): every one is billed, so none is in an allowance.
 const DASHBOARD = MODULE_IDS.filter((m) => !WEBSITE_ONLY.includes(m) && !ADD_ON_EUR[m]);
 export const PLANS: { id: string; label: string; modules: readonly ModuleId[]; eur: number; setupEur: number; allowance: Allowance }[] = [
-  { id: "website", label: "Website", modules: [...WEBSITE_ONLY, "reviews"], eur: 149, setupEur: 500, allowance: { lookup: 25 } },
+  { id: "website", label: "Website", modules: [...WEBSITE_ONLY, "reviews"], eur: 149, setupEur: 500, allowance: {} }, // no paid service on the website alone
   { id: "dashboard", label: "Dashboard", modules: DASHBOARD, eur: 149, setupEur: 0, allowance: { lookup: 100, whatsapp: 500 } },
   { id: "both", label: "Website + Dashboard", modules: [...WEBSITE_ONLY, ...DASHBOARD], eur: 249, setupEur: 500, allowance: { lookup: 100, whatsapp: 500 } },
 ];
@@ -97,7 +97,7 @@ export type UsageCount = { id: string; month: string; service: Service; kind: st
 export const usageId = (month: string, service: Service, kind: string) => `${month}:${service}:${kind}`;
 
 export type ServiceCost = { count: number; costEur: number; kinds: { kind: string; label: string; count: number; included: number; costEur: number }[] };
-// What a plan includes a month, per service: lookups of either place and WhatsApp alerts (replies and marketing messages are always
+// What a plan includes a month, per service: lookups and WhatsApp alerts (replies and marketing messages are always
 // billed).
 export type Allowance = Partial<Record<Service, number>>;
 const allowanceCovers = (s: Service, kind: string) => s !== "whatsapp" || kind === "alert";

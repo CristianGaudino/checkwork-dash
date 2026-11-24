@@ -108,7 +108,6 @@ export function CarForm({ car, at, cost, reg: startReg = "", photosMax }: { car?
             <RegLookup
               reg={reg}
               lookup={lookupRegStaffAction}
-              place="dashboard"
               className="h-11 text-meta sm:mt-6 sm:w-44"
               onFound={({ year, car: c }) => fill({ year, make: c?.make, model: c?.model, fuel: c?.fuel, engineLitres: c?.engineLitres, colour: c?.colour, bodyType: c?.bodyType })}
             />

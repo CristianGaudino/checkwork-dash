@@ -63,7 +63,7 @@ curl -X DELETE -H "Authorization: Bearer $OWNER_API_TOKEN" https://www.dash.chec
   "dashboard": { "leads": 88, "stock": 40, "monthly-report": 2 },
   "modules": ["dashboard", "sales", "reviews"],
   "listingSync": { "lastRunAt": 1760000000000, "lastOkAt": 1760000000000, "result": { "added": 0, "changed": 0, "takenDown": 0 }, "ok": true },
-  "usage": [{ "month": "2026-10", "totalEur": 12.4, "services": { "lookup": { "count": 40, "costEur": 12, "kinds": [{ "kind": "website", "count": 30, "costEur": 9 }] } } }]
+  "usage": [{ "month": "2026-10", "totalEur": 12.4, "services": { "lookup": { "count": 40, "costEur": 12, "kinds": [{ "kind": "dashboard", "count": 30, "costEur": 9 }] } } }]
 }
 ```
 

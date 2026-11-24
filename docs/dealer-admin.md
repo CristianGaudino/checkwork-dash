@@ -15,7 +15,8 @@ comes from.
 ## Usage billed per use
 
 Registration lookups, history checks and WhatsApp messages cost the dealer per use, on top of the plan, past the plan's monthly allowance
-(#147, #181, #170; no plan includes a history check).
+(#147, #181, #170; no plan includes a history check). The registration lookup is for staff in the dashboard only (module
+`lookupDashboard`, #182): the website has none, so a buyer types their registration and staff look the car up when they work the lead.
 AI writing is fair use: counted the same way, never billed, and stopped at our ceiling (`AI_FAIR_USE` actions a month). The code that
 makes a use counts it with `recordUsage` and asks `usageAllowed` first (`src/lib/billing/usage.ts`): past a monthly limit (the dealer's,
 one per paid service, set by the Owner or Manager on Billing, or our ceiling) the service stops for the month and falls back (a lookup
@@ -469,7 +470,7 @@ dealership:
 
 | Plan | Modules | Monthly | Setup | Included each month |
 |---|---|---|---|---|
-| Website | Trade-in, finance, car finder, commercial vehicles, reviews, lookup on the website | EUR 149 | EUR 500 | 25 lookups |
+| Website | Trade-in, finance, car finder, commercial vehicles, reviews | EUR 149 | EUR 500 | none (no paid service) |
 | Dashboard | The dashboard and every module in it: test drives, sales and customers, margins, service, reviews, stock alerts, analytics, WhatsApp, AI writing, lookup in the dashboard, vehicle history check | EUR 149 | none | 100 lookups, 500 WhatsApp alerts and confirmations |
 | Website + Dashboard | Both | EUR 249 | EUR 500 | 100 lookups, 500 WhatsApp alerts and confirmations |
 

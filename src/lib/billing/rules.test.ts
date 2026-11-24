@@ -4,13 +4,13 @@ import { AI_FAIR_USE, BILLING_DEFAULT, PLANS, inAllowance, allowanceFor, alertsC
 
 const c = (service: UsageCount["service"], kind: string, count: number): UsageCount => ({ id: `m:${service}:${kind}`, month: "2026-11", service, kind, count });
 
-const WEBSITE = ["tradeIn", "finance", "carFinder", "commercial", "lookupWebsite", "reviews"] as const;
+const WEBSITE = ["tradeIn", "finance", "carFinder", "commercial", "reviews"] as const;
 const DASHBOARD = ["dashboard", "testDrives", "sales", "margins", "service", "reviews", "newsletter", "analytics", "whatsapp", "ai", "lookupDashboard", "history"] as const;
 const BOTH = [...WEBSITE, ...DASHBOARD];
 
 describe("usage costs", () => {
   it("prices each paid line, and adds them up; AI writing is counted, never billed", () => {
-    const u = usageCosts([c("lookup", "website", 10), c("whatsapp", "alert", 20), c("whatsapp", "reply", 50), c("ai", "opus", 4), c("ai", "sonnet", 5)], {});
+    const u = usageCosts([c("lookup", "dashboard", 10), c("whatsapp", "alert", 20), c("whatsapp", "reply", 50), c("ai", "opus", 4), c("ai", "sonnet", 5)], {});
     expect(u.lookup.costEur).toBe(3);
     expect(u.whatsapp.costEur).toBe(2.5); // 20 x 0.05 + 50 x 0.03
     expect(u.ai).toMatchObject({ count: 9, costEur: 0 });
@@ -18,15 +18,15 @@ describe("usage costs", () => {
   });
 
   it("puts the allowance against each service first, then bills per use over it; WhatsApp's covers alerts only", () => {
-    expect(usageCosts([c("lookup", "website", 20), c("lookup", "dashboard", 10)], { lookup: 25 }).lookup.costEur).toBe(1.5); // 5 over x 0.30
+    expect(usageCosts([c("lookup", "dashboard", 30)], { lookup: 25 }).lookup.costEur).toBe(1.5); // 5 over x 0.30
     const w = usageCosts([c("whatsapp", "alert", 510), c("whatsapp", "reply", 10)], { whatsapp: 500 }).whatsapp;
     expect(w.costEur).toBe(0.8); // 10 alerts over x 0.05 + 10 replies x 0.03
     expect(w.kinds.map((k) => k.included)).toEqual([500, 0, 0]);
   });
 
-  it("each plan's allowance: lookups, and WhatsApp alerts with the dashboard; none for AI writing", () => {
-    expect(allowanceFor([], BILLING_DEFAULT)).toEqual({ lookup: 25 }); // no modules is Website
-    expect(allowanceFor(WEBSITE, BILLING_DEFAULT)).toEqual({ lookup: 25 });
+  it("each plan's allowance: lookups and WhatsApp alerts with the dashboard; none on the website alone, none for AI writing", () => {
+    expect(allowanceFor([], BILLING_DEFAULT)).toEqual({}); // no modules is Website
+    expect(allowanceFor(WEBSITE, BILLING_DEFAULT)).toEqual({});
     expect(allowanceFor(DASHBOARD, BILLING_DEFAULT)).toEqual({ lookup: 100, whatsapp: 500 });
     expect(allowanceFor(BOTH, BILLING_DEFAULT)).toEqual({ lookup: 100, whatsapp: 500 });
     expect(allowanceFor([...BOTH, "social"], BILLING_DEFAULT)).toEqual({ lookup: 100, whatsapp: 500 });
@@ -91,8 +91,8 @@ describe("limits", () => {
     expect(capOf({ ...b, caps: {} }, "whatsapp")).toBeUndefined();
   });
   it("stops a paid service at its own limit, and AI writing at our fair use", () => {
-    expect(withinCaps(usageCosts([c("lookup", "website", 26)], {}), b, "lookup")).toBe(true); // 7.80
-    expect(withinCaps(usageCosts([c("lookup", "website", 27)], {}), b, "lookup")).toBe(false); // 8.10
+    expect(withinCaps(usageCosts([c("lookup", "dashboard", 26)], {}), b, "lookup")).toBe(true); // 7.80
+    expect(withinCaps(usageCosts([c("lookup", "dashboard", 27)], {}), b, "lookup")).toBe(false); // 8.10
     expect(withinCaps(usageCosts([c("ai", "opus", AI_FAIR_USE - 1)], {}), b, "ai")).toBe(true);
     // History checks: none in any plan, so each is billed, and our default limit stops them at EUR 25 (10 checks).
     expect(withinCaps(usageCosts([c("history", "dashboard", 9)], allowanceFor(BOTH, BILLING_DEFAULT)), BILLING_DEFAULT, "history")).toBe(true);
@@ -100,7 +100,7 @@ describe("limits", () => {
     expect(withinCaps(usageCosts([c("ai", "opus", AI_FAIR_USE)], {}), b, "ai")).toBe(false);
   });
   it("sends one notice as a limit is reached, and none on the way to it", () => {
-    const lookups = (n: number) => usageCosts([c("lookup", "website", n)], {});
+    const lookups = (n: number) => usageCosts([c("lookup", "dashboard", n)], {});
     expect(alertsCrossed(lookups(21), lookups(22), b, "2026-11")).toEqual([]); // 80% passed: nothing
     expect(alertsCrossed(lookups(26), lookups(27), b, "2026-11").map((a) => a.key)).toEqual(["2026-11:lookup:cap:8"]);
     expect(alertsCrossed(lookups(27), lookups(28), b, "2026-11")).toEqual([]);
@@ -114,21 +114,21 @@ describe("the estimate", () => {
     expect(monthEndEstimate(1, "2026-12-01")).toBe(31); // the 1st in Dublin, whatever the UTC day
   });
   it("stops each service at its own limit, never below what is spent, and never counts AI", () => {
-    const counts = [c("lookup", "website", 30), c("whatsapp", "reply", 100), c("ai", "opus", 300)]; // EUR 9 and EUR 3 by the 10th, so 27 and 9 at that pace
+    const counts = [c("lookup", "dashboard", 30), c("whatsapp", "reply", 100), c("ai", "opus", 300)]; // EUR 9 and EUR 3 by the 10th, so 27 and 9 at that pace
     const b = (caps: BillingSettings["caps"]): BillingSettings => ({ ...BILLING_DEFAULT, caps, ceilings: {} });
     expect(usageEstimate(counts, {}, b({}), "2026-11-10")).toBe(36);
     expect(usageEstimate(counts, {}, b({ lookup: 10 }), "2026-11-10")).toBe(19); // lookups stop at 10, WhatsApp goes on to 9
     expect(usageEstimate(counts, {}, b({ lookup: 5 }), "2026-11-10")).toBe(18); // a limit lowered below the spend: 9 spent, WhatsApp to 9
   });
   it("estimates past the allowance at the month's pace, not from what is billed so far", () => {
-    expect(usageEstimate([c("lookup", "website", 60)], { lookup: 100 }, { ...BILLING_DEFAULT, ceilings: {} }, "2026-11-10")).toBe(24); // 180 at that pace, 80 x 0.30
-    expect(usageEstimate([c("lookup", "website", 60)], { lookup: 100 }, BILLING_DEFAULT, "2026-11-10")).toBe(15); // our EUR 15 limit stops it
+    expect(usageEstimate([c("lookup", "dashboard", 60)], { lookup: 100 }, { ...BILLING_DEFAULT, ceilings: {} }, "2026-11-10")).toBe(24); // 180 at that pace, 80 x 0.30
+    expect(usageEstimate([c("lookup", "dashboard", 60)], { lookup: 100 }, BILLING_DEFAULT, "2026-11-10")).toBe(15); // our EUR 15 limit stops it
   });
   it("lets a use the plan still includes past any limit, as it costs nothing; WhatsApp only for alerts", () => {
     const allowance = { lookup: 25, whatsapp: 500 };
-    const used = usageCosts([c("lookup", "website", 24), c("whatsapp", "alert", 10)], allowance);
+    const used = usageCosts([c("lookup", "dashboard", 24), c("whatsapp", "alert", 10)], allowance);
     expect(inAllowance(used, allowance, "lookup")).toBe(true);
-    expect(inAllowance(usageCosts([c("lookup", "website", 25)], allowance), allowance, "lookup")).toBe(false);
+    expect(inAllowance(usageCosts([c("lookup", "dashboard", 25)], allowance), allowance, "lookup")).toBe(false);
     expect(inAllowance(used, allowance, "whatsapp", "alert")).toBe(true);
     expect(inAllowance(used, allowance, "whatsapp", "reply")).toBe(false);
     expect(inAllowance(used, allowance, "whatsapp")).toBe(false);

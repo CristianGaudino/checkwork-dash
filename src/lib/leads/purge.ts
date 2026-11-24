@@ -38,10 +38,11 @@ export async function purgeOldLeads(
   // deposit, claim or order names them: a buyer stays while their records do, and leaves after the sales purge unlinks them (sales-purge.ts).
   const named = sql`(SELECT json_extract(n.data, '$.customerId') FROM admin_docs n WHERE n.collection IN ('sales', 'reservations', 'claims', 'orders') AND json_extract(n.data, '$.customerId') IS NOT NULL)`;
   await db.delete(adminDocs).where(and(eq(adminDocs.collection, "customers"), lt(sql`json_extract(${adminDocs.data}, '$.lastContactAt')`, cutoff.getTime()), sql`${adminDocs.id} NOT IN ${named}`));
-  // The registration lookup's and the history check's caches (src/lib/reg-lookup.ts, src/lib/history.ts, both REG_CACHE_DAYS) and the
-  // lookup's past day counts: no plate kept longer than needed.
+  // The registration lookup's and the history check's caches (src/lib/reg-lookup.ts, src/lib/history.ts, both REG_CACHE_DAYS): no plate
+  // kept longer than needed.
   const regCutoff = now.getTime() - REG_CACHE_DAYS * 86_400_000;
   await db.delete(adminDocs).where(and(inArray(adminDocs.collection, ["reg-cache", "history-cache"]), lt(sql`json_extract(${adminDocs.data}, '$.at')`, regCutoff)));
+  // shortcut: the website lookup's day counts are gone (#182) but a store may still hold some; drop this line once every store is purged.
   await db.delete(adminDocs).where(and(eq(adminDocs.collection, "reg-counts"), lt(adminDocs.id, `day-${now.toISOString().slice(0, 10)}`)));
   const gone = await db.delete(leads).where(lt(leads.createdAt, cutoff)).returning({ id: leads.id });
   return gone.length;

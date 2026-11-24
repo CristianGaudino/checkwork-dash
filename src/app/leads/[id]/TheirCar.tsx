@@ -63,7 +63,7 @@ export function TheirCar({ car, selling, action }: { car: TheirCarFacts; selling
         lookups && (
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
             <p className="mr-auto text-body text-text-2">Not looked up yet.</p>
-            <RegLookup reg={car.reg} lookup={lookupRegStaffAction} place="dashboard" className="h-11 text-meta" onFound={({ year, car: found }) => found && start(async () => {
+            <RegLookup reg={car.reg} lookup={lookupRegStaffAction} className="h-11 text-meta" onFound={({ year, car: found }) => found && start(async () => {
                   const r = await action(undefined, formOf(car, selling, { make: found.make, model: found.model, year: car.year || String(year) }));
                   router.refresh();
                   if (r?.errors) showToast(Object.values(r.errors)[0]!); // e.g. a site lead's Year of "2019/20": nothing was saved
@@ -110,7 +110,6 @@ function CarForm({ car, selling, action, onSaved }: { car: TheirCarFacts; sellin
         <RegLookup
           reg={reg}
           lookup={lookupRegStaffAction}
-          place="dashboard"
           className="h-11 text-meta"
           onFound={({ year, car: found }) => {
             if (found) {
