@@ -51,7 +51,7 @@ export type Bill = {
 };
 export type BillLine = { label: string; detail?: string; eur: number };
 // Kinds no longer billed that a stored bill may still list: the website's lookup (#182).
-const OLD_KINDS: Record<string, string> = { website: "on the website" };
+const OLD_KINDS: Record<string, string> = { website: "On the website" };
 export function itemise(b: Bill) {
   const plan: BillLine[] = b.modules;
   const billed = (u: BillUsage) => u.count - (u.included ?? 0);
