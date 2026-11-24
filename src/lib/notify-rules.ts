@@ -41,9 +41,9 @@ export const roleDefaults = (role: Role, followUps: boolean): Prefs => ({ push: 
 // One person's stored record, as kept (src/lib/whatsapp/store.ts StaffPhone).
 export type PersonRecord = { id: string; name: string; phone: string; alerts: EventId[]; quietFrom: string; quietTo: string; push?: NotifyEvent[]; email?: NotifyEvent[] };
 // A person's choices from what is stored. Someone with a record from before #142 keeps their WhatsApp alerts and gets the rest from their
-// role; someone with no record yet starts from the owner's defaults for a new person, or their role's.
-export function prefsOf(rec: PersonRecord | undefined, role: Role, s: { followUps: boolean; defaults?: Prefs }): Prefs {
-  const base = rec || !s.defaults ? roleDefaults(role, s.followUps) : s.defaults;
+// role; someone with no record yet gets their role's.
+export function prefsOf(rec: PersonRecord | undefined, role: Role, s: { followUps: boolean }): Prefs {
+  const base = roleDefaults(role, s.followUps);
   return { push: rec?.push ?? base.push, email: rec?.email ?? base.email, whatsapp: rec ? rec.alerts : base.whatsapp };
 }
 // The WhatsApp column as stored (a record's `alerts`).

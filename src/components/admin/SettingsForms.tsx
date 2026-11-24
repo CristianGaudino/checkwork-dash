@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { Field, FormActions, adminButton, adminButtonQuiet, adminInput } from "@/components/admin/kit";
 import { DialogCancel } from "@/components/admin/Dialog";
 import { EditDialog, useDoneOnSave } from "@/components/admin/EditDialog";
-import { addTeamAction, saveBusinessAction, saveDefaultsAction, saveLeadEmailsAction, saveMarketingAction, saveMyNotificationsAction, savePersonAction, saveProfileAction, sendTestEmailAction, saveTargetsAction, type SettingsState } from "@/app/settings/actions";
+import { addTeamAction, saveBusinessAction, saveLeadEmailsAction, saveMarketingAction, saveMyNotificationsAction, savePersonAction, saveProfileAction, sendTestEmailAction, saveTargetsAction, type SettingsState } from "@/app/settings/actions";
 import type { DealerSettings } from "@/lib/admin/collections";
 import { columnsFor, type Channel, type Prefs } from "@/lib/notify-rules";
 import { NotifyGrid, type GridRow } from "@/components/admin/NotifyGrid";
@@ -58,11 +58,6 @@ export const MarketingEdit = ({ settings }: { settings: DealerSettings }) => (
 export const TargetsEdit = ({ settings }: { settings: DealerSettings }) => (
   <EditDialog title="Timings" what="timings" saved={SAVED}>
     {(done) => <TargetsForm settings={settings} done={done} />}
-  </EditDialog>
-);
-export const ReplyTimeEdit = ({ settings }: { settings: DealerSettings }) => (
-  <EditDialog title="Reply time" what="reply time" saved={SAVED}>
-    {(done) => <ReplyTimeForm settings={settings} done={done} />}
   </EditDialog>
 );
 export const LeadEmailsEdit = ({ settings }: { settings: DealerSettings }) => (
@@ -128,21 +123,11 @@ function TargetsForm({ settings, done }: { settings: DealerSettings; done: () =>
   useDoneOnSave(f.state, f.pending, done);
   return (
     <form {...f.run} className="flex flex-col gap-4" noValidate>
-      <Field label="Test drive slot (minutes)" hint="The same car cannot be booked twice within this time" error={f.errors.driveSlotMinutes}>
-        <input name="driveSlotMinutes" type="number" inputMode="numeric" defaultValue={settings.driveSlotMinutes} className={adminInput} />
-      </Field>
-      <DialogSave pending={f.pending} />
-    </form>
-  );
-}
-
-function ReplyTimeForm({ settings, done }: { settings: DealerSettings; done: () => void }) {
-  const f = useSave(saveTargetsAction);
-  useDoneOnSave(f.state, f.pending, done);
-  return (
-    <form {...f.run} className="flex flex-col gap-4" noValidate>
       <Field label="Reply to a new lead within (hours)" hint="Leads waiting longer show on the overview" error={f.errors.leadSlaHours}>
         <input name="leadSlaHours" type="number" inputMode="numeric" defaultValue={settings.leadSlaHours} className={adminInput} />
+      </Field>
+      <Field label="Test drive slot (minutes)" hint="The same car cannot be booked twice within this time" error={f.errors.driveSlotMinutes}>
+        <input name="driveSlotMinutes" type="number" inputMode="numeric" defaultValue={settings.driveSlotMinutes} className={adminInput} />
       </Field>
       <DialogSave pending={f.pending} />
     </form>
@@ -289,25 +274,6 @@ function NotificationsForm({ grid, quietFrom, quietTo, done }: { grid: Grid; qui
     <form {...f.run} className="flex flex-col gap-5" noValidate>
       <NotifyGrid {...grid} />
       {grid.columns.includes("whatsapp") && <QuietHours from={quietFrom} to={quietTo} errors={f.errors} />}
-      <DialogSave pending={f.pending} />
-    </form>
-  );
-}
-
-// What a new person starts with, set by an owner: every event of the plan, every channel; cut to each person's role when they are added.
-export const DefaultsEdit = ({ grid }: { grid: Grid }) => (
-  <EditDialog title="What a new person gets" what="what a new person gets" saved={SAVED}>
-    {(done) => <DefaultsForm grid={grid} done={done} />}
-  </EditDialog>
-);
-
-function DefaultsForm({ grid, done }: { grid: Grid; done: () => void }) {
-  const f = useSave(saveDefaultsAction);
-  useDoneOnSave(f.state, f.pending, done);
-  return (
-    <form {...f.run} className="flex flex-col gap-5" noValidate>
-      <NotifyGrid {...grid} />
-      {f.errors.defaults && !f.pending && <p role="alert" className="text-meta text-destructive">{f.errors.defaults}</p>}
       <DialogSave pending={f.pending} />
     </form>
   );

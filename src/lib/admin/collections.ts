@@ -17,7 +17,6 @@ import { regPeriods } from "@/lib/leads/reg-periods";
 import type { Car } from "@/lib/stock/types";
 import { roleCan, type Role } from "@/lib/permission-rules";
 import type { PrepLine } from "./prep";
-import type { Prefs } from "@/lib/notify-rules";
 import type { Journey } from "@/lib/leads/journey";
 import { CHANNEL_LABELS } from "@/lib/visit-rules";
 import { carTitleOf, demoJourney, livePicks, person, rng } from "./seed-data";
@@ -359,7 +358,6 @@ export type DealerSettings = {
   leadSlaHours: number; // a new lead waiting longer than this needs attention (overview)
   driveSlotMinutes: number; // one car cannot be booked twice within this many minutes (test drives)
   notifications: { followUps: boolean }; // the morning follow-ups email for everyone who has not chosen yet (#142: each person chooses now)
-  notifyDefaults?: Prefs; // what a new person gets (an owner sets it in Team); missing means their role's (src/lib/notify-rules.ts)
   marketing: { voice: string; hashtags: string; signOff: string }; // used by the post writer
   team: TeamMember[];
   leadEmails: string[]; // who gets the email when a visitor sends a form; empty means the dealer's profile's leadEmail

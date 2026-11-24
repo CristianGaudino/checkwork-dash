@@ -44,13 +44,13 @@ permissions, each checked on the server in every page and action that needs it (
     owner or manager in Team); **Notifications**, a grid of events by channel (push, email, WhatsApp) with only the events their role and the
     plan cover, quiet hours, their devices for push, and on a demo dealer the WhatsApp conversation to try. Each saves for the signed-in
     person only (`saveProfileAction`, `saveMyNotificationsAction`): who they are comes from the sign-in, never the form.
-  - **Dealership** (owners and managers): Business (details, hours, voice), Team, Lead routing (where new leads are emailed, the test email
-    and the reply time), Connected services (WhatsApp's number, connection and this month's messages among them), Timings (the test drive
-    slot) and Start again. Sales and Finance asking for one of these are sent back to `/settings`, and every action checks again.
+  - **Dealership** (owners and managers): Business (details, hours, voice), Team, Lead routing (where new leads are emailed and the test
+    email), Connected services (WhatsApp's number, connection and this month's messages among them), Timings (the reply time and the test
+    drive slot, one dialog, `saveTargetsAction`) and Start again. Sales and Finance asking for one of these are sent back to `/settings`, and every action checks again.
 - **Team:** add people, change and remove them. Opening a person (the house dialog) changes their name, sign-in email, phone, role, their
   notification grid and quiet hours, saved together (`savePersonAction`). The list says how each is reached ("WhatsApp, push, email";
-  push only with a device turned on, WhatsApp only with a phone and WhatsApp connected). An owner sets what a new person starts with ("What
-  a new person gets", `saveDefaultsAction`); until then a new person gets their role's. A manager cannot add, change or remove an owner, or
+  push only with a device turned on, WhatsApp only with a phone and WhatsApp connected). A new person starts with their role's defaults
+  (`roleDefaults` in `src/lib/notify-rules.ts`), kept as theirs (#150). A manager cannot add, change or remove an owner, or
   make anyone one. A team with an owner always keeps one, and the last person cannot be removed.
 - **A new name** follows the person to their leads, bookings, sales, bell notices and WhatsApp conversation; the activity history keeps
   the name each change was made under. **A new email** moves their membership in the directory at this dealer (`moveTeamMember`: the new
@@ -157,7 +157,8 @@ code path reaches another dealer's (#3, #4, #6; `src/lib/tenancy/`).
   your follow-ups due, each morning. WhatsApp: every WhatsApp alert. A role gets the plan's events, the Monday summary only with the full
   reports, and Finance never WhatsApp; every sender checks this again whatever is stored (`mayGet`). A record from before keeps its WhatsApp
   alerts and reads push (every request, as push always went) and email (the dealer's old morning switch, `notifications.followUps`) from the
-  role until the person saves; someone with no record starts from the owner's defaults (`notifyDefaults`) or their role's.
+  role until the person saves; someone with no record gets their role's. An owner's old choice for a new person (`notifyDefaults`, before
+  #150) may still be stored in the settings record; nothing reads it.
 - **The bell is in the app only** (`src/lib/admin/notifications.ts`). A new website request, test drive booking, warranty or order request,
   a DoneDeal ad taken down, a sync outage (once, as it starts), a lead given to you by someone else, a buyer's WhatsApp reply, a usage
   limit or spend alert (owners and managers), and Checkwork getting your help request. Each has a heading, what happened ("Test drive

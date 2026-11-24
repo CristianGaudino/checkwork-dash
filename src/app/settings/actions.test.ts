@@ -12,7 +12,7 @@ vi.mock("next/headers", () => ({
   cookies: async () => ({ get: (n: string) => (n === "checkwork-demo-role" && role ? { value: role } : undefined) }),
   headers: async () => ({ get: () => null }),
 }));
-const { addTeamAction, removeTeamAction, resetDemoAction, saveBusinessAction, saveDefaultsAction, saveLeadEmailsAction, saveMarketingAction, saveMyNotificationsAction, savePersonAction, saveProfileAction, saveTargetsAction, sendTestEmailAction } = await import("./actions");
+const { addTeamAction, removeTeamAction, resetDemoAction, saveBusinessAction, saveLeadEmailsAction, saveMarketingAction, saveMyNotificationsAction, savePersonAction, saveProfileAction, saveTargetsAction, sendTestEmailAction } = await import("./actions");
 const { staffStore } = await import("@/lib/whatsapp/store");
 const { membersOf } = await import("@/lib/tenancy/directory");
 const { adminCars, saveCar } = await import("@/lib/admin/stock-admin");
@@ -181,10 +181,9 @@ describe("the other settings", () => {
     expect((await getSettings()).driveSlotMinutes).toBe(90);
   });
 
-  it("saves the reply time and the slot each on its own", async () => {
-    expect((await saveTargetsAction(undefined, form({ leadSlaHours: "6" })))?.saved).toBe(true);
-    expect((await saveTargetsAction(undefined, form({ driveSlotMinutes: "45" })))?.saved).toBe(true);
-    expect(await getSettings()).toMatchObject({ leadSlaHours: 6, driveSlotMinutes: 45 });
+  it("saves the reply time and the slot together", async () => {
+    expect((await saveTargetsAction(undefined, form({ leadSlaHours: "8", driveSlotMinutes: "60" })))?.saved).toBe(true);
+    expect(await getSettings()).toMatchObject({ leadSlaHours: 8, driveSlotMinutes: 60 });
   });
 
   it("keeps the marketing voice within its lengths", async () => {
@@ -333,19 +332,16 @@ describe("your account and a person's details (#142)", () => {
     expect((await staffByEmail("conor.moved@example.com"))?.id).toBe(signIn.id);
   });
 
-  it("starts a new person with the owner's defaults (a role's senders still skip what it may not get); only an owner sets them", async () => {
-    role = "Manager";
-    expect((await saveDefaultsAction(undefined, form({ "notify-grid": "1", "notify-push": ["assigned"] })))?.errors?.defaults).toMatch(/Only an owner/);
-    role = undefined;
-    expect(await saveDefaultsAction(undefined, form({ "notify-grid": "1", "notify-push": ["assigned"], "notify-email": ["follow-ups"], "notify-whatsapp": ["enquiry", "monday"] }))).toEqual({ saved: true });
-    await addTeamAction(undefined, form({ name: "New Person", email: "new.person@example.com", role: "Sales" }));
+  it("starts a new person with their role's defaults; someone with no record of their own gets their role's too", async () => {
+    const { roleDefaults } = await import("@/lib/notify-rules");
+    const followUps = (await getSettings()).notifications.followUps;
+    await addTeamAction(undefined, form({ name: "New Person", email: "new.person@example.com", role: "Finance" }));
     const added = (await getSettings()).team.find((t) => t.name === "New Person")!;
-    expect(await staffStore.get(added.id)).toMatchObject({ push: ["assigned"], email: ["follow-ups"], alerts: ["enquiry", "monday"], phone: "" });
-    // Someone already on the team with no record of their own keeps their role's, not the new defaults.
+    const want = roleDefaults("Finance", followUps);
+    expect(await staffStore.get(added.id)).toMatchObject({ push: want.push, email: want.email, alerts: want.whatsapp, phone: "" });
     const sales = await find("Sales");
     await staffStore.remove(sales.id);
     const { people } = await import("@/lib/people");
-    const { roleDefaults } = await import("@/lib/notify-rules");
-    expect((await people()).find((t) => t.id === sales.id)?.prefs).toEqual(roleDefaults("Sales", (await getSettings()).notifications.followUps));
+    expect((await people()).find((t) => t.id === sales.id)?.prefs).toEqual(roleDefaults("Sales", followUps));
   });
 });

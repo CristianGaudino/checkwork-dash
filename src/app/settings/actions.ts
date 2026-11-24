@@ -7,7 +7,7 @@ import { SETTINGS_DEFAULT, changeTeamMember, getSettings, leadsStore, moveTeamMe
 import { noticesStore, readsStore } from "@/lib/admin/notifications";
 import { feedbackStore, helpStore } from "@/lib/admin/help";
 import { enabledModules } from "@/lib/modules";
-import { CHANNELS, alertsOf, columnsFor, eventsFor, prefsOf, profileErrors, readGrid, roleDefaults, type Prefs } from "@/lib/notify-rules";
+import { alertsOf, columnsFor, eventsFor, profileErrors, readGrid, roleDefaults, type Prefs } from "@/lib/notify-rules";
 import { people, whatsappOn, type Person } from "@/lib/people";
 import { resetDemoRecords } from "@/lib/admin/demo-reset";
 import { EMAIL_INVALID, NAME_REQUIRED } from "@/lib/copy";
@@ -44,19 +44,19 @@ const fail = (e: z.ZodError): SettingsState => ({ errors: fieldErrors(e) });
 // A save that changes nothing is not recorded in the activity history. Same keys in the same order, as each form always sends them.
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
-// The reply time (Lead routing) and the test drive slot (Timings), each saved from its own dialog: only the fields sent are changed.
+// The reply time and the test drive slot (Timings), saved together.
 const targets = z.object({
-  leadSlaHours: z.coerce.number().int("Whole hours").min(1, "At least 1 hour").max(168, "At most 168 hours (a week)").optional(),
-  driveSlotMinutes: z.coerce.number().int("Whole minutes").min(15, "At least 15 minutes").max(240, "At most 240 minutes").optional(),
+  leadSlaHours: z.coerce.number().int("Whole hours").min(1, "At least 1 hour").max(168, "At most 168 hours (a week)"),
+  driveSlotMinutes: z.coerce.number().int("Whole minutes").min(15, "At least 15 minutes").max(240, "At most 240 minutes"),
 });
 export async function saveTargetsAction(_p: SettingsState, data: FormData): Promise<SettingsState> {
   await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
-  const no = await refused(data.has("leadSlaHours") ? "leadSlaHours" : "driveSlotMinutes");
+  const no = await refused("leadSlaHours");
   if (no) return no;
   const r = targets.safeParse(Object.fromEntries(data));
   if (!r.success) return fail(r.error);
   const was = await getSettings();
-  const { leadSlaHours = was.leadSlaHours, driveSlotMinutes = was.driveSlotMinutes } = r.data;
+  const { leadSlaHours, driveSlotMinutes } = r.data;
   await change((s) => ({ ...s, leadSlaHours, driveSlotMinutes }));
   if (was.leadSlaHours !== leadSlaHours) await logActivity("settings", `Changed the lead reply target from ${was.leadSlaHours} to ${leadSlaHours} hours`);
   if (was.driveSlotMinutes !== driveSlotMinutes) await logActivity("settings", `Changed the test drive slot from ${was.driveSlotMinutes} to ${driveSlotMinutes} minutes`);
@@ -153,8 +153,8 @@ export async function addTeamAction(_p: SettingsState, data: FormData): Promise<
   const clash = taken(s.team, r.data);
   if (clash) return { errors: clash };
   const id = newId("u");
-  // They start with the owner's defaults for a new person (or their role's), kept as theirs, so a later change to the defaults leaves them be.
-  const prefs = prefsOf(undefined, r.data.role, { followUps: s.notifications.followUps, defaults: s.notifyDefaults });
+  // They start with their role's defaults (src/lib/notify-rules.ts), kept as theirs, so a later change to the defaults leaves them be.
+  const prefs = roleDefaults(r.data.role, s.notifications.followUps);
   await changeTeamMember(r.data.email, r.data.role, async () => {
     await change((x) => ({ ...x, team: [...x.team.filter((t) => t.email.toLowerCase() !== r.data.email), { id, ...r.data }] }));
     await staffStore.put({ id, name: r.data.name, phone: "", alerts: alertsOf(prefs), quietFrom: "", quietTo: "", push: prefs.push, email: prefs.email });
@@ -284,22 +284,6 @@ export async function savePersonAction(id: string, _p: SettingsState, data: Form
   if (p.role !== r.data.role) await logActivity("settings", `Changed ${p.name}'s role from ${p.role} to ${r.data.role}`, { kind: "team", id, label: r.data.name });
   if (p.name !== r.data.name || p.email.toLowerCase() !== r.data.email || p.phone !== phone) await logActivity("settings", `Changed ${r.data.name}'s details`, { kind: "team", id, label: r.data.name });
   if (!same(p.prefs, n.prefs) || p.quietFrom !== n.quietFrom || p.quietTo !== n.quietTo) await logActivity("settings", `Changed ${r.data.name}'s notifications`, { kind: "team", id, label: r.data.name });
-  return { saved: true };
-}
-
-// What a new person starts with (#142): an owner's choice, kept per channel and cut to each person's role when they are added.
-export async function saveDefaultsAction(_p: SettingsState, data: FormData): Promise<SettingsState> {
-  await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
-  if ((await currentMember()).role !== "Owner" || (await realRole()) !== "Owner") return { errors: { defaults: "Only an owner can change what a new person gets" } };
-  const s = await getSettings();
-  const was = s.notifyDefaults ?? roleDefaults("Owner", s.notifications.followUps);
-  if (!data.has("notify-grid")) return { saved: true };
-  // The columns the dialog showed (settings/page.tsx): a WhatsApp column not shown keeps what it had.
-  const waOn = await whatsappOn();
-  const columns = CHANNELS.filter((c) => c !== "whatsapp" || waOn);
-  const notifyDefaults = readGrid((c) => data.getAll(`notify-${c}`).map(String), eventsFor("Owner", await enabledModules()), columns, was);
-  await change((x) => ({ ...x, notifyDefaults }));
-  if (!same(was, notifyDefaults)) await logActivity("settings", "Changed what a new person gets");
   return { saved: true };
 }
 

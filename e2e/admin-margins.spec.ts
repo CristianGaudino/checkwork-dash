@@ -52,8 +52,8 @@ test("only an owner or manager changes the team and the settings; a manager cann
   await page.goto("/settings?section=team");
   await expect(page.getByRole("button", { name: "Remove" })).toHaveCount(0);
   await as(context, "Manager");
-  await page.goto("/settings?section=routing");
-  await page.getByRole("button", { name: "Edit reply time" }).click();
+  await page.goto("/settings?section=targets");
+  await page.getByRole("button", { name: "Edit timings" }).click();
   await expect(page.getByLabel("Reply to a new lead within (hours)")).toBeEnabled();
   await page.keyboard.press("Escape");
   await page.goto("/settings?section=team");

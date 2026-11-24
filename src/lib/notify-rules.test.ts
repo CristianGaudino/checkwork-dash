@@ -34,10 +34,7 @@ describe("reading what is stored", () => {
   it("keeps a record from before #142: its WhatsApp alerts, with push and email from the role and the old morning switch", () => {
     expect(prefsOf(rec, "Sales", { followUps: true })).toEqual({ push: roleDefaults("Sales", true).push, email: ["follow-ups"], whatsapp: ["enquiry"] });
     expect(prefsOf(rec, "Sales", { followUps: false }).email).toEqual([]);
-    // The owner's defaults are for someone new, never laid over a record that is there.
-    const defaults: Prefs = { push: [], email: [], whatsapp: [] };
-    expect(prefsOf(rec, "Sales", { followUps: false, defaults }).push).toEqual(roleDefaults("Sales", false).push);
-    expect(prefsOf(undefined, "Sales", { followUps: false, defaults })).toEqual(defaults);
+    expect(prefsOf(undefined, "Sales", { followUps: false })).toEqual(roleDefaults("Sales", false));
     expect(prefsOf({ ...rec, push: ["assigned"], email: [] }, "Sales", { followUps: true })).toMatchObject({ push: ["assigned"], email: [] });
   });
   it("gives Finance no WhatsApp by default, and a sender skips what a role may not get whatever is stored", () => {
