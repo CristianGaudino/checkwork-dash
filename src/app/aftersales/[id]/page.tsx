@@ -46,7 +46,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           <Notes notes={claim.notes} action={addClaimNoteAction.bind(null, claim.id)} me={me.name} />
         </div>
         <div className="flex min-w-0 flex-col gap-6">
-          {/* Where it stands: one drop-down of the six stages, as the lead's stage (#136), never a block of chips. */}
+          {/* Where it stands: one drop-down of the six stages, as the lead's stage (#136), never a block of chips. The only place it is set (#169):
+              it reaches Declined and goes back, which a row's next step could not. */}
           <Panel title="Status" quiet>
             <ActSelect label="Status" value={claim.status} options={CLAIM_STATUSES.map((s) => [s, CLAIM_STATUS_LABELS[s]] as const)} action={setClaimStatusAction.bind(null, claim.id)} field="status" extra={{ from: claim.status }} back={{ status: claim.status }} done="Claim: " />
           </Panel>
