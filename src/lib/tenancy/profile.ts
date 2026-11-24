@@ -41,7 +41,7 @@ export const DEFAULT_PROFILE: DealerProfile = {
   social: [],
   modules: "dashboard",
   stock: { source: "checkwork", listingSite: "DoneDeal", listingUrl: "https://www.donedeal.ie/" },
-  rules: { oldStockDays: 120, slowDropEur: 500, soldVisibleDays: 30 },
+  rules: { oldStockDays: 60, slowDropEur: 500, soldVisibleDays: 30 },
 };
 
 // The demo dealer, a made-up business: every module, and its own website. The phone number is made up; the street is a real one in Dublin

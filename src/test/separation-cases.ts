@@ -37,7 +37,7 @@ export function separationCases() {
     try {
       const a = await runAsDealer(A, seen);
       const b = await runAsDealer(B, seen);
-      expect(a).toMatchObject({ name: "Checkwork Motors", source: "checkwork", site: "DoneDeal", profile: { siteUrl: "https://www.demo.checkwork.ie", logo: { onDark: "/brand/logo.svg" }, rules: { oldStockDays: 120 } } });
+      expect(a).toMatchObject({ name: "Checkwork Motors", source: "checkwork", site: "DoneDeal", profile: { siteUrl: "https://www.demo.checkwork.ie", logo: { onDark: "/brand/logo.svg" }, rules: { oldStockDays: 60 } } });
       expect(a.mods).toHaveLength(MODULE_IDS.length);
       expect(b).toMatchObject({ name: "Test Motors", mods: ["dashboard", "testDrives"], source: "donedeal", site: "CarsIreland", profile: { siteUrl: "https://www.test-motors.example", rules: { oldStockDays: 60, slowDropEur: 500 } } });
       expect(b.profile.logo).toBeUndefined();
