@@ -15,15 +15,15 @@ import { carTitleOf, rng } from "./seed-data";
 
 // The dashboard's activity history: who changed what, and when. Written by every dashboard action through logActivity, read by
 // /activity (owners and managers). Changes only, never page views. Never what a customer wrote: a record that holds personal
-// data (a lead, a booking, an alert, a subscriber, a review) is kept as its kind and id, and its name is looked up when the page is shown,
+// data (a lead, a booking, an alert, a review) is kept as its kind and id, and its name is looked up when the page is shown,
 // so a deleted person leaves no name behind. A car, a post or a team member keeps its label. Kept ACTIVITY_RETENTION_MONTHS (activity-purge.ts).
 export const ACTIVITY_AREAS = ["stock", "leads", "test-drives", "customers", "reviews", "marketing", "settings"] as const;
 export type ActivityArea = (typeof ACTIVITY_AREAS)[number];
 export const AREA_LABELS: Record<ActivityArea, string> = { stock: "Stock", leads: "Leads", "test-drives": "Test drives", customers: "Customers", reviews: "Reviews", marketing: "Marketing", settings: "Settings" };
 
-export type RefKind = "car" | "lead" | "drive" | "alert" | "subscriber" | "review" | "post" | "ad" | "newsletter" | "team";
+export type RefKind = "car" | "lead" | "drive" | "alert" | "review" | "post" | "ad" | "team";
 // The kinds whose label is personal data: never stored, looked up at show time.
-export const PERSONAL_KINDS: readonly RefKind[] = ["lead", "drive", "alert", "subscriber", "review"];
+export const PERSONAL_KINDS: readonly RefKind[] = ["lead", "drive", "alert", "review"];
 export type Ref = { kind: RefKind; id: string; label?: string };
 export type ActivityEntry = { id: string; at: number; actor: string; area: ActivityArea; summary: string; refKind: RefKind | null; refId: string | null; refLabel: string | null };
 

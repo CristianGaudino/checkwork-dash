@@ -9,9 +9,9 @@ import { checkUpload, MEDIA_LIMITS } from "@/lib/admin/media-rules";
 import { dropMedia, storeMedia } from "@/lib/admin/media";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { NETWORKS, adsStore, getSettings, mediaStore, newslettersStore, postsStore, subscribersStore, type Ad, type MediaItem, type SocialPost } from "@/lib/admin/collections";
-import { readyToPost, simulatedAd, simulatedLetter, simulatedPost, writePost, type SendResult } from "@/lib/admin/marketing";
-import { publishPost, sendNewsletter, startAd } from "@/lib/admin/publishers";
+import { NETWORKS, adsStore, getSettings, mediaStore, postsStore, type Ad, type MediaItem, type SocialPost } from "@/lib/admin/collections";
+import { readyToPost, simulatedAd, simulatedPost, writePost, type SendResult } from "@/lib/admin/marketing";
+import { publishPost, startAd } from "@/lib/admin/publishers";
 import { adminCars } from "@/lib/admin/stock-admin";
 import { carName } from "@/lib/stock/format";
 import { forSale, isReduced } from "@/lib/stock/types";
@@ -28,11 +28,10 @@ import { CLAIM_MS } from "@/lib/admin/scheduler";
 
 const postRef = (p: SocialPost) => ({ kind: "post" as const, id: p.id, label: p.carTitle ?? "A post" });
 const adRef = (a: Ad) => ({ kind: "ad" as const, id: a.id, label: a.carTitle });
-const letterRef = (n: { id: string; subject: string }) => ({ kind: "newsletter" as const, id: n.id, label: n.subject });
 
 // A result goes back to the page as a short code, never as text from the request, so the page can only ever say what it knows.
 const go = (tab: string, notice: string): never => redirect(`/marketing?tab=${tab}&notice=${notice}`);
-// `kind` is the service that was tried (social, ads, newsletters), which picks the "not connected" wording.
+// `kind` is the service that was tried (social or ads), which picks the "not connected" wording.
 const outcome = (tab: string, kind: string, r: SendResult, ok: string) => go(tab, r.ok ? ok : r.reason === "not-connected" ? `${kind}-not-connected` : `${kind}-not-installed`);
 
 // The composer: one post, and an ad for the same car if the switch is on. A draft is kept first, so a post that cannot go out is not lost.
@@ -179,47 +178,6 @@ export async function composerCarAction(slug: string): Promise<ComposerCar | nul
   const p = priceInfo(car);
   const text = (format: (typeof POST_FORMATS)[number]) => Object.fromEntries(NETWORKS.map((n) => [n, writePost(car, siteUrl, n, marketing, format)])) as ComposerCar["text"];
   return { slug: car.slug, title: carName(car), photos: car.photos.slice(0, 10), text: text("post"), byFormat: Object.fromEntries(POST_FORMATS.map((f) => [f, text(f)])) as ComposerCar["byFormat"], price: p.headline, was: isReduced(car) ? fmtEur(car.wasPriceEur!) : undefined };
-}
-
-// A newsletter draft, as the dealer wrote or reviewed it ("Write from the newest cars" fills the form first: /marketing/newsletters/new). With
-// `id` it saves over that draft (its edit page), under the same checks; a sent one is never changed.
-const letter = z.object({ id: z.string().optional(), subject: z.string().trim().min(1).max(120), body: z.string().trim().min(1).max(4000) });
-export async function createNewsletterAction(data: FormData) {
-  await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
-  await requireModule("newsletter");
-  const r = letter.safeParse(Object.fromEntries(data));
-  if (!r.success) return go("newsletters", "invalid");
-  const { id, subject, body } = r.data;
-  const existing = id ? await newslettersStore.get(id) : undefined;
-  if (id && existing?.status !== "draft") return go("newsletters", "invalid");
-  const letterDraft = { id: existing?.id ?? newId("nl"), subject, body, status: "draft" as const, createdAt: existing?.createdAt ?? Date.now() };
-  await newslettersStore.put(letterDraft);
-  await logActivity("marketing", existing ? "Edited a newsletter" : "Wrote a newsletter", letterRef(letterDraft));
-  go("newsletters", "letter-created");
-}
-
-export async function sendNewsletterAction(id: string) {
-  await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
-  await requireModule("newsletter");
-  const n = await newslettersStore.get(id);
-  if (!n || n.status !== "draft") return go("newsletters", "invalid");
-  const subscribers = (await subscribersStore.list()).filter((x) => x.status === "subscribed").length;
-  if (!subscribers) return go("newsletters", "no-subscribers");
-  const r = await sendNewsletter(n);
-  if (r.ok) {
-    await newslettersStore.put({ ...n, status: "sent", sentAt: Date.now(), ...(r.simulated && simulatedLetter(n.id, subscribers)) });
-    await logActivity("marketing", "Sent the newsletter", letterRef(n));
-  }
-  outcome("newsletters", "newsletters", r, "letter-sent");
-}
-
-export async function deleteNewsletterAction(id: string) {
-  await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
-  await requireModule("newsletter");
-  const n = await newslettersStore.get(id);
-  await newslettersStore.remove(id);
-  if (n) await logActivity("marketing", "Deleted a newsletter", letterRef(n));
-  go("newsletters", "deleted");
 }
 
 // The media library (#177). One file per call, like a car's photos. The browser has already shrunk a photo to a JPEG and read a video's

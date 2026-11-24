@@ -70,7 +70,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
   const mods = await enabledModules();
   const edit = roleCan(me.role, "settings");
   const owner = me.role === "Owner";
-  const voice = mods.has("social") || mods.has("newsletter");
+  const voice = mods.has("social");
   // Sales and Finance have Your account only: Dealership is not theirs to see, a link to it goes back to Settings, and each action checks
   // again on the server.
   const dealership = edit ? DEALERSHIP.filter(([k]) => k !== "demo" || resettable).map(([k, label, line]) => [k, label, k === "business" && !voice ? "Your details and opening hours" : line] as const) : [];

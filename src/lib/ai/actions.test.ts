@@ -49,7 +49,7 @@ describe("writeWithAI behind the dashboard", () => {
     const before = await count("opus");
     expect(await writeAction({ task: "leadReply", leadId: "no-such-lead" })).toEqual({ ok: false, reason: "failed" });
     expect(await writeAction({ task: "post", carSlug: "x", network: "Nowhere", format: "post" } as never)).toEqual({ ok: false, reason: "failed" });
-    expect(await writeAction({ task: "newsletter" }, "nonsense" as never)).toEqual({ ok: false, reason: "failed" });
+    expect(await writeAction({ task: "newsletter" } as never)).toEqual({ ok: false, reason: "failed" });
     expect(await count("opus")).toBe(before);
   });
 
@@ -66,7 +66,7 @@ describe("writeWithAI behind the dashboard", () => {
 
   it("does not exist for a dealer without the AI module", async () => {
     plan = "dashboard";
-    await expect(writeAction({ task: "newsletter" })).rejects.toThrow("not-found");
+    await expect(writeAction({ task: "leadReply", leadId: "lead-4000" })).rejects.toThrow("not-found");
     await expect(writeAction({ task: "leadBrief", leadId: "lead-4000" })).rejects.toThrow("not-found");
   });
 });

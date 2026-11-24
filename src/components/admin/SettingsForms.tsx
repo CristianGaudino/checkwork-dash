@@ -181,7 +181,7 @@ function MarketingForm({ settings, done }: { settings: DealerSettings; done: () 
   useDoneOnSave(f.state, f.pending, done);
   return (
     <form {...f.run} className="grid grid-cols-1 gap-4" noValidate>
-      <Field label="How we sound" hint="Used when posts and newsletters are written" error={f.errors.voice}>
+      <Field label="How we sound" hint="Used when posts are written" error={f.errors.voice}>
         <input name="voice" defaultValue={settings.marketing.voice} className={adminInput} />
       </Field>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

@@ -15,9 +15,9 @@ vi.mock("@/lib/integrations", async (orig) => {
 });
 beforeEach(() => void (offline.on = false));
 vi.mock("next/navigation", () => ({ redirect: (to: string) => { throw new Error(`redirect:${to}`); } }));
-const { composeAction, composerCarAction, createNewsletterAction, deleteAdAction, deleteNewsletterAction, deletePostAction, publishPostAction, sendNewsletterAction, startAdAction } = await import("./actions");
+const { composeAction, composerCarAction, deleteAdAction, deletePostAction, publishPostAction, startAdAction } = await import("./actions");
 const { addNoteAction, setStatusAction, assignLeadAction, setFollowUpAction, setLostReasonAction } = await import("../leads/actions");
-const { adsStore, getSettings, leadsStore, mediaStore, newslettersStore, postsStore, settingsStore, subscribersStore } = await import("@/lib/admin/collections");
+const { adsStore, getSettings, leadsStore, mediaStore, postsStore, settingsStore } = await import("@/lib/admin/collections");
 const { NETWORKS } = await import("@/lib/admin/networks");
 const { forSale } = await import("@/lib/stock/types");
 const { addDays, dublinDay } = await import("@/lib/admin/format");
@@ -72,9 +72,9 @@ describe("the post composer action", () => {
   });
 });
 
-describe("publishing, ads and newsletters", () => {
+describe("publishing and ads", () => {
   beforeEach(async () => {
-    for (const s of [postsStore, adsStore, newslettersStore]) for (const d of await s.list()) await s.remove(d.id);
+    for (const s of [postsStore, adsStore]) for (const d of await s.list()) await s.remove(d.id);
   });
 
   it("publishes a post now, and starts its ad with it", async () => {
@@ -142,22 +142,6 @@ describe("publishing, ads and newsletters", () => {
     expect(await composerCarAction("nope")).toBeNull();
   });
 
-  it("saves a newsletter draft, edits it, sends it once, and deletes", async () => {
-    expect(await notice(() => createNewsletterAction(form({ intent: "save", subject: "", body: "x" })))).toBe("invalid");
-    expect(await notice(() => createNewsletterAction(form({ intent: "save", subject: "Hi", body: "News" })))).toBe("letter-created");
-    const first = (await newslettersStore.list()).find((n) => n.subject === "Hi" && n.status === "draft")!;
-    expect(await notice(() => createNewsletterAction(form({ intent: "save", id: first.id, subject: "Hello", body: "More news" })))).toBe("letter-created");
-    expect(await newslettersStore.get(first.id)).toMatchObject({ subject: "Hello", body: "More news", status: "draft", createdAt: first.createdAt });
-    expect(await notice(() => createNewsletterAction(form({ intent: "save", id: first.id, subject: "", body: "x" })))).toBe("invalid"); // the same checks as a new one
-    expect(await notice(() => createNewsletterAction(form({ intent: "save", id: "nope", subject: "Hi", body: "x" })))).toBe("invalid");
-    expect(await notice(() => sendNewsletterAction(first.id))).toBe("letter-sent");
-    expect((await newslettersStore.get(first.id))!.status).toBe("sent");
-    expect(await notice(() => sendNewsletterAction(first.id))).toBe("invalid"); // never twice
-    expect(await notice(() => createNewsletterAction(form({ intent: "save", id: first.id, subject: "Hi", body: "x" })))).toBe("invalid"); // a sent one is never changed
-    expect(await notice(() => deleteNewsletterAction(first.id))).toBe("deleted");
-    expect(await newslettersStore.get(first.id)).toBeUndefined();
-  });
-
   it("edits a draft in place with the same checks, schedules it from there, and never changes a post that went out", async () => {
     const [car, other] = (await adminCars()).filter(forSale);
     await notice(() => composeAction(form({ carSlug: car.slug, network: "Facebook", text: "Hello", intent: "draft", timing: "now", photos: [car.photos[0].src] })));
@@ -199,15 +183,6 @@ describe("publishing, ads and newsletters", () => {
     const gone = (await adminCars()).find((c) => !forSale(c))!;
     expect(await notice(() => composeAction(form({ carSlug: gone.slug, network: "Facebook", text: "Hello", intent: "draft", timing: "now" })))).toBe("car-gone");
     expect(await postsStore.list()).toHaveLength(0);
-  });
-
-  it("sends no newsletter to nobody", async () => {
-    for (const s of await subscribersStore.list()) await subscribersStore.put({ ...s, status: "unsubscribed" });
-    await notice(() => createNewsletterAction(form({ intent: "save", subject: "Hi", body: "News" })));
-    const draft = (await newslettersStore.list()).find((n) => n.status === "draft")!;
-    expect(await notice(() => sendNewsletterAction(draft.id))).toBe("no-subscribers");
-    expect((await newslettersStore.get(draft.id))!.status).toBe("draft");
-    await subscribersStore.reset();
   });
 });
 

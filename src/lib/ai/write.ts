@@ -12,9 +12,7 @@ import type { Adjust, FactsOf, Task } from "./tasks";
 // dealer's own text is left alone.
 // With ANTHROPIC_API_KEY set (live) the text comes from Claude, with every prompt in claude.ts.
 const PAUSE_MS = 700;
-export type Written = { ok: true; text: string; subject?: string } | { ok: false };
-
-const subject = (f: FactsOf["newsletter"]) => (f.cars.length ? `New arrivals at ${f.dealer}` : `News from ${f.dealer}`);
+export type Written = { ok: true; text: string } | { ok: false };
 
 export async function writeWithAI<T extends Task>(model: AiModel, task: T, facts: FactsOf[T], adjust?: Adjust, current = ""): Promise<Written> {
   const mode = await modeOf("ai");
@@ -31,5 +29,5 @@ export async function writeWithAI<T extends Task>(model: AiModel, task: T, facts
     await new Promise((r) => setTimeout(r, PAUSE_MS));
     text = mockText(task, facts, adjust, current);
   }
-  return text ? { ok: true, text, ...(task === "newsletter" && { subject: subject(facts as FactsOf["newsletter"]) }) } : { ok: false };
+  return text ? { ok: true, text } : { ok: false };
 }

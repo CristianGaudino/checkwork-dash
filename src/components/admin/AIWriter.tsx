@@ -19,7 +19,7 @@ const BRIEF_SAID = { limit: `The monthly AI limit is reached.${SHOW_PRICING ? ""
 // "Write with AI" for any text box (#179): a first draft from the record's facts, then buttons that rewrite it, Undo for one step back, and a
 // label so AI text is never taken for the dealer's own. The box stays the host's own and stays editable. `request` is read when a button is
 // pressed (the car form's boxes may have changed). Hidden entirely when the dealer has no AI module. `onBusy`: a write started (true) or ended (false), so the box can hold still while it is written.
-export function AIWriter({ task, request, text, onText, onBusy, format }: { task: Task; request: () => WriteRequest | null; text: string; onText: (text: string, subject?: string) => void; onBusy?: (busy: boolean) => void; format?: PostFormat }) {
+export function AIWriter({ task, request, text, onText, onBusy, format }: { task: Task; request: () => WriteRequest | null; text: string; onText: (text: string) => void; onBusy?: (busy: boolean) => void; format?: PostFormat }) {
   const has = useModules().has("ai");
   const [pending, start] = useTransition();
   const [said, setSaid] = useState("");
@@ -40,7 +40,7 @@ export function AIWriter({ task, request, text, onText, onBusy, format }: { task
         if (!r.ok) return setSaid(SAID[r.reason]);
         setBack({ text, ai });
         setAi(r.text);
-        onText(r.text, r.subject);
+        onText(r.text);
         setWritten(true);
       } catch {
         setSaid(SAID.failed);
@@ -96,7 +96,7 @@ export function AIWriter({ task, request, text, onText, onBusy, format }: { task
 // the ask, or (from a client component only) a function that gets the box, so the car form can read its sibling fields. `copy` adds a Copy button (a string names it), for a draft that is sent from somewhere else.
 // `folded`: only Write with AI until it is pressed, then the box, focused (a lead's reply, so a phone is not handed a big empty box). It
 // opens on the press, not on success, so a failed write or the AI limit still leaves a box to type in.
-export function AITextarea({ id, name, label, defaultValue = "", rows = 5, maxLength, task, request, onSubject, copy = false, folded = false }: { id?: string; name?: string; label: string; defaultValue?: string; rows?: number; maxLength?: number; task: Task; request: WriteRequest | ((box: HTMLTextAreaElement | null) => WriteRequest | null); onSubject?: (s: string) => void; copy?: boolean | string; folded?: boolean }) {
+export function AITextarea({ id, name, label, defaultValue = "", rows = 5, maxLength, task, request, copy = false, folded = false }: { id?: string; name?: string; label: string; defaultValue?: string; rows?: number; maxLength?: number; task: Task; request: WriteRequest | ((box: HTMLTextAreaElement | null) => WriteRequest | null); copy?: boolean | string; folded?: boolean }) {
   const box = useRef<HTMLTextAreaElement>(null);
   const own = useId();
   id ??= own;
@@ -120,7 +120,7 @@ export function AITextarea({ id, name, label, defaultValue = "", rows = 5, maxLe
           <textarea ref={box} id={id} name={name} rows={rows} maxLength={maxLength} autoFocus={folded} readOnly={busy} aria-busy={busy} value={text} onChange={(e) => { setText(e.target.value); setCopied(false); setCopyError(""); }} className={`${adminInput} h-auto py-2`} />
         </>
       )}
-      <AIWriter task={task} text={text} request={() => (typeof request === "function" ? request(box.current) : request)} onBusy={(b) => { setBusy(b); if (b) setOpen(true); }} onText={(t, subject) => { setText(t); setCopied(false); setCopyError(""); if (subject) onSubject?.(subject); }} />
+      <AIWriter task={task} text={text} request={() => (typeof request === "function" ? request(box.current) : request)} onBusy={(b) => { setBusy(b); if (b) setOpen(true); }} onText={(t) => { setText(t); setCopied(false); setCopyError(""); }} />
       {copy && text.trim() && (
         <>
           <button type="button" onClick={copyText} className={`${adminButtonQuiet} self-start`}>

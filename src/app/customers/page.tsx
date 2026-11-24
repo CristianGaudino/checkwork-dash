@@ -1,32 +1,32 @@
 import Link from "next/link";
 import { Badge, DataTable, EmptyState, PageHeader, SummaryTabs, TableFooter, TableToolbar, pageOf, rowButton, rowDanger, sortRows, type Column, type FilterGroup } from "@/components/admin/kit";
-import { filterAlerts, filterCustomers, filterSubscribers } from "@/lib/admin/customer-lists";
+import { filterAlerts, filterCustomers } from "@/lib/admin/customer-lists";
 import { ActButton } from "@/components/admin/ActButton";
 import { can } from "@/lib/permissions";
 import { notFound } from "next/navigation";
 import { hasModule } from "@/lib/modules";
-import { ALERT_KINDS, ALERT_KIND_LABELS, alertsStore, claimOpen, claimsStore, customersStore, orderOpen, ordersStore, reservationsStore, salesStore, subscribersStore, type Customer, type StockAlert, type Subscriber } from "@/lib/admin/collections";
+import { ALERT_KINDS, ALERT_KIND_LABELS, alertsStore, claimOpen, claimsStore, customersStore, orderOpen, ordersStore, reservationsStore, salesStore, type Customer, type StockAlert } from "@/lib/admin/collections";
 import { stockSource } from "@/lib/stock-source";
 import { fmtAgo, fmtDate, fmtNum } from "@/lib/admin/format";
-import { pauseAlertAction, removeAlertAction, unsubscribeAction } from "./actions";
+import { pauseAlertAction, removeAlertAction } from "./actions";
 import { CallButton } from "@/components/admin/LeadActions";
 import { RowMenu } from "@/components/admin/RowMenu";
 import { BrandName } from "@/components/admin/BrandIcon";
 
 export const metadata = { title: "Customers" };
 
-// The customer list is the sales module; stock alerts and the newsletter are the newsletter module, where visitors sign up (#173).
-const TABS = [["customers", "Customers", "sales"], ["alerts", "Stock alerts", "newsletter"], ["newsletter", "Newsletter", "newsletter"]] as const;
+// The customer list is the sales module; stock alerts are the "newsletter" module (its id kept for stored plans), where visitors sign up (#173).
+const TABS = [["customers", "Customers", "sales"], ["alerts", "Stock alerts", "newsletter"]] as const;
 type Params = { tab?: string; q?: string; source?: string; consent?: string; kind?: string; state?: string; sort?: string; dir?: string; page?: string; per?: string };
 
 export default async function Page({ searchParams }: { searchParams: Promise<Params> }) {
   const sp = await searchParams;
-  const [sales, newsletter] = await Promise.all([hasModule("sales"), hasModule("newsletter")]);
-  const tabs = TABS.filter(([, , m]) => (m === "sales" ? sales : newsletter));
+  const [sales, alertsOn] = await Promise.all([hasModule("sales"), hasModule("newsletter")]);
+  const tabs = TABS.filter(([, , m]) => (m === "sales" ? sales : alertsOn));
   if (!tabs.length) notFound();
   const tab = tabs.find(([k]) => k === sp.tab)?.[0] ?? tabs[0][0];
   const q = (sp.q ?? "").trim().toLowerCase().slice(0, 60);
-  const [customers, alerts, subs, sold, deposits, claims, orders, service, newCars] = await Promise.all([customersStore.list(), alertsStore.list(), subscribersStore.list(), salesStore.list(), reservationsStore.list(), claimsStore.list(), ordersStore.list(), hasModule("service"), hasModule("newCars")]);
+  const [customers, alerts, sold, deposits, claims, orders, service, newCars] = await Promise.all([customersStore.list(), alertsStore.list(), salesStore.list(), reservationsStore.list(), claimsStore.list(), ordersStore.list(), hasModule("service"), hasModule("newCars")]);
   const synced = (await stockSource()) === "donedeal"; // orders and deposits are our version only
   const ordersOn = newCars && !synced;
   // What each customer bought last, and what is still open for them (a deposit held, a claim, a factory order), at a glance in the row.
@@ -37,7 +37,6 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
   if (!synced) for (const r of deposits) if (r.status === "held") add(r.customerId, "Deposit held");
   if (service) for (const k of claims) if (claimOpen(k.status)) add(k.customerId, "Warranty claim");
   if (ordersOn) for (const o of orders) if (orderOpen(o.status)) add(o.customerId, "Car on order");
-  const live = subs.filter((s) => s.status === "subscribed").length;
   const sources = [...new Set(customers.map((c) => c.source))].sort();
 
   const customerColumns: Column<Customer>[] = [
@@ -124,42 +123,11 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
       ),
     },
   ];
-  const subColumns: Column<Subscriber>[] = [
-    {
-      key: "email",
-      header: "Email",
-      sort: (s) => s.email,
-      cell: (s) => (
-        <span className="flex min-w-0 flex-col items-start gap-1">
-          <span className="w-0 min-w-full truncate sm:w-auto">{s.email}</span>
-          <span className="sm:hidden">{s.status === "subscribed" ? <Badge tone="good">Subscribed</Badge> : <Badge>Unsubscribed</Badge>}</span>
-        </span>
-      ),
-      className: "sm:max-w-[20rem]",
-    },
-    { key: "status", header: "Status", hide: "sm", sort: (s) => s.status, cell: (s) => (s.status === "subscribed" ? <Badge tone="good">Subscribed</Badge> : <Badge>Unsubscribed</Badge>) },
-    { key: "since", header: "Joined", hide: "md", sort: (s) => s.createdAt, cell: (s) => fmtDate(s.createdAt), nowrap: true },
-    {
-      key: "actions",
-      header: "",
-      // Unsubscribe only: only the person can sign up again (actions.ts).
-      cell: (s) =>
-        s.status === "subscribed" && (
-          <span className="flex justify-end">
-            <RowMenu label={`More for ${s.email}`}>
-              <ActButton act={unsubscribeAction.bind(null, s.id)} confirm={{ title: `Unsubscribe ${s.email}?`, text: "Only they can sign up again, on the website.", yes: "Unsubscribe" }} className={rowButton}>Unsubscribe</ActButton>
-            </RowMenu>
-          </span>
-        ),
-    },
-  ];
-
-  // Each list searched, filtered and sorted from the URL, then in pages of 50: a dealer's customers and subscribers only grow.
+  // Each list searched, filtered and sorted from the URL, then in pages of 50: a dealer's customers and alerts only grow.
   const people = sortRows(filterCustomers(customers, sp), customerColumns, sp, { key: "last", dir: "desc" });
   const alertList = sortRows(filterAlerts(alerts, sp), alertColumns, sp, { key: "since", dir: "desc" });
-  const subList = sortRows(filterSubscribers(subs, sp), subColumns, sp, { key: "since", dir: "desc" });
   // Each list's page, worked out once (slices: only the open tab's is shown).
-  const [peoplePage, alertPage, subPage] = [pageOf(people.rows, sp), pageOf(alertList.rows, sp), pageOf(subList.rows, sp)];
+  const [peoplePage, alertPage] = [pageOf(people.rows, sp), pageOf(alertList.rows, sp)];
   // Each tab's footer, with its own CSV (the list as it is filtered now): owners and managers only.
   const canExport = await can("data");
   const footer = (p: { page: number; pageCount: number; total: number; per: number }) => <TableFooter {...p} exportHref={canExport ? `/customers/export?tab=${tab}` : undefined} />;
@@ -172,23 +140,17 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
       { name: "kind", label: "Alert", any: "Every alert", options: ALERT_KINDS.map((k) => [k, ALERT_KIND_LABELS[k]] as const) },
       { name: "state", label: "Status", any: "Active and stopped", options: [["active", "Active"], ["paused", "Stopped"]] },
     ],
-    newsletter: [{ name: "state", label: "Status", any: "Subscribed or not", options: [["subscribed", "Subscribed"], ["unsubscribed", "Unsubscribed"]] }],
   };
 
   return (
     <>
-      <PageHeader title="Customers" text="Buyers, and people who signed up for alerts or news" />
-      {/* The three lists are the summary: each tile is its count and opens its list. */}
+      <PageHeader title="Customers" text="Buyers, and people who signed up for stock alerts" />
+      {/* The lists are the summary: each tile is its count and opens its list. */}
       <SummaryTabs
         label="Customer lists"
         items={[
           ...(sales ? [{ label: "Customers", count: fmtNum(customers.length), hint: `${customers.filter((c) => c.marketingConsent).length} agreed to marketing`, href: "/customers", active: tab === "customers" }] : []),
-          ...(newsletter
-            ? [
-                { label: "Stock alerts", count: fmtNum(alerts.filter((a) => a.active).length), hint: `${alerts.filter((a) => a.lastSentAt).length} have had an email`, href: "/customers?tab=alerts", active: tab === "alerts" },
-                { label: "Subscribers", count: fmtNum(live), hint: "to the newsletter", href: "/customers?tab=newsletter", active: tab === "newsletter" },
-              ]
-            : []),
+          ...(alertsOn ? [{ label: "Stock alerts", count: fmtNum(alerts.filter((a) => a.active).length), hint: `${alerts.filter((a) => a.lastSentAt).length} have had an email`, href: "/customers?tab=alerts", active: tab === "alerts" }] : []),
         ]}
       />
 
@@ -205,14 +167,6 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
           <TableToolbar search={{ placeholder: "Search", label: "Search stock alerts" }} filters={filters.alerts} />
           <DataTable label="Stock alerts" sort={alertList.sort} rows={alertPage.rows} rowKey={(a) => a.id} columns={alertColumns} empty={<EmptyState title={q || sp.kind || sp.state ? "No alerts match" : "No alerts yet"} text={q || sp.kind || sp.state ? "Try another filter or search." : "Visitors can ask to be told about a car. They show here."} />} />
           {footer(alertPage)}
-        </>
-      )}
-
-      {tab === "newsletter" && (
-        <>
-          <TableToolbar search={{ placeholder: "Search", label: "Search subscribers" }} filters={filters.newsletter} />
-          <DataTable label="Newsletter subscribers" sort={subList.sort} rows={subPage.rows} rowKey={(s) => s.id} columns={subColumns} empty={<EmptyState title="No subscribers match" />} />
-          {footer(subPage)}
         </>
       )}
     </>

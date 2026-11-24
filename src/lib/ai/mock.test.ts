@@ -81,9 +81,6 @@ describe("the demo writer", () => {
     expect(mockText("reviewReply", { ...bad, rating: 5 })).toContain("kind words");
     expect(mockText("reviewReply", { ...bad, rating: 5 }, "apologetic")).toContain("sorry");
     expect(mockText("reviewReply", bad, "shorter").length).toBeLessThan(mockText("reviewReply", bad).length);
-
-    const nl: FactsOf["newsletter"] = { dealer: "D", cars: [car], voice };
-    for (const a of adjustsFor("newsletter")) expect(mockText("newsletter", nl, a), a).not.toBe(mockText("newsletter", nl));
   });
 });
 

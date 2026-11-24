@@ -1,7 +1,7 @@
 import type { Network, PostFormat, StoryLayout } from "@/lib/admin/networks";
 
 // What AI writing help is asked for (#179). Plain data, safe for the browser: the buttons, and the facts each task is allowed to see.
-export const TASKS = ["post", "newsletter", "carDescription", "leadReply", "reviewReply", "leadBrief"] as const;
+export const TASKS = ["post", "carDescription", "leadReply", "reviewReply", "leadBrief"] as const;
 export type Task = (typeof TASKS)[number];
 
 export const ADJUSTS = {
@@ -20,7 +20,6 @@ export type Adjust = keyof typeof ADJUSTS;
 
 const BY_TASK: Record<Task, Adjust[]> = {
   post: ["professional", "friendlier", "shorter", "detail", "urgency", "hashtags"],
-  newsletter: ["shorter", "friendlier", "professional"],
   carDescription: ["shorter", "detail", "economy", "family"],
   leadReply: ["formal", "friendlier", "shorter"],
   reviewReply: ["apologetic", "shorter"],
@@ -34,7 +33,6 @@ export type CarFacts = { name: string; year?: number; mileageKm?: number; fuel?:
 export type Voice = { signOff: string; hashtags: string };
 export type FactsOf = {
   post: { dealer: string; car: CarFacts; network: Network; format: PostFormat; layout?: StoryLayout; voice: Voice };
-  newsletter: { dealer: string; cars: CarFacts[]; voice: Voice };
   carDescription: { dealer: string; car: CarFacts; notes?: string };
   // type: the lead type id (stable), so a reply chooses its ask by it and never by the label, which can be reworded.
   leadReply: { dealer: string; firstName: string; kind: string; type?: string; message: string; details?: Record<string, string>; car?: string; carDetails?: CarFacts & { forSale: boolean } };
@@ -69,10 +67,9 @@ export const unmaskContacts = (s: string, m: { emails: string[]; phones: string[
 // What the browser sends: ids and the form's own fields. The server builds the facts from the records, so the browser never supplies them.
 export type WriteRequest =
   | { task: "post"; carSlug: string; network: Network; format: PostFormat; layout?: StoryLayout }
-  | { task: "newsletter" }
   | { task: "carDescription"; fields: Record<string, string> }
   | { task: "leadReply"; leadId: string }
   | { task: "reviewReply"; reviewId: string }
   | { task: "leadBrief"; leadId: string };
 
-export type WriteResult = { ok: true; text: string; subject?: string } | { ok: false; reason: "limit" | "failed" };
+export type WriteResult = { ok: true; text: string } | { ok: false; reason: "limit" | "failed" };

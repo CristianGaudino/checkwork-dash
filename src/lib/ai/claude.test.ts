@@ -76,12 +76,6 @@ describe("writeWithAI with a key (Claude), for a real dealer", () => {
     expect(opus).toMatchObject({ model: "claude-opus-5-5", fallbacks: "default", betas: ["server-side-fallback-2026-07-01"] });
     expect(sonnet).toMatchObject({ model: "claude-sonnet-5-5", fallbacks: "default", betas: ["server-side-fallback-2026-07-01"] });
   });
-
-  it("keeps the newsletter subject rule", async () => {
-    create.mockResolvedValue(reply("Here is what is new."));
-    const r = await real("opus", "newsletter", { dealer: "Checkwork Motors", cars: [{ name: "2021 Skoda Octavia" }], voice: { signOff: "", hashtags: "" } });
-    expect(r).toEqual({ ok: true, text: "Here is what is new.", subject: "New arrivals at Checkwork Motors" });
-  });
 });
 
 describe("writeWithAI for a demo dealer", () => {

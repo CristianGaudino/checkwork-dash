@@ -1,10 +1,10 @@
 import "server-only";
-import { alertsStore, subscribersStore } from "@/lib/admin/collections";
-import { pauseAlert, unsubscribeSubscriber } from "@/lib/admin/customers-stop";
+import { alertsStore } from "@/lib/admin/collections";
+import { pauseAlert } from "@/lib/admin/customers-stop";
 import { getBindings } from "@/lib/leads/bindings";
 import { runAsDealerRow } from "@/lib/tenancy/current";
 import { dealerById } from "@/lib/tenancy/directory";
-import { verifyUnsub, type UnsubKind } from "@/lib/unsubscribe";
+import { verifyUnsub } from "@/lib/unsubscribe";
 
 // The public unsubscribe (#70): /api/site/unsubscribe, no sign-in. Under /api/ the proxy never runs, and /api/site/ is the path Cloudflare Access
 // leaves open, so the signed link is the only check. GET shows a button and changes nothing (a mail scanner opens links); POST, from the button
@@ -19,15 +19,14 @@ const page = (status: number, title: string, body: string) =>
   );
 export const invalid = () => page(404, "This link isn't valid any more", "");
 
-type Found = { dealerName: string; run: <T>(fn: () => Promise<T>) => Promise<T>; kind: UnsubKind; id: string; dealerId: string };
+type Found = { dealerName: string; run: <T>(fn: () => Promise<T>) => Promise<T>; id: string; dealerId: string };
 async function open(url: URL): Promise<Found | null> {
   const [d, k, id, sig] = ["d", "k", "id", "sig"].map((n) => url.searchParams.get(n) ?? "");
   if (!(await verifyUnsub(process.env.UNSUBSCRIBE_SECRET, d, k, id, sig))) return null;
   const dealer = await dealerById(d);
   if (!dealer) return null;
-  return { dealerName: dealer.name, dealerId: d, kind: k as UnsubKind, id, run: (fn) => runAsDealerRow(dealer, fn) };
+  return { dealerName: dealer.name, dealerId: d, id, run: (fn) => runAsDealerRow(dealer, fn) };
 }
-const exists = (f: Found): Promise<unknown> => (f.kind === "newsletter" ? subscribersStore.get(f.id) : alertsStore.get(f.id));
 
 // The change (POST) only, since GET checks the signature before any read, changes nothing, and mail scanners open many links from one address: 60 a minute per visitor address, SITE_LIMITER's own limit (its keys here start "unsub:", so never meet a website key's count). No binding (next dev, the E2E run): no limit.
 async function limited(req: Request) {
@@ -43,9 +42,8 @@ const error500 = () => {
 export async function showUnsubscribe(req: Request): Promise<Response> {
   try {
     const f = await open(new URL(req.url));
-    if (!f || !(await f.run(() => exists(f)))) return invalid();
-    const what = f.kind === "alert" ? "stock alerts" : "emails";
-    return page(200, `Stop these ${what}?`, `<p>You will not get any more ${what} from ${escape(f.dealerName)}.</p><form method="post"><button type="submit">Stop these ${what}</button></form>`);
+    if (!f || !(await f.run(() => alertsStore.get(f.id)))) return invalid();
+    return page(200, "Stop these stock alerts?", `<p>You will not get any more stock alerts from ${escape(f.dealerName)}.</p><form method="post"><button type="submit">Stop these stock alerts</button></form>`);
   } catch {
     return error500();
   }
@@ -56,7 +54,7 @@ export async function doUnsubscribe(req: Request): Promise<Response> {
   try {
     const f = await open(new URL(req.url));
     if (!f) return invalid();
-    const found = await f.run(() => (f.kind === "newsletter" ? unsubscribeSubscriber(f.id, "The subscriber") : pauseAlert(f.id, "The subscriber")));
+    const found = await f.run(() => pauseAlert(f.id, "The subscriber"));
     return found ? page(200, "You won't get these emails again", "") : invalid();
   } catch {
     return error500();

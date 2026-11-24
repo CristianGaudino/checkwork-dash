@@ -123,13 +123,13 @@ code path reaches another dealer's (#3, #4, #6; `src/lib/tenancy/`).
   website (`docs/site-api.md`, "Car photos").
 - **The site API** (`/api/site/v1`, `docs/site-api.md`): a dealer's website sends leads and reads its cars with a key made in Settings.
   The key decides the dealer, and the work runs inside `runAsDealer`; nothing in a request can name another dealer.
-- **The public unsubscribe** (`/api/site/unsubscribe`, #70, `src/lib/unsubscribe.ts`, `src/lib/site-api/unsubscribe.ts`): every newsletter and stock alert
+- **The public unsubscribe** (`/api/site/unsubscribe`, #70, `src/lib/unsubscribe.ts`, `src/lib/site-api/unsubscribe.ts`): every stock alert
   email carries a link made by `unsubscribeParts(dealerId, kind, recordId)` and the RFC 8058 headers `List-Unsubscribe` and
-  `List-Unsubscribe-Post: List-Unsubscribe=One-Click`. The link is `?d=<dealer>&k=newsletter|alert&id=<record>&sig=<HMAC-SHA256, base64url>` on this app, signed with
+  `List-Unsubscribe-Post: List-Unsubscribe=One-Click`. The link is `?d=<dealer>&k=alert&id=<record>&sig=<HMAC-SHA256, base64url>` on this app, signed with
   `UNSUBSCRIBE_SECRET` over the three values. It holds no email address, needs no sign-in and names the dealer, so their own store opens.
   It sits under `/api/site/`, which Cloudflare Access leaves open and the proxy never runs on, so no owner setup is needed. GET shows
-  "Stop these emails?" and changes nothing (a mail scanner opens links); POST (the button, or a mail provider's one-click) turns the
-  subscriber to `unsubscribed`, or pauses the alert, and says "You won't get these emails again". Done twice is fine. A bad, tampered,
+  "Stop these stock alerts?" and changes nothing (a mail scanner opens links); POST (the button, or a mail provider's one-click) pauses
+  the alert and says "You won't get these emails again". The newsletter's `k=newsletter` went with it (#149): such a link is now invalid. Done twice is fine. A bad, tampered,
   other-dealer or unknown link is the same plain page with a 404 and no reason. 60 a minute per visitor address on `SITE_LIMITER` (the binding's limit). The activity log
   gets one line by "The subscriber", with the record's kind and id and never the email. Changing the secret ends every link already sent.
 - **A demo dealer** (the directory's `demo` flag) behaves as the demo on any deploy, the one shared production deploy included: its
@@ -149,7 +149,7 @@ code path reaches another dealer's (#3, #4, #6; `src/lib/tenancy/`).
   paths is not enough: each action starts with `requireStaff()` (`src/lib/staff.ts`), which verifies the Access token and that the person
   has a dealer open (the directory), and who the person is comes from that token, never from a header. Open where the dashboard is open (development, `NEXT_PUBLIC_ADMIN_OPEN=1`).
 - **Real visitor records only appear behind Cloudflare Access.** The admin shows seeded records plus what visitors send (leads, test drives, stock alerts). That is personal data, so on a deployed site the admin only answers with a valid Access token (checked in `src/proxy.ts`). `NEXT_PUBLIC_ADMIN_OPEN=1` skips the check and is for CI only: never set it on a deploy (where the directory is bound it counts for nothing, `src/lib/staff.ts` and `src/proxy.ts`). Only `next dev` is open without it. Any build, even one that forgot `APP_ENV`, is closed, and the demo bar's cookies (role, plan, stock sync) only count for a demo dealer (`demoCookie` in `src/lib/tenancy/current.ts`).
-- **A demo dealer simulates the outward services, keys or not, except AI writing.** Posts, ads, newsletters, review replies, WhatsApp, the registration lookup, DoneDeal stock and AI writing go through `modeOf` (`src/lib/integrations.ts`; posting through `src/lib/admin/publishers.ts`). For a demo dealer each is simulated: it reports success marked `simulated`, and the admin records made-up figures so the flow can be shown. For any other dealer, with no keys they say "not connected"; with keys they say "not switched on" until the real adapter replaces the marked line. The one exception is AI writing (owner, 2026-11-22): with `ANTHROPIC_API_KEY` set a demo dealer's AI is real Claude (`modeOf("ai")` is "live", Settings shows it connected), and with no key (`next dev`, tests, E2E) it is the mock. Nothing else about the demo changes: it still never posts, advertises, sends or messages anyone. Lead email, the bot check and reviews are never simulated: Settings shows their true state. Unit tests pin all three modes.
+- **A demo dealer simulates the outward services, keys or not, except AI writing.** Posts, ads, review replies, WhatsApp, the registration lookup, DoneDeal stock and AI writing go through `modeOf` (`src/lib/integrations.ts`; posting through `src/lib/admin/publishers.ts`). For a demo dealer each is simulated: it reports success marked `simulated`, and the admin records made-up figures so the flow can be shown. For any other dealer, with no keys they say "not connected"; with keys they say "not switched on" until the real adapter replaces the marked line. The one exception is AI writing (owner, 2026-11-22): with `ANTHROPIC_API_KEY` set a demo dealer's AI is real Claude (`modeOf("ai")` is "live", Settings shows it connected), and with no key (`next dev`, tests, E2E) it is the mock. Nothing else about the demo changes: it still never posts, advertises, sends or messages anyone. Lead email, the bot check and reviews are never simulated: Settings shows their true state. Unit tests pin all three modes.
 - **What visitors send reaches the admin.** A test drive booking and a stock alert are lead types in the one lead pipeline (consent, bot check, rate limit, retention). After a lead is stored, `src/lib/admin/real-leads.ts` copies it into the admin's collections (ids start `real-`) so the dealer can work it. The daily purge deletes the copies with the lead.
 - **Lead emails are a setting.** Settings, Lead routing: up to five addresses, a test button, and the dealer's profile `leadEmail` as the fallback.
 - **What reaches each person, and how** (#142, `src/lib/notify-rules.ts`): one row per event, one column per channel, only where the channel
@@ -174,9 +174,10 @@ Every dashboard action records what it changed through `logActivity` (`src/lib/a
 with no D1). The actor is the signed-in person (`currentMember`), or a named one such as the stock sync.
 - **Changes only:** a price from and to, a lead moved from New to Contacted, a role changed, a post published. Never page views, and never
   what a customer wrote (a note is "Added a note", not its text).
-- **No names of customers kept:** an entry about a lead, a test drive, an alert, a subscriber or a review keeps only its kind and id. The
+- **No names of customers kept:** an entry about a lead, a test drive, an alert or a review keeps only its kind and id. The
   page reads the name from the live record, so once the record is deleted (the lead purge, an erasure request) the entry says "A deleted
-  lead". Cars, posts, newsletters and team members keep their label.
+  lead". Cars, posts and team members keep their label. Older entries about a subscriber or a newsletter (removed, #149) show without a
+  record.
 - **Best effort:** a log that cannot be written never stops the change; the failure is logged without the entry.
 - **Kept 12 months** (`ACTIVITY_RETENTION_MONTHS`), then deleted by the daily job in `worker.mjs`, which logs `{"job":"purge-activity"}`.
 - **The demo** seeds a history of the made-up team on the seeded records; Reset demo data puts it back.
@@ -202,8 +203,8 @@ with no D1). The actor is the signed-in person (`currentMember`), or a named one
 
 ## Confirm and Undo
 
-- Anything that cannot be taken back asks first (`ActButton` with `confirm`): delete a car, a post, an ad or a newsletter, send a
-  newsletter, publish a post or start an ad, remove or pause a stock alert, unsubscribe, remove a team member or a prep cost, reset the demo.
+- Anything that cannot be taken back asks first (`ActButton` with `confirm`): delete a car, a post or an ad, publish a post or start
+  an ad, remove or pause a stock alert, remove a team member or a prep cost, reset the demo.
 - What can be taken back runs at once and offers Undo in the toast: hide, show and publish a car, a test drive's status.
 
 ## Sales and follow-ups
@@ -266,8 +267,10 @@ with no D1). The actor is the signed-in person (`currentMember`), or a named one
 A warranty message sent from the website is aftersales work, not a sale: it waits in Aftersales under Requests (left out of Leads, its counts,
 the overview and the reports) until a claim is opened from it or it is set aside. Aftersales opens on Requests while any wait.
 
-Customers has three lists: the customers (the Sales module) and the stock alerts and newsletter subscribers (the Newsletter module, where
-visitors sign up). Each list, its actions and its export answer only with its module on; the page answers with either.
+Customers has two lists: the customers (the Sales module) and the stock alerts (the Stock alerts module, id `newsletter` so stored plans
+keep working; visitors sign up on the website). Each list, its actions and its export answer only with its module on; the page answers with
+either. The newsletter was taken out (#149): its subscriber and newsletter records stay in each dealer's store, but nothing reads, exports,
+erases or sends them any more.
 
 
 - **A customer's page** (`/customers/[id]`): how to reach them, what they bought with the warranty on each (in cover or not),
@@ -309,7 +312,7 @@ visitors sign up). Each list, its actions and its export answer only with its mo
 - **Data requests** (`/data-requests`, `src/lib/admin/data-requests.ts`): when someone asks what we hold about them, or for it
   to be deleted (GDPR articles 15 and 17, answer within a month). Search by the email or phone they gave; the search then widens once by
   the other details their customer record and leads hold. It finds the website form submissions (D1, with their photos in R2), leads,
-  test drives, stock alerts, the newsletter, the customer record and purchases. Download a copy (JSON) or erase, after ticking that it is
+  test drives, stock alerts, the customer record and purchases. Download a copy (JSON) or erase, after ticking that it is
   the person asking. Erasure deletes the photos, then the rows and records; a purchase stays for the books without the buyer. The email or
   phone is never in an address. Each request is in the activity history, without the person.
 - **CSV exports**: Leads (with the list's filters) and Customers (the open tab) for owners and managers, each recorded in Activity;
@@ -389,10 +392,10 @@ and their add-ons are sold:
 |---|---|---|---|---|
 | Showroom | Trade-in, finance, car finder, lookup on the website, reviews shown | EUR 249 | EUR 950 | 25 lookups |
 | Dealer | Showroom plus the dashboard, test drives, sales, analytics, WhatsApp, AI writing, lookup in the dashboard | EUR 449 | EUR 950 | 100 lookups, 500 WhatsApp alerts and confirmations, 100 AI actions |
-| Group | Dealer plus margins, social, newsletter, new cars, commercial | EUR 749, plus EUR 149 per extra branch | EUR 1,950 | 100 lookups and 500 WhatsApp alerts per branch, 300 AI actions |
+| Group | Dealer plus margins, social, stock alerts, new cars, commercial | EUR 749, plus EUR 149 per extra branch | EUR 1,950 | 100 lookups and 500 WhatsApp alerts per branch, 300 AI actions |
 
 - **Add-ons** at module prices (`MODULE_EUR`): any module the tier lacks, such as commercial EUR 29, service EUR 49, margins EUR 49, social EUR 99 (with 200 more AI actions a month),
-  newsletter EUR 59, new cars EUR 99. New cars covers 2 brands; each more brand is EUR 29 a month and EUR 100 at setup, in a tier or not
+  stock alerts (module id `newsletter`) EUR 59, new cars EUR 99. New cars covers 2 brands; each more brand is EUR 29 a month and EUR 100 at setup, in a tier or not
   (setup EUR 400 as an add-on). A plan is the cheapest tier for the dealer's modules plus add-ons; no modules is Showroom. Showroom takes
   no add-on that is or needs the dashboard, and more than one branch is Group. The demo bar names the plan as the Billing page does, and each switch shows what turning it on adds.
 - **Over the allowance** each use is billed: lookup EUR 0.30, WhatsApp alert EUR 0.05, reply EUR 0.03, marketing message EUR 0.12, AI
@@ -521,9 +524,9 @@ app store and no outside service.
 - **Formats** (#177): a post is a Post, Story (9:16 with a ready layout: Just in or Price drop, drawn over the car photo), Reel or video, or Carousel (2 to 10 photos). The composer previews each at phone size. Limits live in `src/lib/admin/networks.ts` (`FORMAT_LIMITS`, `FORMATS_FOR`) and the server checks the same numbers. `PUBLISH_MODE` there says which formats a network's API publishes ("auto": every Facebook and Instagram format, stories included) and which are held ("prepare": all of TikTok, whose posting API keeps an unaudited app's posts private, until TikTok approves the app; the page says so). Publishing stays simulated.
 - **Media library** (`mediaStore`, tab Media): photos (JPEG, PNG, WebP; shrunk to 1,600px on the device) and videos (MP4, MOV, up to 15 MB and 90 seconds on the demo; length read in the browser and checked loosely on the server), optionally tagged to a car. Stored in R2 under `media/` in the `LEAD_PHOTOS` bucket and served by `/media-files`; with no bucket a data URL is kept in memory. Rules in `src/lib/admin/media-rules.ts`. No range requests yet, so add them before real video use.
 - **Calendar**: a week of scheduled and posted posts and started ads (`calendarWeek`); drafts are not on it. A post on it opens its page.
-- **Drafts** (#93): a post's page is `/marketing/posts/[id]`. A draft or a scheduled post opens there in the composer, filled in from what was saved, and saving, posting or scheduling updates the same post (`composeAction` with `id`, under the same checks as a new one). A post that went out is shown read-only with its figures. A newsletter draft is edited at `/marketing/newsletters/[id]` (`createNewsletterAction` with `id`); a sent one cannot be. "Write from the newest cars" opens `/marketing/newsletters/new` filled in from the stock, and nothing is saved until the dealer saves it. Post now (from a row too) needs what the post's format needs (`readyToPost`).
-- **Modules**: posts, calendar and media need Social and ads, newsletters need Newsletter and alerts; the page needs one of them.
-- **AI writing** (#179): `writeAction` (`src/lib/ai/actions.ts`) checks the `ai` module, then the monthly cap, builds the facts from the records (the browser sends ids only), writes with the model chosen on Billing, then counts the action under that model. With no `ANTHROPIC_API_KEY` (local `next dev`, tests, E2E) `writeWithAI` is the mock in `src/lib/ai/mock.ts` (deterministic, facts only, dashes stripped, 700 ms pause). With `ANTHROPIC_API_KEY` set as a Worker secret (`npx wrangler secret put ANTHROPIC_API_KEY`) it is real Claude instead (`src/lib/ai/claude.ts`, every prompt in one place), for the demo dealer too, under the same module check, monthly cap, ceiling and `AI_LIMITER` as any dealer. The demo's AI usage is a `real-` record that the demo reset keeps (the seeded lines still reset), so its monthly cap is a real monthly cap, not a daily one. A refusal, a cut-off answer or an error is a failed write, not billed, and the facts and text are never logged. Limits: the monthly AI cap (demo €25), our AI ceiling that a cap can never go past (`AI_CEILING_EUR`, €50 on every site unless the owner's program sets another; €25 on a freshly seeded demo), `AI_LIMITER` of 10 calls a minute per dealer (wrangler.jsonc, namespace 3003, 4003 on dev; Cloudflare counts it per location), short prompts (a message or review is cut to 600 characters; phone numbers and emails are taken out of the facts and the draft, and the dealer's own are put back in the answer) and `max_tokens` 2048. Set a spend limit on the Claude Console workspace too. `AIWriter` / `AITextarea` show the button, adjust chips, Undo and an "AI draft" label, and hide with the module off. Used in the post composer, newsletters, the car description, the lead page (Draft a reply) and review replies.
+- **Drafts** (#93): a post's page is `/marketing/posts/[id]`. A draft or a scheduled post opens there in the composer, filled in from what was saved, and saving, posting or scheduling updates the same post (`composeAction` with `id`, under the same checks as a new one). A post that went out is shown read-only with its figures. Post now (from a row too) needs what the post's format needs (`readyToPost`).
+- **Modules**: Marketing (posts, calendar and media) is the Social and ads module; without it the page is a 404 and not in the menu. Stock alerts are on Customers.
+- **AI writing** (#179): `writeAction` (`src/lib/ai/actions.ts`) checks the `ai` module, then the monthly cap, builds the facts from the records (the browser sends ids only), writes with the model chosen on Billing, then counts the action under that model. With no `ANTHROPIC_API_KEY` (local `next dev`, tests, E2E) `writeWithAI` is the mock in `src/lib/ai/mock.ts` (deterministic, facts only, dashes stripped, 700 ms pause). With `ANTHROPIC_API_KEY` set as a Worker secret (`npx wrangler secret put ANTHROPIC_API_KEY`) it is real Claude instead (`src/lib/ai/claude.ts`, every prompt in one place), for the demo dealer too, under the same module check, monthly cap, ceiling and `AI_LIMITER` as any dealer. The demo's AI usage is a `real-` record that the demo reset keeps (the seeded lines still reset), so its monthly cap is a real monthly cap, not a daily one. A refusal, a cut-off answer or an error is a failed write, not billed, and the facts and text are never logged. Limits: the monthly AI cap (demo €25), our AI ceiling that a cap can never go past (`AI_CEILING_EUR`, €50 on every site unless the owner's program sets another; €25 on a freshly seeded demo), `AI_LIMITER` of 10 calls a minute per dealer (wrangler.jsonc, namespace 3003, 4003 on dev; Cloudflare counts it per location), short prompts (a message or review is cut to 600 characters; phone numbers and emails are taken out of the facts and the draft, and the dealer's own are put back in the answer) and `max_tokens` 2048. Set a spend limit on the Claude Console workspace too. `AIWriter` / `AITextarea` show the button, adjust chips, Undo and an "AI draft" label, and hide with the module off. Used in the post composer, the car description, the lead page (Draft a reply) and review replies.
 
 ## Where things are
 
@@ -552,10 +555,10 @@ app store and no outside service.
 
 ## Connecting a service
 
-Each service in `integrations.ts` lists the settings it needs. Settings, Connected services shows which are on. The sending and publishing code for Meta, Google Ads and the newsletter provider is not written: the place for it is marked in `publishers.ts`.
+Each service in `integrations.ts` lists the settings it needs. Settings, Connected services shows which are on. The sending and publishing code for Meta, Google Ads and the stock alert emails is not written: the place for it is marked in `publishers.ts`.
 
 **Whose key it is** (#26). `perDealer` on a service names the settings that are the dealer's own accounts; the rest of `env` is ours and stays a Worker secret.
-- Per dealer: the listing site key (`DONEDEAL_API_KEY`), Google Business (`GOOGLE_BUSINESS_LOCATION`, `GOOGLE_BUSINESS_REFRESH_TOKEN`), Meta posting (`META_PAGE_ID`, `META_PAGE_ACCESS_TOKEN`, `META_INSTAGRAM_ID`), ads (`META_AD_ACCOUNT_ID`, `GOOGLE_ADS_CUSTOMER_ID`), WhatsApp (`WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_ACCESS_TOKEN`) and the newsletter's sending address (`NEWSLETTER_FROM_EMAIL`).
+- Per dealer: the listing site key (`DONEDEAL_API_KEY`), Google Business (`GOOGLE_BUSINESS_LOCATION`, `GOOGLE_BUSINESS_REFRESH_TOKEN`), Meta posting (`META_PAGE_ID`, `META_PAGE_ACCESS_TOKEN`, `META_INSTAGRAM_ID`), ads (`META_AD_ACCOUNT_ID`, `GOOGLE_ADS_CUSTOMER_ID`), WhatsApp (`WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_ACCESS_TOKEN`) and the stock alert emails' sending address (`NEWSLETTER_FROM_EMAIL`, its old name kept).
 - Ours, always the Worker secret: `ANTHROPIC_API_KEY`, `GOOGLE_PLACES_API_KEY` (their place is their profile's `placeId`), `CARTELL_API_KEY`, `GOOGLE_ADS_DEVELOPER_TOKEN`, `NEWSLETTER_API_KEY`, `UNSUBSCRIBE_SECRET`, `WHATSAPP_APP_SECRET`, the email binding. We bill these through usage.
 
 **Where a dealer's keys live.** `src/lib/dealer-secrets.ts`: a `secrets` collection in the dealer's own store. Each value is sealed with AES-GCM, under a key HKDF-derived from the Worker secret `DEALER_SECRETS_KEY` with the dealer's id as info, a random 12-byte iv, and the dealer and the setting's name as AAD, so a value read under another dealer or name fails. Stored as `v1.<iv>.<ciphertext>`; a new key version is added there to rotate (read the old, reseal under the new). The plaintext is never stored, returned to a browser, logged or put in Activity. Adapters and `isConnected` ask `secretFor(name)` / `missingEnv`: for a per-dealer setting only the dealer's own saved value counts, never an app-wide variable (one leftover token would be every dealer's account), so a service that was a Worker secret must be set per dealer through the owner API. A value that cannot be opened (no `DEALER_SECRETS_KEY`, or a different one) makes `secretFor` give nothing, and the service reads as not connected. Our settings stay Worker secrets.

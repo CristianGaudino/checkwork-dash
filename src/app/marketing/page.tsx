@@ -4,26 +4,25 @@ import { DAY } from "@/lib/time";
 import { ActButton } from "@/components/admin/ActButton";
 import { RowMenu } from "@/components/admin/RowMenu";
 import { sendDuePosts } from "@/lib/admin/scheduler";
-import { adsStore, mediaStore, newslettersStore, postsStore, subscribersStore, type Ad, type SocialPost } from "@/lib/admin/collections";
+import { adsStore, mediaStore, postsStore, type Ad, type SocialPost } from "@/lib/admin/collections";
 import { LibraryUpload } from "@/components/admin/MediaUpload";
 import { hasModule } from "@/lib/modules";
 import { notFound } from "next/navigation";
 import { TIME_ZONE } from "@/lib/site";
 import { AD_PLATFORM_LABELS } from "@/lib/admin/networks";
 import { PostNow, postLabel, postName, prepared } from "@/components/admin/PostNow";
-import { addDays, dublinDay, fmtDate, fmtDateTime, fmtEur, fmtNum, fmtPct, isIsoDay, plural, threeLetter } from "@/lib/admin/format";
+import { addDays, dublinDay, fmtDate, fmtDateTime, fmtEur, fmtNum, isIsoDay, plural, threeLetter } from "@/lib/admin/format";
 import Link from "next/link";
 import { calendarWeek, newestForSale, readyToPost, weekDays, worthPosting } from "@/lib/admin/marketing";
 import { adminCars } from "@/lib/admin/stock-admin";
-import { isUsable } from "@/lib/integrations";
 import { carName } from "@/lib/stock/format";
-import { deleteAdAction, deleteMediaAction, deleteNewsletterAction, deletePostAction, sendNewsletterAction, startAdAction } from "./actions";
+import { deleteAdAction, deleteMediaAction, deletePostAction, startAdAction } from "./actions";
 import { BrandIcon } from "@/components/admin/BrandIcon";
 
 export const metadata = { title: "Marketing" };
 
-// Each tab belongs to a module (#173): posts, the calendar and the media library to Social and ads, newsletters to Newsletter and alerts.
-const TABS = [["posts", "Posts and ads", "social"], ["calendar", "Calendar", "social"], ["media", "Media", "social"], ["newsletters", "Newsletters", "newsletter"]] as const;
+// Every tab is the Social and ads module (#173).
+const TABS = ["posts", "calendar", "media"];
 
 // Every message the page can show. The URL carries only a code from this list.
 const NOTICES: Record<string, { tone: "good" | "warn"; text: string }> = {
@@ -35,19 +34,14 @@ const NOTICES: Record<string, { tone: "good" | "warn"; text: string }> = {
   "published-ad": { tone: "good", text: "Post published and ad started." },
   "published-ad-draft": { tone: "warn", text: "Post published. The ad is saved as a draft because ads are not connected." },
   "ad-started": { tone: "good", text: "Ad started." },
-  "letter-created": { tone: "good", text: "Newsletter draft saved." },
-  "letter-sent": { tone: "good", text: "Newsletter sent." },
   deleted: { tone: "good", text: "Deleted." },
   invalid: { tone: "warn", text: "That did not go through. Check the details and try again." },
   "car-gone": { tone: "warn", text: "That car is no longer for sale, so nothing was posted." },
-  "no-subscribers": { tone: "warn", text: "Nobody is subscribed yet, so nothing was sent." },
   "invalid-time": { tone: "warn", text: "Choose a time that has not passed." },
   "social-not-connected": { tone: "warn", text: "Facebook and Instagram are not connected, so nothing was posted. The draft is kept. Connect them under Settings." },
   "ads-not-connected": { tone: "warn", text: "Ads are not connected, so the ad was not started. Connect them under Settings." },
-  "newsletters-not-connected": { tone: "warn", text: "Newsletter sending is not connected, so nothing was sent. Connect it under Settings." },
   "social-not-installed": { tone: "warn", text: "Posting is not switched on yet. Nothing was posted." },
   "ads-not-installed": { tone: "warn", text: "Ads are not switched on yet. Nothing was started." },
-  "newsletters-not-installed": { tone: "warn", text: "Sending is not switched on yet. Nothing was sent." },
 };
 
 const PENDING = new Set(["draft", "scheduled"]);
@@ -58,7 +52,6 @@ const TAB_TEXT: Record<string, string> = {
   posts: "What went out and what is waiting",
   calendar: "What goes out each day of the week",
   media: "Your own photos and videos for posts",
-  newsletters: "Your newest cars, emailed to subscribers",
 };
 
 const STATUS: Record<string, { tone: Tone; label: string }> = {
@@ -72,15 +65,12 @@ const STATUS: Record<string, { tone: Tone; label: string }> = {
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ tab?: string; notice?: string; show?: string; status?: string; page?: string; per?: string; week?: string }> }) {
   const sp = await searchParams;
-  const [social, news] = await Promise.all([hasModule("social"), hasModule("newsletter")]);
-  const tabs = TABS.filter(([, , m]) => (m === "social" ? social : news));
-  if (!tabs.length) notFound(); // neither module: there is nothing to show
-  const tab = tabs.some(([k]) => k === sp.tab) ? sp.tab! : tabs[0][0];
+  if (!(await hasModule("social"))) notFound();
+  const tab = TABS.includes(sp.tab ?? "") ? sp.tab! : TABS[0];
   const notice = sp.notice ? NOTICES[sp.notice] : undefined;
   await sendDuePosts(); // posts whose time has come go out before the list is read
-  const [posts, ads, letters, subs, cars, library, sending] = await Promise.all([postsStore.list(), adsStore.list(), newslettersStore.list(), subscribersStore.list(), adminCars(), mediaStore.list(), isUsable("newsletter")]);
+  const [posts, ads, cars, library] = await Promise.all([postsStore.list(), adsStore.list(), adminCars(), mediaStore.list()]);
   const onSale = newestForSale(cars);
-  const live = subs.filter((s) => s.status === "subscribed").length;
   const ideas = worthPosting(onSale, posts);
   // Posts and ads in one list, newest first, filtered by what it is and where it stands.
   const feed = [...posts.map((p) => ({ kind: "post" as const, at: p.createdAt, status: p.status, p })), ...ads.map((a) => ({ kind: "ad" as const, at: a.createdAt, status: a.status, a }))]
@@ -104,7 +94,6 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
   const seen = recent.reduce((n, p) => n + (p.reach ?? 0), 0);
   const clicks = recent.reduce((n, p) => n + (p.clicks ?? 0), 0);
   const adLeads = ads.filter((a) => (a.startedAt ?? a.createdAt) >= since).reduce((n, a) => n + a.leads, 0);
-  const sentLetters = pageOf([...letters].sort((a, b) => b.createdAt - a.createdAt), sp);
 
   return (
     <>
@@ -113,12 +102,10 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
         text={TAB_TEXT[tab]}
         actions={
           // On every tab, so the header does not change shape when the tab does.
-          social && (
-            <Link href="/marketing/new" className={adminButton}>
-              <PlusIcon className="shrink-0 size-4" />
-              New post
-            </Link>
-          )
+          <Link href="/marketing/new" className={adminButton}>
+            <PlusIcon className="shrink-0 size-4" />
+            New post
+          </Link>
         }
       />
       {notice && (
@@ -127,11 +114,10 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
       <SummaryTabs
         label="Marketing"
         items={[
-          social && { label: "Posts and ads", count: fmtNum(posts.length + ads.length), hint: `${posts.filter((p) => p.status === "posted" && !prepared(p)).length} posted, ${ads.filter((a) => a.status === "running").length} ads running`, href: "/marketing?tab=posts", active: tab === "posts" },
-          social && { label: "Calendar", count: fmtNum(posts.filter((p) => p.status === "scheduled").length), hint: "scheduled", href: "/marketing?tab=calendar", active: tab === "calendar" },
-          social && { label: "Media", count: fmtNum(library.length), hint: "photos and videos", href: "/marketing?tab=media", active: tab === "media" },
-          news && { label: "Newsletters", count: fmtNum(live), hint: "subscribers", href: "/marketing?tab=newsletters", active: tab === "newsletters" },
-        ].filter((i) => i !== false)}
+          { label: "Posts and ads", count: fmtNum(posts.length + ads.length), hint: `${posts.filter((p) => p.status === "posted" && !prepared(p)).length} posted, ${ads.filter((a) => a.status === "running").length} ads running`, href: "/marketing?tab=posts", active: tab === "posts" },
+          { label: "Calendar", count: fmtNum(posts.filter((p) => p.status === "scheduled").length), hint: "scheduled", href: "/marketing?tab=calendar", active: tab === "calendar" },
+          { label: "Media", count: fmtNum(library.length), hint: "photos and videos", href: "/marketing?tab=media", active: tab === "media" },
+        ]}
       />
 
       {tab === "posts" && (
@@ -299,58 +285,6 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
         </>
       )}
 
-      {tab === "newsletters" && (
-        <>
-          {/* Opens the letter written from the stock to check first: nothing is saved until the dealer saves it. Write your own opens the
-              same page empty (#141), never a form folded open under the list. The buttons on the right, the main one right-most (#140). */}
-          <div className="flex flex-wrap items-center justify-end gap-3">
-            <p className="mr-auto text-meta text-text-2">{fmtNum(live)} subscribers{sending ? "" : ", sending not connected"}</p>
-            <Link href="/marketing/newsletters/new?own=1" className={adminButtonQuiet}>Write your own</Link>
-            <Link href="/marketing/newsletters/new" className={adminButton}>Write from the newest cars</Link>
-          </div>
-          <Panel title="Newsletters">
-            {letters.length === 0 ? (
-              <EmptyState title="No newsletters yet" />
-            ) : (
-              <ul className="-mx-5 flex flex-col">
-                {sentLetters.rows.map((n) => (
-                  <li key={n.id} className="relative flex flex-wrap items-center gap-x-3 gap-y-2 px-5 py-3 transition-colors even:bg-row-alt has-[>a:hover]:bg-surface">
-                    <div className="flex min-w-[min(12rem,100%)] flex-1 flex-col gap-2">
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                        <span className="font-medium">{n.subject}</span>
-                        <Badge tone={n.status === "sent" ? "good" : "neutral"}>{n.status === "sent" ? "Sent" : "Draft"}</Badge>
-                        <span className="text-meta text-text-2">{fmtDate(n.sentAt ?? n.createdAt)}</span>
-                        {n.status === "sent" && n.recipients !== undefined && n.recipients > 0 && (
-                          <span className="text-meta text-text-2 sm:ml-auto">{fmtNum(n.recipients)} sent · {fmtPct(((n.opens ?? 0) / n.recipients) * 100)} opened · {fmtPct(((n.clicks ?? 0) / n.recipients) * 100)} clicked</span>
-                        )}
-                      </div>
-                      <p className="line-clamp-2 max-w-measure whitespace-pre-line text-body text-text-2">{n.body}</p>
-                    </div>
-                    {n.status === "draft" && (
-                      <>
-                        {/* A draft row opens it to edit. Send when there is someone to send to, else Edit; the rest in the menu. */}
-                        <Link href={`/marketing/newsletters/${n.id}`} aria-label={`Edit ${n.subject}`} className="absolute inset-0" />
-                        <span className="relative z-10 flex shrink-0 flex-wrap justify-end gap-2 max-sm:basis-full sm:ml-auto">
-                          {live > 0 ? (
-                            <ActButton act={sendNewsletterAction.bind(null, n.id)} confirm={{ title: `Send "${n.subject}"?`, text: `It goes to ${plural(live, "subscriber")} and cannot be taken back.`, yes: "Send" }} label={`Send ${n.subject} to ${plural(live, "subscriber")}`} className={rowButtonStrong}>Send to {fmtNum(live)}</ActButton>
-                          ) : (
-                            <Link href={`/marketing/newsletters/${n.id}`} aria-label={`Edit ${n.subject}`} className={rowButtonStrong}><PencilIcon className="shrink-0 size-4" />Edit</Link>
-                          )}
-                          <RowMenu label={`More for ${n.subject}`}>
-                            {live > 0 && <Link href={`/marketing/newsletters/${n.id}`} className={rowButton}><PencilIcon className="shrink-0 size-4" />Edit</Link>}
-                            <ActButton act={deleteNewsletterAction.bind(null, n.id)} confirm={{ title: `Delete this newsletter?`, text: "This cannot be undone.", yes: "Delete" }} label={`Delete ${n.subject}`} className={rowButton}><TrashIcon className="shrink-0 size-4" />Delete</ActButton>
-                          </RowMenu>
-                        </span>
-                      </>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Panel>
-          <TableFooter page={sentLetters.page} pageCount={sentLetters.pageCount} total={sentLetters.total} per={sentLetters.per} />
-        </>
-      )}
     </>
   );
 }

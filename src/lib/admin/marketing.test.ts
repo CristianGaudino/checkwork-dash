@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Car } from "@/lib/stock/types";
-import { calendarWeek, weekDays, worthPosting, writeNewsletter, writePost } from "./marketing";
+import { calendarWeek, weekDays, worthPosting, writePost } from "./marketing";
 
 const voice = { voice: "Plain.", hashtags: "#usedcars", signOff: "Call in to see it." };
 const car = { id: "1", slug: "ford-focus-2019-1", make: "Ford", model: "Focus", variant: "1.0 Titanium", year: 2019, priceEur: 13950, mileageKm: 129999, fuel: "petrol", gearbox: "manual", photos: [] } as unknown as Car;
@@ -32,30 +32,12 @@ describe("writePost", () => {
   });
 });
 
-describe("writeNewsletter", () => {
-  it("lists each car with its price and link, then the sign-off", () => {
-    const n = writeNewsletter([car], voice, { name: "Checkwork Motors", siteUrl: SITE });
-    expect(n.subject).toBe("New arrivals at Checkwork Motors");
-    expect(n.body).toContain("- 2019 Ford Focus, €13,950.");
-    expect(n.body.endsWith("Call in to see it.")).toBe(true);
-  });
-  it("still makes sense with no cars", () => {
-    const n = writeNewsletter([], voice, { name: "Checkwork Motors", siteUrl: SITE });
-    expect(n.subject).toBe("News from Checkwork Motors");
-    expect(n.body).toBe("Call in to see it.");
-  });
-});
-
-import { simulatedAd, simulatedLetter, simulatedPost } from "./marketing";
+import { simulatedAd, simulatedPost } from "./marketing";
 describe("simulated figures", () => {
   it("are the same for the same record, and sensible", () => {
     expect(simulatedPost("post-1")).toEqual(simulatedPost("post-1"));
     const a = simulatedAd("ad-1");
     expect(a.clicks).toBeLessThan(a.impressions);
-    const n = simulatedLetter("nl-1", 100);
-    expect(n.recipients).toBe(100);
-    expect(n.opens).toBeLessThanOrEqual(100);
-    expect(n.clicks).toBeLessThan(n.opens);
   });
 });
 

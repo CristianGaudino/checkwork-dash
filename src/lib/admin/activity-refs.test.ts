@@ -27,11 +27,12 @@ describe("where each record links", () => {
     const href = (refKind: Parameters<typeof refView>[0]["refKind"]) => refView({ refKind, refId: "x", refLabel: "Label" }, people, live)?.href;
     expect(href("drive")).toBe("/test-drives/x");
     expect(href("alert")).toBe("/customers?tab=alerts");
-    expect(href("subscriber")).toBe("/customers?tab=newsletter");
     expect(href("review")).toBe("/reviews");
     expect(href("post")).toBe("/marketing?tab=posts");
     expect(href("ad")).toBe("/marketing?tab=posts");
-    expect(href("newsletter")).toBe("/marketing?tab=newsletters");
     expect(href("team")).toBe("/settings?section=team");
+  });
+  it("shows no record for a kind no longer kept, on an older row", () => {
+    expect(refView({ refKind: "newsletter" as never, refId: "nl-1", refLabel: "Old" }, people, () => true)).toBeNull();
   });
 });

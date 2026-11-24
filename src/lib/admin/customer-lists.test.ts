@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { Customer, StockAlert, Subscriber } from "./collections";
-import { filterAlerts, filterCustomers, filterSubscribers } from "./customer-lists";
+import type { Customer, StockAlert } from "./collections";
+import { filterAlerts, filterCustomers } from "./customer-lists";
 
 const people = [
   { id: "1", name: "Aoife Byrne", email: "aoife@x.example", phone: "087 1", source: "Website", marketingConsent: true },
@@ -10,7 +10,6 @@ const alerts = [
   { id: "a", email: "a@x.example", criteria: "Ford Focus", kind: "price-drop", active: true, createdAt: 1 },
   { id: "b", email: "b@x.example", criteria: "Kia", kind: "back-in-stock", active: false, createdAt: 2 },
 ] as StockAlert[];
-const subs = [{ id: "s", email: "s@x.example", status: "subscribed" }, { id: "t", email: "t@x.example", status: "unsubscribed" }] as unknown as Subscriber[];
 const ids = (rows: { id: string }[]) => rows.map((r) => r.id);
 
 describe("the customer lists, as the page and its export filter them", () => {
@@ -27,9 +26,5 @@ describe("the customer lists, as the page and its export filter them", () => {
     expect(ids(filterAlerts(alerts, { kind: "back-in-stock" }))).toEqual(["b"]);
     expect(ids(filterAlerts(alerts, { state: "active" }))).toEqual(["a"]);
     expect(ids(filterAlerts(alerts, { state: "paused" }))).toEqual(["b"]);
-  });
-  it("subscribers: search on email and the status", () => {
-    expect(ids(filterSubscribers(subs, { q: "t@" }))).toEqual(["t"]);
-    expect(ids(filterSubscribers(subs, { state: "subscribed" }))).toEqual(["s"]);
   });
 });
