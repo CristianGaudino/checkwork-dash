@@ -5,9 +5,8 @@ import { currentDealer } from "@/lib/tenancy/current";
 import { onWebsite, websitePhotos } from "./photos";
 import type { Answer } from "./request";
 
-// GET /api/site/v1/stock: the cars on the dealer's website, for a dealer whose stock is kept here: live ones and sold ones still inside the
-// dealer's sold window (onPublicSite, their profile's rules), as the website's own stock did. A synced dealer's website reads the listing
-// site, so it gets 404. Only the fields a public car page needs: named here, so a field added to Car later stays private until it is added.
+// GET /api/site/v1/stock: the cars on the dealer's website, whether their stock is kept here or synced from a listing site (so only this app
+// calls the listing site's API): live ones and sold ones still inside the dealer's sold window (onPublicSite, their profile's rules). Only the fields a public car page needs: named here, so a field added to Car later stays private until it is added.
 const PUBLIC_FIELDS = [
   "id", "slug", "make", "makeSlug", "model", "modelSlug", "variant", "year", "priceEur", "wasPriceEur", "condition", "vat", "mileageKm", "fuel",
   "gearbox", "bodyType", "bodySlug", "engineLitres", "colour", "doors", "seats", "owners", "nctExpiry", "maxSpeedMph", "zeroTo62Secs", "co2GKm",
@@ -18,7 +17,6 @@ const publicCar = (c: Car) => Object.fromEntries(PUBLIC_FIELDS.filter((k) => c[k
 
 export async function publicStock(): Promise<Answer> {
   const rule = await onWebsite();
-  if (!rule) return { status: 404, outcome: "not-here" };
   // Photos as links the website can open (photos.ts); one it cannot is left out.
   const photo = await websitePhotos((await currentDealer()).id);
   const cars = await Promise.all(
