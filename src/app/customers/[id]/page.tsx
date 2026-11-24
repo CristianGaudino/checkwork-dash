@@ -12,7 +12,9 @@ import { hasModule } from "@/lib/modules";
 import { NotInPlan } from "@/components/admin/NotInPlan";
 import { ContactButtons } from "@/components/admin/ContactButtons";
 import { stockSource } from "@/lib/stock-source";
-import { reminderFacts, soldCars } from "@/lib/admin/reminders";
+import { reminderFacts } from "@/lib/admin/reminders";
+import { adminCar } from "@/lib/admin/stock-admin";
+import { carHistoryStore } from "@/lib/history";
 import { currentDealer } from "@/lib/tenancy/current";
 
 export const metadata = { title: "Customer" };
@@ -45,7 +47,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const bought = sales.filter((s) => s.customerId === id).sort((a, b) => b.soldOn.localeCompare(a.soldOn));
   // Each car's NCT and service dates and the reminders sent (#171).
   const { serviceMonths } = (await currentDealer()).profile.rules;
-  const carOf = await soldCars();
+  // Each car bought, read on its own (a customer has a sale or two, never the whole stock); nothing to read when they bought nothing.
+  const cars = new Map(await Promise.all(bought.map(async (s) => [s.id, { reg: (await adminCar(s.id))?.reg, history: (await carHistoryStore.get(s.id))?.history }] as const)));
   const deposits = reservations.filter((r) => r.customerId === id).sort((a, b) => b.paidOn.localeCompare(a.paidOn));
   const theirClaims = claims.filter((k) => k.customerId === id).sort((a, b) => b.createdAt - a.createdAt);
   const theirLeads = qs.length ? leads.filter((l) => matchesAny(l, qs)).sort((a, b) => b.createdAt - a.createdAt) : [];
@@ -93,7 +96,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
                           {s.returnedOn ? `, ${s.kind === "returned" ? "brought back" : "fell through"} ${day(s.returnedOn)}` : `, warranty until ${day(coverEnds(s))}`}
                           {s.reviewAskedOn && `, asked for a review ${day(s.reviewAskedOn)}`}
                         </span>
-                        {!s.returnedOn && <span className="text-meta text-text-2">{reminderFacts(s, carOf(s.id), serviceMonths, today).join(" · ")}</span>}
+                        {!s.returnedOn && <span className="text-meta text-text-2">{reminderFacts(s, cars.get(s.id), serviceMonths, today).join(" · ")}</span>}
                       </span>
                       {!s.returnedOn && (
                         <span className="ml-auto flex flex-wrap items-center justify-end gap-2">

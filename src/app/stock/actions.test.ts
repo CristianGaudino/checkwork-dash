@@ -487,6 +487,8 @@ describe("the car form, saved after the car changed elsewhere", () => {
     };
     await save(car.reg!);
     expect(await carHistoryStore.get(car.id)).toBeDefined(); // the same plate keeps it
+    await save(car.reg!.replace(/-/g, " ").toLowerCase());
+    expect(await carHistoryStore.get(car.id)).toBeDefined(); // and so does the same plate typed with other spacing (a paid check)
     await save("191-D-99999");
     expect(await carHistoryStore.get(car.id)).toBeUndefined();
   });

@@ -30,6 +30,7 @@ import { listing } from "@/lib/stock-source";
 import { requireStaff } from "@/lib/staff";
 import { requireModule } from "@/lib/modules";
 import { carHistoryStore } from "@/lib/history";
+import { parseIrishReg } from "@/lib/reg";
 import { alertNewIn, alertStaff } from "@/lib/whatsapp/alerts";
 import { STALE_CAR, STALE_STATUS, changedSince } from "@/lib/admin/stale";
 import { suggestedDrop } from "@/lib/admin/overview";
@@ -82,7 +83,8 @@ export async function saveCarAction(id: string | null, _prev: FormState, data: F
     }
   }
   // A corrected reg makes the kept history check another car's: it goes, so no page or NCT reminder uses it (#171).
-  if (existing && existing.reg !== car.reg) await carHistoryStore.remove(car.id);
+  const plate = (r?: string) => (r && parseIrishReg(r)?.reg) || r; // the same plate typed with other spacing keeps its paid check
+  if (existing && plate(existing.reg) !== plate(car.reg)) await carHistoryStore.remove(car.id);
   if (cost === null) await costsStore.remove(car.id);
   else if (cost !== undefined) await costsStore.put({ id: car.id, costEur: cost });
   await logActivity("stock", existing ? carEditSummary(existing, car) : "Added the car", carRef(car));
