@@ -7,8 +7,7 @@ import { adminCar } from "@/lib/admin/stock-admin";
 import { isAsked } from "@/lib/leads/journey";
 import { can, currentMember } from "@/lib/permissions";
 import { hasModule } from "@/lib/modules";
-import { leadsOf, reviewReach } from "@/lib/admin/review-ask";
-import { dealerProfile } from "@/lib/tenancy/current";
+import { leadsOf, reviewPlace, reviewReach } from "@/lib/admin/review-ask";
 import { stockSource } from "@/lib/stock-source";
 import { carName, priceLabel } from "@/lib/stock/format";
 import { isSold } from "@/lib/stock/types";
@@ -34,7 +33,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const held = heldFor(reservations, car.id);
   // The review tick, on a new sale only and with a review link: the customers who can be asked tick it by default.
   const whatsapp = await hasModule("whatsapp");
-  const askable = !was && (await dealerProfile()).placeId ? customers.filter((c) => reviewReach(c, leadsOf(c, leads), whatsapp)).map((c) => c.id) : undefined;
+  const askable = !was && (await reviewPlace()) ? customers.filter((c) => reviewReach(c, leadsOf(c, leads), whatsapp)).map((c) => c.id) : undefined;
   return (
     <>
       <PageHeader title={title} text={was ? carName(car) : `${carName(car)}, ${priceLabel(car)}`} back={isSold(car) ? { href: "/stock?view=sold", label: "Sold cars" } : { href: "/stock", label: "Stock" }} />

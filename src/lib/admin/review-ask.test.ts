@@ -23,14 +23,14 @@ const store = (m: Map<string, Record<string, unknown>>) => ({
 });
 vi.mock("./collections", () => ({ salesStore: store(db.sales), customersStore: store(db.customers), leadsStore: { list: async () => db.leads } }));
 vi.mock("./activity", () => ({ logActivity: async (_a: string, text: string) => void db.activity.push(text) }));
-vi.mock("@/lib/tenancy/current", () => ({ dealerProfile: async () => ({ placeId: db.placeId }), currentDealer: async () => ({ name: "Byrne Motors" }) }));
+vi.mock("@/lib/tenancy/current", () => ({ currentDealer: async () => ({ name: "Byrne Motors", demo: db.demo, profile: { placeId: db.placeId } }) }));
 vi.mock("@/lib/integrations", () => ({ simulating: async () => db.demo }));
 vi.mock("@/lib/modules", () => ({ hasModule: async () => db.whatsapp }));
 vi.mock("@/lib/leads/mail", () => ({ sendTo: async (to: string[], m: { text: string }) => void db.mail.push({ to, text: m.text }) }));
 vi.mock("@/lib/whatsapp/send", () => ({
   sendWhatsApp: async (d: Record<string, unknown>) => (db.waVia === null ? null : (db.wa.push(d), { ...d, via: db.waVia })),
 }));
-const { askForReview, reviewLink, reviewReach } = await import("./review-ask");
+const { DEMO_PLACE_ID, askForReview, reviewLink, reviewReach } = await import("./review-ask");
 
 const lead = (o: Record<string, unknown>) => ({ id: "lead-1", type: "enquiry", status: "won", name: "Pat Byrne", email: "", phone: "+353 83 000 1234", message: "", source: "Website", notes: [], createdAt: 0, ...o });
 beforeEach(() => {
@@ -79,9 +79,9 @@ describe("askForReview", () => {
     expect(db.wa).toMatchObject([{ thread: "buyer", leadId: "lead-1" }]);
     expect(db.mail).toEqual([]);
     db.sales.set("car-1", { ...db.sales.get("car-1"), reviewAskedOn: undefined });
-    db.waVia = "email";
+    db.waVia = "email"; // sendWhatsApp only records the fallback: the one email is sent here
     expect(await askForReview("car-1")).toBe("email");
-    expect(db.mail).toHaveLength(1);
+    expect(db.mail).toEqual([{ to: ["pat@mail.ie"], text: expect.any(String) }]);
   });
 
   it("sends nothing outside for a demo dealer, but still records the ask", async () => {
@@ -89,6 +89,21 @@ describe("askForReview", () => {
     expect(await askForReview("car-1")).toBe("email");
     expect(db.mail).toEqual([]);
     expect(db.sales.get("car-1")?.reviewAskedOn).toBeDefined();
+  });
+
+  it("uses a made-up place on a demo with none of its own, so the ask can be shown", async () => {
+    db.demo = true;
+    db.placeId = undefined;
+    db.leads = [lead({ whatsappOptIn: true })];
+    expect(await askForReview("car-1")).toBe("whatsapp");
+    expect(db.wa[0].text).toContain(reviewLink(DEMO_PLACE_ID));
+  });
+
+  it("does not mark the sale asked when the email fails", async () => {
+    const mail = await import("@/lib/leads/mail");
+    vi.spyOn(mail, "sendTo").mockRejectedValueOnce(new Error("No lead email went out"));
+    await expect(askForReview("car-1")).rejects.toThrow();
+    expect(db.sales.get("car-1")?.reviewAskedOn).toBeUndefined();
   });
 
   it("asks nobody without a review link, a sale, or a way to reach them, or once they stopped messages", async () => {

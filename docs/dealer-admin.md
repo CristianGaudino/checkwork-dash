@@ -229,7 +229,7 @@ with no D1). The actor is the signed-in person (`currentMember`), or a named one
 - **More on a sale:** the warranty (12 months included, or 24 or 36 with extended cover), a trade-in (its reg and allowance; Stock then
   offers to add it, starting the car form from the reg), and the lead it came from (one on that car, marked won).
 - **Ask for a review** (#22, `src/lib/admin/review-ask.ts`): Mark sold and Record sale (not Change the sale) have "Ask them for a Google
-  review", shown only when the profile has a `placeId`, and on by default for a buyer with an email or a lead that opted in to WhatsApp.
+  review", shown only when the profile has a `placeId` (a demo dealer without one uses a made-up place, `DEMO_PLACE_ID`), and on by default for a buyer with an email or a lead that opted in to WhatsApp.
   Once the sale is saved the buyer gets one message with Google's write-a-review link: WhatsApp if opted in (counted, by email past the
   cap), else email. Once per sale (`reviewAskedOn`), never for a sale undone, never to a buyer who stopped WhatsApp on any lead, and a demo
   dealer sends nothing outside. The car's page and the customer show the day it was asked; Activity records it against the car.

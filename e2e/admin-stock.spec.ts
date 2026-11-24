@@ -84,6 +84,10 @@ test("add a car, change its price to a drop, mark it sold, delete it", async ({ 
   await page.getByLabel("Sale price (€)").fill("18000");
   await page.getByLabel("Name", { exact: true }).fill("Pat Byrne");
   await page.getByLabel("Phone", { exact: true }).fill("+353 83 000 4321");
+  const ask = page.getByLabel("Ask them for a Google review");
+  await expect(ask).not.toBeChecked(); // no email yet, no WhatsApp
+  await page.getByLabel("Email (optional)").fill("pat.byrne@example.com");
+  await expect(ask).toBeChecked(); // on by default for a buyer with an email
   await page.getByRole("button", { name: "Mark sold" }).click();
   await expect(page.getByRole("status")).toContainText(/Sale recorded for/);
   await page.goto("/stock?q=" + MAKE);
@@ -96,6 +100,7 @@ test("add a car, change its price to a drop, mark it sold, delete it", async ({ 
 
   // Delete, from the car's own page, asks first: Cancel keeps it; Delete takes it from the dealer's list and the site.
   await page.getByRole("row", { name: new RegExp(MAKE) }).getByRole("link").first().click();
+  await expect(page.getByText(/Asked for a review/)).toBeVisible(); // the demo simulates the ask (#22)
   await page.getByRole("button", { name: /^Delete / }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Cancel" }).click();
   await expect(page.getByRole("dialog")).toBeHidden();

@@ -2,7 +2,7 @@ import "server-only";
 import { simulating } from "@/lib/integrations";
 import { sendTo } from "@/lib/leads/mail";
 import { hasModule } from "@/lib/modules";
-import { currentDealer, dealerProfile } from "@/lib/tenancy/current";
+import { currentDealer } from "@/lib/tenancy/current";
 import { sendWhatsApp } from "@/lib/whatsapp/send";
 import { firstName } from "@/lib/whatsapp/rules";
 import { logActivity } from "./activity";
@@ -11,6 +11,14 @@ import { dublinDay } from "./format";
 import { matchesAny, parsePersonQuery, type PersonQuery } from "./person-match";
 
 // Asking a buyer for a Google review once their car is sold (#22): one short message with the dealer's review link, ticked on the sale form.
+
+// A demo dealer with no place of its own uses a made-up one, so the ask can be shown: a demo sends nothing outside (never a fake placeId in
+// the profile, which the reviews strip would send to the Places API).
+export const DEMO_PLACE_ID = "ChIJ-checkwork-demo";
+export async function reviewPlace(): Promise<string | undefined> {
+  const d = await currentDealer();
+  return d.profile.placeId || (d.demo ? DEMO_PLACE_ID : undefined);
+}
 
 // Google's own page for writing a review of a place.
 export const reviewLink = (placeId: string) => `https://search.google.com/local/writereview?placeid=${encodeURIComponent(placeId)}`;
@@ -36,8 +44,9 @@ export function reviewReach(c: Pick<Customer, "email">, theirLeads: Pick<Lead, "
 // id), and only with a review link (the profile's placeId). WhatsApp is counted as usage and past the cap goes by email (sendWhatsApp); a demo
 // dealer sends nothing outside. Returns how it went, or null when nobody was asked.
 export async function askForReview(carId: string): Promise<"whatsapp" | "email" | null> {
-  const { placeId } = await dealerProfile();
+  const placeId = await reviewPlace();
   const sale = await salesStore.get(carId);
+  // shortcut: check then write, so two saves of one sale at the same moment could both send; fine for one dealer's staff, claim the sale with a conditional write if it ever happens.
   if (!placeId || !sale || sale.returnedOn || sale.reviewAskedOn || !sale.customerId) return null;
   const c = await customersStore.get(sale.customerId);
   if (!c) return null;
@@ -51,6 +60,8 @@ export async function askForReview(carId: string): Promise<"whatsapp" | "email" 
     if (!sent) return null;
     if (sent.via === "email") via = "email";
   }
+  // sendWhatsApp's fallback only records "Sent by email instead" in the conversation; the email itself goes here. sendTo throws when none
+  // went, so a failed send never marks the sale as asked.
   if (via === "email" && !(await simulating())) await sendTo([c.email], { subject: `${dealer}: how did we do?`, text });
   await salesStore.update(carId, (s) => ({ ...s, reviewAskedOn: dublinDay() }));
   await logActivity("customers", `Asked the buyer for a Google review, by ${via === "whatsapp" ? "WhatsApp" : "email"}`, { kind: "car", id: carId, label: sale.carTitle }); // never the buyer

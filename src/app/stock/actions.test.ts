@@ -15,11 +15,6 @@ vi.mock("next/headers", () => ({
   cookies: async () => ({ get: (n: string) => (n === "checkwork-demo-stock" ? { value: stockCookie } : n === "checkwork-demo-role" ? { value: role } : undefined) }),
   headers: async () => ({ get: () => null }),
 }));
-// A review link (#22), so the sale form's review ask can go.
-vi.mock("@/lib/tenancy/current", async (orig) => {
-  const m = await orig<typeof import("@/lib/tenancy/current")>();
-  return { ...m, dealerProfile: async () => ({ ...(await m.dealerProfile()), placeId: "ChIJtest" }) };
-});
 const { addCarPhotoAction, carPhotoAction, removePrepAction, savePrepAction, bulkStockAction, deleteCarAction, endReservationAction, recordSaleAction, reserveAction, saveCarAction, saveCostAction, setListingAction, toggleSoldAction, undoSaleAction, withdrawnAction } = await import("./actions");
 const { claimsStore, costsStore, customersStore, leadsStore, prepStore, reservationsStore, salesStore } = await import("@/lib/admin/collections");
 const { carCosts } = await import("@/lib/admin/costs");
