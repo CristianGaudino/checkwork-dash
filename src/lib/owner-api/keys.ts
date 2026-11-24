@@ -2,6 +2,7 @@ import "server-only";
 import { logActivity } from "@/lib/admin/activity";
 import { removeSecrets, saveSecrets, savedNamesNow, secretsKeyReady } from "@/lib/dealer-secrets";
 import { INTEGRATIONS, integrationText } from "@/lib/integrations";
+import { removeSyncedCars } from "@/lib/donedeal/sync";
 import { listing } from "@/lib/stock-source";
 import { runAsDealerRow } from "@/lib/tenancy/current";
 import { dealerById } from "@/lib/tenancy/directory";
@@ -34,7 +35,9 @@ export async function ownerKeys(req: Request, dealerId: string, service?: string
   if (req.method === "DELETE") {
     await runAsDealerRow(dealer, () => removeSecrets(names));
     await said("Removed the keys for");
-    log("removed");
+    // The listing site's key goes when a dealer leaves or withdraws consent: its cars go with it (#158, docs/new-dealer.md).
+    const cars = service === "donedeal" ? await runAsDealerRow(dealer, async () => removeSyncedCars(`the ${(await listing()).site} key was removed`, "Checkwork")) : 0;
+    log(cars ? `removed, and ${cars} synced cars` : "removed");
     return say(204);
   }
   if (!secretsKeyReady()) { log("no sealing key"); return say(503, "Keys cannot be saved yet: DEALER_SECRETS_KEY is not set on this app"); }

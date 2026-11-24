@@ -9,8 +9,9 @@ import { forSale, type Car } from "@/lib/stock/types";
 // ADAPTER GOES HERE: with DONEDEAL_API_KEY set and DoneDeal's docs in hand, replace the "not-installed" return with the API call. Map each
 // ad to a Car: id from the ad id, slug, make and model slugs as the site makes them (src/lib/stock/makes.ts), photos, listingUrl (the ad),
 // listedAt (the ad's publish date). Which fields DoneDeal returns, how photos may be stored and how often it may be called are in its docs,
-// which we do not have yet (issue #108).
-export type FeedResult = { ok: true; listings: Car[] } | { ok: false; reason: "not-connected" | "not-installed" | "failed" };
+// which we do not have yet (issue #108). DoneDeal answering 401 or 403 is "refused" (the key was revoked or consent withdrawn: the sync
+// removes the dealer's synced cars, #158); any other error or no answer is "failed" (an outage: the site keeps its stock).
+export type FeedResult = { ok: true; listings: Car[] } | { ok: false; reason: "not-connected" | "not-installed" | "refused" | "failed" };
 
 export async function fetchListings(): Promise<FeedResult> {
   const mode = await modeOf("donedeal");

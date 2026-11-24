@@ -8,5 +8,6 @@ export const counts = (r: NonNullable<SyncStatus["result"]>, none = "No changes"
 export function syncLine(s: SyncStatus) {
   if (!s.lastRunAt) return "Not updated yet.";
   if (!s.problem) return `Last updated ${fmtAgo(s.lastOkAt!)}. ${counts(s.result ?? { added: 0, changed: 0, takenDown: 0 })}.`;
+  if (s.removed) return s.problem; // its cars are gone, so none from the last update are shown
   return `${s.problem} ${s.lastOkAt ? `The site shows the cars from the last update, ${fmtAgo(s.lastOkAt)}.` : "No cars have come through yet."}`;
 }

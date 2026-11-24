@@ -107,6 +107,29 @@ secrets.
 6. If their website is ours: make its key with the owner API in each environment (`POST /api/owner/v1/dealers/<id>/site-keys`,
    `docs/owner-api.md`) and set it on the website. The answer is the only time the key is shown.
 
+## A dealer whose stock is synced (DoneDeal or CarsIreland)
+
+DoneDeal's API is for the dealer's own site, with their written consent, and its key is given per dealer (CarsIreland works the same way).
+In this order:
+
+1. The dealer gives Checkwork written consent to read their ads through the API and show them on their dashboard and website (keep it
+   with the contract, out of the repo).
+2. The dealer confirms the relationship to DoneDeal (or CarsIreland) themselves, so the listing site knows Checkwork acts for them.
+3. DoneDeal issues the key. Set it with the owner API in each environment that uses it (`PUT /api/owner/v1/dealers/<id>/keys/donedeal`
+   with `{"DONEDEAL_API_KEY": "..."}`, `docs/owner-api.md`), then set `{ "stock": { "source": "donedeal" } }` in their profile (below).
+
+If DoneDeal later refuses the key on two syncs in a row, the sync removes the synced cars by itself (`docs/dealer-admin.md`, "Listing site stock").
+
+## A dealer leaving
+
+When a synced dealer leaves Checkwork or withdraws consent, their synced data goes at once. In each environment:
+
+1. Remove the listing site key: `DELETE /api/owner/v1/dealers/<id>/keys/donedeal` (`docs/owner-api.md`). For a dealer whose stock is
+   synced, this also removes every synced car and any photos stored for it, recorded in Activity as by Checkwork. Do this before changing
+   `stock.source`: a dealer whose stock is kept here never has cars removed this way.
+2. Tell DoneDeal (or CarsIreland) that access has ended, so they revoke the key.
+3. Pause the dealer (below). The dealer's own records (sales, leads and so on) stay in its database until the contract says otherwise.
+
 ## Every deploy
 
 `npm run deploy` (dev) and `npm run deploy:prod` (production) run them for you (`scripts/deploy.mjs`). By hand: `npm run db:migrate` applies

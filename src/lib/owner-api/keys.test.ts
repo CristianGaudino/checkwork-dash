@@ -6,6 +6,8 @@ const { ownerKeys } = await import("./keys");
 const { secretFor, savedNamesNow } = await import("@/lib/dealer-secrets");
 const { runAsDealer } = await import("@/lib/tenancy/current");
 const { listActivity } = await import("@/lib/admin/activity");
+const { patchDealer } = await import("@/lib/tenancy/directory");
+const { adminCars, saveCar } = await import("@/lib/admin/stock-admin");
 
 const KEY = Buffer.alloc(32, 9).toString("base64");
 const TOKEN = "EAAB-super-secret-token-123";
@@ -82,5 +84,23 @@ describe("owner API keys", () => {
     const after = JSON.parse(await (await call("GET", "test-motors")).text());
     expect(after.services.find((s: { id: string }) => s.id === "social").connected).toBe(false);
     expect(await runAsDealer("test-motors", () => secretFor("META_PAGE_ACCESS_TOKEN"))).toBeUndefined();
+  });
+  it("a dealer leaving: removing the DoneDeal key removes the synced cars, and only for a synced dealer (#158)", async () => {
+    const [car] = await adminCars(); // the demo's, as a shape
+    const stock = async (source: "checkwork" | "donedeal") => {
+      await patchDealer("test-motors", "Test Motors", { stock: { source, listingSite: "DoneDeal", listingUrl: "https://www.donedeal.ie/" } });
+      await runAsDealer("test-motors", () => saveCar({ ...car, id: "910001", slug: "car-910001", photos: [] }));
+    };
+    const cars = () => runAsDealer("test-motors", async () => (await adminCars()).length);
+    await stock("checkwork"); // stock kept here: its own cars are never touched
+    expect((await call("DELETE", "test-motors", "donedeal")).status).toBe(204);
+    expect(await cars()).toBe(1);
+    await stock("donedeal");
+    expect((await call("PUT", "test-motors", "donedeal", { DONEDEAL_API_KEY: "dd-key" })).status).toBe(204);
+    expect((await call("DELETE", "test-motors", "donedeal")).status).toBe(204);
+    expect(await cars()).toBe(0);
+    const log = await runAsDealer("test-motors", () => listActivity({ area: "stock" }, 1, 5));
+    expect(log.rows[0]).toMatchObject({ actor: "Checkwork", summary: "Removed 1 car: the DoneDeal key was removed" });
+    await patchDealer("test-motors", "Test Motors", { stock: { source: "checkwork", listingSite: "DoneDeal", listingUrl: "https://www.donedeal.ie/" } });
   });
 });
