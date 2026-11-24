@@ -12,6 +12,7 @@ import { addMonths, dublinDay, fmtEur } from "@/lib/admin/format";
 import { newId } from "@/lib/admin/ids";
 import { blank, euros, fieldErrors, isoDay, type FormState } from "@/lib/admin/validation";
 import { buyerFields, buyerOf } from "@/lib/admin/buyer";
+import { askForReview } from "@/lib/admin/review-ask";
 import { COVER_CHOICES, COVER_MONTHS } from "@/lib/admin/deposits";
 import { carTitleOf } from "@/lib/admin/seed-data";
 import { BAD_COST, parseCost } from "@/lib/admin/margins";
@@ -347,6 +348,7 @@ export async function recordSaleAction(carId: string, _prev: FormState, data: Fo
     ...(d.coverMonths && d.coverMonths !== COVER_MONTHS && { coverMonths: d.coverMonths }),
     ...(d.tradeReg && d.tradeEur && { tradeIn: { reg: d.tradeReg, allowanceEur: d.tradeEur } }),
     ...(leadId && { leadId }),
+    ...(was?.reviewAskedOn && { reviewAskedOn: was.reviewAskedOn }), // asked once per sale, whatever is changed later
     createdAt: was?.createdAt ?? Date.now(),
   });
   const markSold =
@@ -357,6 +359,8 @@ export async function recordSaleAction(carId: string, _prev: FormState, data: Fo
   const order = (await ordersStore.list()).find((o) => o.carId === car.id && o.status === "arrived");
   if (order) await ordersStore.put({ ...order, status: "handed-over" });
   await logActivity("stock", `${was ? "Changed the sale to" : "Recorded the sale for"} ${fmtEur(d.priceEur)}${markSold ? " and marked it sold" : ""}`, carRef(car));
+  // The review ask is on a new sale only (Change the sale has no tick). Best effort: the sale is saved whatever happens to the message.
+  if (!was && data.get("askReview") === "on") await askForReview(car.id).catch(() => null);
   redirect(`/stock?view=sold&sale=${car.id}`);
 }
 

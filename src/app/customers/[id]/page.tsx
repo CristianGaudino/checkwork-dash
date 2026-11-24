@@ -124,6 +124,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
                         <span className="text-meta text-text-2">
                           {fmtEur(s.priceEur)}, {day(s.soldOn)}
                           {s.returnedOn ? `, ${s.kind === "returned" ? "brought back" : "fell through"} ${day(s.returnedOn)}` : `, warranty until ${day(coverEnds(s))}`}
+                          {s.reviewAskedOn && `, asked for a review ${day(s.reviewAskedOn)}`}
                         </span>
                       </span>
                       {!s.returnedOn && (
