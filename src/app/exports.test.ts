@@ -14,6 +14,7 @@ vi.mock("next/headers", () => ({
 const stock = await import("./stock/export/route");
 const leads = await import("./leads/export/route");
 const customers = await import("./customers/export/route");
+const sales = await import("./reports/export/route");
 const { adminCars } = await import("@/lib/admin/stock-admin");
 const { customersStore } = await import("@/lib/admin/collections");
 
@@ -24,7 +25,7 @@ describe("the CSV exports", () => {
   it("are not there without the dashboard module, like every page", async () => {
     role = "Owner";
     modules = "finance"; // a plan with the website's finance page and no dashboard
-    for (const [route, path] of [[leads, "/leads/export"], [customers, "/customers/export"], [stock, "/stock/export"]] as const) expect((await get(route, path)).status).toBe(404);
+    for (const [route, path] of [[leads, "/leads/export"], [customers, "/customers/export"], [stock, "/stock/export"], [sales, "/reports/export"]] as const) expect((await get(route, path)).status).toBe(404);
     modules = undefined;
     expect((await get(stock, "/stock/export")).status).toBe(200);
   });
@@ -49,6 +50,24 @@ describe("the CSV exports", () => {
     expect(rows.slice(1).every((r) => r.includes("Automatic"))).toBe(true);
     role = "Sales";
     expect((await lines(await get(stock, "/stock/export")))[0]).not.toContain("Cost");
+  });
+
+  it("sales are for the margins roles only, for the period asked, without the buyer (#173)", async () => {
+    for (const r of ["Sales"]) {
+      role = r;
+      expect((await get(sales, "/reports/export")).status).toBe(404);
+    }
+    role = "Finance";
+    const res = await get(sales, "/reports/export?from=2026-01&to=2026-03");
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Content-Disposition")).toMatch(/filename="sales-[a-z0-9-]+-2026-01-to-2026-03\.csv"/);
+    role = "Owner";
+    const one = await get(sales, "/reports/export?from=2026-11&to=2026-11");
+    expect(one.headers.get("Content-Disposition")).toMatch(/-2026-11\.csv"$/);
+    const rows = await lines(await get(sales, "/reports/export?period=12"));
+    expect(rows[0]).toMatch(/^Sale date,Registration,Make,Model,Year,Sale price/);
+    expect(rows[0]).not.toMatch(/buyer|customer|email|phone/i);
+    expect((await get(sales, "/reports/export?from=2026-05&to=2026-01")).status).toBe(400);
   });
 
   it("leads follow the status filter", async () => {

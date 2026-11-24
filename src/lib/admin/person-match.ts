@@ -28,6 +28,10 @@ export function widen(qs: PersonQuery[], recs: { email?: string | null; phone?: 
   return out;
 }
 
+// The same matching as an index key (rec's email or phone, a query's one), so many records can be looked up at once.
+export const recordKeys = (rec: { email?: string | null; phone?: string | null }) => [rec.email?.trim() && `e:${rec.email.trim().toLowerCase()}`, digits(rec.phone ?? "").length >= MIN_PHONE_DIGITS && `p:${phoneKey(rec.phone ?? "")}`].filter((k): k is string => Boolean(k));
+export const queryKey = (q: PersonQuery) => (q.email ? `e:${q.email}` : `p:${q.phone}`);
+
 export function matchesPerson(rec: { email?: string | null; phone?: string | null }, q: PersonQuery): boolean {
   if (q.email) return (rec.email ?? "").trim().toLowerCase() === q.email;
   if (q.phone) return digits(rec.phone ?? "").length >= MIN_PHONE_DIGITS && phoneKey(rec.phone ?? "") === q.phone;

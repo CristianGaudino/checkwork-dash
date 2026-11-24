@@ -69,6 +69,13 @@ describe("alertStaff", () => {
     db.msgs = [];
     expect(await alertStaff("monday", { leads: 1, drives: 0, sales: 0 })).toBe(0);
   });
+  it("gives the slow car's suggested drop, and its button, only to owners and managers: Sales gets the plain old-stock alert", async () => {
+    db.team = [{ id: "a", role: "Manager" }, { id: "b", role: "Sales" }];
+    db.phones = [phone("a"), phone("b")];
+    expect(await alertStaff("slow-stock", { car: "2019 Ford Focus", days: 130, dropEur: 500 }, { ref: "c1" })).toBe(2);
+    expect(db.msgs.find((m) => m.to === "a")).toMatchObject({ buttons: ["drop"], text: expect.stringContaining("Drop the price by €500?") });
+    expect(db.msgs.find((m) => m.to === "b")).toMatchObject({ buttons: [], text: "The 2019 Ford Focus has been in stock 130 days." });
+  });
   it("sends nothing without WhatsApp, or without the alert's own module", async () => {
     db.modules.delete("sales");
     expect(await alertStaff("deposit", { eur: 1000 })).toBe(0);
@@ -94,6 +101,7 @@ describe("the morning job", () => {
       { id: "new", listedAt: "2026-11-01", priceEur: 9000 },
       { id: "sold", listedAt: "2026-08-01", priceEur: 9000, soldAt: "2026-11-10" },
       { id: "poa", listedAt: "2026-06-01", priceEur: 0 }, // on request: no price to drop
+      { id: "cheap", listedAt: "2026-06-01", priceEur: 400 }, // the drop would reach €0: no suggestion, as on Stock
     ];
     db.reviews = [{ id: "r1", author: "Orla R.", rating: 5, text: "Great", createdAt: MONDAY_NOON - 3_600_000 }, { id: "r0", author: "Sean B.", rating: 4, text: "Fine", createdAt: MONDAY_NOON - 10 * 86_400_000 }];
     await sendDailyAlerts();

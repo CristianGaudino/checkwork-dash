@@ -1,4 +1,5 @@
 import { postText } from "@/lib/admin/marketing";
+import { RESERVED_LINE } from "@/lib/leads/first-reply";
 import { ADJUSTS, type Adjust, type CarFacts, type FactsOf, type Task } from "./tasks";
 
 // The demo's writer: no key, no cost. The same facts and button always give the same text, and it is built only from the facts it is
@@ -66,12 +67,14 @@ function description(f: FactsOf["carDescription"], a: Adjust | undefined): strin
 
 function leadReply(f: FactsOf["leadReply"], a: Adjust | undefined): string {
   const about = f.car ? ` about the ${f.car}` : "";
+  const c = f.carDetails;
+  const offer = c?.reserved ? RESERVED_LINE : [c?.price && `It's ${c.price}.`, c?.link && `You can see it here: ${c.link}`].filter(Boolean).join(" ");
   const ask = f.type === "test-drive" ? "We would be glad to set up a test drive. What day suits you?" : f.type === "trade-in" || f.type === "sell" ? "We will look at your car and come back to you with a valuation." : "We would be happy to help. What time suits you for a call?";
   switch (a) {
-    case "formal": return lines(`Dear ${f.firstName},`, `Thank you for contacting ${f.dealer}${about}.`, ask, BR, "Yours sincerely,", f.dealer);
-    case "friendlier": return lines(`Hi ${f.firstName}, thanks so much for getting in touch${about}.`, ask, BR, "Speak soon,", f.dealer);
-    case "shorter": return lines(`Hi ${f.firstName}, thanks for your message${about}.`, ask);
-    default: return lines(`Hi ${f.firstName},`, `Thank you for your message${about}.`, ask, BR, "Kind regards,", f.dealer);
+    case "formal": return lines(`Dear ${f.firstName},`, `Thank you for contacting ${f.dealer}${about}.`, offer, ask, BR, "Yours sincerely,", f.dealer);
+    case "friendlier": return lines(`Hi ${f.firstName}, thanks so much for getting in touch${about}.`, offer, ask, BR, "Speak soon,", f.dealer);
+    case "shorter": return lines(`Hi ${f.firstName}, thanks for your message${about}.`, offer, ask);
+    default: return lines(`Hi ${f.firstName},`, `Thank you for your message${about}.`, offer, ask, BR, "Kind regards,", f.dealer);
   }
 }
 

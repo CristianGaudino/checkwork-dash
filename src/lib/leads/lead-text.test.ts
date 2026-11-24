@@ -19,7 +19,7 @@ describe("splitOldMessage", () => {
     expect(splitOldMessage("Test drive on 2026-11-28 at 10:00. After 5 is best.")).toEqual({ text: "After 5 is best.", given: [["drive", "Sat 28 Nov, 10:00"]] });
     expect(splitOldMessage("Test drive on 2026-11-28 at 10:00.")).toEqual({ text: "", given: [["drive", "Sat 28 Nov, 10:00"]] });
   });
-  it("leaves the buyer's own words alone, and a factory order's car", () => {
+  it("leaves the buyer's own words alone, and the car on an older website's new car order", () => {
     for (const m of ["Is it still there? Make: not sure.", "Kia Sportage, 271 reg\n\nWhite please", ""]) expect(splitOldMessage(m)).toEqual({ text: m, given: [] });
   });
 });

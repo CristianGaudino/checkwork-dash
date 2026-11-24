@@ -7,11 +7,13 @@ import { logActivity } from "@/lib/admin/activity";
 import { carEditSummary, costText } from "@/lib/admin/activity-text";
 import { z } from "zod";
 import { PREP_KINDS } from "@/lib/admin/prep";
-import { DEPOSIT_METHODS, costsStore, heldFor, leadsStore, ordersStore, postsStore, prepStore, reservationsStore, salesStore, undoSale } from "@/lib/admin/collections";
+import { DEPOSIT_METHODS, costsStore, heldFor, leadsStore, postsStore, prepStore, reservationsStore, salesStore, undoSale } from "@/lib/admin/collections";
 import { addMonths, dublinDay, fmtEur } from "@/lib/admin/format";
 import { newId } from "@/lib/admin/ids";
 import { blank, euros, fieldErrors, isoDay, type FormState } from "@/lib/admin/validation";
 import { buyerFields, buyerOf } from "@/lib/admin/buyer";
+import { askForReview } from "@/lib/admin/review-ask";
+import { logReviewAsk } from "@/lib/log";
 import { COVER_CHOICES, COVER_MONTHS } from "@/lib/admin/deposits";
 import { carTitleOf } from "@/lib/admin/seed-data";
 import { BAD_COST, parseCost } from "@/lib/admin/margins";
@@ -29,6 +31,8 @@ import { requireStaff } from "@/lib/staff";
 import { requireModule } from "@/lib/modules";
 import { alertNewIn, alertStaff } from "@/lib/whatsapp/alerts";
 import { STALE_CAR, STALE_STATUS, changedSince } from "@/lib/admin/stale";
+import { suggestedDrop } from "@/lib/admin/overview";
+import { dealerProfile } from "@/lib/tenancy/current";
 import type { CostState } from "@/app/aftersales/actions";
 
 const carRef = (c: Car) => ({ kind: "car" as const, id: c.id, label: carTitleOf(c) });
@@ -210,6 +214,40 @@ export async function bulkStockAction(data: FormData): Promise<BulkResult> {
   return { changed, skipped: ids.length - changed };
 }
 
+// The price drop suggested on old stock (suggestedDrop, as the WhatsApp alert offers), applied from Stock or the car's page, with Undo.
+// Owners and managers only (the settings permission), our version only. `from`: the price the button showed; a price changed since is
+// refused, so the drop is never taken twice.
+const DROP_REFUSED = "Only owners and managers can apply a suggested price.";
+export async function dropPriceAction(id: string, from: number) {
+  await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
+  if (await readOnly()) return { error: `Change the price on ${(await listing()).site}.` };
+  if (!(await can("settings"))) return { error: DROP_REFUSED };
+  const { rules } = await dealerProfile();
+  let before: Car | undefined;
+  const next = await updateCar(id, (cur) => {
+    before = cur;
+    const drop = cur.priceEur === from ? suggestedDrop(cur, rules) : null;
+    return drop && { ...cur, ...drop };
+  });
+  if (!before || !next) return { error: STALE_STATUS };
+  await logActivity("stock", carEditSummary(before, next), carRef(next));
+  revalidatePath("/stock");
+}
+// Undo: the price and earlier price as they were, while the car still has the dropped price. Only ever back up, never below it.
+export async function undoDropAction(id: string, priceEur: number, wasPriceEur: number, dropped: number) {
+  await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
+  if ((await readOnly()) || !(await can("settings"))) return { error: DROP_REFUSED };
+  if (![priceEur, wasPriceEur, dropped].every((n) => Number.isInteger(n) && n >= 0) || priceEur <= dropped) return { error: STALE_STATUS };
+  let before: Car | undefined;
+  const next = await updateCar(id, (cur) => {
+    before = cur;
+    return cur.priceEur === dropped && !isSold(cur) ? { ...cur, priceEur, wasPriceEur: wasPriceEur || undefined } : null;
+  });
+  if (!before || !next) return { error: STALE_STATUS };
+  await logActivity("stock", carEditSummary(before, next), carRef(next));
+  revalidatePath("/stock");
+}
+
 // A car's photos (#21), our version only. The browser has already shrunk each one to a JPEG (CarPhotos); the bytes are checked again here.
 // One photo per call, so a slow phone connection loses at most one. The first photo is the one on the card and at the top of the page.
 const photoSize = z.coerce.number().int().min(1).max(4000);
@@ -347,17 +385,18 @@ export async function recordSaleAction(carId: string, _prev: FormState, data: Fo
     ...(d.coverMonths && d.coverMonths !== COVER_MONTHS && { coverMonths: d.coverMonths }),
     ...(d.tradeReg && d.tradeEur && { tradeIn: { reg: d.tradeReg, allowanceEur: d.tradeEur } }),
     ...(leadId && { leadId }),
+    ...(was?.reviewAskedOn && { reviewAskedOn: was.reviewAskedOn }), // asked once per sale, whatever is changed later
     createdAt: was?.createdAt ?? Date.now(),
   });
   const markSold =
     !isSold(car) &&
     (!(await readOnly()) || Boolean(car.takenDownAt)) &&
     Boolean(await updateCar(car.id, (cur) => (isSold(cur) ? null : { ...cur, soldAt: d.soldOn, reserved: undefined, ...(cur.takenDownAt && { takenDownAt: undefined, listing: undefined }) })));
-  // A factory order that arrived as this car is handed over with its sale.
-  const order = (await ordersStore.list()).find((o) => o.carId === car.id && o.status === "arrived");
-  if (order) await ordersStore.put({ ...order, status: "handed-over" });
   await logActivity("stock", `${was ? "Changed the sale to" : "Recorded the sale for"} ${fmtEur(d.priceEur)}${markSold ? " and marked it sold" : ""}`, carRef(car));
-  redirect(`/stock?view=sold&sale=${car.id}`);
+  // The review ask is on a new sale only (Change the sale has no tick). Best effort: the sale is saved whatever happens to the message, and
+  // a failure is logged (the car's id only) and told to staff on the next page, as is an ask that could not go to anyone ("none").
+  const review = !was && data.get("askReview") === "on" ? await askForReview(car.id).then((via) => (via ? "" : "none"), () => (logReviewAsk({ carId: car.id, outcome: "review-ask-failed" }), "failed")) : "";
+  redirect(`/stock?view=sold&sale=${car.id}${review && `&review=${review}`}`);
 }
 
 // A deposit: the car is reserved, on the website as Reserved, until the day agreed. Anyone on the team. Our version only.

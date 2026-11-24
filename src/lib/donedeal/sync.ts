@@ -5,12 +5,13 @@ import { getSettings, leaderEmails, salesStore, undoSale } from "@/lib/admin/col
 import { defineCollection } from "@/lib/admin/docs";
 import { dublinDay } from "@/lib/admin/format";
 import { carTitleOf } from "@/lib/admin/seed-data";
-import { adminCars, saveCar, updateCar } from "@/lib/admin/stock-admin";
+import { adminCars, removeCar, saveCar, updateCar } from "@/lib/admin/stock-admin";
 import { sendTo } from "@/lib/leads/mail";
 import { notify } from "@/lib/admin/notifications";
 import { TIME_ZONE } from "@/lib/site";
 import { currentDealer } from "@/lib/tenancy/current";
 import { listing, stockSource } from "@/lib/stock-source";
+import { modeOf } from "@/lib/integrations";
 import type { Car } from "@/lib/stock/types";
 import { HOUR, MINUTE } from "@/lib/time";
 import { fetchListings, type FeedResult } from "./feed";
@@ -19,11 +20,14 @@ import { planSync } from "./plan";
 // One sync: read the dealer's DoneDeal ads, work out the changes (plan.ts), write them to the stock the site reads, and record each in the
 // activity history as "DoneDeal sync". Run every 15 minutes by the Worker (worker.mjs, through /api/donedeal/sync) and by Sync now.
 // A failed or held sync changes nothing: the site keeps the stock from the last good one. After an hour of failures the owners and
-// managers get one email, then no more until a sync works again.
+// managers get one email, then no more until a sync works again. A refused key is not an outage: access has ended, so the dealer's synced
+// cars are removed once it is refused twice in a row and the owners and managers told then (DoneDeal's API policy, #158).
 export const syncActor = (site: string) => `${site} sync`;
 // Where the sync runs: a dealer whose stock comes from a listing site, and a demo dealer (which shows both versions; its feed changes nothing).
 export const syncRunsHere = async () => (await currentDealer()).demo || (await stockSource()) === "donedeal";
 export const ALERT_AFTER = HOUR;
+// A refused key counts once it is still refused this long after the first refusal, so two quick presses of Refresh stock never remove cars.
+const REFUSED_FOR = 10 * MINUTE;
 
 export type SyncStatus = {
   id: "status";
@@ -34,6 +38,9 @@ export type SyncStatus = {
   held?: boolean; // the problem is DoneDeal's answer looking wrong; Apply anyway runs it with force
   failingSince?: number; // the first failed run of this outage
   alertedAt?: number;
+  refusedSince?: number; // the first of this run of refused answers; cleared by any other run
+  removed?: boolean; // access ended (a refused or removed key) and the synced cars removed; until a sync works again
+  removedWhy?: string; // why they were removed, in the dealer's words, kept while the key stays gone whatever later runs say
 };
 
 // The demo's last sync, a few minutes ago with nothing to change (its feed is the stock itself). A real site starts with none.
@@ -46,8 +53,9 @@ export async function syncStatus(): Promise<SyncStatus> {
 }
 
 const problems = (site: string): Record<Exclude<FeedResult, { ok: true }>["reason"], string> => ({
-  "not-connected": `${site} is not connected. Add the API key under Settings, Connected services.`,
+  "not-connected": `${site} is not connected. Contact Checkwork to connect it.`,
   "not-installed": `The ${site} key is set, but the connection is not switched on yet.`,
+  refused: `${site} refused the key, so its cars were removed.`,
   failed: `${site} did not answer.`,
 });
 
@@ -57,11 +65,19 @@ export async function runSync({ force = false, now = Date.now() } = {}): Promise
   const prev = await syncStatus();
   const { site } = await listing();
   const feed: FeedResult = await fetchListings().catch(() => ({ ok: false, reason: "failed" }) as const);
-  if (!feed.ok) return failed(prev, problems(site)[feed.reason], false, now, site);
+  // Once the cars were removed, a key still missing, or still refused after a refusal removed them, changes nothing: the removal's reason
+  // stays what Stock and the email say. A new key refused after the key was deleted is said after it.
+  const problemOf = (reason: keyof ReturnType<typeof problems>, s: SyncStatus) => (s.removedWhy && (reason === "not-connected" || (reason === "refused" && s.removedWhy === problems(site).refused)) ? s.removedWhy : problems(site)[reason]);
+  if (!feed.ok) return failed(prev, problemOf(feed.reason, prev), false, now, site, feed.reason === "refused");
   const today = dublinDay(now); // the Irish day, as the rest of the dashboard dates a sale
   const current = await adminCars();
   const plan = planSync(current, feed.listings, today, { force, site });
   if (plan.held) return failed(prev, `${plan.held} The site kept its stock. Check ${site}, then refresh stock.`, true, now, site);
+  // The key removed while this ran (src/lib/owner-api/keys.ts removes its cars): applying the plan now would put them all back.
+  if ((await modeOf("donedeal")) === "off") {
+    const latest = await syncStatus();
+    return failed(latest, problemOf("not-connected", latest), false, now, site);
+  }
   // Car by car: one that cannot be saved (an ad whose address clashes with another car's) is skipped and counted, never stops the rest.
   // shortcut: a cron run and Sync now at the same moment both apply the plan; the stock ends the same but the history shows each change
   // twice. Fine while syncs take seconds; add a lock if it shows up.
@@ -97,26 +113,66 @@ export async function runSync({ force = false, now = Date.now() } = {}): Promise
   return status;
 }
 
-async function failed(prev: SyncStatus, problem: string, held: boolean, now: number, site: string): Promise<SyncStatus> {
+// The dealer's cars from the listing site, and any photos stored for them, when access to it ends (#158): a refused key, or Checkwork
+// removing the key when a dealer leaves (src/lib/owner-api/keys.ts). Their own records stay: a sale, cost and prep, a lead or a test drive
+// keeps the car's title, as for a car deleted by hand. Only on a synced dealer, so a dealer's own stock is never touched, and never on a demo.
+// Recorded in Activity with `why`, by `actor`. Returns how many cars went. The status says access ended (removed) from here, even with no
+// cars to remove, unless it already did: as a new outage, so the owners' email about it goes once even when an earlier outage's went.
+export async function removeSyncedCars(why: string, actor: string): Promise<number> {
+  if (!(await removesHere())) return 0;
+  const n = await dropCars(why, actor);
+  const s = await syncStatus();
+  if (n || !s.removed) {
+    const said = `${(await listing()).site} cars were removed: ${why}.`;
+    await statusStore.put({ ...s, removed: true, removedWhy: said, problem: said, failingSince: undefined, alertedAt: undefined });
+  }
+  return n;
+}
+const removesHere = async () => !(await currentDealer()).demo && (await stockSource()) === "donedeal";
+async function dropCars(why: string, actor: string): Promise<number> {
+  const cars = await adminCars();
+  for (const c of cars) await removeCar(c.id, c);
+  if (cars.length) await logActivity("stock", `Removed ${cars.length === 1 ? "1 car" : `${cars.length} cars`}: ${why}`, undefined, actor);
+  return cars.length;
+}
+
+async function failed(prev: SyncStatus, problem: string, held: boolean, now: number, site: string, refused = false): Promise<SyncStatus> {
   // An outage starts at its first failed run (a site that has never synced too), and gets one email an hour in, none after it.
   const failingSince = prev.problem && prev.failingSince !== undefined ? prev.failingSince : now;
-  const status: SyncStatus = { ...prev, lastRunAt: now, problem, held, failingSince };
+  // A refused key counts when a run REFUSED_FOR or more after the first refusal is refused too, with no other run between, so one stray 401
+  // or 403 never empties the site. Never on a demo or a dealer whose stock is kept here: nothing is removed there.
+  const confirmed = refused && (await removesHere()) && (Boolean(prev.removed) || (prev.refusedSince !== undefined && now - prev.refusedSince >= REFUSED_FOR));
+  const ended = confirmed && !prev.removed; // this run ends access: the cars go (however many), and the bell and the owners are told, once
+  const firstRefusal = refused && prev.refusedSince === undefined && !prev.removed; // the bell, once
+  if (refused && !confirmed) problem = `${site} refused the key. If it still does at the next check, its cars come off the dashboard and the website.`;
+  if (ended) await dropCars(`${site} refused the key`, syncActor(site));
+  const removed = ended || Boolean(prev.removed);
+  const status: SyncStatus = { ...prev, lastRunAt: now, problem, held, failingSince, refusedSince: refused ? (prev.refusedSince ?? now) : undefined, ...(removed && { removed: true, removedWhy: ended ? problem : prev.removedWhy }) };
+  const said = status.removedWhy ?? problem; // while the cars are off, why they went
   // In the bell once an outage starts, not every 15 minutes it lasts.
-  if (failingSince === now) await notify({ kind: "sync", text: "Stock did not update", detail: problem, href: "/stock" }, now);
-  const due = now - failingSince >= ALERT_AFTER && !(prev.alertedAt !== undefined && prev.alertedAt >= failingSince);
-  if (due && (await alertOwners(problem, site, prev.lastOkAt))) status.alertedAt = now;
+  if (failingSince === now || firstRefusal || ended) await notify({ kind: "sync", text: removed ? `${site} cars removed` : "Stock did not update", detail: said, href: "/stock" }, now);
+  const due = ended || (now - failingSince >= ALERT_AFTER && !(prev.alertedAt !== undefined && prev.alertedAt >= failingSince));
+  if (due && (await alertOwners(said, site, prev.lastOkAt, removed))) status.alertedAt = now;
   await statusStore.put(status);
   return status;
 }
 
-async function alertOwners(problem: string, site: string, lastOkAt?: number): Promise<boolean> {
+// `removed`: the synced cars were removed (a refused key, or the key removed), so the email never says the site still shows them.
+async function alertOwners(problem: string, site: string, lastOkAt?: number, removed = false): Promise<boolean> {
   const to = leaderEmails((await getSettings()).team);
   const since = lastOkAt ? `since ${new Date(lastOkAt).toLocaleString("en-IE", { timeZone: TIME_ZONE, dateStyle: "medium", timeStyle: "short" })}` : "yet";
+  const { name } = await currentDealer();
+  const mail = removed
+    ? {
+        subject: `${name}: the ${site} cars were removed`,
+        text: `${problem}\n\n${site} lets us show your cars only while you allow it, so when access ends they come off the dashboard and the website. Your sales, leads and test drives are kept. Contact Checkwork to set up a new key: your cars come back on the first update after it.`,
+      }
+    : {
+        subject: `${name}: the ${site} stock has not updated ${since}`,
+        text: `${problem}\n\nThe website still shows the cars from the last update ${since}. New cars, price changes and sales on ${site} will not show until it works again. Open the dealer dashboard, Stock, to see the latest attempt and to refresh stock.`,
+      };
   try {
-    await sendTo(to, {
-      subject: `${(await currentDealer()).name}: the ${site} stock has not updated ${since}`,
-      text: `${problem}\n\nThe website still shows the cars from the last update ${since}. New cars, price changes and sales on ${site} will not show until it works again. Open the dealer dashboard, Stock, to see the latest attempt and to refresh stock.`,
-    });
+    await sendTo(to, mail);
     return true;
   } catch {
     console.error(JSON.stringify({ job: "donedeal-sync", error: "the warning email did not go" }));

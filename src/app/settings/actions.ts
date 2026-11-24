@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { sendToDealer } from "@/lib/leads/mail";
-import { SETTINGS_DEFAULT, changeTeamMember, getSettings, leadsStore, moveTeamMember, ordersStore, reservationsStore, salesStore, settingsStore, type DealerSettings, type TeamMember, drivesStore } from "@/lib/admin/collections";
+import { SETTINGS_DEFAULT, changeTeamMember, getSettings, leadsStore, moveTeamMember, reservationsStore, salesStore, settingsStore, type DealerSettings, type TeamMember, drivesStore } from "@/lib/admin/collections";
 import { noticesStore, readsStore } from "@/lib/admin/notifications";
 import { feedbackStore, helpStore } from "@/lib/admin/help";
 import { enabledModules } from "@/lib/modules";
@@ -171,7 +171,7 @@ function taken(team: TeamMember[], p: { name: string; email: string }, self?: st
   return null;
 }
 
-// Leads, bookings, sales, deposits, orders, the bell and the WhatsApp conversation name the person: a new name follows them there. The activity history
+// Leads, bookings, sales, deposits, the bell and the WhatsApp conversation name the person: a new name follows them there. The activity history
 // keeps the name each change was made under.
 async function renameEverywhere(from: string, to: string) {
   if (from === to) return;
@@ -180,7 +180,6 @@ async function renameEverywhere(from: string, to: string) {
   for (const d of await drivesStore.list()) if (d.assignedTo === from) await drivesStore.update(d.id, swap("assignedTo"));
   for (const x of await salesStore.list()) if (x.salesperson === from) await salesStore.update(x.id, swap("salesperson"));
   for (const x of await reservationsStore.list()) if (x.salesperson === from) await reservationsStore.update(x.id, swap("salesperson"));
-  for (const x of await ordersStore.list()) if (x.salesperson === from) await ordersStore.update(x.id, swap("salesperson"));
   for (const m of await messagesStore.list()) if (m.to === from) await messagesStore.update(m.id, swap("to"));
   for (const n of await noticesStore.list()) if (n.for === from) await noticesStore.update(n.id, swap("for"));
   // Help keeps a person's requests and their last feedback by name (requestsOf, feedbackStore's id): both follow the new name.

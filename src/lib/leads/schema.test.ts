@@ -2,8 +2,6 @@ import { z } from "zod";
 import { describe, expect, it } from "vitest";
 import { CONTACT_ERROR, LIMITS } from "./constants";
 import { leadSchema } from "./schema";
-import { regPeriods } from "./reg-periods";
-import { dublinDay } from "@/lib/admin/format";
 
 const base = { type: "enquiry", carId: "123", clientRef: crypto.randomUUID(), sourcePath: "/used-cars/x", name: "Ann", phone: "087 123 4567", consent: "yes" };
 const errors = (input: Record<string, unknown>) => {
@@ -204,14 +202,14 @@ describe("finance application (FIN-03, D-17)", () => {
   });
 });
 
-describe("a factory order request", () => {
+// An older website still sends one (#168): taken and filed as a car enquiry (real-leads.ts), whatever period it names.
+describe("a new car order from an older website", () => {
   const order = { ...base, type: "order", carId: undefined, make: "Kia", model: "Sportage" };
-  const period = regPeriods(dublinDay())[1];
-  it("takes a make, a model and a period that can still be ordered for", () => {
-    expect(errors({ ...order, regPeriod: period })).toEqual({});
-    expect(errors({ ...order, regPeriod: "201" }).regPeriod).toEqual(["Choose when you'd like it."]);
-    expect(errors({ ...order, make: "", regPeriod: period }).make).toEqual(["Choose a make."]);
-    expect(errors({ ...order, model: undefined, regPeriod: period }).model).toEqual(["Enter the model."]);
+  it("takes a make and a model, with any period or none", () => {
+    expect(errors({ ...order, regPeriod: "201" })).toEqual({});
+    expect(errors(order)).toEqual({});
+    expect(errors({ ...order, make: "" }).make).toEqual(["Choose a make."]);
+    expect(errors({ ...order, model: undefined }).model).toEqual(["Enter the model."]);
   });
 });
 

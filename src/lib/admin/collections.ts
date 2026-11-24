@@ -13,7 +13,6 @@ import { newId } from "./ids";
 import { COVER_MONTHS, DEPOSIT_METHODS, type DepositMethod } from "./deposits";
 import type { Note } from "./notes";
 import { ALERT_KINDS } from "@/lib/leads/schema";
-import { regPeriods } from "@/lib/leads/reg-periods";
 import type { Car } from "@/lib/stock/types";
 import { roleCan, type Role } from "@/lib/permission-rules";
 import type { PrepLine } from "./prep";
@@ -43,7 +42,7 @@ export type LeadStatus = (typeof LEAD_STATUSES)[number];
 export const LEAD_STATUS_LABELS: Record<LeadStatus, string> = { new: "New", contacted: "Contacted", appointment: "Appointment set", won: "Won", lost: "Lost", closed: "Closed", spam: "Spam" };
 // warranty and service: a message sent from the Warranty or Service page (the website sends both as a general message; real-leads.ts
 // tells them apart by the page).
-export const LEAD_TYPES = ["enquiry", "test-drive", "finance", "trade-in", "sell", "find-a-car", "order", "warranty", "service", "general"] as const;
+export const LEAD_TYPES = ["enquiry", "test-drive", "finance", "trade-in", "sell", "find-a-car", "warranty", "service", "general"] as const;
 export type LeadType = (typeof LEAD_TYPES)[number];
 // A warranty request is aftersales work, not a sale: nothing to win. Opening a claim deals with it, and Lost reads as Closed (set aside,
 // so it leaves the open requests). The same statuses underneath, so the lists and counts need nothing new.
@@ -52,7 +51,8 @@ export const leadStatusLabel = (type: LeadType, s: LeadStatus) => (type === "war
 // The steps a lead can be moved to. New is where it starts, so it is not one.
 export const leadStatusSteps = (type: LeadType): LeadStatus[] => (type === "warranty" ? ["contacted", "appointment", "lost"] : ["contacted", "appointment", "won", "lost"]);
 // In the words a dealer uses for each kind of request: the leads list, its filter, the lead, exports, emails and the bell's headings.
-export const LEAD_TYPE_LABELS: Record<LeadType, string> = { enquiry: "Car enquiry", "test-drive": "Test drive request", finance: "Finance application", "trade-in": "Trade-in valuation", sell: "Selling a car", "find-a-car": "Car finder request", order: "Factory order request", warranty: "Warranty request", service: "Service request", general: "Message" };
+// `order` is no longer a type (#168), but one the old Worker stores in the minutes of the deploy that removed it still reads as an enquiry.
+export const LEAD_TYPE_LABELS = { enquiry: "Car enquiry", "test-drive": "Test drive request", finance: "Finance application", "trade-in": "Trade-in valuation", sell: "Selling a car", "find-a-car": "Car finder request", warranty: "Warranty request", service: "Service request", general: "Message", order: "Car enquiry" } as Record<LeadType, string>;
 // Why a lead was lost, so the reports can say where sales go. A fixed list, so they can be counted.
 export const LOST_REASONS = ["Bought elsewhere", "Price", "Finance declined", "Stopped replying", "Car sold to someone else", "Other"] as const;
 export type LostReason = (typeof LOST_REASONS)[number];
@@ -110,7 +110,6 @@ const MESSAGES: Record<LeadType, string[]> = {
   // No make, year or mileage: the car itself is the lead's Their car details, so the message can never contradict them.
   sell: ["Looking to sell my car. It has a full service history.", "Not buying right now, just want to sell my car."],
   "find-a-car": ["Looking for a diesel estate under 15k, low mileage.", "Want an automatic SUV, family car, around 20k."],
-  order: ["Looking at a new hybrid SUV on a 271 reg, mid spec, white.", "Want to order the estate in grey for July."],
   warranty: ["The engine warning light came on this morning. Reg 191-D-4521.", "The gearbox is slipping into second. Bought it here in the summer."],
   service: ["Due a full service next month, can you fit me in?", "Need an NCT check before the test."],
   general: ["What time do you close on Saturday?", "Do you do servicing as well?"],
@@ -167,14 +166,12 @@ const EDGE_LEADS = (now: number): Lead[] => [
   { id: "lead-edge-1", type: "enquiry", status: "contacted", name: "Aleksandra Wiśniewska-Kowalczyk", email: "bartholomew.fitzgerald@northwind-industries-holdings.example.com", phone: "+353 83 000 1111", source: "Website", message: "Hello, I saw the listing on your website yesterday evening and I would like to know whether the car is still available, whether it has a full service history from a main dealer, whether you would consider a trade-in against my 2016 estate, and whether it can be collected on a weekday after six because I work in the city centre until late.", carSlug: livePicks(rng(5)).slug, carTitle: carTitleOf(livePicks(rng(5))), assignedTo: "Aoife Brennan", notes: [], createdAt: now - 3 * DAY },
   { id: "lead-edge-2", type: "general", status: "new", name: "Jo", email: "j@example.com", phone: "+353 83 000 2222", source: "Phone", message: "Call me.", notes: [], createdAt: now - 5 * DAY },
 ];
-// The website requests behind the demo's stories below (a warranty claim, a factory order), from the same customers, and a few still waiting.
+// The website requests behind the demo's stories below (a warranty claim), from the same customers, and a few still waiting.
 const STORY_LEADS = (now: number): Lead[] => {
   const as = (id: string) => (({ name, email, phone }: Customer) => ({ name, email, phone }))(storyCustomer(id));
   const r = rng(131);
   return [
     { id: "lead-2000", type: "warranty", status: "contacted", ...as("cust-300"), source: "Website", message: "The engine warning light came on at motorway speed. The car drives fine.", carTitle: seedSales()[0].carTitle, assignedTo: "Conor Doyle", notes: [{ at: now - 2 * DAY + 3 * HOUR, text: "Opened a claim and asked them to bring it in." }], createdAt: now - 2 * DAY },
-    { id: "lead-2001", type: "order", status: "won", ...as("cust-315"), source: "Website", message: "Toyota RAV4, 2.5 Hybrid Sol, white, 271 reg\n\nLooking to order for the new year.", assignedTo: "Conor Doyle", notes: [{ at: now - 12 * DAY + 4 * HOUR, text: "Order placed with a €1,000 deposit." }], createdAt: now - 13 * DAY },
-    { id: "lead-2002", type: "order", status: "new", ...person(r), source: "Website", message: "Hyundai Tucson, 271 reg\n\nWhat would the wait be for the hybrid?", notes: [], createdAt: now - 7 * HOUR },
     { id: "lead-2003", type: "warranty", status: "new", ...person(r), source: "Website", message: "The gearbox is slipping into second. Bought it here in the summer.", notes: [], createdAt: now - 4 * HOUR },
     { id: "lead-2004", type: "service", status: "new", ...person(r), source: "Phone", message: "Due a full service next month, can you fit me in?", notes: [], createdAt: now - 26 * HOUR },
     { id: "lead-2005", type: "service", status: "appointment", ...person(r), source: "Website", message: "Need an NCT check before the test.", assignedTo: "Ciara Walsh", followUpOn: dublinDay(now), notes: [{ at: now - 2 * DAY, text: "Booked in for Friday." }], createdAt: now - 3 * DAY },
@@ -361,7 +358,7 @@ export type DealerSettings = {
   marketing: { voice: string; hashtags: string; signOff: string }; // used by the post writer
   team: TeamMember[];
   leadEmails: string[]; // who gets the email when a visitor sends a form; empty means the dealer's profile's leadEmail
-  billing?: BillingSettings; // usage limits and alerts, and our ceilings (#181, src/lib/billing/usage.ts); missing on a record from before
+  billing?: BillingSettings; // usage limits, our ceilings and the contract (#181, src/lib/billing/usage.ts); missing on a record from before
   billingDetails?: BillingDetails; // who the bills are made out to (Billing, the Owner edits it); missing means the dealer's own details
   updatedAt: number;
 };
@@ -378,8 +375,8 @@ export const SETTINGS_DEFAULT: DealerSettings = {
 // A real dealer starts with no team (the made-up one is the demo's) and adds its people in Settings.
 // The demo has the morning follow-up email on, so it can be shown (the made-up team's mail goes to the lead inbox, src/lib/leads/mail.ts).
 const seedSettings = (demo: boolean): DealerSettings[] => {
-  // The demo's limits: well above a month of its seeded use plus visitors trying things, so nothing on the demo stops; a ceiling of ours.
-  const billing: BillingSettings | undefined = demo ? { ...BILLING_DEFAULT, caps: { ai: 25, whatsapp: 15, total: 140 }, ceilings: { ai: 25, total: 150 }, alerts: [{ scope: "total", amountEur: 25 }] } : undefined;
+  // The demo's WhatsApp limit: well above a month of its seeded use plus visitors trying things, so nothing on the demo stops.
+  const billing: BillingSettings | undefined = demo ? { ...BILLING_DEFAULT, caps: { whatsapp: 15 } } : undefined;
   return [{ ...SETTINGS_DEFAULT, team: demo ? SETTINGS_DEFAULT.team : [], notifications: { ...SETTINGS_DEFAULT.notifications, followUps: demo }, billing, updatedAt: Date.now() }];
 };
 export const settingsStore = defineCollection<DealerSettings>("settings", seedSettings, { always: true });
@@ -512,6 +509,7 @@ export type Sale = {
   coverMonths?: number; // the warranty from the day of sale: the included cover, or longer if extended cover was bought. Absent: the included.
   tradeIn?: { reg: string; allowanceEur: number }; // the buyer's car taken as a trade-in
   leadId?: string; // the lead the sale came from, marked won with it
+  reviewAskedOn?: string; // the day the buyer was asked for a Google review (src/lib/admin/review-ask.ts), at most once
   returnedOn?: string;
   kind?: "cancelled" | "returned";
   refundEur?: number;
@@ -661,53 +659,26 @@ export const coverEnds = (s: Pick<Sale, "soldOn" | "coverMonths">) => {
 };
 
 // ---- Factory orders ----
-// A new car ordered from the maker for a customer (our version only; no maker's system is connected). It moves from Ordered to Arrived by
-// hand. On arrival the car is added to stock, hidden and reserved for the buyer with their deposit, so Mark sold hands it over and the
-// order is done. Cancelled (owners and managers) with the deposit refunded or kept. Personal data like a sale: erasure and the purge keep
-// the figures without the buyer.
-export const ORDER_STATUSES = ["ordered", "built", "in-transit", "arrived", "handed-over", "cancelled"] as const;
-export type OrderStatus = (typeof ORDER_STATUSES)[number];
-export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = { ordered: "Ordered", built: "Built", "in-transit": "On its way", arrived: "Arrived", "handed-over": "Handed over", cancelled: "Cancelled" };
-export const orderOpen = (s: OrderStatus) => s !== "handed-over" && s !== "cancelled";
-// The way an order goes, start to end, for its progress tracker (a cancelled one left the way, so it has none).
-export const ORDER_PATH = ORDER_STATUSES.filter((s) => s !== "cancelled");
+// New cars are gone (#168): nothing writes an order now, and the demo seeds none. A dealer's older rows stay, personal data like a sale,
+// so data requests still find and erase them, and the six-year purge (sales-purge.ts) clears their buyer. shortcut: drop this once the
+// last order is past six years.
 export type Order = {
   id: string;
   customerId?: string;
   make: string;
   model: string;
   spec?: string;
-  colour?: string;
   priceEur: number;
   depositEur?: number;
-  depositMethod?: DepositMethod;
   regPeriod: string; // e.g. "271"
-  expected: string; // YYYY-MM, the month the maker gave
   orderedOn: string; // YYYY-MM-DD
-  status: OrderStatus;
-  carId?: string; // the car in stock, once it arrived
+  status: string;
   salesperson?: string;
-  leadId?: string; // the website request it came from
-  refundEur?: number; // on a cancelled order: the deposit given back
+  leadId?: string;
   notes: Note[];
   createdAt: number;
 };
-// Orders at every stage, for this registration period and the next, so the dates always look current.
-function seedOrders(): Order[] {
-  const now = Date.now();
-  const [thisPeriod, nextPeriod] = regPeriods(dublinDay(now));
-  const order = (id: string, customerId: string, make: string, model: string, spec: string, colour: string, priceEur: number, regPeriod: string, expectedInDays: number, daysAgo: number, status: OrderStatus, salesperson: string, depositEur: number, note?: string, extra?: Partial<Order>): Order =>
-    ({ id, customerId, make, model, spec, colour, priceEur, depositEur, depositMethod: "Card", regPeriod, expected: ago(-expectedInDays).slice(0, 7), orderedOn: ago(daysAgo), status, salesperson, notes: note ? [{ at: now - (daysAgo - 2) * DAY, text: note }] : [], createdAt: now - daysAgo * DAY, ...extra });
-  return [
-    order("order-s1", "cust-315", "Toyota", "RAV4", "2.5 Hybrid Sol", "Pearl White", 47950, nextPeriod, 60, 12, "ordered", "Conor Doyle", 1000, "Confirmed with the importer. Build slot in December.", { leadId: "lead-2001" }),
-    order("order-s2", "cust-316", "Hyundai", "Tucson", "1.6 T-GDi Hybrid Executive", "Phantom Black", 44495, nextPeriod, 75, 5, "ordered", "Aoife Brennan", 500, undefined, { depositMethod: "Bank transfer" }),
-    order("order-s3", "cust-317", "Kia", "Sportage", "1.6 HEV K4", "Steel Grey", 41995, nextPeriod, 40, 40, "built", "Conor Doyle", 1000, "Built. Waiting on a ship."),
-    order("order-s4", "cust-318", "Skoda", "Octavia Combi", "2.0 TDI Style", "Moon White", 38950, thisPeriod, 10, 70, "in-transit", "Ciara Walsh", 1000, "On the boat. At the port next week."),
-    order("order-s5", "cust-319", "Volkswagen", "ID.4", "Pro", "Kings Red", 46950, thisPeriod, -60, 150, "handed-over", "Conor Doyle", 2000, "Handed over. Very happy."),
-    order("order-s6", "cust-320", "Ford", "Puma", "1.0 EcoBoost ST-Line", "Race Red", 32950, nextPeriod, 70, 30, "cancelled", "Aoife Brennan", 500, "Bought a used car from us instead. Deposit refunded.", { refundEur: 500 }),
-  ];
-}
-export const ordersStore = defineCollection<Order>("orders", seedOrders);
+export const ordersStore = defineCollection<Order>("orders", () => []);
 
 // ---- Cost prices ----
 // What each car cost the dealer. Kept here, never in the public car data, and only shown to staff with the "margins" permission

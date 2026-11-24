@@ -8,7 +8,7 @@ import demoCars from "@/lib/stock/demo-cars.json";
 import { forSale, onRequest, type Car } from "@/lib/stock/types";
 import { carTitleOf } from "@/lib/admin/seed-data";
 import type { ModuleId } from "@/lib/modules-rules";
-import type { Role } from "@/lib/permission-rules";
+import { roleCan, type Role } from "@/lib/permission-rules";
 import { HOUR, MINUTE } from "@/lib/time";
 import { DEMO_PROFILE, type DealerProfile } from "@/lib/tenancy/profile";
 import type { PersonRecord } from "@/lib/notify-rules";
@@ -54,7 +54,7 @@ export function lastWeek(data: ReportData, drives: TestDrive[], now: number, dea
 }
 
 // The conversation the demo opens on: a few days of what the site sent each person, and what they answered.
-function seedMessages(): Msg[] {
+export function seedMessages(): Msg[] {
   const now = Date.now();
   const cars = (demoCars as Car[]).filter((c) => !c.soldAt);
   const car = (i: number) => cars[i % cars.length];
@@ -78,12 +78,14 @@ function seedMessages(): Msg[] {
     const mine = new Set(defaultAlerts(t.role as Role));
     let n = 0;
     const add = (m: Omit<Msg, "id" | "thread" | "to">) => void out.push({ id: `wa-${t.id}-${n++}`, thread: "staff", to: t.name, ...m });
-    const alert = (event: EventId, ago: number, extra: Omit<Msg, "id" | "thread" | "to" | "from" | "at" | "text" | "event" | "buttons">, text: string) => {
+    const alert = (event: EventId, ago: number, extra: Omit<Msg, "id" | "thread" | "to" | "from" | "at" | "text" | "event">, text: string) => {
       if (mine.has(event)) add({ at: now - ago, from: "site", event, text, buttons: EVENTS[event].buttons, ...extra });
     };
     alert("monday", 50 * HOUR, {}, alertText("monday", week));
     alert("review", 26 * HOUR, { ref: review.id }, alertText("review", { stars: review.rating, author: review.author, text: review.text }));
-    if (slow && slowDays >= DEMO_PROFILE.rules.oldStockDays) alert("slow-stock", 22 * HOUR, { ref: slow.id }, alertText("slow-stock", { car: carTitleOf(slow), days: slowDays, dropEur: DEMO_PROFILE.rules.slowDropEur }));
+    // The suggested drop, and its button, only for owners and managers (the settings permission), as alerts.ts sends it.
+    const drops = roleCan(t.role as Role, "settings");
+    if (slow && slowDays >= DEMO_PROFILE.rules.oldStockDays) alert("slow-stock", 22 * HOUR, { ref: slow.id, ...(!drops && { buttons: [] }) }, alertText("slow-stock", { car: carTitleOf(slow), days: slowDays, dropEur: drops ? DEMO_PROFILE.rules.slowDropEur : undefined }));
     if (held) alert("deposit", Math.max(now - held.createdAt, 5 * HOUR), { ref: held.id }, alertText("deposit", { car: held.carTitle, eur: held.depositEur }));
     alert("enquiry", 3 * HOUR, { leadId: enq.id }, alertText("enquiry", { first: firstName(enq.name), car: enq.carTitle ?? carTitleOf(buyerCar), text: enq.message }));
     // From a website booking (a test-drive lead), as a real alert is, so every button reaches the buyer.

@@ -17,11 +17,14 @@ import { channelFor } from "./rules";
 // - The buyer's email fallback goes through the lead mailer (src/lib/leads/mail.ts).
 export type Draft = Omit<Msg, "id" | "at" | "via"> & { at?: number };
 
+// What a message of this kind would go by now: WhatsApp, email or nothing (the one condition sendWhatsApp and the review tick use).
+export const whatsappChannel = async (kind: "alert" | "reply" | "marketing") => channelFor(kind, (await modeOf("whatsapp")) === "simulated", await usageAllowed("whatsapp", kind));
+
 // `email`: the person chose email (a buyer who did not tick the WhatsApp box), so it never counts as WhatsApp.
 // `canEmail` false: there is no address to fall back to, so when WhatsApp cannot send, nothing is sent (null) rather than an email nobody gets.
 export async function sendWhatsApp(draft: Draft, kind: "alert" | "reply" | "marketing", { email = false, canEmail = true }: { email?: boolean; canEmail?: boolean } = {}): Promise<Msg | null> {
   // Only a simulated service sends here until the adapter exists, so a connected one with no adapter falls back too, never pretends.
-  const channel = email ? "email" : channelFor(kind, (await modeOf("whatsapp")) === "simulated", await usageAllowed("whatsapp", kind));
+  const channel = email ? "email" : await whatsappChannel(kind);
   if (channel === "none" || (channel === "email" && !canEmail)) return null;
   if (channel === "whatsapp") await recordUsage("whatsapp", kind);
   return addMessage({ ...draft, ...(channel === "email" && { via: "email" as const }) });

@@ -80,6 +80,13 @@ describe("POST /api/site/v1/leads", () => {
     expect((await runAsDealer(B, () => leadsStore.list())).some((x) => x.name === NAME)).toBe(false);
   });
 
+  it("takes a new car order from an older website and files it as a car enquiry, the car in its words (#168)", async () => {
+    const res = await send(keyA, body(lead({ type: "order", sourcePath: "/new-cars/order", message: "White please", details: { make: "Kia", model: "Sportage", regPeriod: "271" } })));
+    expect(res.status).toBe(201);
+    const { id } = await res.json();
+    expect(await runAsDealer(A, () => leadsStore.get(`real-${id}`))).toMatchObject({ type: "enquiry", status: "new", message: "Kia Sportage, 271 reg\n\nWhite please" });
+  });
+
   it("answers a retry of the same clientRef with 200 and the same id, and stores it once", async () => {
     const l = lead();
     const first = await send(keyA, body(l));
@@ -216,15 +223,31 @@ describe("GET /api/site/v1/stock", () => {
     expect(text).not.toContain("9200001");
   });
 
-  it("answers 404 for a dealer whose stock is synced from a listing site, and 401 with no key", async () => {
+  it("answers a dealer whose stock is synced from a listing site the same way: on the website only, listing-site photos kept as links", async () => {
     await patchDealer(B, "Test Motors", { stock: { source: "donedeal", listingSite: "DoneDeal", listingUrl: "https://www.donedeal.ie/" } });
     try {
+      const photo = { src: "https://media.donedeal.ie/9100011/1.jpg", width: 1600, height: 1200 };
+      await runAsDealer(B, async () => {
+        await saveCar(car("9100011", { photos: [photo], listingUrl: "https://www.donedeal.ie/cars-for-sale/9100011" }));
+        await saveCar(car("9100012", { listing: "hidden", takenDownAt: today })); // the ad came down
+        await saveCar(car("9100013", { soldAt: today }));
+        await saveCar(car("9100014", { soldAt: "2001-01-01" }));
+      });
       const res = await get(keyB);
-      expect(res.status).toBe(404);
-      expect(await res.text()).toBe("");
+      expect(res.status).toBe(200);
+      const { cars } = (await res.json()) as { cars: Record<string, unknown>[] };
+      const ids = cars.map((c) => c.id);
+      expect(ids).toEqual(expect.arrayContaining(["9100011", "9100013"]));
+      expect(ids).not.toContain("9100012");
+      expect(ids).not.toContain("9100014");
+      expect(cars.find((c) => c.id === "9100011")).toMatchObject({ make: "Skoda", priceEur: 18950, photos: [photo] });
+      for (const hidden of ["listing", "listingUrl", "takenDownAt"]) expect(JSON.stringify(cars)).not.toContain(`"${hidden}"`);
     } finally {
       await patchDealer(B, "Test Motors", null);
     }
+  });
+
+  it("answers 401 with no key", async () => {
     expect((await get("nope")).status).toBe(401);
   });
 });

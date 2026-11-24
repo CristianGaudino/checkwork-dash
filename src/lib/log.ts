@@ -8,7 +8,7 @@ export function logLead({ leadId, type, outcome }: { leadId?: string; type: Lead
 
 // The site API's one line per request (src/lib/site-api): the route, the dealer's id (once the key named one), what happened and the answer's
 // status. Built from those keys by name, so a key, a lead or anything personal can never reach Workers Logs.
-export type SiteOutcome = "stored" | "duplicate" | "listed" | "no-key" | "rate" | "too-large" | "invalid" | "not-here" | "error";
+export type SiteOutcome = "stored" | "duplicate" | "listed" | "no-key" | "rate" | "too-large" | "invalid" | "error";
 export type SiteRoute = "leads" | "stock" | "drives" | "counts" | "presence" | "photos";
 export function logSite({ route, dealerId, outcome, status }: { route: SiteRoute; dealerId?: string; outcome: SiteOutcome; status: number }): void {
   const line = JSON.stringify({ site: route, dealerId, outcome, status });
@@ -22,4 +22,9 @@ export type SignInStep = "sign-out" | "email" | "code" | "link" | "session";
 export type SignInOutcome = "ok" | "bad-origin" | "wrong-code" | "expired" | "rate" | "locked" | "bad-data" | "no-dealer" | "send-failed" | "bot-check" | "bot-check-off";
 export function logSignIn({ step, outcome }: { step: SignInStep; outcome: SignInOutcome }): void {
   console.log(JSON.stringify({ signIn: step, outcome }));
+}
+
+// A review ask that failed after a sale (src/app/stock/actions.ts): the car's id and a fixed word, never the buyer.
+export function logReviewAsk({ carId, outcome }: { carId: string; outcome: "review-ask-failed" }): void {
+  console.error(JSON.stringify({ carId, outcome }));
 }

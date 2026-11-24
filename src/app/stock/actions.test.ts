@@ -15,11 +15,14 @@ vi.mock("next/headers", () => ({
   cookies: async () => ({ get: (n: string) => (n === "checkwork-demo-stock" ? { value: stockCookie } : n === "checkwork-demo-role" ? { value: role } : undefined) }),
   headers: async () => ({ get: () => null }),
 }));
-const { addCarPhotoAction, carPhotoAction, removePrepAction, savePrepAction, bulkStockAction, deleteCarAction, endReservationAction, recordSaleAction, reserveAction, saveCarAction, saveCostAction, setListingAction, toggleSoldAction, undoSaleAction, withdrawnAction } = await import("./actions");
+const { addCarPhotoAction, carPhotoAction, dropPriceAction, undoDropAction, removePrepAction, savePrepAction, bulkStockAction, deleteCarAction, endReservationAction, recordSaleAction, reserveAction, saveCarAction, saveCostAction, setListingAction, toggleSoldAction, undoSaleAction, withdrawnAction } = await import("./actions");
 const { claimsStore, costsStore, customersStore, leadsStore, prepStore, reservationsStore, salesStore } = await import("@/lib/admin/collections");
 const { carCosts } = await import("@/lib/admin/costs");
 const { BAD_COST } = await import("@/lib/admin/margins");
 const { adminCar, adminCars, saveCar } = await import("@/lib/admin/stock-admin");
+const { suggestedDrop } = await import("@/lib/admin/overview");
+const { isReduced } = await import("@/lib/stock/types");
+const { DEMO_PROFILE } = await import("@/lib/tenancy/profile");
 
 describe("stock synced from DoneDeal", () => {
   beforeEach(() => {
@@ -179,6 +182,49 @@ describe("recording a sale", () => {
     expect((await salesStore.get(was.id))?.priceEur).toBe(1);
   });
 
+  it("asks the buyer for a review when ticked, once, and never from Change the sale", async () => {
+    stockCookie = "checkwork";
+    const recorded = new Set((await salesStore.list()).flatMap((x) => [x.id, x.carId]));
+    const [car, other] = (await adminCars()).filter((c) => !c.soldAt && !c.listing && !c.reserved && !recorded.has(c.id));
+    const customer = (await customersStore.list()).find((c) => c.email)!;
+    await expect(recordSaleAction(car.id, undefined, form({ priceEur: "9000", soldOn: today, customerId: customer.id }))).rejects.toThrow(/redirect/);
+    expect((await salesStore.get(car.id))?.reviewAskedOn).toBeUndefined(); // no tick, no ask
+    await expect(recordSaleAction(other.id, undefined, form({ priceEur: "9000", soldOn: today, customerId: customer.id, askReview: "on" }))).rejects.toThrow(/redirect/);
+    expect((await salesStore.get(other.id))?.reviewAskedOn).toBe(today);
+    role = "Manager";
+    await expect(recordSaleAction(car.id, undefined, form({ priceEur: "9100", soldOn: today, customerId: customer.id, askReview: "on" }))).rejects.toThrow(/redirect/);
+    expect((await salesStore.get(car.id))?.reviewAskedOn).toBeUndefined(); // Change the sale never asks
+    await expect(recordSaleAction(other.id, undefined, form({ priceEur: "9100", soldOn: today, customerId: customer.id }))).rejects.toThrow(/redirect/);
+    expect((await salesStore.get(other.id))?.reviewAskedOn).toBe(today); // and keeps the day it was asked
+    role = "Sales";
+  });
+
+  it("says so when the ticked review ask could go to nobody", async () => {
+    stockCookie = "checkwork";
+    const recorded = new Set((await salesStore.list()).flatMap((x) => [x.id, x.carId]));
+    const car = (await adminCars()).find((c) => !c.soldAt && !c.listing && !c.reserved && !recorded.has(c.id))!;
+    const customer = (await customersStore.list()).find((c) => c.email)!;
+    const ask = await import("@/lib/admin/review-ask");
+    vi.spyOn(ask, "askForReview").mockResolvedValueOnce(null);
+    await expect(recordSaleAction(car.id, undefined, form({ priceEur: "9000", soldOn: today, customerId: customer.id, askReview: "on" }))).rejects.toThrow(`redirect:/stock?view=sold&sale=${car.id}&review=none`);
+    expect(await salesStore.get(car.id)).toBeDefined();
+  });
+
+  it("saves the sale when the review ask fails, logs the car only and tells staff", async () => {
+    stockCookie = "checkwork";
+    const recorded = new Set((await salesStore.list()).flatMap((x) => [x.id, x.carId]));
+    const car = (await adminCars()).find((c) => !c.soldAt && !c.listing && !c.reserved && !recorded.has(c.id))!;
+    const customer = (await customersStore.list()).find((c) => c.email)!;
+    const ask = await import("@/lib/admin/review-ask");
+    vi.spyOn(ask, "askForReview").mockRejectedValueOnce(new Error("No lead email went out"));
+    const err = vi.spyOn(console, "error").mockImplementation(() => {});
+    await expect(recordSaleAction(car.id, undefined, form({ priceEur: "9000", soldOn: today, customerId: customer.id, askReview: "on" }))).rejects.toThrow(`redirect:/stock?view=sold&sale=${car.id}&review=failed`);
+    expect(await salesStore.get(car.id)).toBeDefined();
+    expect(err).toHaveBeenCalledWith(JSON.stringify({ carId: car.id, outcome: "review-ask-failed" }));
+    expect(err.mock.calls.join()).not.toContain(customer.email);
+    err.mockRestore();
+  });
+
   it("refuses a missing buyer, a bad price and a day to come, and saves nothing", async () => {
     const recorded = new Set((await salesStore.list()).map((x) => x.id));
     const car = (await adminCars()).find((c) => !c.soldAt && !recorded.has(c.id))!;
@@ -323,6 +369,45 @@ describe("several cars at once", () => {
     expect(await bulkStockAction(form(["../x"], "sold"))).toEqual({ error: expect.any(String) });
     expect(await bulkStockAction(form(["4710001"], "paint"))).toEqual({ error: expect.any(String) });
     expect(await bulkStockAction(form([], "sold"))).toEqual({ error: expect.any(String) });
+  });
+});
+
+describe("the suggested price drop on old stock", () => {
+  // A car for sale made old stock here, so the test never depends on the seed's dates.
+  const oldCar = async () => {
+    const deposits = new Set((await reservationsStore.list()).map((r) => r.carId));
+    const c = (await adminCars()).find((c) => !c.soldAt && !c.reserved && !c.listing && c.priceEur > 1000 && !isReduced(c) && !deposits.has(c.id))!;
+    await saveCar({ ...c, listedAt: "2026-01-01" });
+    expect(suggestedDrop((await adminCar(c.id))!, DEMO_PROFILE.rules)).toBeTruthy();
+    return (await adminCar(c.id))!;
+  };
+
+  it("is applied by owners and managers only, from the price the button showed, and undone back to the price it was", async () => {
+    stockCookie = "checkwork";
+    role = "Sales";
+    const car = await oldCar();
+    const to = suggestedDrop(car, DEMO_PROFILE.rules)!.priceEur;
+    expect(await dropPriceAction(car.id, car.priceEur)).toEqual({ error: expect.stringMatching(/owners and managers/) });
+    expect((await adminCar(car.id))!.priceEur).toBe(car.priceEur); // Sales: refused on the server
+    role = "Manager";
+    expect(await dropPriceAction(car.id, car.priceEur + 1)).toEqual({ error: expect.any(String) }); // the price changed since the page
+    expect(await dropPriceAction(car.id, car.priceEur)).toBeUndefined();
+    expect((await adminCar(car.id))!).toMatchObject({ priceEur: to, wasPriceEur: Math.max(car.wasPriceEur ?? 0, car.priceEur) });
+    expect(await dropPriceAction(car.id, car.priceEur)).toEqual({ error: expect.any(String) }); // never taken twice
+    expect(suggestedDrop((await adminCar(car.id))!, DEMO_PROFILE.rules)).toBeNull(); // and not offered again once reduced
+    role = "Sales";
+    expect(await undoDropAction(car.id, car.priceEur, car.wasPriceEur ?? 0, to)).toEqual({ error: expect.any(String) });
+    role = "Owner";
+    expect(await undoDropAction(car.id, car.priceEur, car.wasPriceEur ?? 0, to)).toBeUndefined();
+    expect((await adminCar(car.id))!).toMatchObject({ priceEur: car.priceEur, wasPriceEur: car.wasPriceEur });
+  });
+
+  it("is never applied to synced stock: the price changes on DoneDeal", async () => {
+    stockCookie = "donedeal";
+    role = "Owner";
+    const car = await oldCar();
+    expect(await dropPriceAction(car.id, car.priceEur)).toEqual({ error: expect.stringMatching(/DoneDeal/) });
+    expect((await adminCar(car.id))!.priceEur).toBe(car.priceEur);
   });
 });
 

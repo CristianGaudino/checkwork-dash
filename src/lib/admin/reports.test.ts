@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Lead, Sale } from "./collections";
 import type { Car } from "@/lib/stock/types";
-import { fullReport, monthsOf, personalReport } from "./reports";
+import { fullReport, monthsBetween, monthsOf, personalReport, salesCsv } from "./reports";
 
 const now = Date.parse("2026-11-11T12:00:00Z");
 const sale = (id: string, soldOn: string, priceEur: number, salesperson?: string): Sale => ({ id, carTitle: id, priceEur, soldOn, salesperson, createdAt: 0 });
@@ -72,5 +72,49 @@ describe("personalReport", () => {
     });
     expect(p.totals).toEqual({ sold: 1, leads: 2, won: 1, winRate: 50, followUpsDue: 1 });
     expect(JSON.stringify(p)).not.toMatch(/12000|9000|value|profit/);
+  });
+});
+
+describe("salesCsv", () => {
+  const cost = (purchase: number, prep = 0, claims = 0) => ({ purchase, prep, claims, total: purchase + prep + claims });
+  const sales: Sale[] = [
+    { ...sale("a", "2026-11-02", 12000, "Conor"), customerId: "cust-1", coverMonths: 24, tradeIn: { reg: "151-D-23817", allowanceEur: 2500 } },
+    sale("b", "2026-10-20", 9000, "Aoife"),
+    sale("c", "2026-10-01", 5000),
+    sale("old", "2026-07-01", 7000, "Conor"),
+    { ...sale("undone-1", "2026-10-02", 15000, "Conor"), carId: "a", returnedOn: "2026-10-20", kind: "returned", refundEur: 14500 },
+  ];
+  const cars = [car("a", "2026-10-03", { reg: "191-D-12345", make: "Volkswagen", model: "Golf", year: 2019 })];
+  const costs = new Map([["a", cost(9000, 600, 400)], ["b", cost(8500)]]);
+  const rows = salesCsv({ sales, cars, costs, months: monthsOf(3, "2026-11-11") }).trim().split("\r\n").map((l) => l.split(","));
+  const col = (name: string) => rows.slice(1).map((r) => r[rows[0].indexOf(name)]);
+  const total = (name: string) => col(name).reduce((t, v) => t + Number(v || 0), 0);
+
+  it("has a row for each sale of the period, oldest first, then the undone ones marked with their refund", () => {
+    expect(rows[0]).toEqual(["Sale date", "Registration", "Make", "Model", "Year", "Sale price (€)", "Cost price (€)", "Prep (€)", "Warranty repairs (€)", "Margin (€)", "Warranty (months)", "Trade-in reg", "Trade-in allowance (€)", "Salesperson", "Returned", "Refund (€)"]);
+    expect(rows.slice(1)).toEqual([
+      ["2026-10-01", "", "c", "", "", "5000", "", "", "", "", "12", "", "", "", "", ""],
+      ["2026-10-20", "", "b", "", "", "9000", "8500", "0", "0", "500", "12", "", "", "Aoife", "", ""],
+      ["2026-11-02", "191-D-12345", "Volkswagen", "Golf", "2019", "12000", "9000", "600", "400", "2000", "24", "151-D-23817", "2500", "Conor", "", ""],
+      ["2026-10-02", "191-D-12345", "Volkswagen", "Golf", "2019", "", "", "", "", "", "12", "", "", "Conor", "Returned 2026-10-20", "14500"],
+    ]);
+  });
+  it("adds up to the same sales, profit and refunds as Reports", () => {
+    const r = fullReport({ sales, cars, leads: [], team: [], costs: new Map([...costs].map(([id, c]) => [id, c.total])), prep: [], period: 3, now, oldDays: 120 });
+    expect([total("Sale price (€)"), total("Margin (€)"), col("Margin (€)").filter(Boolean).length, total("Refund (€)")]).toEqual([r.totals.value, r.totals.profit, r.totals.costed, r.returns.refundEur]);
+    expect(col("Returned").filter(Boolean).length).toBe(r.returns.count);
+    expect(rows.length - 1 - r.returns.count).toBe(r.totals.sold);
+  });
+  it("never has the buyer", () => {
+    expect(rows[0].join(" ")).not.toMatch(/buyer|customer|name|email|phone/i);
+    expect(rows.flat()).not.toContain("cust-1");
+  });
+});
+
+describe("monthsBetween", () => {
+  it("lists the months from one to another, both included, and refuses a range that is not one", () => {
+    expect(monthsBetween("2025-11", "2026-02")).toEqual(["2025-11", "2025-12", "2026-01", "2026-02"]);
+    expect(monthsBetween("2026-11", "2026-11")).toEqual(["2026-11"]);
+    expect([monthsBetween("2026-03", "2026-01"), monthsBetween("2026-13", "2026-14"), monthsBetween("2000-01", "2026-01"), monthsBetween("", "")]).toEqual([null, null, null, null]);
   });
 });

@@ -4,8 +4,7 @@ import { FINANCE } from "@/lib/finance/finance.config";
 import { PRICE_STOPS } from "@/lib/stock/types";
 import { BAD_DRIVE_DAY, BAD_DRIVE_TIME, BAD_KM, driveDays, driveTimes, phoneError, BAD_REG, CONTACT_ERROR, EMPLOYMENT, KM_PATTERN, LIMITS, REG_PATTERN, SOURCING_BODIES, SOURCING_CAR_ERROR } from "./constants";
 import { DAY } from "../time";
-import { regPeriods } from "./reg-periods";
-import { dublinDay, dublinMs } from "@/lib/admin/format";
+import { dublinMs } from "@/lib/admin/format";
 import { CHOICES, TOPIC_IDS } from "./contact-topics";
 import { CHANNELS, CHANNEL_LABELS } from "@/lib/visit-rules";
 
@@ -82,13 +81,13 @@ const sourcing = {
   message: given(z.string({ error: "Tell us what you're looking for." }).trim().max(LIMITS.message, tooLong(LIMITS.message))),
 };
 
-// A new car ordered from the factory (our stock only: /new-cars/order). The make and model are needed; the spec is free text; the period is
-// one the dealer can order for (reg-periods.ts), checked against today, so a stale form cannot ask for one that has passed.
+// A new car order from an older website's /new-cars/order. The dashboard has no new cars (#168), so it is filed as a car enquiry
+// (real-leads.ts): still taken, so nothing a buyer sends is lost. The make and model are needed; the spec and period are free text.
 const order = {
   make: given(oneLine(z.string({ error: "Choose a make." }).trim().min(1, "Choose a make.").max(60, tooLong(60)))),
   model: given(oneLine(z.string({ error: "Enter the model." }).trim().min(1, "Enter the model.").max(60, tooLong(60)))),
   spec: given(oneLine(z.string().trim().max(120, tooLong(120))).optional()),
-  regPeriod: given(z.string({ error: "Choose when you'd like it." }).refine((v) => regPeriods(dublinDay()).includes(v), "Choose when you'd like it.")),
+  regPeriod: given(oneLine(z.string().trim().max(10, tooLong(10))).optional()),
   message: given(z.string().trim().max(LIMITS.message, tooLong(LIMITS.message)).optional()),
 };
 
@@ -195,7 +194,7 @@ export const TYPE_LABELS: Record<LeadType, string> = {
   test_drive: "Test drive booking",
   alert: "Stock alert sign-up",
   general: "Message from the website",
-  order: "New car order",
+  order: "Car enquiry",
 };
 // Detail key to email label, in the order the email lists them; a new type's fields need only a line here.
 export const DETAIL_LABELS: Record<string, string> = {

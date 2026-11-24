@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AdminReview, Lead, TestDrive } from "./collections";
-import { overview } from "./overview";
+import { overview, suggestedDrop } from "./overview";
 import { forPerson, leadsToAnswer } from "./follow-ups";
 import { personalReport } from "./reports";
 import { DAY, HOUR } from "@/lib/time";
@@ -49,6 +49,18 @@ describe("overview", () => {
     expect(o.attention.map((a) => [a.key, a.count])).toEqual([["sync", 1], ["sold-drives", 2], ["taken-down", 1], ["old", 1], ["costs", 1]]);
     // Without the margins permission there is no cost item at all, and a sold car is never old stock.
     expect(overview({ rules: DEMO_PROFILE.rules, listingSite: "DoneDeal", leads: [], drives: [], reviews: [], cars: [car("gone", "2026-01-01", { soldAt: "2026-02-01" })], now }).attention).toEqual([]);
+  });
+  it("suggests the dealer's price drop on old stock only, once, never on request, reserved, sold or to €0, and counts them for owners and managers", () => {
+    const car = (id: string, o: object = {}) => ({ id, slug: id, listedAt: "2026-07-01", priceEur: 9000, photos: [], ...o }) as unknown as import("@/lib/stock/types").Car;
+    const rules = { oldStockDays: 120, slowDropEur: 500 };
+    expect(suggestedDrop(car("old", { wasPriceEur: 8000 }), rules, now)).toEqual({ priceEur: 8500, wasPriceEur: 9000 });
+    const dropped = { ...car("old"), ...suggestedDrop(car("old"), rules, now)! };
+    expect(suggestedDrop(dropped, rules, now)).toBeNull(); // one suggested drop per car: none again once it is reduced
+    expect(suggestedDrop(car("edge", { priceEur: 501 }), rules, now)).toEqual({ priceEur: 1, wasPriceEur: 501 });
+    for (const c of [car("new", { listedAt: "2026-11-01" }), car("poa", { priceEur: 0 }), car("cheap", { priceEur: 500 }), car("held", { reserved: true }), car("sold", { soldAt: "2026-11-05" }), car("hidden", { listing: "hidden" })]) expect(suggestedDrop(c, rules, now)).toBeNull();
+    const input = { rules: { ...DEMO_PROFILE.rules, ...rules }, listingSite: "DoneDeal", leads: [], drives: [], reviews: [], cars: [car("old"), car("cheap", { priceEur: 300 })], now };
+    expect(overview({ ...input, drops: true }).attention.find((a) => a.key === "old")).toMatchObject({ count: 2, detail: "1 with a suggested price" });
+    expect(overview(input).attention.find((a) => a.key === "old")?.detail).toBeUndefined(); // Sales and Finance: not said
   });
   it("counts every sold car with no sale recorded, however long ago, oldest first", () => {
     const car = (id: string, soldAt?: string) => ({ id, slug: id, photos: [], soldAt }) as unknown as import("@/lib/stock/types").Car;

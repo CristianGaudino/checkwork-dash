@@ -6,6 +6,7 @@ import { recordUsage, usageAllowed } from "@/lib/billing/usage";
 import { EVENTS, alertText, eventOfLead, firstName, inQuiet, type EventId, type Facts } from "./rules";
 import { enabledModules } from "@/lib/modules";
 import { mayGet } from "@/lib/notify-rules";
+import { roleCan } from "@/lib/permission-rules";
 import { TIME_ZONE } from "@/lib/site";
 import { currentDealer } from "@/lib/tenancy/current";
 import type { Lead } from "@/lib/admin/collections";
@@ -13,20 +14,22 @@ import { drivesStore, getSettings, leadsStore, reviewsStore, salesStore } from "
 import { adminCars } from "@/lib/admin/stock-admin";
 import { carTitleOf } from "@/lib/admin/seed-data";
 import { daysSince, dublinDay } from "@/lib/admin/format";
-import { forSale, onRequest, type Car } from "@/lib/stock/types";
+import type { Car } from "@/lib/stock/types";
+import { suggestedDrop } from "@/lib/admin/overview";
 import { DAY } from "@/lib/time";
 
 const clock = () => new Date().toLocaleTimeString("en-GB", { timeZone: TIME_ZONE, hour: "2-digit", minute: "2-digit" });
 type Draft = Omit<Msg, "id" | "at" | "via">;
 
 // Each team member's copy of one alert: still on the team, a linked phone, that alert on and theirs to get (never Finance's, the Monday
-// summary only for those who see the full reports, src/lib/notify-rules.ts), and outside their quiet hours.
-async function staffCopies(event: EventId, text: string, extra: Partial<Draft>): Promise<Draft[]> {
+// summary only for those who see the full reports, src/lib/notify-rules.ts), and outside their quiet hours. `plain`: the text, with no
+// buttons, for those without the settings permission (a slow car without the suggested drop, which is for owners and managers only).
+async function staffCopies(event: EventId, text: string, extra: Partial<Draft>, plain?: string): Promise<Draft[]> {
   const now = clock();
   const team = new Map((await getSettings()).team.map((t) => [t.id, t.role])); // only people still on the team
   return (await staffStore.list())
     .filter((p) => team.has(p.id) && p.phone && p.alerts.includes(event) && mayGet(team.get(p.id)!, "whatsapp", event) && !inQuiet(now, p.quietFrom, p.quietTo))
-    .map((p) => ({ thread: "staff", from: "site", to: p.name, event, text, buttons: EVENTS[event].buttons, ...extra }));
+    .map((p) => ({ thread: "staff", from: "site", to: p.name, event, text, buttons: EVENTS[event].buttons, ...extra, ...(plain !== undefined && !roleCan(team.get(p.id)!, "settings") && { text: plain, buttons: [] }) }));
 }
 
 // One cap check and one count for the whole batch, so a visitor's submit is not many round trips. Over the cap (or not connected) an alert
@@ -66,7 +69,8 @@ export async function alertStaff(event: EventId, facts: Facts, extra: Partial<Dr
   try {
     const modules = await enabledModules();
     if (!modules.has("whatsapp") || !modules.has(EVENTS[event].module)) return 0;
-    return await deliver(await staffCopies(event, alertText(event, facts), extra), EVENTS[event].kind);
+    const plain = event === "slow-stock" ? alertText(event, { ...facts, dropEur: undefined }) : undefined;
+    return await deliver(await staffCopies(event, alertText(event, facts), extra, plain), EVENTS[event].kind);
   } catch {
     return 0; // shortcut: as above
   }
@@ -81,12 +85,9 @@ export async function sendDailyAlerts(now = Date.now()): Promise<{ sent: number 
   if (!(await enabledModules()).has("whatsapp")) return { sent: 0 };
   const said = new Set((await messagesStore.list()).filter(isStaffAlert).map((m) => `${m.event}:${m.ref}`));
   const [cars, reviews, { profile }] = await Promise.all([adminCars(), reviewsStore.list(), currentDealer()]);
-  const { oldStockDays, slowDropEur } = profile.rules;
   let sent = 0;
-  for (const c of cars) {
-    const days = c.listedAt ? daysSince(c.listedAt, now) : 0;
-    if (forSale(c) && !onRequest(c) && days >= oldStockDays && !said.has(`slow-stock:${c.id}`)) sent += await alertStaff("slow-stock", { car: carTitleOf(c), days, dropEur: slowDropEur }, { ref: c.id });
-  }
+  // The same suggestion Stock shows owners and managers (suggestedDrop), so the alert never offers a drop the car cannot take.
+  for (const c of cars) if (suggestedDrop(c, profile.rules, now) && !said.has(`slow-stock:${c.id}`)) sent += await alertStaff("slow-stock", { car: carTitleOf(c), days: daysSince(c.listedAt!, now), dropEur: profile.rules.slowDropEur }, { ref: c.id });
   for (const r of reviews) if (r.createdAt > now - 2 * DAY && !said.has(`review:${r.id}`)) sent += await alertStaff("review", { stars: r.rating, author: r.author, text: r.text }, { ref: r.id });
   if (new Date(`${dublinDay(now)}T12:00:00Z`).getUTCDay() === 1) {
     const [leads, sales, drives] = await Promise.all([leadsStore.list(), salesStore.list(), drivesStore.list()]);

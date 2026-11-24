@@ -14,13 +14,13 @@ comes from.
 
 ## Usage billed per use
 
-Registration lookups, AI actions and WhatsApp messages cost the dealer per use, on top of the plan, past the plan's monthly allowance
-(#181, #223). The code that makes a paid use
-counts it with `recordUsage` and asks `usageAllowed` first (`src/lib/billing/usage.ts`): past a monthly cap (the dealer's, set by the Owner
-or Manager on Billing, or our ceiling) the service stops for the month and falls back (a lookup gives the plate's own facts, AI leaves the
-text alone, a WhatsApp reply or alert goes by email, or nothing if the buyer gave none, and a marketing message is not sent; an alert the
-plan still includes always goes). Our default limits are `DEFAULT_CEILINGS`, WhatsApp's times the branches on Group (`withBranchCeilings`). Alerts at 80% of a cap, at the cap and at amounts the dealer chose go to the owners and managers in
-the bell, once a month each. Counts are one record per month per line of the bill. Prices are in `src/lib/billing/rules.ts`.
+Registration lookups and WhatsApp messages cost the dealer per use, on top of the plan, past the plan's monthly allowance (#147, #181).
+AI writing is fair use: counted the same way, never billed, and stopped at our ceiling (`AI_FAIR_USE` actions a month). The code that
+makes a use counts it with `recordUsage` and asks `usageAllowed` first (`src/lib/billing/usage.ts`): past a monthly limit (the dealer's,
+one per paid service, set by the Owner or Manager on Billing, or our ceiling) the service stops for the month and falls back (a lookup
+gives the plate's own facts, AI leaves the text alone, a WhatsApp reply or alert goes by email, or nothing if the buyer gave none, and a
+marketing message is not sent; an alert the plan still includes always goes). Our default limits are `DEFAULT_CEILINGS` (EUR 15 of
+lookups, EUR 20 of WhatsApp past the allowance). When a limit is reached the owners and managers get one notice in the bell, once a month. Counts are one record per month per line of the bill. Prices are in `src/lib/billing/rules.ts`.
 
 ## Roles and permissions
 
@@ -88,7 +88,7 @@ What differs between dealers beyond their records is in their profile (#5): one 
 - **Defaults:** a dealer with nothing set has the dashboard alone, stock kept here, the usual rules, no website and no logo (the menu
   shows the name). A demo dealer's base is the made-up demo business (`DEMO_PROFILE`: every module, its facts and logo); the demo reset
   puts its profile back to that.
-- **Billing settings** (term, branches, brands, ceilings, caps) were already per dealer: the settings record in the dealer's own store.
+- **Billing settings** (term, first month free, ceilings, caps) were already per dealer: the settings record in the dealer's own store.
 - **Not per dealer yet:** the time zone (Europe/Dublin for all), the finance terms (`src/lib/finance/`) and the services' keys (Worker
   secrets, ours). A lead from the site API is checked against the dealer's own opening hours (`leadSchemaFor`, docs/site-api.md).
 
@@ -159,7 +159,7 @@ code path reaches another dealer's (#3, #4, #6; `src/lib/tenancy/`).
   alerts and reads push (every request, as push always went) and email (the dealer's old morning switch, `notifications.followUps`) from the
   role until the person saves; someone with no record gets their role's. An owner's old choice for a new person (`notifyDefaults`, before
   #150) may still be stored in the settings record; nothing reads it.
-- **The bell is in the app only** (`src/lib/admin/notifications.ts`). A new website request, test drive booking, warranty or order request,
+- **The bell is in the app only** (`src/lib/admin/notifications.ts`). A new website request, test drive booking or warranty request,
   a DoneDeal ad taken down, a sync outage (once, as it starts), a lead given to you by someone else, a buyer's WhatsApp reply, a usage
   limit or spend alert (owners and managers), and Checkwork getting your help request. Each has a heading, what happened ("Test drive
   request", "Monthly limit reached"), and a line under it, what it is about: for a lead the contact form's topic and answers as the leads
@@ -195,6 +195,12 @@ with no D1). The actor is the signed-in person (`currentMember`), or a named one
   (owners and managers). One confirm for the lot; each car is recorded in Activity as if changed on its own. Sold cars keep their
   price, and a car with a deposit held is neither sold nor deleted until its reservation is ended. Marked sold this way, each car keeps
   its Record sale button.
+- **A suggested price on old stock** (#172): each car for sale at or past the dealer's `oldStockDays` gets a suggested new price, its
+  price less `slowDropEur` (`suggestedDrop` in `src/lib/admin/overview.ts`, the same rule the WhatsApp slow-stock alert uses). Never
+  on a car on request, reserved, sold or hidden, and never down to €0. Owners and managers only (the settings permission, as for
+  deleting a car): the old stock view's rows and the car's page show it, and Overview's To do says how many old cars have one. In our
+  version "Drop to €X" applies it, with Undo and in Activity (`dropPriceAction`, `undoDropAction`, which refuse other roles and a price
+  changed since the page). For synced stock the row's button is Edit on DoneDeal: the price changes there.
 - **Photos** (#21): on the car's page, add several at once, choose the main one, remove one. The browser shrinks each to a 1,600px
   JPEG (dropping its location data) and the server checks the bytes. On the Worker they are stored in R2 under `dealers/<dealer>/cars/{id}/`
   in the `LEAD_PHOTOS` bucket and served by `/car-photos`, which serves that
@@ -213,7 +219,7 @@ with no D1). The actor is the signed-in person (`currentMember`), or a named one
 - **A sale** (`salesStore`, one per car): the price it sold for, the day, who sold it and the buyer, a customer on file or a new one made
   on the form. In our version Mark sold opens the form and marks the car sold on the sale's day. In the DoneDeal version the dealer
   answers for a car whose ad came down, and the Sold view on Stock (Record sale) asks for a sold car with none. Margins use the sale price
-  for a sold car. After six years the daily job removes the buyer from sales, deposits, warranty claims and factory orders (a claim or order
+  for a sold car. After six years the daily job removes the buyer from sales, deposits, warranty claims and older factory orders (a claim or order
   also loses its lead, notes and fault text, as an erasure does) (`src/lib/admin/sales-purge.ts`,
   `{"job":"anonymise-sales"}`); the figures stay. /privacy says so.
 - **A deposit** (`reservationsStore`, our version only): Reserve on a car for sale takes the amount, how it was paid, the day, the buyer
@@ -228,6 +234,13 @@ with no D1). The actor is the signed-in person (`currentMember`), or a named one
   Back on sale stays only for a sold car with no sale recorded.
 - **More on a sale:** the warranty (12 months included, or 24 or 36 with extended cover), a trade-in (its reg and allowance; Stock then
   offers to add it, starting the car form from the reg), and the lead it came from (one on that car, marked won).
+- **Ask for a review** (#22, `src/lib/admin/review-ask.ts`): Mark sold and Record sale (not Change the sale) have "Ask them for a Google
+  review", shown only when the profile has a `placeId` (a demo dealer without one uses a made-up place, `DEMO_PLACE_ID`), and on by default for a buyer with an email, or a lead that opted in to WhatsApp while a WhatsApp message would really go (`reviewByWhatsApp`, the channel `sendWhatsApp` picks).
+  Once the sale is saved the buyer gets one message with Google's write-a-review link: WhatsApp if opted in (counted, by email past the
+  cap, the email sent before their conversation says so), else email. The email ends with a way out ("reply and say so") and its replies go to the dealer's
+  first lead email. Once per sale (`reviewAskedOn`), never for a sale undone, never to a buyer who stopped WhatsApp on any lead, and a demo
+  dealer sends nothing outside. A failed ask never stops the sale: it logs the car's id and `review-ask-failed` (never the buyer) and Stock
+  says "The review request did not go". The car's page and the customer show the day it was asked; Activity records it against the car.
 - **A lost lead** asks why, from a fixed list, and Reports shows "Why leads were lost".
 - **Close a lead** (#55): a lead no longer active (No reply needed, Not interested, Duplicate, Wrong number) is closed from More, on the
   lead and in each Leads row's menu (To answer now and the list), with Undo. Status `closed` with `closedReason`, and `statusBefore`, the status it had: not open,
@@ -241,13 +254,16 @@ with no D1). The actor is the signed-in person (`currentMember`), or a named one
   (`spamCheck`, `src/lib/leads/spam.ts`), once per lead by the site API (`src/lib/site-api/leads.ts`, the only way in) before its
   fallback lead email: rules only, no outside service, nothing logged. Clear spam is only what no person types into a contact form:
   forum or web page link markup. Words and links are only ever a hint, because real buyers sign off with job titles, mention crypto,
-  link another dealer or give their company site as their name. Clear spam is filed as spam, with no email, booking, customer, bell notice or WhatsApp alert, and is never linked to a sale or a
-  factory order. A test drive booking, a warranty request or a question about a car bought here is never filed as spam, only as possible spam (`arrivalSpam`). When unsure
+  link another dealer or give their company site as their name. Clear spam is filed as spam, with no email, booking, customer, bell notice or WhatsApp alert, and is never linked to a sale. A test drive booking, a warranty request or a question about a car bought here is never filed as spam, only as possible spam (`arrivalSpam`). When unsure
   (a pitch word such as SEO services, backlinks or crypto, read in the message only; a link to a site that is not a car, photo or chat
   site or the dealer's own; or a web address in the name) the lead stays new with `maybeSpam`:
   "Possible spam" on the list and To answer now, with Spam and Not spam in the row's menu (as buttons on the lead). Careful by design: a name in any language, a short or empty
   message, no phone, or a link to a car or photos never count against a lead.
 - **Test drives** still to happen can move to another time (Change time on the booking, in the house dialog), by the same rules as a new booking.
+- **First reply** (#160): on a new lead, Email and WhatsApp (the lead's buttons, Leads rows and To do) open with a short reply filled in
+  (`firstReplies`, `src/lib/leads/first-replies.ts`; the text in `first-reply.ts`): who it is from, the car, its price and its full link on the dealer's website. No price
+  for a sold car (it says it has sold), a reserved one (it says so) or one on request, no link without a website or a page there, and neither for a lead about no car.
+  Once the lead is past New the buttons open blank. The AI reply draft gets the same price and link in its facts.
 - **Leads rows** (#94): a row shows its next action (Call, WhatsApp or Email, the way they asked) and a menu with the rest (the next
   step, Spam, Not spam, Close). A To answer now row a press takes off the list stays in its place, faded, saying what it became
   (Contacted, Spam, Closed) with its buttons gone, until the page is left or reloaded (`HeldTasks`); Undo puts it back. The count is the
@@ -275,34 +291,40 @@ erases or sends them any more.
 
 
 - **A customer's page** (`/customers/[id]`): how to reach them, what they bought with the warranty on each (in cover or not),
-  their deposits and warranty claims, and the leads and test drives that carry their email or phone.
+  their warranty claims and deposits, and the leads and test drives that carry their email or phone. One list of each,
+  what is still open first, marked by the bar at its left (red to do now, amber otherwise), never a second list of what is open (#169).
 - **Warranty claims** (`claimsStore`, `/aftersales`, Warranty claims in the menu): opened on a purchase, from the customer's page or from a warranty lead
   (the buyer is found by the lead's email or phone). In cover or not is worked out from the sale's day and cover, never typed. Open,
-  Booked in, Approved, Declined, Repaired, Closed, with notes. What the repair cost the dealer is for the margins roles, and counts in the
+  Booked in, Approved, Declined, Repaired, Closed, with notes. The status is set in one place, the drop-down on the claim's page
+  (#169): it reaches Declined and goes back a stage, which a row's next step could not, so the list has no Next step button. What the repair cost the dealer is for the margins roles, and counts in the
   car's cost (`src/lib/admin/costs.ts`), so margins and the reports' profit include it.
 - **From the website:** the Warranty page has a claim form (a general message from /warranty), and a message from /service is filed as
   Service. The dashboard tells them apart by the page (`src/lib/admin/real-leads.ts`); the email to the dealer is the general one.
 - **Personal data:** claims are in data requests; erasure keeps the claim and its cost without the buyer, the fault or the notes. The
   six-year purge removes the buyer from old claims, as from sales and deposits.
 
-## Factory orders (our version only)
+## No new cars (#168)
 
-- **Orders** (`ordersStore`, in the menu only for stock kept here): a new car ordered from the maker for a customer, with its spec, price,
-  deposit, the registration period it is for (271 is January to June 2027, `src/lib/leads/reg-periods.ts`) and the month it is due. No
-  maker's system is connected: the dealer moves it from Ordered to Built, On its way and Arrived as the maker says.
-- **Arrived** adds the car to stock, hidden (it is sold) and reserved for the buyer with their deposit. Hand over opens Mark sold on it,
-  which takes the deposit and the buyer, and marks the order Handed over. Overview counts cars arrived and waiting.
-- **Cancel** (owners and managers): the deposit refunded or kept. A car that already arrived stays in stock, hidden, for the dealer to
-  decide.
-- **From the website:** /new-cars/order (linked from New cars) takes the make, model, spec and period as an order request (lead type
-  `order`). The lead's "Place the order" starts the form, and marks the lead won. With DoneDeal stock the page is not there.
-- **Personal data:** orders are in data requests and the six-year purge, like sales: the figures stay without the buyer.
+Checkwork is for independent used-car dealers: franchise dealers use the maker's systems. The dashboard has no new cars module, no
+Orders pages and no factory orders.
+
+- **A new car order a website still sends** (lead type `order` at `/api/site/v1/leads`) is taken and filed as a car enquiry, its
+  message the car asked for ("Kia Sportage, 271 reg") then their words (`src/lib/admin/real-leads.ts`), so nothing a buyer sends is
+  lost. Order requests stored before are car enquiries too (migration `drizzle/0005_order_leads_to_enquiries.sql`).
+- **Older order rows stay** (`ordersStore`, nothing writes it and the demo seeds none): they are personal data like a sale, so data
+  requests still find and erase them and the six-year purge removes their buyer. The collection can go once the last is past six years.
 
 ## Reports and prep costs
 
 - **Reports** (`/reports`, figures in `src/lib/admin/reports.ts`): the last 3, 6 or 12 months by month. Owners, managers and
   finance see sales, profit (sale price less cost and prep), days to sell, each salesperson, which lead sources win, stock by age and prep
   spend by kind. A salesperson sees their own Reports: cars sold, leads, leads won and follow-ups due. Counts only, no money, nobody else.
+- **Export sales** (Reports, margins roles, checked in `src/app/reports/export/route.ts`): a CSV for the accountant, one row per sale of the
+  period on screen (or `?from=2026-01&to=2026-03`): sale date, reg, make, model, year, sale price, cost price, prep, warranty repairs,
+  margin, warranty months, trade-in reg and allowance, salesperson. Sales undone in the period follow, marked Returned or Cancelled with the
+  refund and no price or margin, so the columns add up to Reports (`salesCsv` in `reports.ts`, tested against it). No buyer details, and no
+  VAT treatment (we do not record it). The file is named for the dealer and period, `sales-<dealer>-2026-11.csv`.
+  The registrations (the car sold and the trade-in taken in) are there for the dealer's margin-scheme stock book.
 - **Prep costs** (`prepStore`, kinds in `src/lib/admin/prep.ts`): lines on a car's dashboard page (Valet, Tyres, NCT, Service, Repairs,
   Bodywork, Transport, Other), each a row (what and its note, the day it was added, how much) over the total. Add opens the house dialog;
   a row's menu changes or removes it. Margins permission only. A car's whole cost is its cost price plus its prep
@@ -317,7 +339,7 @@ erases or sends them any more.
   the person asking. Erasure deletes the photos, then the rows and records; a purchase stays for the books without the buyer. The email or
   phone is never in an address. Each request is in the activity history, without the person.
 - **CSV exports**: Leads (with the list's filters) and Customers (the open tab) for owners and managers, each recorded in Activity;
-  Stock (view and search) for everyone, with cost, prep and margin only for the margins roles. A cell that starts like a formula is
+  Stock (view and search) for everyone, with cost, prep and margin only for the margins roles; Sales (Reports) for the margins roles. A cell that starts like a formula is
   prefixed with ' so a spreadsheet never runs it (`src/lib/admin/csv.ts`).
 
 ## Reviews
@@ -331,7 +353,8 @@ erases or sends them any more.
   `GOOGLE_BUSINESS_REFRESH_TOKEN` (the Business Profile API, signed in once as the profile's owner or a manager).
 - **In the dashboard** a reply goes to Google first, through the Business Profile API (`postReviewReply` in `publishers.ts`, simulated on
   the demo), and is kept only once Google has it. There is no flag: Google offers no way to take one. The list itself comes from the
-  Business Profile once it is connected; on the demo it is the seeded reviews.
+  Business Profile once it is connected; on the demo it is the seeded reviews. A low rating (3 stars or fewer) waiting for a reply
+  sorts first, and the "3 stars or fewer" tab lists them; its stars are its only mark (#169).
 - **Questions** (`/faq`) answers only from what the site already says (warranty, finance wording, selling, hours), so it promises nothing new.
 
 ## Listing site stock (DoneDeal or CarsIreland)
@@ -344,7 +367,9 @@ A dealer whose stock is on DoneDeal (`stock.source` "donedeal" in their profile,
 source of truth:
 cars are added, changed and sold on DoneDeal only. The dashboard never edits them; it holds only the dealer's own figures (cost).
 - **The sync** (`src/lib/donedeal/sync.ts`, rules in `plan.ts`): every 15 minutes the Worker's cron calls `/api/donedeal/sync` with the
-  `CRON_KEY` secret; Refresh stock on Stock runs the same. New ads are added and changed ones updated. A car DoneDeal no longer
+  `CRON_KEY` secret, for every dealer whose stock comes from a listing site, with or without the dashboard module (a website-only dealer
+  has no dashboard pages, but still has the sync); Refresh stock on Stock runs the same. The dealer's website reads the synced stock from
+  here (`GET /api/site/v1/stock`, `docs/site-api.md`), so only this app calls the listing site's API. New ads are added and changed ones updated. A car DoneDeal no longer
   lists is hidden (its link is not found), because DoneDeal does not say why an ad came down: Stock and Overview ask the dealer whether it
   sold (the sale form, which marks it sold so its page shows Sold for a while) or did not (it stays hidden). If the ad goes up again the car
   comes back. Each change is in the activity history as "DoneDeal sync".
@@ -356,6 +381,16 @@ cars are added, changed and sold on DoneDeal only. The dashboard never edits the
   Owners and managers can Apply anyway.
 - **When it fails** the site keeps the stock from the last good sync, Stock, Overview and Settings say so, and after an hour the owners and
   managers get one email (not again until a sync works).
+- **When DoneDeal refuses the key** (401 or 403: the key was revoked or the dealer withdrew consent; it comes with no notice) it is not an
+  outage. DoneDeal's API policy asks for a dealer's data to go promptly when access ends. So that one stray answer never empties the site,
+  the first refused run changes nothing: Stock and Settings say "DoneDeal refused the key. If it still does at the next check, its cars
+  come off the dashboard and the website." and the bell says so. If a run 10 minutes or more after that first refusal (the next
+  15-minute sync, or Refresh stock then) is refused too, it removes every synced car and any photos stored for it: the dashboard and
+  the website show none. Any other run in between (a good one, or one DoneDeal did not answer) starts the count again. The dealer's own records stay (sales, cost and prep, leads, test drives,
+  which keep the car's title as for a car deleted by hand). Stock and Settings say "DoneDeal refused the key, so its cars were removed.",
+  Activity has "Removed N cars: DoneDeal refused the key", and the owners and managers get one email and one notice then. Later runs
+  find nothing to remove, so neither repeats. A new key brings the cars back on the next sync. Never at a demo dealer. A dealer leaving:
+  `docs/new-dealer.md` (removing the key through the owner API removes the cars at once).
 - **The demo** cannot use a real dealer's account (DoneDeal's API is for one dealer's own site, with written consent). Its feed is the
   stock itself, so a sync shows working and finds nothing to change.
 - **Still to write:** the adapter that reads DoneDeal's API (`src/lib/donedeal/feed.ts`), once DoneDeal sends its docs and the full usage
@@ -386,37 +421,37 @@ Until both are set every page answers 404 for everyone. The Worker checks Access
 
 ## Billing and Help
 
-The plans (#223, `TIERS` in `src/lib/billing/rules.ts`, from `docs/sales/pricing-strategy.md`), a month before VAT. Only these three tiers
-and their add-ons are sold:
+The plans (#147, `PLANS` in `src/lib/billing/rules.ts`; the decision is in `docs/decisions.md`, Pricing), a month before VAT, for one
+dealership:
 
-| Tier | Modules | Monthly | Setup | Included each month |
+| Plan | Modules | Monthly | Setup | Included each month |
 |---|---|---|---|---|
-| Showroom | Trade-in, finance, car finder, lookup on the website, reviews shown | EUR 249 | EUR 950 | 25 lookups |
-| Dealer | Showroom plus the dashboard, test drives, sales, analytics, WhatsApp, AI writing, lookup in the dashboard | EUR 449 | EUR 950 | 100 lookups, 500 WhatsApp alerts and confirmations, 100 AI actions |
-| Group | Dealer plus margins, social, stock alerts, new cars, commercial | EUR 749, plus EUR 149 per extra branch | EUR 1,950 | 100 lookups and 500 WhatsApp alerts per branch, 300 AI actions |
+| Website | Trade-in, finance, car finder, commercial vehicles, reviews, lookup on the website | EUR 149 | EUR 500 | 25 lookups |
+| Dashboard | The dashboard and every module in it: test drives, sales and customers, margins, service, reviews, stock alerts, analytics, WhatsApp, AI writing, lookup in the dashboard | EUR 149 | none | 100 lookups, 500 WhatsApp alerts and confirmations |
+| Website + Dashboard | Both | EUR 249 | EUR 500 | 100 lookups, 500 WhatsApp alerts and confirmations |
 
-- **Add-ons** at module prices (`MODULE_EUR`): any module the tier lacks, such as commercial EUR 29, service EUR 49, margins EUR 49, social EUR 99 (with 200 more AI actions a month),
-  stock alerts (module id `newsletter`) EUR 59, new cars EUR 99. New cars covers 2 brands; each more brand is EUR 29 a month and EUR 100 at setup, in a tier or not
-  (setup EUR 400 as an add-on). A plan is the cheapest tier for the dealer's modules plus add-ons; no modules is Showroom. Showroom takes
-  no add-on that is or needs the dashboard, and more than one branch is Group. The demo bar names the plan as the Billing page does, and each switch shows what turning it on adds.
-- **Over the allowance** each use is billed: lookup EUR 0.30, WhatsApp alert EUR 0.05, reply EUR 0.03, marketing message EUR 0.12, AI
-  action EUR 0.04 (Standard) or EUR 0.08 (Premium). Replies and marketing messages are never included.
-- **Payment terms** (`term`): monthly at list price, a year upfront for 11 months' price, or a 2-year contract with no setup fee.
-- `term`, `branches` (default 1) and `brands` (default 1) are billing settings set from the owner's program, as the ceilings are. Branches
-  only change Group's price and allowance until multi-branch is built (#226).
+- The plans still turn modules on and off (Modules, above): a dealer's plan is the cheapest that holds their modules (`planFor`), so no
+  modules is Website and the dashboard with any website-only module is Website + Dashboard. Everything in a plan is included.
+- **Add-on**: Social and ads (module id `social`), EUR 99 a month and EUR 150 at setup, until marketing is priced (#148).
+- **Over the allowance** each use is billed: lookup EUR 0.30, WhatsApp alert EUR 0.05, reply EUR 0.03, marketing message EUR 0.12.
+  Replies and marketing messages are never included. AI writing is never billed.
+- **Term** (`term`): a 1-year or 2-year contract; no setup fee on 2 years. **First month free** (`freeMonth`, "YYYY-MM"): that month's bill
+  has a "First month free" line that takes the plan off. Both are billing settings set from the owner's program, as the ceilings are.
+  The 12-month price lock for first dealers is in the contract, not in the app.
+- A record from before #147 still reads: "monthly" and "annual" are a 1-year term, "twoYear" a 2-year one, and its branches, brands,
+  alerts, 80% switch and "all usage" limit are ignored. The plan follows the modules, so an old Showroom dealer is now Website, Dealer
+  is Website + Dashboard, and Group is Website + Dashboard with Social and ads.
 
-`/billing` is for the Owner and Manager (`can("billing")`; anyone else gets a 404, and so does every action). It has three sections:
-the plan and this month's usage (with the payment term, what
-the allowance covers, and an "Estimate" for the month end), the setup fees (the tier's, and those of add-ons set up with
-outside accounts (Social, New cars), none on a 2-year contract;
-`setupLines` in `src/lib/billing/rules.ts`, also totalled in the demo bar's plans panel), the limits and alerts (a euro limit per service
-and for all usage, never above ours (by default EUR 15 of lookups, EUR 20 of WhatsApp (EUR 20 per branch on Group: a WhatsApp ceiling the owner's program sets is per branch too) and EUR 50 of AI past the allowance, `DEFAULT_CEILINGS`); the 80% alert; "tell me when X passes EUR N"; AI writing's quality, Premium (Claude Opus) at EUR 0.08
-an action or Standard (Claude Sonnet) at EUR 0.04, each action counted under the model that wrote it; the dealer never sees the model
-or provider's name), and the bills. With `SHOW_PRICING` false the page shows only the plan's name, its modules, the payment
-term, the writing quality and the billing details, with no euro. On a year paid upfront the month's estimated bill is the usage only. Every change is written to the activity log. Rules and maths: `src/lib/billing/bills-rules.ts`
-(unit tested); the bills are a seeded collection, `src/lib/billing/bills.ts`. There is no PDF and no download: invoices come from the
-payment provider chosen at clone time and are emailed when issued. Billing details (company, VAT number, address, email) are the
-Owner's, stored in settings as `billingDetails`. "Ask us to add" sends a Help request of type "Add to my plan"; it switches nothing on.
+`/billing` is for the Owner and Manager (`can("billing")`; anyone else gets a 404, and so does every action). It is one page: this
+month's bill (the plan's lines, pay as you go estimated to the month end, VAT and the total, with the term and the setup fee under it),
+the monthly limits (one per paid service the dealer has: what was used, what the allowance covers, what it cost, the limit, never above
+ours), the bills (this month as an "Estimate", then each past bill, opening on `/billing/<month>`), the billing details and what we set
+for the dealer. Every change is written to the activity log. Rules and maths: `src/lib/billing/bills-rules.ts` (unit tested); the bills
+are a seeded collection, `src/lib/billing/bills.ts`. There is no PDF and no download: invoices come from the payment provider chosen at
+clone time and are emailed when issued. Billing details (company, VAT number, address, email) are the Owner's, stored in settings as
+`billingDetails`. A module the plan lacks shows its not-in-plan screen with what it would add and "Ask us to add", which sends a Help
+request of type "Add to my plan"; it switches nothing on. AI writing uses the model in the billing settings (`aiModel`, Premium by
+default); the dealer no longer chooses it, as it changes nothing they pay.
 
 `/help` is for every team member: our phone, email and WhatsApp, how-to topics (#143: one job per row that opens in place, grouped
 as the menu is, each shown only to the roles it is for and with its module, `src/lib/help/topics.ts`; `/help#<topic>` opens one; WhatsApp's
@@ -462,7 +497,7 @@ the site.
   photos keeps it open for the offer. A closed lead takes no more buyer messages, and a question expires after an hour.
 - Messages are kept 30 days (the daily purge), and go with their lead or an erasure. Removing someone from the team removes their phone.
 - Each new website request is added to the conversation of every team member who has that alert on, may get it (`mayGet`) and has a phone, outside their quiet hours (`alertStaffOnWhatsApp`, called once from `real-leads.ts`). The template is the request's own module's, or the plain enquiry when the dealer lacks that module (`eventOfLead`). A buyer who ticked the WhatsApp box (`whatsappOptIn` on the lead, read from the form's detail of the same name) gets a confirmation.
-- The other alerts go the same way (`alertStaff`, also checking the alert's own module): Deposit taken from Reserve (`reserveAction`), A new car in stock when a car first goes on the website (added live, or a draft published), and from the morning cron (`/api/whatsapp/daily`, after the follow-up digest in `worker.mjs`) each car old stock (`DEALER_RULES.oldStockDays`, 120 days by default), each review from the last two days (each once while its alert is kept), and on a Monday last week's leads, test drives taken and cars sold, from the report's own sums. The demo's seeded alerts use the seed's own figures.
+- The other alerts go the same way (`alertStaff`, also checking the alert's own module): Deposit taken from Reserve (`reserveAction`), A new car in stock when a car first goes on the website (added live, or a draft published), and from the morning cron (`/api/whatsapp/daily`, after the follow-up digest in `worker.mjs`) each car old stock (`DEALER_RULES.oldStockDays`, 60 days by default), each review from the last two days (each once while its alert is kept), and on a Monday last week's leads, test drives taken and cars sold, from the report's own sums. The demo's seeded alerts use the seed's own figures.
 - A tap or a typed reply goes through `src/lib/whatsapp/handle.ts`: it writes the lead (status, note), the activity log (never a name), and the buyer's message. Notes and replies say how the buyer was told (WhatsApp or email). Reply with a price reads "8,500", "€8.5k", "8500" (`parsePrice`), sends the offer, and the buyer's simulated answer lands six seconds later on both phones and the lead.
 - Call back is not a reply: it sets the follow-up to today and gives the lead to whoever tapped, and leaves the status. Its note and a buyer's answer are marked `auto`, so the report's first reply skips them. Confirm on a deposit records it in the activity log against the car. Suggest another time sends the buyer the time and leaves the alert open: the booking moves in Test drives once they agree. A test drive confirmed with its booking tells the buyer the day and time.
 - Only a team member with a phone in their Profile can act, in their own conversation (one without is told to add it). With an alert's module off, its alert and questions are hidden and acting on them is refused. Margins are never in a message.
@@ -490,7 +525,7 @@ app store and no outside service.
   against the RFC's own example). Three of the bell's notices also go to the phone, to the same people the bell shows them to:
   | What happened | Title | Text | Opens |
   |---|---|---|---|
-  | A new website request (any lead in Leads, an order request too) | Its kind ("Car enquiry", "Message") | Its topic and answers, and the car | The lead |
+  | A new website request (any lead in Leads) | Its kind ("Car enquiry", "Message") | Its topic and answers, and the car | The lead |
   | A test drive request | Test drive request | The car, and the day and time asked for | The booking |
   | A lead given to you by someone else | "Ciara Walsh gave you a lead" | Its kind, topic and car | The lead |
   | A test drive given to you by someone else | "Ciara Walsh gave you a test drive" | The car | The booking |
@@ -527,7 +562,7 @@ app store and no outside service.
 - **Calendar**: a week of scheduled and posted posts and started ads (`calendarWeek`); drafts are not on it. A post on it opens its page.
 - **Drafts** (#93): a post's page is `/marketing/posts/[id]`. A draft or a scheduled post opens there in the composer, filled in from what was saved, and saving, posting or scheduling updates the same post (`composeAction` with `id`, under the same checks as a new one). A post that went out is shown read-only with its figures. Post now (from a row too) needs what the post's format needs (`readyToPost`).
 - **Modules**: Marketing (posts, calendar and media) is the Social and ads module; without it the page is a 404 and not in the menu. Stock alerts are on Customers.
-- **AI writing** (#179): `writeAction` (`src/lib/ai/actions.ts`) checks the `ai` module, then the monthly cap, builds the facts from the records (the browser sends ids only), writes with the model chosen on Billing, then counts the action under that model. With no `ANTHROPIC_API_KEY` (local `next dev`, tests, E2E) `writeWithAI` is the mock in `src/lib/ai/mock.ts` (deterministic, facts only, dashes stripped, 700 ms pause). With `ANTHROPIC_API_KEY` set as a Worker secret (`npx wrangler secret put ANTHROPIC_API_KEY`) it is real Claude instead (`src/lib/ai/claude.ts`, every prompt in one place), for the demo dealer too, under the same module check, monthly cap, ceiling and `AI_LIMITER` as any dealer. The demo's AI usage is a `real-` record that the demo reset keeps (the seeded lines still reset), so its monthly cap is a real monthly cap, not a daily one. A refusal, a cut-off answer or an error is a failed write, not billed, and the facts and text are never logged. Limits: the monthly AI cap (demo €25), our AI ceiling that a cap can never go past (`AI_CEILING_EUR`, €50 on every site unless the owner's program sets another; €25 on a freshly seeded demo), `AI_LIMITER` of 10 calls a minute per dealer (wrangler.jsonc, namespace 3003, 4003 on dev; Cloudflare counts it per location), short prompts (a message or review is cut to 600 characters; phone numbers and emails are taken out of the facts and the draft, and the dealer's own are put back in the answer) and `max_tokens` 2048. Set a spend limit on the Claude Console workspace too. `AIWriter` / `AITextarea` show the button, adjust chips, Undo and an "AI draft" label, and hide with the module off. Used in the post composer, the car description, the lead page (Draft a reply) and review replies.
+- **AI writing** (#179): `writeAction` (`src/lib/ai/actions.ts`) checks the `ai` module, then the monthly cap, builds the facts from the records (the browser sends ids only), writes with the model in the billing settings, then counts the action under that model. With no `ANTHROPIC_API_KEY` (local `next dev`, tests, E2E) `writeWithAI` is the mock in `src/lib/ai/mock.ts` (deterministic, facts only, dashes stripped, 700 ms pause). With `ANTHROPIC_API_KEY` set as a Worker secret (`npx wrangler secret put ANTHROPIC_API_KEY`) it is real Claude instead (`src/lib/ai/claude.ts`, every prompt in one place), for the demo dealer too, under the same module check, monthly cap, ceiling and `AI_LIMITER` as any dealer. The demo's AI usage is a `real-` record that the demo reset keeps (the seeded lines still reset), so its fair use is a real monthly one, not a daily one. A refusal, a cut-off answer or an error is a failed write, not counted, and the facts and text are never logged. Limits: our fair use of `AI_FAIR_USE` actions a month (AI writing is never billed, so the dealer sets no limit on it), `AI_LIMITER` of 10 calls a minute per dealer (wrangler.jsonc, namespace 3003, 4003 on dev; Cloudflare counts it per location), short prompts (a message or review is cut to 600 characters; phone numbers and emails are taken out of the facts and the draft, and the dealer's own are put back in the answer) and `max_tokens` 2048. Set a spend limit on the Claude Console workspace too. `AIWriter` / `AITextarea` show the button, adjust chips, Undo and an "AI draft" label, and hide with the module off. Used in the post composer, the car description, the lead page (Draft a reply) and review replies.
 
 ## Where things are
 

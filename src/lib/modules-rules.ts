@@ -18,7 +18,6 @@ export const MODULES = [
   { id: "social", label: "Social and ads", blurb: "Posts, stories, reels and ads from the dashboard.", pages: [], dashboard: ["/marketing/new"], needs: ["dashboard"] },
   { id: "newsletter", label: "Stock alerts", blurb: "Emails when a car someone asked about comes in or drops in price.", pages: [], dashboard: [], needs: ["dashboard"] },
   { id: "commercial", label: "Commercial vehicles", blurb: "A commercial section with ex. VAT pricing.", pages: ["/commercial"], dashboard: [] },
-  { id: "newCars", label: "New cars and factory orders", blurb: "New car pages by brand and ordering of factory cars.", pages: ["/new-cars"], dashboard: ["/orders"], needs: ["dashboard"] },
   { id: "analytics", label: "Site analytics", blurb: "Visitor numbers and where they came from.", pages: [], dashboard: ["/analytics"], needs: ["dashboard"] },
   { id: "whatsapp", label: "WhatsApp", blurb: "Leads to your phone, and replies from WhatsApp that the site sends on.", pages: [], dashboard: [], needs: ["dashboard"] }, // a channel in Settings, Notifications (#142), not a page
   { id: "ai", label: "AI writing", blurb: "Drafts of posts, descriptions and replies, with buttons to adjust them.", pages: [], dashboard: [], needs: ["dashboard"] },
@@ -50,8 +49,8 @@ export function parseModules(v: string | undefined): Set<ModuleId> {
   return on;
 }
 export const modulesValue = (on: Iterable<ModuleId>) => [...on].join(",");
-// A car's own page and listings: a new car only with New cars, a van only with Commercial vehicles, a used car always.
-export const conditionShown = (on: Set<ModuleId>, condition?: string) => (condition === "new" ? on.has("newCars") : condition === "commercial" ? on.has("commercial") : true);
+// A car's own page and listings: a van only with Commercial vehicles, any other car always.
+export const conditionShown = (on: Set<ModuleId>, condition?: string) => condition !== "commercial" || on.has("commercial");
 
 // Turning one on brings what it needs; turning one off takes what needs it. The demo bar's switches use these, so a choice is never half on.
 export function withModule(on: Set<ModuleId>, id: ModuleId): Set<ModuleId> {

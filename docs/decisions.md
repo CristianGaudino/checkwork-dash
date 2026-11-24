@@ -17,25 +17,32 @@ What the owner has decided about the dashboard as its own product, and what is s
 | Name | Checkwork, for now. |
 | Repo visibility | Public for now; the owner makes it private when ready (#13). |
 
+## Pricing (owner, 2026-11-24, #147)
+
+Prices a month before VAT, for one dealership. No dealer had been quoted, so nobody keeps an old price.
+
+| Plan | Monthly | Setup |
+|---|---|---|
+| Website | EUR 149 | EUR 500, none on a 2-year term |
+| Dashboard | EUR 149 | none |
+| Website + Dashboard | EUR 249 | EUR 500, none on a 2-year term |
+
+- Flat plans: the price does not grow with the number of cars. One dealership only; a price per extra dealership comes back with
+  multi-dealership (#16).
+- Everything is included in its plan: the website plan has the site's modules (trade-in, finance, car finder, commercial vehicles,
+  reviews, the lookup on the website), the dashboard plan every dashboard module (test drives, sales and customers, margins, service,
+  reviews, analytics, WhatsApp, AI writing, the lookup in the dashboard, stock alerts). Commercial vehicles and car finder are not paid
+  modules. Marketing (Social and ads) keeps its add-on price until #148 decides it.
+- Paid per use past a monthly allowance: registration lookups and WhatsApp messages. AI writing is fair use: counted, never billed, up
+  to our ceiling. One limit per paid service, set by the owner or a manager, with one notice when a limit is reached.
+- The contract is 1 or 2 years.
+- First dealers: the first month free (a line on that month's bill), and the price locked for 12 months. The lock is a contract term:
+  nothing in the app enforces it.
+
 ## Open (#14)
 
 ### App Store and Play Store
 Recommended: start with the installable web app (#11), and list in the stores only if dealers ask, by wrapping the same app rather than writing a second one.
-
-### Pricing
-A proposal, not decided. Prices a month before VAT. It keeps the bundle prices agreed on 2026-11-20 and adds the dashboard on its own.
-
-| | Monthly | Setup |
-|---|---|---|
-| Showroom (website only) | EUR 249 | EUR 950 |
-| Dashboard (on its own) | EUR 249 | EUR 250 |
-| Dashboard Pro (margins, social, newsletter, branches) | EUR 549, plus EUR 149 per extra branch | EUR 500 |
-| Dealer = Showroom + Dashboard | EUR 449 | EUR 950 |
-| Group = Showroom + Dashboard Pro, with commercial and new cars | EUR 749, plus EUR 149 per extra branch | EUR 1,950 |
-
-- Why: of the 112 tier A and B prospects, 25 sit on a manufacturer's template or NetDirector/mtc and cannot change site, and 65 on HappyDealer or CarsIreland can start with the dashboard and move their site later.
-- The dashboard on its own needs leads from websites that are not ours first (#12).
-- Usage prices, allowances and limits stay as they are. Staff logins stay unlimited.
 
 ### Dealer websites in one shared app
 Today one repo and site per dealer. Revisit at about 10 live dealers.

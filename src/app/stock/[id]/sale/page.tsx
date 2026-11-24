@@ -6,6 +6,7 @@ import { dublinDay, fmtDate, fmtEur } from "@/lib/admin/format";
 import { adminCar } from "@/lib/admin/stock-admin";
 import { isAsked } from "@/lib/leads/journey";
 import { can, currentMember } from "@/lib/permissions";
+import { leadsIndex, reviewByWhatsApp, reviewPlace, reviewReach } from "@/lib/admin/review-ask";
 import { stockSource } from "@/lib/stock-source";
 import { carName, priceLabel } from "@/lib/stock/format";
 import { isSold } from "@/lib/stock/types";
@@ -29,6 +30,11 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const title = titleOf(was, isSold(car));
   // A deposit on the car: its buyer and salesperson start the form, and it becomes part of the sale.
   const held = heldFor(reservations, car.id);
+  // The review tick, on a new sale only and with a review link: the customers who can be asked tick it by default.
+  // WhatsApp counts only when a message would really go by it, as askForReview decides.
+  const whatsapp = await reviewByWhatsApp();
+  const theirLeads = leadsIndex(leads);
+  const askable = !was && (await reviewPlace()) ? customers.filter((c) => reviewReach(c, theirLeads(c), whatsapp)).map((c) => c.id) : undefined;
   return (
     <>
       <PageHeader title={title} text={was ? carName(car) : `${carName(car)}, ${priceLabel(car)}`} back={isSold(car) ? { href: "/stock?view=sold", label: "Sold cars" } : { href: "/stock", label: "Stock" }} />
@@ -38,6 +44,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           carId={car.id}
           today={today}
           submit={was ? "Save the sale" : isSold(car) ? "Record sale" : "Mark sold"}
+          askable={askable}
           team={team.map((t) => t.name)}
           me={team.some((t) => t.name === me.name) ? me.name : undefined}
           leads={leads.filter((l) => isAsked(l.carSlug, car.id) && l.status !== "lost" && l.status !== "spam").sort((a, b) => b.createdAt - a.createdAt).map((l) => ({ id: l.id, label: `${l.name}, ${LEAD_TYPE_LABELS[l.type].toLowerCase()}, ${fmtDate(l.createdAt)}` }))}

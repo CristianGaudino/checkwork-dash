@@ -76,6 +76,10 @@ describe("what the gate covers", () => {
     expect(gated("/stock/123/reserve")).toBe(true);
     expect(gated("/stock/4710001/1-b1b37b33.webp")).toBe(false);
   });
+  it("leaves out the service worker and its offline screen, so a worker installing without a session never caches the sign-in page", () => {
+    expect(gated("/sw.js")).toBe(false);
+    expect(gated("/offline.html")).toBe(false);
+  });
   it("runs on our sign-in pages and /sign-out too, so a browser's x-cw-path is stripped there", () => {
     for (const p of ["/sign-in", "/sign-in/code", "/sign-in/link", "/sign-out"]) expect(gated(p), p).toBe(true);
   });

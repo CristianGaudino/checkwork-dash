@@ -15,7 +15,7 @@ Send `Authorization: Bearer <OWNER_API_TOKEN>`. No token or a wrong one: `404`, 
 - `GET /api/owner/v1/dealers`: every dealer the app serves, `{"version": 1, "dealers": [{"id", "name", "status", "demo"}]}`. Ids and names only.
 - `GET /api/owner/v1/summary?dealer=<id>&from=YYYY-MM-DD&to=YYYY-MM-DD`
 - `GET /api/owner/v1/usage?dealer=<id>&from=&to=`: billing counts by month, with costs for the month in progress only (a past month may have been on another plan; its bill is the record)
-- `GET /api/owner/v1/modules?dealer=<id>`: the modules on and the monthly plan price (`planEur`: the tier and its add-ons, before VAT)
+- `GET /api/owner/v1/modules?dealer=<id>`: the modules on and the monthly plan price (`planEur`: the plan and its add-ons, before VAT)
 
 `dealer` is required: an id from `/dealers`. Missing or malformed: `400`; no such dealer: `404`. The figures are worked out inside that dealer's own store. `from` and `to` are Irish days, inclusive; the default is the last 30 days. More than a year, or a bad day: `400`. Answers are cached for an hour per dealer and range (`Cache-Control: private, max-age=3600`, and in the Worker).
 
@@ -25,7 +25,8 @@ Checkwork sets and removes each dealer's outside-service keys (Facebook, ads, Wh
 
 - `GET /api/owner/v1/dealers/{dealerId}/keys`: `{"version": 1, "services": [{"id", "connected", "names"}]}` for each per-dealer service. Names only.
 - `PUT /api/owner/v1/dealers/{dealerId}/keys/{service}`: a JSON object with exactly that service's names (the `names` above, from `perDealer` in `src/lib/integrations.ts`), each a non-empty string up to 4000 characters. `204` saved (replaces any keys it had). `400` wrong names or values, or the demo dealer; `404` no such dealer or service; `503` `DEALER_SECRETS_KEY` is not set.
-- `DELETE /api/owner/v1/dealers/{dealerId}/keys/{service}`: removes them. `204`.
+- `DELETE /api/owner/v1/dealers/{dealerId}/keys/{service}`: removes them. `204`. For `donedeal` at a dealer whose stock is synced, it also
+  removes the synced cars and their stored photos (a dealer leaving, `docs/new-dealer.md`).
 
 ```sh
 curl -H "Authorization: Bearer $OWNER_API_TOKEN" https://www.dash.checkwork.ie/api/owner/v1/dealers/test-motors/keys
@@ -68,7 +69,7 @@ curl -X DELETE -H "Authorization: Bearer $OWNER_API_TOKEN" https://www.dash.chec
 
 - `leads.byWeekday`: Monday first. `bySource` is the channel (Website, Phone, WhatsApp...). `outOfHours` uses the opening hours in `src/lib/site.ts`, Irish time.
 - `replies`: minutes from a lead arriving to the first note on it, by when it arrived. `none`: leads with no note within 24 hours, once those 24 hours have passed. `null` when there are none.
-- `stock`: `added` and `sold` are in the range. `inStock`, `avgDaysInStock`, `oldStock` (for sale the dealer's `rules.oldStockDays` or more, 120 by default) and `priceDrops` are the stock now (the site keeps no daily history).
+- `stock`: `added` and `sold` are in the range. `inStock`, `avgDaysInStock`, `oldStock` (for sale the dealer's `rules.oldStockDays` or more, 60 by default) and `priceDrops` are the stock now (the site keeps no daily history).
 - `sales.valueEur` appears only with `OWNER_API_MONEY=1`. Orders and deposits are not counted yet.
 - `features`: anonymous daily counters (`saved`, `compare`, `finance`, `units` for km or miles, `no-results`, `contact-topic`, `filter:<make|model|body|fuel|price|year|km|gearbox>`; `visit:<channel>`, one per visit by where it came from; `band:<price band>`; `missed:<make>` for a search with no cars to show). The lists are in `src/lib/visit-rules.ts`. `dashboard`: page opens per dashboard area, counted by the dashboard itself behind Access. Neither says who.
 - Visits are the `visit:*` counts in `features`. Errors in the last 24 hours are not included yet.

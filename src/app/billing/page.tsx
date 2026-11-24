@@ -1,145 +1,49 @@
 import Link from "next/link";
-import { RowMenu } from "@/components/admin/RowMenu";
-import { ActButton } from "@/components/admin/ActButton";
-import { AlertAdd, DetailsEdit, LimitsEdit } from "@/components/admin/BillingForms";
-import { Badge, DataTable, EmptyState, Facts, FormActions, PageHeader, Panel, Segmented, adminButtonQuiet, rowButton, tapArea } from "@/components/admin/kit";
+import { DetailsEdit, LimitsEdit } from "@/components/admin/BillingForms";
+import { Badge, DataTable, Facts, FormActions, PageHeader, Panel, adminButtonQuiet, tapArea } from "@/components/admin/kit";
 import { listing, stockSource } from "@/lib/stock-source";
 import { currentDealer } from "@/lib/tenancy/current";
-import { fmtDay, fmtNum, plural } from "@/lib/admin/format";
-import { MODULES, withModule } from "@/lib/modules-rules";
+import { dublinDay, fmtDay, fmtNum, plural } from "@/lib/admin/format";
 import { enabledModules } from "@/lib/modules";
 import { can, currentMember } from "@/lib/permissions";
 import { billingDetails, listBills } from "@/lib/billing/bills";
-import type { BillingDetails } from "@/lib/billing/bills-rules";
-import { eur, fmtMonth, itemise, nextBillDate, scopeName, billedServices, type Bill } from "@/lib/billing/bills-rules";
-import { AI_MODELS, KINDS, MODULE_EUR, SHOW_PRICING, TERM_LABELS, allowanceFor, setupEur, setupLines, SERVICE_LABELS, UNIT_PRICE_EUR, VAT_PCT, capOf, planEur, planFor, planLines, termSetupEur, usageEstimate, round2, withVat, yearUpfrontEur, type BillingSettings, type Scope, type Service, type UsageCount } from "@/lib/billing/rules";
+import { eur, fmtMonth, itemise, nextBillDate, billedServices, type Bill, type BillingDetails } from "@/lib/billing/bills-rules";
+import { SERVICE_LABELS, VAT_PCT, allowanceFor, capOf, planFor, planLines, round2, usageEstimate, withVat, type Scope } from "@/lib/billing/rules";
 import { billingSettings, monthCounts, monthUsage } from "@/lib/billing/usage";
-import { askModuleAction, removeAlertAction, saveAiModelAction } from "./actions";
-import { dublinDay } from "@/lib/admin/format";
-import { ChevronDownIcon } from "@/components/stock/icons";
 import { NotForRole } from "@/components/admin/NotForRole";
 
 export const metadata = { title: "Billing" };
 
-const SECTIONS = [["plan", "Plan"], ["limits", "Limits"], ["bills", "Bills"]] as const; // short, so the three fit a phone on one line
-const AT_LIMIT: Record<Service, string> = {
+const AT_LIMIT: Record<Scope, string> = {
   lookup: "The lookup button says the limit is reached, and the details are typed in.",
-  ai: "The AI button says the limit is reached, and the text is left as it was.",
   whatsapp: "Replies go by email instead and marketing messages are not sent. Alerts your plan includes still go by WhatsApp.",
 };
-const INCLUDED: Record<Service, string> = { lookup: "lookups", ai: "AI actions", whatsapp: "WhatsApp alerts" };
-const USE_WORD: Record<Service, [string, string]> = { lookup: ["lookup", "lookups"], ai: ["AI action", "AI actions"], whatsapp: ["message", "messages"] };
-const today = () => new Date();
-const UNIT = UNIT_PRICE_EUR as Record<Service, Record<string, number>>;
-type Modules = Awaited<ReturnType<typeof enabledModules>>;
-type Usage = Awaited<ReturnType<typeof monthUsage>>;
+const USE_WORD: Record<Scope, [string, string]> = { lookup: ["lookup", "lookups"], whatsapp: ["message", "messages"] };
+const INCLUDED: Record<Scope, string> = { lookup: "lookups", whatsapp: "alerts" };
 
 // Owners and managers only (the "billing" permission): without it the page is not there, whatever the menu showed.
-export default async function Page({ searchParams }: { searchParams: Promise<{ section?: string }> }) {
+// One page (#147): this month's bill with the plan, one limit per paid service, and the bills.
+export default async function Page() {
   if (!(await can("billing"))) return <NotForRole title="Billing" permission="billing" />;
-  if (!SHOW_PRICING) return <WithoutPrices />;
-  const sp = await searchParams;
-  const section = SECTIONS.find(([k]) => k === sp.section)?.[0] ?? "plan";
-  const [modules, b, usage, counts, me] = await Promise.all([enabledModules(), billingSettings(), monthUsage(), monthCounts(), currentMember()]);
+  const [modules, b, usage, counts, me, bills, details] = await Promise.all([enabledModules(), billingSettings(), monthUsage(), monthCounts(), currentMember(), listBills(), billingDetails()]);
+  const now = new Date();
+  const today = dublinDay(now.getTime());
+  const month = today.slice(0, 7);
   const services = billedServices(modules, usage);
-  const scopes: Scope[] = [...services, "total"];
-  return (
-    <>
-      <PageHeader title="Billing" text="Your plan, this month's use and your bills" />
-      <Segmented label="Billing sections" items={SECTIONS.map(([k, label]) => ({ label, href: k === "plan" ? "/billing" : `/billing?section=${k}`, active: k === section }))} />
-
-      {section === "plan" && <PlanAndUsage modules={modules} services={services} usage={usage} counts={counts} b={b} now={today()} />}
-
-      {section === "limits" && (
-        <>
-          {/* The limits read first, in a table with what is spent; Edit changes them in the house dialog (#141). */}
-          <Panel title="Monthly limits" action={<LimitsEdit scopes={scopes} caps={b.caps} ceilings={b.ceilings} alertAt80={b.alertAt80} />}>
-            <p className="max-w-measure text-body text-text-2">At a limit the service stops for the rest of the month.{b.alertAt80 && " You are told when usage reaches 80% of one."}</p>
-            <DataTable
-              bare
-              rows={scopes}
-              rowKey={(s) => s}
-              columns={[
-                { key: "what", header: "What", cell: (s) => <span className="font-medium">{scopeName(s)}</span> },
-                { key: "spent", header: "Spent", align: "right", cell: (s) => eur(s === "total" ? usage.totalEur : usage[s].costEur) },
-                {
-                  key: "cap",
-                  header: "Limit",
-                  align: "right",
-                  cell: (s) => {
-                    const c = capOf(b, s);
-                    return c === undefined ? "None" : eur(c);
-                  },
-                },
-                { key: "then", header: "At the limit", hide: "md", cell: (s) => (s === "total" ? "Paid use stops, each as above." : AT_LIMIT[s]), className: "max-w-[24rem]" },
-              ]}
-            />
-          </Panel>
-          <Panel title="Alerts" action={<AlertAdd scopes={scopes} />}>
-            <p className="max-w-measure text-body text-text-2">Each alert comes once a month, to the owner and managers.</p>
-            {b.alerts.length > 0 ? (
-              <ul className="flex flex-col divide-y divide-hairline">
-                {b.alerts.map((a) => (
-                  <li key={`${a.scope}-${a.amountEur}`} className="flex flex-wrap items-center justify-between gap-3 py-2">
-                    <span>
-                      Tell me when {scopeName(a.scope).toLowerCase()} passes {eur(a.amountEur)}
-                    </span>
-                    <span className="ml-auto">
-                      <RowMenu label={`More for the ${scopeName(a.scope)} alert at ${eur(a.amountEur)}`}>
-                        <ActButton act={removeAlertAction.bind(null, a.scope, a.amountEur)} done="Alert removed" confirm={{ title: "Remove this alert?", text: `You will no longer be told when this passes ${eur(a.amountEur)}.`, yes: "Remove" }} label={`Remove the ${scopeName(a.scope)} alert at ${eur(a.amountEur)}`} className={rowButton}>
-                          Remove
-                        </ActButton>
-                      </RowMenu>
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-body text-text-2">No alerts of your own yet.</p>
-            )}
-          </Panel>
-          {modules.has("ai") && (
-            <Panel title="AI writing">
-              <p className="max-w-measure text-body text-text-2">Premium writes the best copy. Standard is quick and costs less.</p>
-              <div className="flex flex-wrap gap-2">
-                {AI_MODELS.map((m) => (
-                  <ActButton key={m} act={saveAiModelAction.bind(null, m)} pressed={b.aiModel === m} done="Writing quality changed" className={`${adminButtonQuiet} aria-pressed:border-text aria-pressed:bg-text aria-pressed:text-ink`}>
-                    {KINDS.ai[m]}, {eur(UNIT.ai[m])} an action
-                  </ActButton>
-                ))}
-              </div>
-            </Panel>
-          )}
-        </>
-      )}
-
-      {section === "bills" && <Bills owner={me.role === "Owner"} estimate={monthBill(modules, b, counts, today()).total} />}
-    </>
-  );
-}
-
-// This month's bill as it stands: the plan and the usage estimated to month end, with VAT. The Plan and Bills tabs both show it.
-function monthBill(modules: Modules, b: BillingSettings, counts: UsageCount[], now: Date) {
-  const plan = planEur(modules, b);
-  const estimate = usageEstimate(counts, allowanceFor(modules, b), b, dublinDay(now.getTime()));
-  const bill = round2((b.term === "annual" ? 0 : plan) + estimate); // a year paid upfront: each month's bill is the usage only
-  return { plan, estimate, bill, total: withVat(bill) };
-}
-
-function PlanAndUsage({ modules, services, usage, counts, b, now }: { modules: Modules; services: Service[]; usage: Usage; counts: UsageCount[]; b: BillingSettings; now: Date }) {
-  // What adding a module costs: with what it needs, and a tier it completes. 0 when the plan already pays for it.
-  const addEur = (id: (typeof MODULES)[number]["id"]) => planFor(withModule(modules, id), b).eur - planFor(modules, b).eur;
-  const others = MODULES.filter((m) => !modules.has(m.id) && MODULE_EUR[m.id] > 0);
-  const { plan, estimate, bill, total } = monthBill(modules, b, counts, now);
-  const sofar = usage.totalEur;
-  const setup = setupLines(modules, b);
-  const setupFull = setupEur(modules, b);
-  const setupNet = termSetupEur(setupFull, b.term);
   const allowance = allowanceFor(modules, b);
-  const lines = planLines(modules, b).map((l) => [l.label, l.eur] as const);
+  const p = planFor(modules, b);
+  const plan = planLines(modules, b, month); // the first month free is a line of its own
+  const planEur = round2(plan.reduce((n, l) => n + l.eur, 0));
+  const estimate = usageEstimate(counts, allowance, b, today);
+  const total = withVat(round2(planEur + estimate));
+  const lines: [string, number][] = [...plan.map((l) => [l.label, l.eur] as [string, number]), ...(services.length ? [["Pay as you go, by month end", estimate] as [string, number]] : []), [`VAT at ${VAT_PCT}%`, round2(total - planEur - estimate)]];
+  // This month first, as it stands: its bill is issued on the 1st of next month.
+  const rows: { id: string; bill?: Bill }[] = [{ id: month }, ...bills.map((bill) => ({ id: bill.id, bill }))];
   return (
     <>
-      {/* What most people come for first: this month's bill, and what it is made of, in one place. Beside it, what to do if it looks wrong. */}
+      <PageHeader title="Billing" text="Your plan, this month's bill and your bills" />
+
+      {/* What most people come for first: this month's bill, and what it is made of. Beside it, what to do if it looks wrong. */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
         <Panel title="This month's bill">
           <div>
@@ -147,143 +51,94 @@ function PlanAndUsage({ modules, services, usage, counts, b, now }: { modules: M
             <p className="mt-2 text-meta text-text-2">Estimate with {VAT_PCT}% VAT. Next bill on {nextBillDate(now)}</p>
           </div>
           <dl className="flex flex-col divide-y divide-hairline text-body">
-            <div className="flex justify-between gap-4 py-2">
-              <dt>{b.term === "annual" ? "Your plan, paid for the year" : "Your plan"}</dt>
-              <dd className="tabular-nums">{b.term === "annual" ? eur(0) : eur(plan)}</dd>
-            </div>
-            {services.length > 0 && (
-              <div className="flex justify-between gap-4 py-2">
-                <dt className="flex flex-col">
-                  Pay as you go, by month end
-                  <span className="text-meta text-text-2">{eur(sofar)} so far</span>
-                </dt>
-                <dd className="tabular-nums">{eur(estimate)}</dd>
+            {lines.map(([label, n]) => (
+              <div key={label} className="flex justify-between gap-4 py-2">
+                <dt>{label}</dt>
+                <dd className="whitespace-nowrap tabular-nums">{n < 0 ? `-${eur(-n)}` : eur(n)}</dd>
               </div>
-            )}
-            <div className="flex justify-between gap-4 py-2">
-              <dt>VAT at {VAT_PCT}%</dt>
-              <dd className="tabular-nums">{eur(round2(total - bill))}</dd>
-            </div>
+            ))}
             <div className="flex justify-between gap-4 py-2 font-semibold">
               <dt>Total</dt>
               <dd className="tabular-nums">{eur(total)}</dd>
             </div>
           </dl>
+          <p className="text-meta text-text-2">
+            Everything in your plan is included. {b.term === 2 ? "2-year contract, no setup fee." : `1-year contract${p.setupEur ? `, setup ${eur(p.setupEur)} once` : ""}.`} Prices before VAT.
+          </p>
         </Panel>
         <Panel title="Something look wrong?" quiet>
           <p className="text-body text-text-2">Tell us what you expected and we check it. Our reply shows in Help.</p>
           <FormActions>
-            <Link href="/billing?section=bills" className={rowButton}>
-              Past bills
-            </Link>
             <Link href="/help?type=Billing&from=/billing" className={adminButtonQuiet}>
               Ask about my bill
             </Link>
           </FormActions>
         </Panel>
       </div>
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start">
-      <Panel title="Your plan">
-        <dl className="flex flex-col divide-y divide-hairline text-body">
-          {lines.map(([label, n]) => (
-            <div key={label} className="flex justify-between gap-4 py-2">
-              <dt>{label}</dt>
-              <dd className="tabular-nums">{eur(n)}</dd>
-            </div>
-          ))}
-          <div className="flex justify-between gap-4 py-2 font-semibold">
-            <dt>Plan each month, before VAT</dt>
-            <dd className="tabular-nums">{eur(plan)}</dd>
-          </div>
-        </dl>
-        <p className="text-meta text-text-2">
-          {TERM_LABELS[b.term]}
-          {b.term === "annual" && `: ${eur(yearUpfrontEur(plan))} a year, before VAT`}
-        </p>
-        {others.length > 0 && (
-          <details className="rounded-control border border-hairline px-3">
-            <summary className="min-h-11 cursor-pointer py-2.5 text-body font-medium">Add more to your plan</summary>
-            <ul className="flex flex-col divide-y divide-hairline pb-2">
-              {others.map((m) => (
-                <li key={m.id} className="flex flex-wrap items-center justify-between gap-3 py-2">
-                  <span>
-                    {m.label} <span className="text-text-2">{addEur(m.id) ? `${eur(addEur(m.id))} a month` : "Included in your plan"}</span>
+
+      {services.length > 0 && (
+        // One limit per paid service, read first; Edit changes them in the house dialog (#141).
+        <Panel title="Monthly limits" action={<LimitsEdit scopes={services} caps={b.caps} ceilings={b.ceilings} />}>
+          <p className="max-w-measure text-body text-text-2">Past what your plan includes, each use is paid. At a limit the service stops for the rest of the month, and you are told.</p>
+          <DataTable
+            bare
+            rows={services}
+            rowKey={(s) => s}
+            columns={[
+              {
+                key: "what",
+                header: "What",
+                cell: (s) => (
+                  <span className="flex flex-col">
+                    <span className="font-medium">{SERVICE_LABELS[s]}</span>
+                    <span className="text-meta text-text-2">
+                      {plural(usage[s].count, USE_WORD[s][0], USE_WORD[s][1])}
+                      {allowance[s] ? `, ${fmtNum(allowance[s])} ${INCLUDED[s]} in your plan` : ""}
+                    </span>
                   </span>
-                  <ActButton act={askModuleAction.bind(null, m.id)} done="We have your request. Our reply will show in Help." label={`Ask us to add ${m.label}`} className={`${rowButton} ml-auto`}>
-                    Ask us to add
-                  </ActButton>
-                </li>
-              ))}
-            </ul>
-          </details>
-        )}
-      </Panel>
+                ),
+              },
+              { key: "spent", header: "Spent", align: "right", cell: (s) => eur(usage[s].costEur) },
+              {
+                key: "cap",
+                header: "Limit",
+                align: "right",
+                cell: (s) => {
+                  const c = capOf(b, s);
+                  return c === undefined ? "None" : eur(c);
+                },
+              },
+              { key: "then", header: "At the limit", hide: "md", cell: (s) => AT_LIMIT[s], className: "max-w-[24rem]" },
+            ]}
+          />
+        </Panel>
+      )}
 
-      <Panel title="Pay as you go this month" action={services.length > 0 ? <Link href="/billing?section=limits" className={rowButton}>Set a limit</Link> : undefined}>
-        {services.length === 0 ? (
-          <EmptyState title="No usage is billed" text="Nothing on your site is charged per use." />
-        ) : (
-          <ul className="flex flex-col divide-y divide-hairline">
-            {services.map((s) => (
-              <li key={s}>
-                {/* One line each, the detail one tap away. */}
-                <details className="group">
-                  <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-4 py-2 text-body [&::-webkit-details-marker]:hidden">
-                    {/* The uses in words beside the name, so the cost reads as something done: 48 messages, €7.20. */}
-                    <span className="flex flex-col">
-                      <span className="font-medium">{SERVICE_LABELS[s]}</span>
-                      <span className="text-meta text-text-2">
-                        {plural(usage[s].kinds.reduce((n, k) => n + k.count, 0), USE_WORD[s][0], USE_WORD[s][1])}
-                        {allowance[s] ? `, ${fmtNum(allowance[s])} ${INCLUDED[s]} in your plan${s === "whatsapp" ? ", replies and marketing paid" : ""}` : ""}
-                      </span>
-                    </span>
-                    <span className="flex items-center gap-2 tabular-nums">
-                      {eur(usage[s].costEur)}
-                      <ChevronDownIcon aria-hidden="true" className="size-4 text-text-2 transition-transform group-open:rotate-180" />
-                    </span>
-                  </summary>
-                  <div className="flex flex-col gap-2 pb-4">
-                    <DataTable
-                      bare
-                      rows={usage[s].kinds}
-                      rowKey={(k) => k.kind}
-                      columns={[
-                        { key: "kind", header: "What", cell: (k) => k.label },
-                        { key: "count", header: "Uses", align: "right", cell: (k) => fmtNum(k.count) },
-                        { key: "price", header: "Each", align: "right", hide: "sm", cell: (k) => eur(UNIT[s][k.kind]) },
-                        { key: "cost", header: "So far", align: "right", cell: (k) => eur(k.costEur) },
-                      ]}
-                    />
-                    {allowance[s] ? <p className="text-meta text-text-2">The first {fmtNum(allowance[s])} {INCLUDED[s]} a month are in your plan.{s === "whatsapp" && " Replies to buyers and marketing messages are paid for each one."}</p> : null}
-                  </div>
-                </details>
-              </li>
-            ))}
-          </ul>
-        )}
+      <Panel title="Bills">
+        <DataTable
+          bare
+          rows={rows}
+          rowKey={(x) => x.id}
+          columns={[
+            {
+              key: "period",
+              header: "Period",
+              cell: (x) =>
+                x.bill ? (
+                  <Link href={`/billing/${x.id}`} className="font-medium underline-offset-2 hover:underline">
+                    {fmtMonth(x.id)}
+                  </Link>
+                ) : (
+                  <span className="font-medium">{fmtMonth(x.id)}</span>
+                ),
+            },
+            { key: "total", header: "Total", align: "right", cell: (x) => eur(x.bill ? itemise(x.bill).total : total, true) },
+            { key: "status", header: "Status", cell: ({ bill: x }) => (!x ? <Badge>Estimate</Badge> : x.status === "paid" ? <Badge tone="good">Paid</Badge> : <Badge tone="warn">Due {fmtDay(x.dueOn, "dayMonth")}</Badge>) },
+          ]}
+        />
+        <p className="text-meta text-text-2">Paid by direct debit. Invoices are emailed as PDFs when each bill is issued.</p>
       </Panel>
-      </div>
-
-      <Panel title="Setup fees" quiet>
-        <dl className="flex flex-col divide-y divide-hairline text-body">
-          {setup.map((l) => (
-            <div key={l.label} className="flex justify-between gap-4 py-2">
-              <dt>{l.label}</dt>
-              <dd className="tabular-nums">{eur(l.eur)}</dd>
-            </div>
-          ))}
-          {b.term === "twoYear" && (
-            <div className="flex justify-between gap-4 py-2 text-ok">
-              <dt>2-year contract: no setup fee</dt>
-              <dd className="whitespace-nowrap tabular-nums">-{eur(setupFull)}</dd>
-            </div>
-          )}
-          <div className="flex justify-between gap-4 py-2 font-semibold">
-            <dt>Paid once at launch, before VAT</dt>
-            <dd className="tabular-nums">{eur(setupNet)}</dd>
-          </div>
-        </dl>
-      </Panel>
+      <BillingDetailsPanel details={details} owner={me.role === "Owner"} />
       <SetForYou />
     </>
   );
@@ -307,107 +162,6 @@ async function SetForYou() {
         <Link href={`/help?type=${encodeURIComponent("Request a change")}&from=/billing`} className={`font-medium text-accent-text underline underline-offset-2 ${tapArea}`}>Ask us to change them</Link>
       </p>
     </Panel>
-  );
-}
-
-// While our prices are hidden (SHOW_PRICING): the plan and its modules, the AI writing choice and the billing details, with no prices,
-// limits or bills.
-async function WithoutPrices() {
-  const [modules, b, me, details] = await Promise.all([enabledModules(), billingSettings(), currentMember(), billingDetails()]);
-  const on = MODULES.filter((m) => modules.has(m.id));
-  const off = MODULES.filter((m) => !modules.has(m.id));
-  return (
-    <>
-      <PageHeader title="Billing" text="Your plan, this month's use and your bills" />
-      <Panel title={`Your plan: ${planFor(modules, b).name}`}>
-        {on.length > 0 ? (
-          // Folded: a long list would bury the billing details below it on a phone.
-          <details className="rounded-control border border-hairline px-3">
-            <summary className="min-h-11 cursor-pointer py-2.5 text-body font-medium">What is included ({on.length})</summary>
-            <ul className="flex flex-col divide-y divide-hairline pb-2 text-body">
-              {on.map((m) => (
-                <li key={m.id} className="py-2">
-                  <span className="font-medium">{m.label}</span>
-                  <span className="block text-text-2">{m.blurb}</span>
-                </li>
-              ))}
-            </ul>
-          </details>
-        ) : (
-          <p className="text-body text-text-2">The website, with your stock and the enquiry and contact forms.</p>
-        )}
-        <p className="text-meta text-text-2">{TERM_LABELS[b.term]}</p>
-        {off.length > 0 && (
-          <details className="rounded-control border border-hairline px-3">
-            <summary className="min-h-11 cursor-pointer py-2.5 text-body font-medium">Add more to your plan</summary>
-            <ul className="flex flex-col divide-y divide-hairline pb-2">
-              {off.map((m) => (
-                <li key={m.id} className="flex flex-wrap items-center justify-between gap-3 py-2">
-                  <span>{m.label}</span>
-                  <ActButton act={askModuleAction.bind(null, m.id)} done="We have your request. Our reply will show in Help." label={`Ask us to add ${m.label}`} className={`${rowButton} ml-auto`}>
-                    Ask us to add
-                  </ActButton>
-                </li>
-              ))}
-            </ul>
-          </details>
-        )}
-      </Panel>
-      {modules.has("ai") && (
-        <Panel title="AI writing">
-          <p className="max-w-measure text-body text-text-2">Premium writes the best copy. Standard is quicker.</p>
-          <div className="flex flex-wrap gap-2">
-            {AI_MODELS.map((m) => (
-              <ActButton key={m} act={saveAiModelAction.bind(null, m)} pressed={b.aiModel === m} done="Writing quality changed" className={`${adminButtonQuiet} aria-pressed:border-text aria-pressed:bg-text aria-pressed:text-ink`}>
-                {KINDS.ai[m]}
-              </ActButton>
-            ))}
-          </div>
-        </Panel>
-      )}
-      <SetForYou />
-      <BillingDetailsPanel details={details} owner={me.role === "Owner"} />
-    </>
-  );
-}
-
-async function Bills({ owner, estimate }: { owner: boolean; estimate: number }) {
-  const [bills, details] = await Promise.all([listBills(), billingDetails()]);
-  // This month first, as it stands: its bill is issued on the 1st of next month.
-  const rows: { id: string; bill?: Bill }[] = [{ id: dublinDay().slice(0, 7) }, ...bills.map((bill) => ({ id: bill.id, bill }))];
-  return (
-    <>
-      <Panel title="Bills">
-        <DataTable
-          bare
-          rows={rows}
-          rowKey={(x) => x.id}
-          columns={[
-            {
-              key: "period",
-              header: "Period",
-              cell: (x) => (
-                <Link href={x.bill ? `/billing/${x.id}` : "/billing"} className="font-medium underline-offset-2 hover:underline">
-                  {fmtMonth(x.id)}
-                </Link>
-              ),
-            },
-            { key: "total", header: "Total", align: "right", cell: (x) => eur(x.bill ? itemise(x.bill).total : estimate, true) },
-            { key: "status", header: "Status", cell: ({ bill: x }) => (!x ? <Badge>Estimate</Badge> : x.status === "paid" ? <Badge tone="good">Paid</Badge> : <Badge tone="warn">Due {fmtDay(x.dueOn, "dayMonth")}</Badge>) },
-          ]}
-        />
-        <p className="text-meta text-text-2">Invoices are emailed as PDFs when each bill is issued.</p>
-      </Panel>
-      <BillingDetailsPanel details={details} owner={owner} />
-      <Panel title="How you pay">
-        <p className="text-body">Payments are by direct debit.</p>
-        <FormActions>
-          <Link href="/help?type=Billing&from=/billing" className={adminButtonQuiet}>
-            Change how you pay
-          </Link>
-        </FormActions>
-      </Panel>
-    </>
   );
 }
 

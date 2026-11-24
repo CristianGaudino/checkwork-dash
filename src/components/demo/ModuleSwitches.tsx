@@ -5,11 +5,8 @@ import { useEffect, useId, useRef, useState } from "react";
 import { setDemoModules } from "@/lib/demo-role";
 import { useModules } from "@/components/DealerFacts";
 import { MODULES, MODULE_IDS, withModule, withoutModule, type ModuleId } from "@/lib/modules-rules";
-import { MODULE_EUR, TIERS, SHOW_PRICING, eur, planFor, setupEur, switchTier } from "@/lib/billing/rules";
+import { PLANS, eur, planFor, switchPlan } from "@/lib/billing/rules";
 import { press } from "@/components/ui";
-
-// The presets: the tiers, the only plans sold (one branch). Prices a month, before VAT, as the Billing page shows them.
-const PLANS = TIERS;
 
 // The demo bar's module switches (#173): show a demo dealer with only some modules, so each version can be shown. Any other dealer has
 // none: their modules are their plan, in their profile. Turning one on brings what it needs; turning one off takes what needs it.
@@ -23,10 +20,10 @@ export function ModuleSwitches({ chip, inline = false }: { chip: string; inline?
   const root = useRef<HTMLDivElement>(null);
   const panelId = useId();
   const plan = planFor(on);
-  // What turning a module on adds to the plan: an add-on's price, or a move to the tier that holds it.
+  // What turning a module on adds to the plan: an add-on's price, or a move to the plan that holds it.
   const addLabel = (id: ModuleId) => {
-    const add = planFor(withModule(on, id)).eur - plan.eur; // a per-use module can still move the plan up a tier (AI needs the dashboard)
-    return add ? `+${eur(add)}` : MODULE_EUR[id] ? "Included" : "Per use";
+    const add = planFor(withModule(on, id)).eur - plan.eur;
+    return add ? `+${eur(add)}` : "Included";
   };
   const apply = (next: Iterable<ModuleId>, note = "") => {
     const list = [...next];
@@ -63,16 +60,16 @@ export function ModuleSwitches({ chip, inline = false }: { chip: string; inline?
               <button
                 key={p.label}
                 type="button"
-                aria-pressed={plan.tier.id === p.id}
+                aria-pressed={plan.plan.id === p.id}
                 onClick={() => {
-                  const { modules, dropped } = switchTier(on, p);
+                  const { modules, dropped } = switchPlan(on, p);
                   const names = MODULES.filter((m) => dropped.includes(m.id)).map((m) => m.label);
                   apply(modules, names.length ? `${names.join(", ")} ${names.length === 1 ? "is" : "are"} off: ${p.label} doesn't have what ${names.length === 1 ? "it needs" : "they need"}.` : "");
                 }}
-                className={`flex min-h-11 flex-col items-start justify-center rounded-control border px-3 py-1.5 text-left text-meta leading-tight ${plan.tier.id === p.id ? "border-accent bg-accent text-on-accent" : "border-hairline"} ${press}`}
+                className={`flex min-h-11 flex-col items-start justify-center rounded-control border px-3 py-1.5 text-left text-meta leading-tight last:col-span-2 ${plan.plan.id === p.id ? "border-accent bg-accent text-on-accent" : "border-hairline"} ${press}`}
               >
-                <span className="font-medium whitespace-nowrap">{p.label}</span>
-                {SHOW_PRICING && <span className="tabular-nums">{eur(p.eur)} a month</span>}
+                <span className="font-medium">{p.label}</span>
+                <span className="tabular-nums">{eur(p.eur)} a month</span>
               </button>
             ))}
           </div>
@@ -85,17 +82,15 @@ export function ModuleSwitches({ chip, inline = false }: { chip: string; inline?
             <label key={m.id} className="flex min-h-11 cursor-pointer items-center gap-3 rounded-control px-2 hover:bg-hairline/50">
               <input type="checkbox" checked={on.has(m.id)} onChange={(e) => apply(e.target.checked ? withModule(on, m.id) : withoutModule(on, m.id))} className="size-4 accent-[var(--color-accent)]" />
               <span className="flex-1 text-meta">{m.label}</span>
-              {SHOW_PRICING && !on.has(m.id) && <span className="text-meta tabular-nums text-text-2">{addLabel(m.id)}</span>}
+              {!on.has(m.id) && <span className="text-meta tabular-nums text-text-2">{addLabel(m.id)}</span>}
             </label>
           ))}
           {/* Kept in view at the foot of the list, so the total follows each switch. */}
           <div className="sticky -bottom-2 -mb-2 flex items-start gap-3 border-t border-hairline bg-band px-2 py-2">
-            {SHOW_PRICING && (
-              <p className="flex-1 text-meta">
-                <span className="font-medium">{plan.name}</span>, <span className="tabular-nums">{eur(plan.eur)}</span> a month before VAT
-                <span className="block text-text-2">Plus {eur(setupEur(on))} setup, once</span>
-              </p>
-            )}
+            <p className="flex-1 text-meta">
+              <span className="font-medium">{plan.name}</span>, <span className="tabular-nums">{eur(plan.eur)}</span> a month before VAT
+              <span className="block text-text-2">{plan.setupEur ? `Plus ${eur(plan.setupEur)} setup, once` : "No setup fee"}</span>
+            </p>
             <button type="button" onClick={() => apply(MODULE_IDS)} className={`ml-auto flex min-h-11 items-center rounded-control border border-hairline px-3 text-meta ${press}`}>
               Reset
             </button>

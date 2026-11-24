@@ -4,7 +4,7 @@ import { dealerProfile } from "@/lib/tenancy/current";
 import { AreaChart, BarList } from "@/components/admin/charts";
 import { ChevronDownIcon } from "@/components/stock/icons";
 import { MoreDetail } from "@/components/admin/MoreDetail";
-import { DataTable, PageHeader, Panel, StatCard, StatGrid } from "@/components/admin/kit";
+import { DataTable, PageHeader, Panel, StatCard, StatGrid, adminButtonQuiet } from "@/components/admin/kit";
 import { ReportViews } from "./views";
 import { getSettings, leadsStore, prepStore, salesStore } from "@/lib/admin/collections";
 import { isSalesLead } from "@/lib/admin/leads";
@@ -29,7 +29,17 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ p
   // The header and the periods first, so a tap on another period works from the first paint; the figures stream in under them (#109).
   return (
     <>
-      <PageHeader title="Reports" text={whole ? `The last ${period} months, this one included` : `Your own figures, the last ${period} months, this one included`} />
+      <PageHeader
+        title="Reports"
+        text={whole ? `The last ${period} months, this one included` : `Your own figures, the last ${period} months, this one included`}
+        actions={
+          whole && (
+            <a href={`/reports/export?period=${period}`} download className={adminButtonQuiet}>
+              Export sales
+            </a>
+          )
+        }
+      />
       <ReportViews period={period} />
       <Suspense key={period} fallback={<FiguresBones />}>
         {whole ? <Full period={period} /> : <Personal period={period} />}

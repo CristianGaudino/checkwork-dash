@@ -5,6 +5,7 @@ import { Avatar, Badge, DataTable, EmptyState, PageHeader, Panel, SummaryTabs, T
 import { Suspense } from "react";
 import { Skeleton, TableBones } from "@/components/admin/Skeleton";
 import { CloseChoices, NextStatusButton, ReachButton, SpamButton } from "@/components/admin/LeadActions";
+import { firstReplies } from "@/lib/leads/first-replies";
 import { RowMenu } from "@/components/admin/RowMenu";
 import { HeldTasks, RowActions } from "@/components/admin/HeldTasks";
 import { CalendarIcon, InboxIcon } from "@/components/stock/icons";
@@ -52,6 +53,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
   // New leads waiting past the reply target, counted for the filter.
   const late = filterLeads(all, { q: "", late: true }, today, leadSlaHours, at).length;
   const me = await currentMember();
+  const reply = await firstReplies();
   // Whose it is, as To do says it: You, a name, or Not taken.
   const who = (name?: string) => (!name ? "Not taken" : name === me.name ? "You" : name);
   // Every filter in one panel: what kind of lead, whether it needs a reply, who has it, where it came from.
@@ -140,7 +142,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
                   // The row rule: the next action (reach them the way they asked) and the menu with the rest.
                   action={
                     <RowActions>
-                      <ReachButton lead={l} />
+                      <ReachButton lead={l} reply={reply(l)} />
                       <LeadRowMenu lead={l} />
                     </RowActions>
                   }
@@ -169,6 +171,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
 
 // The table: its columns, sort and page, and the export link. Rendering a page of leads with their buttons is the slow part.
 async function LeadsTable({ sp, all, f, today, leadSlaHours, at, me }: { sp: Params; all: Lead[]; f: ReturnType<typeof parseLeadFilter>; today: string; leadSlaHours: number; at: number; me: string }) {
+  const reply = await firstReplies();
   const STATUS_ORDER = Object.fromEntries(LEAD_STATUSES.map((s, i) => [s, i]));
   const columns: Column<Lead>[] = [
     {
@@ -241,7 +244,7 @@ async function LeadsTable({ sp, all, f, today, leadSlaHours, at, me }: { sp: Par
     { key: "when", header: "Received", sort: (l) => l.createdAt, cell: (l) => <span className={l.status === "new" ? "font-medium" : "text-text-2"}>{fmtAgo(l.createdAt)}</span>, align: "right", nowrap: true, hide: "2xl" }, // below 2xl it is in the Status column
     // The row rule: the next action (reach them the way they asked, on an open lead) and the menu with the rest, right-aligned, above the
     // row's link. The menu is always last, so it lines up from row to row.
-    { key: "act", header: "Next step", quietHeader: true, hide: "lg", nowrap: true, align: "right", cell: (l) => <span className="relative z-10 flex justify-end gap-2">{isOpenLead(l) && <ReachButton lead={l} />}<LeadRowMenu lead={l} /></span> },
+    { key: "act", header: "Next step", quietHeader: true, hide: "lg", nowrap: true, align: "right", cell: (l) => <span className="relative z-10 flex justify-end gap-2">{isOpenLead(l) && <ReachButton lead={l} reply={reply(l)} />}<LeadRowMenu lead={l} /></span> },
   ];
   const ordered = sortRows(filterLeads(all, f, today, leadSlaHours, at), columns, sp, { key: "when", dir: "desc" });
   // Unless a column was chosen, the ones To answer now shows red come first, by its rule (answerNow).

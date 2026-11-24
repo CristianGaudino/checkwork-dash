@@ -5,13 +5,13 @@ import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { loadNotices, readNotices } from "@/app/notifications/actions";
 import { fmtAgo } from "@/lib/admin/format";
-import { BellIcon, CalendarIcon, CarIcon, CloseIcon, HelpIcon, InboxIcon, ReceiptIcon, SyncIcon, TruckIcon, UsersIcon, WhatsAppIcon, WrenchIcon } from "@/components/stock/icons";
+import { BellIcon, CalendarIcon, CarIcon, CloseIcon, HelpIcon, InboxIcon, ReceiptIcon, SyncIcon, UsersIcon, WhatsAppIcon, WrenchIcon } from "@/components/stock/icons";
 import { press } from "@/components/ui";
 import { rowButton } from "./kit";
 import { placeSheet, sheetPanel } from "./sheet";
 
 type Data = Awaited<ReturnType<typeof loadNotices>>;
-const ICON = { lead: InboxIcon, drive: CalendarIcon, warranty: WrenchIcon, order: TruckIcon, "taken-down": CarIcon, sync: SyncIcon, assigned: UsersIcon, usage: ReceiptIcon, whatsapp: WhatsAppIcon, help: HelpIcon } as const;
+const ICON = { lead: InboxIcon, drive: CalendarIcon, warranty: WrenchIcon, "taken-down": CarIcon, sync: SyncIcon, assigned: UsersIcon, usage: ReceiptIcon, whatsapp: WhatsAppIcon, help: HelpIcon } as const;
 const POLL_MS = 60_000;
 
 // The bell: what has come in, in the app only. Loaded when the page changes and once a minute, so a new request shows without a reload.
@@ -86,7 +86,7 @@ export function NotificationBell() {
                   <h3 className="sticky top-0 z-10 bg-card px-4 pb-1 pt-3 text-meta font-semibold text-text-2">{title}</h3>
                   <ul className="flex flex-col">
                     {items.map((n) => {
-                      const Icon = ICON[n.kind];
+                      const Icon = ICON[n.kind] ?? ICON.lead; // a kind no longer known ("order", before #168) reads as a lead
                       return (
                         <li key={n.id}>
                           <Link

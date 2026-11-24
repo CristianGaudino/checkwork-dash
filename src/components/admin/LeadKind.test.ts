@@ -7,6 +7,7 @@ describe("leadKind and leadChips", () => {
     expect(leadKind("test-drive")).toEqual({ label: "Test drive request", icon: "test-drive" });
     expect(leadKind("general")).toEqual({ label: "Message", icon: "general" });
     expect(leadKind("general", "service")).toEqual({ label: "Service", icon: "service" });
+    expect(leadKind("order" as never)).toEqual({ label: "Car enquiry", icon: "enquiry" }); // stored by the Worker before #168, mid-deploy
     expect(leadKind("general", "made-up")).toEqual({ label: "Message", icon: "general" });
   });
   it("never repeats the kind as a chip, and keeps the answers", () => {

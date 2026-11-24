@@ -5,7 +5,7 @@ import { LIMITS } from "@/lib/leads/constants";
 import { customersStore, getSettings } from "./collections";
 import { newId } from "./ids";
 
-// The buyer, on a sale, a deposit or a factory order: a customer already on file, or a new one made from a name and a phone or an email.
+// The buyer, on a sale or a deposit: a customer already on file, or a new one made from a name and a phone or an email.
 // The fields go into each form's schema; buyerOf turns them into a customer id (making the customer when new) and a known salesperson.
 export const buyerFields = {
   salesperson: z.string().max(80).optional(),

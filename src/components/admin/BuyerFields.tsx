@@ -6,12 +6,14 @@ import { Field, adminInput } from "@/components/admin/kit";
 import { LIMITS } from "@/lib/leads/constants";
 
 // Who is buying: a customer on file, or a new one (name, and a phone or an email). On the sale and the deposit forms; the server checks it.
-export function BuyerFields({ customers, defaultId, errors }: { customers: { id: string; label: string }[]; defaultId?: string; errors: Record<string, string> }) {
+// `onPick`: told the customer chosen ("" for a new one), for the sale form's review tick.
+export function BuyerFields({ customers, defaultId, errors, onPick }: { customers: { id: string; label: string }[]; defaultId?: string; errors: Record<string, string>; onPick?: (id: string) => void }) {
   const [customer, setCustomer] = useState(defaultId ?? "");
+  const pick = (id: string) => (setCustomer(id), onPick?.(id));
   return (
     <>
       <Field label="Buyer" error={errors.customerId} className="sm:col-span-2 lg:col-span-3">
-        <Select name="customerId" value={customer} onChange={setCustomer} options={[["", "A new customer"], ...customers.map((c) => [c.id, c.label] as const)]} />
+        <Select name="customerId" value={customer} onChange={pick} options={[["", "A new customer"], ...customers.map((c) => [c.id, c.label] as const)]} />
       </Field>
       {customer === "" && (
         <>

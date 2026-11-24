@@ -61,13 +61,11 @@ describe("the lead's main button", () => {
     expect(replyVia(lead("a", { phone: "12", email: "" }))).toBeUndefined();
   });
   it("is the request's own job when it can be done here, else the reply", () => {
-    const all = { drive: true, order: true, claim: true };
+    const all = { drive: true, claim: true };
     expect(leadMain("enquiry", all)).toBe("reply");
     expect(leadMain("general", all)).toBe("reply");
     expect(leadMain("test-drive", all)).toBe("drive");
     expect(leadMain("test-drive", { ...all, drive: false })).toBe("reply"); // already booked, or no test drives
-    expect(leadMain("order", all)).toBe("order");
-    expect(leadMain("order", { ...all, order: false })).toBe("reply");
     expect(leadMain("warranty", all)).toBe("claim");
   });
 });

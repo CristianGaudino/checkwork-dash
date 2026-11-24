@@ -3,13 +3,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 const team = vi.hoisted(() => ({ list: [] as { id: string; name: string; email: string; role: string }[] }));
 vi.mock("@/lib/admin/collections", () => ({
-  getSettings: async () => ({ team: team.list, billing: { caps: { lookup: 1 }, ceilings: {}, alerts: [], alertAt80: true, aiPlan: "assistant" } }), // aiPlan: a stored record from before the assistant was dropped, ignored
+  getSettings: async () => ({ team: team.list, billing: { caps: { lookup: 1, total: 5 }, ceilings: { ai: 50 }, alerts: [], alertAt80: true, aiPlan: "assistant", term: "annual", branches: 2 } }), // a record from before: aiPlan, alerts, the total limit and branches are ignored
   settingsStore: { put: async () => {} },
 }));
 const notices = vi.hoisted(() => [] as { for?: string }[]);
 vi.mock("@/lib/admin/notifications", () => ({ notify: async (n: { for?: string }) => void notices.push(n) }));
-vi.mock("@/lib/modules", () => ({ enabledModules: async () => new Set(["tradeIn", "lookupWebsite"]) })); // Showroom: 25 lookups included
-vi.mock("./rules", async (real) => ({ ...(await real<typeof import("./rules")>()), SHOW_PRICING: true })); // the notices as they work with pricing shown
+vi.mock("@/lib/modules", () => ({ enabledModules: async () => new Set(["tradeIn", "lookupWebsite"]) })); // Website: 25 lookups included
 const { recordUsage, usageStore, sentAlertsStore } = await import("./usage");
 
 beforeEach(async () => {
@@ -37,27 +36,26 @@ describe("who hears that a limit is reached", () => {
   });
 });
 
-describe("our ceilings on a record saved before they existed", () => {
-  it("still apply: a stored empty ceilings never drops the AI ceiling", async () => {
+describe("a record from before the plans (#147)", () => {
+  it("reads as one dealership on a 1-year term", async () => {
     const { billingSettings } = await import("./usage");
-    const { AI_CEILING_EUR } = await import("./rules");
-    expect((await billingSettings()).ceilings.ai).toBe(AI_CEILING_EUR);
+    expect((await billingSettings()).term).toBe(1);
   });
 });
 
 describe("a stored AI assistant plan", () => {
-  it("is ignored: the allowance is the tier's", async () => {
+  it("is ignored: the allowance is the plan's", async () => {
     const { billingSettings, monthAllowance } = await import("./usage");
     expect(await monthAllowance(await billingSettings())).toEqual({ lookup: 25 });
   });
 });
 
 describe("our limits", () => {
-  it("start every plan at EUR 15 of lookups, EUR 20 of WhatsApp and EUR 50 of AI past the allowance; the dealer's lower limit counts", async () => {
+  it("start every plan at EUR 15 of lookups and EUR 20 of WhatsApp past the allowance; the dealer's lower limit counts", async () => {
     const { billingSettings } = await import("./usage");
     const { capOf } = await import("./rules");
     const b = await billingSettings();
-    expect(b.ceilings).toEqual({ lookup: 15, whatsapp: 20, ai: 50 });
+    expect(b.ceilings).toMatchObject({ lookup: 15, whatsapp: 20 });
     expect(capOf(b, "lookup")).toBe(1); // the stored limit of EUR 1 is lower
     expect(capOf(b, "whatsapp")).toBe(20);
   });

@@ -90,5 +90,5 @@ test("the bell shows what came in, unread first, and Mark all as read clears its
   await Promise.all([page.waitForResponse((r) => r.request().method() === "POST"), panel.getByRole("button", { name: "Mark all as read" }).click()]);
   await expect(page.getByRole("button", { name: "Notifications", exact: true })).toBeVisible();
   // What was unread moves to Earlier (other tests may send a new request meanwhile, so New is not checked to be empty).
-  await expect(panel.getByRole("region", { name: "Earlier" }).getByText("Factory order request").first()).toBeVisible();
+  await expect(panel.getByRole("region", { name: "Earlier" }).getByText("Warranty request").first()).toBeVisible();
 });

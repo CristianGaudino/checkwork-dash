@@ -17,7 +17,7 @@ describe("a data request", () => {
     await alertsStore.put({ id: "alert-x", email: "pat@example.com", kind: "price-drop", criteria: "Ford Focus", active: true, createdAt: now });
     await salesStore.put({ id: "car-x", carTitle: "2016 Ford Focus", priceEur: 9000, soldOn: "2026-11-01", customerId: "cust-x", createdAt: now });
     await reservationsStore.put({ id: "res-x", carId: "car-y", carTitle: "2018 Kia Rio", customerId: "cust-x", depositEur: 500, method: "Card", paidOn: "2026-10-01", until: "2026-10-10", status: "refunded", refundEur: 500, createdAt: now });
-    await ordersStore.put({ id: "order-x", customerId: "cust-x", make: "Kia", model: "Sportage", priceEur: 38000, depositEur: 1000, depositMethod: "Card", regPeriod: "271", expected: "2027-01", orderedOn: "2026-11-01", status: "ordered", notes: [{ at: now, text: "Pat wants white" }], createdAt: now });
+    await ordersStore.put({ id: "order-x", customerId: "cust-x", make: "Kia", model: "Sportage", priceEur: 38000, depositEur: 1000, regPeriod: "271", orderedOn: "2026-11-01", status: "ordered", notes: [{ at: now, text: "Pat wants white" }], createdAt: now });
     await claimsStore.put({ id: "claim-x", saleId: "car-x", carId: "car-x", carTitle: "2016 Ford Focus", customerId: "cust-x", openedOn: "2026-11-05", fault: "Pat says the clutch slips", inCover: true, status: "open", costEur: 300, notes: [{ at: now, text: "Call Pat back" }], createdAt: now });
     await messagesStore.put({ id: "wa-x", at: now, thread: "buyer", from: "buyer", leadId: "lead-x", text: "Is it still there?" });
     await messagesStore.put({ id: "wa-other", at: now, thread: "buyer", from: "buyer", leadId: "lead-other", text: "Hello" });

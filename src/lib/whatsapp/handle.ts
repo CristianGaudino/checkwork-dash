@@ -1,10 +1,11 @@
 import "server-only";
 import { logActivity } from "@/lib/admin/activity";
-import { drivesStore, leadsStore, reservationsStore, reviewsStore, type Lead, type LeadStatus } from "@/lib/admin/collections";
+import { drivesStore, getSettings, leadsStore, reservationsStore, reviewsStore, type Lead, type LeadStatus } from "@/lib/admin/collections";
 import { dublinDay, fmtDateTime, fmtEur } from "@/lib/admin/format";
 import { isOpenLead } from "@/lib/admin/follow-ups";
 import { adminCar, adminCars, updateCar } from "@/lib/admin/stock-admin";
-import { droppedPrice } from "@/lib/admin/stock-admin-pure";
+import { suggestedDrop } from "@/lib/admin/overview";
+import { roleCan, type Role } from "@/lib/permission-rules";
 import { askedCar } from "@/lib/leads/journey";
 import { carEditSummary } from "@/lib/admin/activity-text";
 import { postReviewReply } from "@/lib/admin/publishers";
@@ -80,11 +81,18 @@ async function copies(msg: Msg): Promise<Msg[]> {
 }
 const markDone = async (all: Msg[]) => void (await Promise.all(all.map((m) => messagesStore.put({ ...m, done: true }))));
 
-async function linked(name: string) {
-  return (await staffStore.list()).some((p) => p.name === name && p.phone);
+// The staff records under a name in the conversation, of people still on the team, with their role: a departed namesake's never counts.
+async function onTeam(name: string) {
+  const [staff, { team }] = await Promise.all([staffStore.list(), getSettings()]);
+  return staff.flatMap((p) => {
+    const role = p.name === name && team.find((t) => t.id === p.id)?.role;
+    return role ? [{ ...p, role }] : [];
+  });
 }
+const linked = async (name: string) => (await onTeam(name)).some((p) => p.phone);
 
-export async function tap(me: string, msgId: string, button: ButtonId): Promise<void> {
+// `role`: the signed-in person's (currentMember), for what only some roles may do.
+export async function tap(me: string, msgId: string, button: ButtonId, role: Role | null): Promise<void> {
   const msg = await messagesStore.get(msgId);
   if (!msg || msg.to !== me || !msg.buttons?.includes(button)) return;
   if (!(await linked(me))) return void (await say(me, { text: LINK_FIRST }));
@@ -123,16 +131,19 @@ export async function tap(me: string, msgId: string, button: ButtonId): Promise<
   if (button === "price") return void (await say(me, { leadId: msg.leadId, ref: msg.id, text: `What price do you want to offer${first ? ` ${first}` : ""}? Type it, like 8,500.`, expects: "price" }));
   if (button === "other") return void (await say(me, { leadId: msg.leadId, ref: msg.id, text: "What time suits? Type it, like Saturday at 11.", expects: "time" }));
   if (button === "drop") {
+    // The suggested drop is for owners and managers only (the settings permission), as on Stock; checked here whatever the alert showed.
+    if (!roleCan(role, "settings")) return void (await say(me, { text: "Only owners and managers can drop a price." }));
     if ((await stockSource()) === "donedeal") return void (await say(me, { text: `The price comes from ${(await listing()).site}. Change it there.` }));
     await markDone(all); // first, so a second tap while this runs finds it done
     const car = msg.ref ? await adminCar(msg.ref) : undefined;
     if (car && isSold(car)) return void (await say(me, { text: "That car is sold, so I left the price." }));
-    const eur = (await currentDealer()).profile.rules.slowDropEur;
+    const rules = (await currentDealer()).profile.rules;
     let before = car;
-    // Dropped from the price as it is when written, so a price changed meanwhile is dropped from, not written over.
+    // Dropped from the price as it is when written, so a price changed meanwhile is dropped from, not written over; and only the one
+    // suggested drop (suggestedDrop), so a car reduced since the alert is left alone.
     const next = car && (await updateCar(car.id, (cur) => {
       before = cur;
-      const drop = !isSold(cur) && droppedPrice(cur, eur, "eur");
+      const drop = suggestedDrop(cur, rules);
       return drop ? { ...cur, ...drop } : null;
     }));
     if (!before || !next) return void (await say(me, { text: "I could not change that price. Open the car to do it." }));

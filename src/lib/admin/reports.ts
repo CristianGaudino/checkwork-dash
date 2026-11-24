@@ -5,11 +5,30 @@ import { DAY } from "@/lib/time";
 import { daysSince, dublinDay, threeLetter } from "./format";
 import { followUpDue } from "./follow-ups";
 import { sourceText } from "@/lib/visit-rules";
+import type { CarCostTotal } from "./costs";
+import { toCsv } from "./csv";
+import { COVER_MONTHS } from "./deposits";
 
 // The Reports page's figures, worked out from the records. Pure, so every figure is tested.
 // A period is the last 3, 6 or 12 months, counted in whole Irish calendar months, this one included.
 export const PERIODS = [3, 6, 12] as const;
 export type Period = (typeof PERIODS)[number];
+
+// From one month to another, both included, as "2026-11"; null for a range that is not one (backwards, or over ten years).
+export function monthsBetween(from: string, to: string): string[] | null {
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(from) || !/^\d{4}-(0[1-9]|1[0-2])$/.test(to) || from > to) return null;
+  const [y, m] = from.split("-").map(Number);
+  const out: string[] = [];
+  for (let i = 0; out.at(-1) !== to && i < 120; i++) out.push(new Date(Date.UTC(y, m - 1 + i, 1)).toISOString().slice(0, 7));
+  return out.at(-1) === to ? out : null;
+}
+
+// The months' sales, and the sales undone in them (by the day undone). An undone sale is not a sale: it is left out of every figure and
+// counted under returns instead.
+function salesIn(all: Sale[], months: string[]) {
+  const inPeriod = new Set(months);
+  return { sales: all.filter((s) => !s.returnedOn && inPeriod.has(s.soldOn.slice(0, 7))), undone: all.filter((s) => s.returnedOn && inPeriod.has(s.returnedOn.slice(0, 7))) };
+}
 
 const MONTH = new Intl.DateTimeFormat("en-IE", { month: "short", year: "numeric", timeZone: "UTC" });
 // The months of a period, oldest first, as "2026-11".
@@ -50,9 +69,7 @@ export function fullReport(input: { sales: Sale[]; cars: Car[]; leads: Lead[]; t
   const today = dublinDay(input.now);
   const months = monthsOf(input.period, today);
   const inPeriod = new Set(months);
-  // An undone sale is not a sale: it is left out of every figure and counted under returns instead.
-  const sales = input.sales.filter((s) => !s.returnedOn && inPeriod.has(s.soldOn.slice(0, 7)));
-  const undone = input.sales.filter((s) => s.returnedOn && inPeriod.has(s.returnedOn.slice(0, 7)));
+  const { sales, undone } = salesIn(input.sales, months);
   const leads = input.leads.filter((l) => counted(l) && inPeriod.has(leadMonth(l)));
   const profitOf = (s: Sale) => (input.costs.has(s.id) ? s.priceEur - input.costs.get(s.id)! : undefined);
   const sum = (list: Sale[]) =>
@@ -137,4 +154,32 @@ export function personalReport(input: { name: string; sales: Sale[]; leads: Lead
     })),
     totals: { sold: sales.length, leads: leads.length, won, winRate: rate(won, leads.length), followUpsDue: mine.filter((l) => followUpDue(l, today)).length },
   };
+}
+
+// The sales CSV for the accountant (#173): each sale of the months, oldest first, then each sale undone in them, marked, with its refund and
+// no money of its own, so the columns add up to Reports: Sale price to Sales, Margin to Profit, Refund to the refunds. No buyer.
+export function salesCsv(input: { sales: Sale[]; cars: Car[]; costs: Map<string, CarCostTotal>; months: string[] }): string {
+  const { sales, undone } = salesIn(input.sales, input.months);
+  const carOf = new Map(input.cars.map((c) => [c.id, c]));
+  const rows = [...sales.sort((a, b) => a.soldOn.localeCompare(b.soldOn)), ...undone.sort((a, b) => a.returnedOn!.localeCompare(b.returnedOn!))].map((s) => ({ s, car: carOf.get(s.carId ?? s.id), cost: s.returnedOn ? undefined : input.costs.get(s.id) }));
+  type Row = (typeof rows)[number];
+  const live = (f: (r: Row) => number | undefined) => (r: Row) => (r.s.returnedOn ? "" : f(r));
+  return toCsv(rows, [
+    ["Sale date", (r) => r.s.soldOn],
+    ["Registration", (r) => r.car?.reg],
+    ["Make", (r) => r.car?.make ?? r.s.carTitle], // a car since deleted: the sale's own title
+    ["Model", (r) => r.car?.model],
+    ["Year", (r) => r.car?.year],
+    ["Sale price (€)", live((r) => r.s.priceEur)],
+    ["Cost price (€)", (r) => r.cost?.purchase],
+    ["Prep (€)", (r) => r.cost?.prep],
+    ["Warranty repairs (€)", (r) => r.cost?.claims],
+    ["Margin (€)", (r) => (r.cost ? r.s.priceEur - r.cost.total : "")],
+    ["Warranty (months)", (r) => r.s.coverMonths ?? COVER_MONTHS],
+    ["Trade-in reg", (r) => r.s.tradeIn?.reg],
+    ["Trade-in allowance (€)", (r) => r.s.tradeIn?.allowanceEur],
+    ["Salesperson", (r) => r.s.salesperson],
+    ["Returned", (r) => (r.s.returnedOn ? `${r.s.kind === "cancelled" ? "Cancelled" : "Returned"} ${r.s.returnedOn}` : "")],
+    ["Refund (€)", (r) => (r.s.returnedOn ? (r.s.refundEur ?? 0) : "")],
+  ]);
 }
