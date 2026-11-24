@@ -5,10 +5,13 @@ import { driveTimes } from "@/lib/leads/constants";
 import { useKeptForm } from "@/components/admin/useKeptForm";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Select } from "@/components/Select";
 import { Stepper, useStepHeading } from "@/components/leads/Stepper";
 import { showToast } from "@/components/toast";
-import { Field, adminButton, adminButtonQuiet, adminInput } from "@/components/admin/kit";
+import { Field, FormActions, adminButton, adminButtonQuiet, adminInput } from "@/components/admin/kit";
+import { BUSY } from "@/components/admin/ActButton";
+import { DialogCancel } from "@/components/admin/Dialog";
+import { EditDialog } from "@/components/admin/EditDialog";
+import { PersonPicker } from "@/components/admin/PersonPicker";
 import { CarPicker } from "@/components/admin/CarPicker";
 import { SlotPicker } from "@/components/admin/SlotPicker";
 import { addDriveAction, moveDriveAction, type DriveFormState } from "@/app/test-drives/actions";
@@ -95,7 +98,7 @@ export function BookDriveForm({ cars, team, me, slots, initialCar, person }: { c
           <input name="email" type="email" defaultValue={person?.email} className={adminInput} autoComplete="off" />
         </Field>
         <Field label="Who takes them out">
-          <Select name="assignedTo" label="Who takes them out" defaultValue={team.includes(me) ? me : ""} options={[["", "Not taken"], ...team.map((t) => [t, t] as const)]} />
+          <PersonPicker label="Who takes them out" team={team} value={team.includes(me) ? me : ""} me={me} />
         </Field>
         <Field label="Notes (optional)" className="sm:col-span-2">
           <input name="notes" maxLength={DRIVE_LIMITS.notes} className={adminInput} />
@@ -124,15 +127,23 @@ export function BookDriveForm({ cars, team, me, slots, initialCar, person }: { c
   );
 }
 
-// Moving a booking: a new free time for the same car, by the same rules as a new one.
-export function MoveDriveForm({ id, carSlug, slots }: { id: string; carSlug: string; slots: Slots }) {
+// Moving a booking: a new free time for the same car, by the same rules as a new one, in the house dialog (#141) opened from the booking.
+export function MoveDrive({ id, carSlug, slots }: { id: string; carSlug: string; slots: Slots }) {
+  return (
+    <EditDialog title="Change the time" text="A free time for the same car" label="Change time">
+      {(done) => <MoveDriveForm id={id} carSlug={carSlug} slots={slots} done={done} />}
+    </EditDialog>
+  );
+}
+
+function MoveDriveForm({ id, carSlug, slots, done }: { id: string; carSlug: string; slots: Slots; done: () => void }) {
   const router = useRouter();
   const [when, setWhen] = useState({ date: "", time: "" });
   const [state, action, pending] = useKeptForm<DriveFormState>(async (prev, data) => {
     const r = await moveDriveAction(id, prev, data);
     if (r?.done) {
       showToast(r.done);
-      setWhen({ date: "", time: "" });
+      done();
       router.refresh();
     }
     return r;
@@ -140,9 +151,12 @@ export function MoveDriveForm({ id, carSlug, slots }: { id: string; carSlug: str
   return (
     <form {...action} noValidate className="flex flex-col gap-4">
       <SlotPicker days={slots.days} taken={slots.taken[slugId(carSlug)] ?? []} windowMin={slots.windowMin} now={slots.now} date={when.date} time={when.time} onChange={(date, time) => setWhen({ date, time })} errors={state?.errors} />
-      <button type="submit" disabled={pending || !when.time} className={`${when.time ? adminButton : adminButtonQuiet} self-start disabled:opacity-50`}>
-        {pending ? "Moving" : "Move"}
-      </button>
+      <FormActions>
+        <DialogCancel />
+        <button type="submit" disabled={pending || !when.time} aria-busy={pending || undefined} className={`${adminButton} ${BUSY} disabled:opacity-50`}>
+          {pending ? "Moving" : "Move"}
+        </button>
+      </FormActions>
     </form>
   );
 }

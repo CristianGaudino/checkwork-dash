@@ -445,18 +445,22 @@ const prepLine = z.object({
   eur: euros(100_000),
   note: z.string().trim().max(80).optional(),
 });
-export type PrepFormState = { errors?: Record<string, string>; added?: number } | undefined;
-export async function addPrepAction(carId: string, _prev: PrepFormState, data: FormData): Promise<PrepFormState> {
+export type PrepFormState = { errors?: Record<string, string>; saved?: number } | undefined;
+// `at` null adds a line; otherwise it changes that line (its kind, amount and note), which keeps its `at`.
+export async function savePrepAction(carId: string, at: number | null, _prev: PrepFormState, data: FormData): Promise<PrepFormState> {
   await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
   const car = (await can("margins")) ? await adminCar(carId) : undefined;
   if (!car) return { errors: { kind: "Only staff who see margins can add prep costs" } };
   const r = prepLine.safeParse(Object.fromEntries(data));
   if (!r.success) return { errors: fieldErrors(r.error) };
   const prep = (await prepStore.get(carId)) ?? { id: carId, lines: [] };
-  await prepStore.put({ ...prep, lines: [...prep.lines, { kind: r.data.kind, eur: r.data.eur, ...(r.data.note && { note: r.data.note }), at: Date.now() }] });
-  await logActivity("stock", `Added a prep cost: ${r.data.kind}, ${fmtEur(r.data.eur)}`, carRef(car));
+  const was = at === null ? undefined : prep.lines.find((l) => l.at === at);
+  if (at !== null && !was) return { errors: { kind: "This cost was removed. Close this and add it again." } };
+  const line = { kind: r.data.kind, eur: r.data.eur, ...(r.data.note && { note: r.data.note }), at: was?.at ?? Date.now() };
+  await prepStore.put({ ...prep, lines: was ? prep.lines.map((l) => (l === was ? line : l)) : [...prep.lines, line] });
+  await logActivity("stock", was ? `Changed a prep cost: ${was.kind}, ${fmtEur(was.eur)} to ${line.kind}, ${fmtEur(line.eur)}` : `Added a prep cost: ${line.kind}, ${fmtEur(line.eur)}`, carRef(car));
   revalidatePath(`/stock/${carId}`);
-  return { added: Date.now() }; // a new value each time, so the form clears after every line
+  return { saved: Date.now() }; // a new value each time, so the dialog closes after every save
 }
 
 // `at` names the line: two lines can share a kind and an amount, never the moment they were added.

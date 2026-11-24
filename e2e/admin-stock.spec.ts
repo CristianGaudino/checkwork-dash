@@ -159,7 +159,8 @@ test("a deposit reserves a car; ending it puts it back; a sale brought back is u
   await page.goto("/stock?view=reserved&q=" + MAKE);
   await page.getByRole("row", { name: new RegExp(MAKE) }).getByRole("button", { name: /^More for/ }).click();
   await page.getByRole("row", { name: new RegExp(MAKE) }).getByRole("link", { name: "Deposit", exact: true }).click();
-  await page.getByRole("button", { name: "End reservation" }).click();
+  await page.getByRole("button", { name: "End reservation" }).click(); // opens the house dialog (#141)
+  await page.getByRole("dialog", { name: "End the reservation?" }).getByRole("button", { name: "End reservation" }).click();
   await page.waitForURL(/\/stock$/);
 
   // Sell it, then the buyer brings it back: the sale is undone, kept on the car's page, and the car is hidden for a look over.

@@ -2,7 +2,10 @@
 
 import { useKeptForm } from "@/components/admin/useKeptForm";
 import { Select } from "@/components/Select";
-import { Field, adminButton, adminInput } from "@/components/admin/kit";
+import { Field, FormActions, adminButton, adminInput } from "@/components/admin/kit";
+import { DialogCancel } from "@/components/admin/Dialog";
+import { EditDialog, useDoneOnSave } from "@/components/admin/EditDialog";
+import { BUSY } from "@/components/admin/ActButton";
 import { addAlertAction, saveDetailsAction, saveLimitsAction, type BillingState } from "@/app/billing/actions";
 import type { Scope } from "@/lib/billing/rules";
 import { eur, scopeName, type BillingDetails } from "@/lib/billing/bills-rules";
@@ -12,24 +15,40 @@ function useSave(action: Action) {
   const [state, run, pending] = useKeptForm<BillingState>(action, undefined);
   return { state, run, pending, errors: state?.errors ?? {} };
 }
-function Save({ pending, saved, label = "Save" }: { pending: boolean; saved?: boolean; label?: string }) {
+// A dialog's Cancel and Save (or Add), bottom right with the main one right-most.
+function DialogSave({ pending, add = false }: { pending: boolean; add?: boolean }) {
   return (
-    <div className="flex items-center gap-4">
-      <button type="submit" disabled={pending} className={adminButton}>
-        {pending ? "Saving" : label}
+    <FormActions>
+      <DialogCancel />
+      <button type="submit" disabled={pending} aria-busy={pending || undefined} className={`${adminButton} ${BUSY}`}>
+        {pending ? (add ? "Adding" : "Saving") : add ? "Add alert" : "Save"}
       </button>
-      {saved && !pending && (
-        <p role="status" className="text-meta text-ok">
-          Saved
-        </p>
-      )}
-    </div>
+    </FormActions>
   );
 }
 
+// Billing's limits, alerts and details are read on the page and changed in the house dialog (#141), as Settings is.
+type Limits = { scopes: Scope[]; caps: Partial<Record<Scope, number>>; ceilings: Partial<Record<Scope, number>>; alertAt80: boolean };
+export const LimitsEdit = (props: Limits) => (
+  <EditDialog title="Monthly limits" text="At a limit the service stops for the rest of the month. Raising a limit works at once." what="monthly limits" saved="Limits saved">
+    {(done) => <LimitsForm {...props} done={done} />}
+  </EditDialog>
+);
+export const AlertAdd = ({ scopes }: { scopes: Scope[] }) => (
+  <EditDialog add title="Add an alert" what="an alert" saved="Alert added">
+    {(done) => <AlertForm scopes={scopes} done={done} />}
+  </EditDialog>
+);
+export const DetailsEdit = ({ details }: { details: BillingDetails }) => (
+  <EditDialog title="Billing details" what="billing details" saved="Saved">
+    {(done) => <DetailsForm details={details} done={done} />}
+  </EditDialog>
+);
+
 // A monthly limit for each service and for all usage together. Blank is no limit. `ceilings` are ours: shown, and the server holds to them.
-export function LimitsForm({ scopes, caps, ceilings, alertAt80 }: { scopes: Scope[]; caps: Partial<Record<Scope, number>>; ceilings: Partial<Record<Scope, number>>; alertAt80: boolean }) {
+function LimitsForm({ scopes, caps, ceilings, alertAt80, done }: Limits & { done: () => void }) {
   const f = useSave(saveLimitsAction);
+  useDoneOnSave(f.state, f.pending, done);
   return (
     <form {...f.run} className="flex flex-col gap-4" noValidate>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -48,33 +67,32 @@ export function LimitsForm({ scopes, caps, ceilings, alertAt80 }: { scopes: Scop
         Tell me when usage reaches 80% of a limit
       </label>
       {f.errors.form && <p role="alert" className="text-meta text-destructive">{f.errors.form}</p>}
-      <Save pending={f.pending} saved={f.state?.saved} label="Save limits" />
+      <DialogSave pending={f.pending} />
     </form>
   );
 }
 
-export function AlertForm({ scopes }: { scopes: Scope[] }) {
+function AlertForm({ scopes, done }: { scopes: Scope[]; done: () => void }) {
   const f = useSave(addAlertAction);
+  useDoneOnSave(f.state, f.pending, done);
   return (
-    <form {...f.run} className="flex flex-wrap items-end gap-3" noValidate>
-      <Field label="Tell me when" className="min-w-48">
+    <form {...f.run} className="flex flex-col gap-4" noValidate>
+      <Field label="Tell me when">
         <Select name="scope" options={scopes.map((s) => [s, scopeName(s)] as const)} defaultValue={scopes[0]} label="Tell me when" />
       </Field>
-      <Field label="passes (€)" error={f.errors.alert} className="w-32">
-        <input name="amount" inputMode="decimal" className={adminInput} />
+      <Field label="passes (€)" error={f.errors.alert}>
+        <input name="amount" inputMode="decimal" data-autofocus className={adminInput} />
       </Field>
-      <button type="submit" disabled={f.pending} className={adminButton}>
-        {f.pending ? "Adding" : "Add alert"}
-      </button>
+      <DialogSave pending={f.pending} add />
     </form>
   );
 }
 
-export function DetailsForm({ details, editable }: { details: BillingDetails; editable: boolean }) {
+function DetailsForm({ details, done }: { details: BillingDetails; done: () => void }) {
   const f = useSave(saveDetailsAction);
+  useDoneOnSave(f.state, f.pending, done);
   return (
     <form {...f.run} className="grid grid-cols-1 gap-4 sm:grid-cols-2" noValidate>
-      <fieldset disabled={!editable} className="contents">
         <Field label="Company name" error={f.errors.company}>
           <input name="company" defaultValue={details.company} className={adminInput} />
         </Field>
@@ -87,8 +105,9 @@ export function DetailsForm({ details, editable }: { details: BillingDetails; ed
         <Field label="Email bills go to" error={f.errors.email}>
           <input name="email" type="email" defaultValue={details.email} className={adminInput} />
         </Field>
-      </fieldset>
-      <div className="sm:col-span-2">{editable ? <Save pending={f.pending} saved={f.state?.saved} /> : <p className="text-meta text-text-2">Only the owner can change these.</p>}</div>
+      <div className="sm:col-span-2">
+        <DialogSave pending={f.pending} />
+      </div>
     </form>
   );
 }

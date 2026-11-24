@@ -15,9 +15,13 @@ test("a valuation lead shows the car's plate, and the dealer can look it up", as
   await page.goto("/leads?type=trade-in");
   await page.getByRole("row").nth(1).getByRole("link").first().click();
   const panel = page.getByRole("region", { name: "Their car" });
-  await expect(panel).toContainText(/Registration \d{3}-[A-Z]{1,2}-\d+/);
-  await panel.getByRole("button", { name: "Look up" }).click();
-  await expect(panel.getByRole("status")).toContainText(/Registered in /);
+  await expect(panel.getByRole("definition").first()).toHaveText(/^\d{3}-[A-Z]{1,2}-\d+$/);
+  // The Look up in the Edit dialog: the panel's own only shows while the car is not looked up yet, which a seeded lead may not be.
+  await panel.getByRole("button", { name: /^Edit/ }).click();
+  const dialog = page.getByRole("dialog", { name: "Their car" });
+  await dialog.getByRole("button", { name: "Look up" }).click();
+  await expect(dialog.getByRole("status")).toContainText(/Registered in /);
+  await expect(dialog.getByRole("textbox", { name: "Make" })).not.toHaveValue("");
 });
 
 test("the settings list the registration lookup as a service", async ({ page }) => {

@@ -34,7 +34,8 @@ a page to do one of a few jobs. They should know within five seconds what needs 
 `src/components/admin/kit.tsx`: PageHeader, Panel (raised or `quiet`), StatCard and StatGrid, Badge, EmptyState, DataTable, SummaryTabs,
 Segmented, Notice, Facts, Avatar, and new in this pass `TaskList`/`Task` (urgency marker, icon, detail, inline action) and
 `ActionTiles`/`ActionTile` (the main jobs as big buttons). Button classes: `adminButton` (primary), `adminButtonQuiet`, `rowButton`,
-`dangerButton`.
+`dangerButton`. `FormActions` is the row of buttons at the foot of a form, a dialog or a panel's actions, and `Dialog` (`Dialog.tsx`)
+is where a small edit happens (#133): both in `docs/dashboard-polish.md`, "Dialogs and button rows".
 
 Form controls (#130), as checkwork-demo builds them: every drop-down is `Select` (the site's Combobox: typable on a desktop, a list on a
 phone, a hidden input so the form still posts its `name`), never the browser's select. The one exception is the role select in the demo

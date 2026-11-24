@@ -6,8 +6,8 @@ import { CarFlags, ListingButton, PostToSocial, ViewOnSite, daysInStock } from "
 import { CarThumb } from "@/components/admin/CarThumb";
 import { card, NEW_TAB } from "@/components/ui";
 import { ActButton } from "@/components/admin/ActButton";
-import { CostForm } from "@/components/admin/ClaimForms";
-import { AITextarea } from "@/components/admin/AIWriter";
+import { CostPanel } from "@/components/admin/ClaimForms";
+import { SyncedDescription } from "./SyncedDescription";
 import { carFields } from "@/lib/admin/car-fields";
 import { listingHref } from "@/lib/stock-source-rules";
 import { listing } from "@/lib/stock-source";
@@ -123,20 +123,11 @@ export default async function Page({ params, searchParams }: { params: Promise<{
         <PageHeader title={carName(car)} text={lastOkAt ? `Last updated ${fmtAgo(lastOkAt)}` : "Not updated yet"} actions={main} back={{ href: "/stock", label: "Stock" }} />
         {summary}
         {/* The site shows the feed's text, so a better one is written here and pasted into the listing site (#225). Not for an ad that is gone. */}
-        {!sold && !car.takenDownAt && (await hasModule("ai")) && (
-          <Panel title="Improve this description">
-            <AITextarea label="Description" task="carDescription" defaultValue={car.description ?? ""} rows={8} request={{ task: "carDescription", fields: carFields(car) }} copy={`Copy for ${listingSite}`} />
-            <p className="max-w-measure text-body text-text-2">
-              Paste it into {listingSite}; the site updates within 15 minutes.
-            </p>
-          </Panel>
-        )}
+        {!sold && !car.takenDownAt && (await hasModule("ai")) && <SyncedDescription description={car.description ?? ""} request={{ task: "carDescription", fields: carFields(car) }} site={listingSite} />}
         {/* DoneDeal has the car; the cost is the dealer's own, so it is still entered here. */}
         {cost && (
           <div id="cost" className="scroll-mt-24">
-          <Panel title="Cost price">
-            <CostForm act={saveCostAction.bind(null, car.id)} label="Cost price (€)" hint="Leave empty to clear it" costEur={cost.eur} />
-          </Panel>
+            <CostPanel title="Cost price" act={saveCostAction.bind(null, car.id)} label="Cost price (€)" hint="Leave empty to clear it" costEur={cost.eur} />
           </div>
         )}
         {prep}

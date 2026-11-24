@@ -20,7 +20,7 @@ export const MODULES = [
   { id: "commercial", label: "Commercial vehicles", blurb: "A commercial section with ex. VAT pricing.", pages: ["/commercial"], dashboard: [] },
   { id: "newCars", label: "New cars and factory orders", blurb: "New car pages by brand and ordering of factory cars.", pages: ["/new-cars"], dashboard: ["/orders"], needs: ["dashboard"] },
   { id: "analytics", label: "Site analytics", blurb: "Visitor numbers and where they came from.", pages: [], dashboard: ["/analytics"], needs: ["dashboard"] },
-  { id: "whatsapp", label: "WhatsApp", blurb: "Leads to your phone, and replies from WhatsApp that the site sends on.", pages: [], dashboard: ["/whatsapp"], needs: ["dashboard"] },
+  { id: "whatsapp", label: "WhatsApp", blurb: "Leads to your phone, and replies from WhatsApp that the site sends on.", pages: [], dashboard: [], needs: ["dashboard"] }, // a channel in Settings, Notifications (#142), not a page
   { id: "ai", label: "AI writing", blurb: "Drafts of posts, descriptions and replies, with buttons to adjust them.", pages: [], dashboard: [], needs: ["dashboard"] },
   // The registration lookup (#180), in each place on its own: buyers filling in their car, or only staff adding stock and checking leads.
   { id: "lookupWebsite", label: "Registration lookup on the website", blurb: "Buyers fill in their car from the registration.", pages: [], dashboard: [], needs: ["tradeIn"] },

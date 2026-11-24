@@ -53,6 +53,9 @@ section 7). The rules in `docs/dashboard-polish.md` still hold: quiet chrome, on
   server draws the menu that way (no jump after the page loads). Every item names its group, so a role that cannot see a group's first
   item still sees the rest under the right heading.
 - Settings gets a real gear icon (it was drawn as a sun).
+- WhatsApp leaves the menu (#142): it is a way alerts reach a person, in Settings (Your account, Notifications; Connected services for the
+  dealership), and `/whatsapp` redirects there. Settings' own list groups its sections under Your account and Dealership from 1024px; on a
+  phone they stay one row of tabs, Your account first.
 
 ## 5. Home: browse by make
 - **Two rows that scroll sideways together**, at every width, by swipe or trackpad. The makes alternate between the rows (first,

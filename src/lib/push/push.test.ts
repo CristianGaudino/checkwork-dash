@@ -71,6 +71,24 @@ describe("push notifications follow the bell", () => {
     expect(await open(phones.conor, sent[0].body)).toEqual({ title: "Aoife Brennan gave you a lead", body: "Checkwork Motors: Finance application · 2019 Kia Soul", url: "/dealers/open?dealer=checkwork-motors&to=%2Fleads%2Fl9" });
   });
 
+  it("goes only to those who keep push on for it (Settings, Notifications, #142)", async () => {
+    const { staffStore } = await import("@/lib/whatsapp/store");
+    const conor = (await staffStore.get("u2"))!;
+    await staffStore.put({ ...conor, push: ["assigned"] });
+    try {
+      await notify({ kind: "lead", text: "Car enquiry", detail: "2019 Kia Soul", href: "/leads/real-1" });
+      expect(to()).toEqual(["aoife"]);
+      sent = [];
+      await notify({ kind: "lead", text: "Trade-in valuation", href: "/leads/real-2" }, Date.now(), "trade-in");
+      expect(to()).toEqual(["aoife"]);
+      sent = [];
+      await notify({ kind: "assigned", for: "Conor Doyle", text: "Aoife Brennan gave you a lead", href: "/leads/l9" });
+      expect(to()).toEqual(["conor"]);
+    } finally {
+      await staffStore.put(conor);
+    }
+  });
+
   it("sends nothing for the bell's other kinds, or with no keys set", async () => {
     await notify({ kind: "sync", text: "DoneDeal stock did not update", href: "/stock" });
     await notify({ kind: "warranty", text: "Warranty request", href: "/aftersales/requests/w" });

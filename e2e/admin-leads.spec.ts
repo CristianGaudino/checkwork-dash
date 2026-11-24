@@ -20,13 +20,21 @@ test("open a lead, change who has it and its status, add a note", async ({ page 
   await page.goto("/leads?status=new");
   await page.getByRole("row").nth(1).getByRole("link").first().click();
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-  await page.getByRole("button", { name: "Contacted", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Contacted", exact: true })).toHaveAttribute("aria-pressed", "true");
-  const person = page.getByRole("region", { name: "Who has it" }).getByRole("button").nth(1);
-  await person.click();
-  await expect(person).toHaveAttribute("aria-pressed", "true");
-  await page.getByLabel("Add a note").fill("Called, will visit on Saturday.");
+  // Where it stands and Who has it are drop-downs (#135, #136); a note is written in the house dialog (#138).
+  const stage = page.getByLabel("Where it stands");
+  await stage.click();
+  await page.getByRole("option", { name: "Contacted", exact: true }).click();
+  await expect(stage).toHaveValue("Contacted");
+  await expect(page.getByTestId("toast")).toContainText(": Contacted");
+  const who = page.getByRole("combobox", { name: "Who has it" });
+  await who.click();
+  await page.getByRole("listbox").getByRole("option").nth(1).click(); // the list's, not the demo bar's select
+  await expect(who).not.toHaveValue("Not taken");
   await page.getByRole("button", { name: "Add note" }).click();
+  const dialog = page.getByRole("dialog", { name: "Add a note" });
+  await dialog.getByLabel("Note").fill("Called, will visit on Saturday.");
+  await dialog.getByRole("button", { name: "Add note" }).click();
+  await expect(dialog).toBeHidden();
   await expect(page.getByText("Called, will visit on Saturday.")).toBeVisible();
 });
 
@@ -60,22 +68,22 @@ test("the list opens with what to answer now, and a lead moves on a step from it
   const more = row.getByRole("button", { name: /^More for / });
   const mark = row.getByRole("button", { name: /^Mark contacted/ });
   const to = (await mark.textContent())!.trim().replace(/^Mark /, "");
-  // The lead's own page, in a second tab: its pressed status pill is what the store holds.
+  // The lead's own page, in a second tab: its stage is what the store holds.
   const lead = await context.newPage();
-  const status = () => lead.getByRole("group", { name: "Status" }).getByRole("button", { pressed: true });
+  const status = () => lead.getByLabel("Where it stands");
   await lead.goto(href);
-  const before = (await status().textContent())!.trim();
+  const before = await status().inputValue();
   await mark.click();
   await expect(page.getByTestId("toast")).toContainText(new RegExp(to, "i"));
   await lead.reload();
-  await expect(status()).toHaveText(new RegExp(`^${to}$`, "i"));
+  await expect(status()).toHaveValue(new RegExp(`^${to}$`, "i"));
   // The step takes it off the list: the row stays where it was, saying what it became, its buttons gone.
   await expect(row.getByText(new RegExp(`^${to}$`, "i"))).toBeVisible();
   await expect(row.getByRole("button")).toHaveCount(0);
   // The pressed button went with them: the word keeps the focus, so the next Tab goes on from this row, not the top of the page.
   await expect(row.locator("[data-held]")).toBeFocused();
   await page.getByTestId("toast").getByRole("button", { name: "Undo" }).click();
-  await expect.poll(async () => (await lead.reload(), (await status().textContent())?.trim())).toBe(before);
+  await expect.poll(async () => (await lead.reload(), await status().inputValue())).toBe(before);
   await expect(more).toBeVisible(); // back to normal
 });
 
@@ -89,17 +97,20 @@ test("a step pressed on a lead someone moved already is refused, and the row is 
   // Meanwhile a colleague marks it lost on its own page.
   const lead = await context.newPage();
   await lead.goto(href);
-  const pills = lead.getByRole("group", { name: "Status" });
-  const before = (await pills.getByRole("button", { pressed: true }).textContent())!.trim();
-  await pills.getByRole("button", { name: "Lost", exact: true }).click();
-  await expect(pills.getByRole("button", { name: "Lost", exact: true })).toHaveAttribute("aria-pressed", "true");
+  const stage = lead.getByLabel("Where it stands");
+  const before = await stage.inputValue();
+  await stage.click();
+  await lead.getByRole("option", { name: "Lost", exact: true }).click();
+  await expect(stage).toHaveValue("Lost");
+  await expect(lead.getByLabel("Why was it lost?")).toBeVisible(); // the page has the saved stage, so the next pick is not stale
   await row.getByRole("button", { name: /^Mark / }).click();
   await expect(page.getByTestId("toast")).toContainText("Someone changed this already");
   // The refresh takes it off the list as lost; it is not held as done, which it is not.
   await expect(row).toHaveCount(0);
-  // Put it back by its status pill, not the toast's Undo, which may have closed by now under a loaded run.
-  await pills.getByRole("button", { name: before, exact: true }).click();
-  await expect(pills.getByRole("button", { name: before, exact: true })).toHaveAttribute("aria-pressed", "true");
+  // Put it back by its stage, not the toast's Undo, which may have closed by now under a loaded run.
+  await stage.click();
+  await lead.getByRole("option", { name: before, exact: true }).click();
+  await expect.poll(async () => (await lead.reload(), await stage.inputValue())).toBe(before);
 });
 
 test("a lead marked spam from To answer now stays in place as Spam until reload, leaves the Overview count, and Undo brings it back (#56, #94)", async ({ page, context }) => {
@@ -134,14 +145,14 @@ test("a lead marked spam from To answer now stays in place as Spam until reload,
 test("a closed lead says why, and Reopen puts back the status it had (#55)", async ({ page }) => {
   await page.goto("/leads/lead-4002"); // a lead already answered, which no other spec changes
   const group = page.getByRole("group", { name: "Status" });
-  const contacted = group.getByRole("button", { name: "Contacted", exact: true });
-  await expect(contacted).toHaveAttribute("aria-pressed", "true");
+  const stage = page.getByLabel("Where it stands");
+  await expect(stage).toHaveValue("Contacted");
   await page.getByRole("button", { name: /^More for / }).click();
   await page.getByRole("button", { name: /^Close: Duplicate/ }).click();
   await expect(page.getByText("Closed: Duplicate. Not counted as a lost sale.")).toBeVisible();
   await expect(group.getByText(/^Where it stands/)).toHaveText(/Closed$/);
   await page.getByRole("button", { name: "Reopen" }).click();
-  await expect(contacted).toHaveAttribute("aria-pressed", "true");
+  await expect(stage).toHaveValue("Contacted");
 });
 
 test("Book a test drive on a lead fills in their name and number", async ({ page }) => {

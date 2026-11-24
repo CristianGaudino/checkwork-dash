@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { choose } from "./combo";
 
 // Aftersales: a customer's page lists what they bought with its warranty; a claim opens on a purchase and moves along. The website's
 // Warranty page takes a claim too. Demo customer cust-300 bought one of the demo's recently sold cars (the sales seed).
@@ -13,8 +14,10 @@ test("a claim opens from a customer's purchase, in cover, and moves to Booked in
   await expect(page).toHaveURL(/\/aftersales\/claim-/);
   await expect(page.getByRole("region", { name: "The fault" })).toContainText("Engine light on since Monday");
   await expect(page.getByText("In cover", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Booked in" }).click();
-  await expect(page.getByRole("region", { name: "Status" }).getByText("Booked in", { exact: true }).first()).toBeVisible();
+  const status = page.getByRole("combobox", { name: "Status" }); // a drop-down of the stages, not a block of chips (#141)
+  await choose(status, "Booked in");
+  await expect(status).toHaveValue("Booked in");
+  await expect(page.getByTestId("toast")).toContainText("Claim: Booked in");
   await page.goto("/aftersales?view=open");
   await expect(page.getByRole("row").filter({ hasText: "Booked in" }).first()).toBeVisible();
   // The customer's page lists the claim, open, under Open for them (not twice).
@@ -24,9 +27,13 @@ test("a claim opens from a customer's purchase, in cover, and moves to Booked in
 
 test("a lost lead asks why", async ({ page }) => {
   await page.goto("/leads/lead-edge-2"); // the seed's own edge case, which no other test changes
-  await page.getByRole("button", { name: "Lost" }).click();
-  await page.getByRole("button", { name: "Price" }).click();
-  await expect(page.getByRole("button", { name: "Price" })).toHaveAttribute("aria-pressed", "true");
+  const stage = page.getByLabel("Where it stands");
+  await stage.click();
+  await page.getByRole("option", { name: "Lost", exact: true }).click();
+  const why = page.getByLabel("Why was it lost?");
+  await why.click();
+  await page.getByRole("option", { name: "Price" }).click();
+  await expect(why).toHaveValue("Price");
 });
 
 test("an open claim is booked in from its row in the list", async ({ page }) => {

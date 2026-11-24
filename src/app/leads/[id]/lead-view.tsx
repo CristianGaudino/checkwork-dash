@@ -8,42 +8,43 @@ import { notFound } from "next/navigation";
 import { ActButton, ChoiceAct } from "@/components/admin/ActButton";
 import { stopWhatsAppAction } from "@/app/whatsapp/actions";
 import { LeadStatusBadge } from "@/components/admin/badges";
-import { RegLookup } from "@/components/leads/RegLookup";
 import { AITextarea } from "@/components/admin/AIWriter";
 import { IfModule } from "@/components/IfModule";
-import { lookupRegStaffAction } from "@/app/reg-action";
-import { Avatar, Badge, Field, PageHeader, Panel, adminButton, adminButtonQuiet, adminInput, rowButton, rowDanger } from "@/components/admin/kit";
+import { Badge, PageHeader, Panel, adminButton, adminButtonQuiet, rowButton } from "@/components/admin/kit";
 import { LOST_REASONS, drivesStore, getSettings, leadStatusLabel, leadStatusSteps, leadsStore, statusBack } from "@/lib/admin/collections";
 import { isOpenDrive } from "@/lib/admin/drives";
 import { matchesAny, parsePersonQuery, type PersonQuery } from "@/lib/admin/person-match";
 
 import { adminCars } from "@/lib/admin/stock-admin";
 import { isSold } from "@/lib/stock/types";
-import { CalendarIcon, CarIcon, CheckIcon, CloseIcon, InboxIcon, PhoneIcon } from "@/components/stock/icons";
+import { CalendarIcon, CarIcon } from "@/components/stock/icons";
 import type { LeadStatus } from "@/lib/admin/collections";
+import { currentMember } from "@/lib/permissions";
 import { addNoteAction, assignLeadAction, setFollowUpAction, setLostReasonAction, setStatusAction } from "../actions";
-import { dublinDay, fmtDate, fmtDateTime, fmtDay, fmtTime } from "@/lib/admin/format";
+import { dublinDay, fmtDateTime, fmtDay, fmtTime } from "@/lib/admin/format";
 import { followUpDue, isOpenLead, leadMain, possibleSpam, replyVia } from "@/lib/admin/leads";
 import { siteCarUrl } from "@/lib/stock/format";
 import { dealerProfile } from "@/lib/tenancy/current";
 import { stockSource } from "@/lib/stock-source";
-import { NotesPanel } from "@/components/admin/NotesPanel";
+import { Notes } from "@/components/admin/Notes";
+import { ActSelect } from "@/components/admin/ActSelect";
+import { PersonPicker } from "@/components/admin/PersonPicker";
+import { FollowUp } from "./FollowUp";
+import { TheirCar } from "./TheirCar";
+import { saveTheirCarAction } from "./car-actions";
+import { isCarLabel, theirCar } from "./car";
 import { VisitPanel } from "@/components/admin/VisitPanel";
 import { askedCar } from "@/lib/leads/journey";
 import { ContactButtons } from "@/components/admin/ContactButtons";
 import { LeadKind, LeadTags, leadChips } from "@/components/admin/LeadKind";
-import { SubmitButton } from "@/components/admin/SubmitButton";
 import { LeadMenu, SpamButton } from "@/components/admin/LeadActions";
 import { readLead } from "@/lib/leads/lead-text";
-
-// The quick actions on a lead: the steps it moves through (leadStatusSteps), each with its icon.
-const STATUS_ICONS: Record<LeadStatus, typeof PhoneIcon> = { new: InboxIcon, contacted: PhoneIcon, appointment: CalendarIcon, won: CheckIcon, lost: CloseIcon, closed: CloseIcon, spam: CloseIcon };
 
 // One lead, worked from here. At the top: what they asked, the ways to reach them and the next step. Below: when to get back to them, who
 // has it, the reply draft and the notes. Shown at its own address under Leads, or, for a warranty request, under Aftersales (where it is
 // listed), so the menu marks the right place. The pages around it choose which.
 export async function LeadView({ id }: { id: string }) {
-  const [lead, settings, drives, { siteUrl, rules }] = await Promise.all([leadsStore.get(id), getSettings(), drivesStore.list(), dealerProfile()]);
+  const [lead, settings, drives, { siteUrl, rules }, me] = await Promise.all([leadsStore.get(id), getSettings(), drivesStore.list(), dealerProfile(), currentMember()]);
   if (!lead) notFound();
   // The car the lead asked about has sold since (here, or on DoneDeal): the salesperson offers something like it.
   const stock = lead.carSlug || lead.journey ? await adminCars() : [];
@@ -61,7 +62,11 @@ export async function LeadView({ id }: { id: string }) {
   // The one filled button: the request's own job when it can be done here, else answering them the way they got in touch.
   const modules = await enabledModules();
   const main = leadMain(lead.type, { drive: !drive && isOpenLead(lead) && modules.has("testDrives"), order: modules.has("newCars") && (await stockSource()) !== "donedeal", claim: modules.has("service") });
-  const { text, facts } = readLead(lead);
+  const read = readLead(lead);
+  const text = read.text;
+  // A car to sell or trade in has its own panel with its facts, so the answers here leave them out.
+  const hasCar = lead.reg !== undefined || lead.type === "sell" || lead.type === "trade-in";
+  const facts = hasCar ? Object.fromEntries(Object.entries(read.facts).filter(([label]) => !isCarLabel(label))) : read.facts;
   const followUpBack: Record<string, string> | undefined = !lead.followUpOn ? { clear: "1" } : lead.followUpOn >= today ? { on: lead.followUpOn } : undefined;
 
   return (
@@ -156,26 +161,28 @@ export async function LeadView({ id }: { id: string }) {
             {main === "order" && <Link href={`/orders/new?lead=${lead.id}`} className={adminButton}>Place the order</Link>}
             {/* A warranty claim from the website: open it on the sale, with the buyer found from their details. */}
             {main === "claim" && <Link href={`/aftersales/new?lead=${lead.id}`} className={adminButton}>Open a claim</Link>}
-            <div role="group" aria-label="Status" className="flex flex-col gap-2">
-              <p className="flex items-center gap-2 text-meta text-text-2">
+            {/* Where it stands (#136): one stage drop-down, as HubSpot's record and its phone app set a deal stage, never a block of chips.
+                Close and Spam are under More beside it (#55, #56), so neither is a slip away from a stage. New is in the list, so a stage moved
+                by mistake can be put back after the Undo toast has gone. Spam and closed have none: Not spam and Reopen, below, are the way back. */}
+            <div role="group" aria-label="Status" className="flex flex-col gap-1">
+              <label htmlFor="lead-stage" className="flex items-center gap-2 text-meta font-semibold">
                 Where it stands
-                {/* The pressed pill says it, except for spam and closed, which have none. */}
                 {(lead.status === "spam" || lead.status === "closed") && <LeadStatusBadge status={lead.status} type={lead.type} />}
-              </p>
-              {/* A spam lead has no steps: Not spam, below, is the way back. */}
-              {lead.status !== "spam" && (
-                <div className="flex flex-wrap gap-2">
-                  {/* New first, so a status moved by mistake can be put back after the Undo toast has gone. */}
-                  {(["new", ...leadStatusSteps(lead.type)] as LeadStatus[]).map((status) => {
-                    const Icon = STATUS_ICONS[status];
-                    return (
-                      <ChoiceAct key={status} action={setStatusAction.bind(null, lead.id)} set={{ status }} back={undoStatus} active={lead.status === status} done={`${lead.name}: ${leadStatusLabel(lead.type, status)}`}>
-                        <Icon className="size-4" />
-                        {leadStatusLabel(lead.type, status)}
-                      </ChoiceAct>
-                    );
-                  })}
-                  {/* Close and Spam: quiet, under More, so neither is a slip away from the steps (#55, #56). */}
+              </label>
+              {lead.status !== "spam" && lead.status !== "closed" && (
+                <div className="flex items-center gap-2">
+                  <div className="min-w-0 flex-1">
+                    <ActSelect
+                      id="lead-stage"
+                      value={lead.status}
+                      options={(["new", ...leadStatusSteps(lead.type)] as LeadStatus[]).map((st) => [st, leadStatusLabel(lead.type, st)] as const)}
+                      action={setStatusAction.bind(null, lead.id)}
+                      field="status"
+                      extra={{ from: lead.status }}
+                      back={undoStatus}
+                      done={`${lead.name}: `}
+                    />
+                  </div>
                   <LeadMenu lead={lead} spam={!possibleSpam(lead)} />
                 </div>
               )}
@@ -209,16 +216,20 @@ export async function LeadView({ id }: { id: string }) {
             )}
             {/* Why it was lost, for the reports. Only on a lost lead, and not on a closed warranty request, which was no sale. */}
             {lead.status === "lost" && lead.type !== "warranty" && (
-              <fieldset className="flex flex-col gap-2">
-                <legend className="mb-2 text-meta font-medium">Why was it lost?</legend>
-                <div className="flex flex-wrap gap-2">
-                  {LOST_REASONS.map((r) => (
-                    <ChoiceAct key={r} action={setLostReasonAction.bind(null, lead.id)} set={{ reason: r }} back={lead.lostReason && { reason: lead.lostReason }} active={lead.lostReason === r} done={`Lost: ${r}`}>
-                      {r}
-                    </ChoiceAct>
-                  ))}
-                </div>
-              </fieldset>
+              <div className="flex flex-col gap-1">
+                <label htmlFor="lost-reason" className="text-meta font-semibold">
+                  Why was it lost?
+                </label>
+                <ActSelect
+                  id="lost-reason"
+                  value={lead.lostReason ?? ""}
+                  options={[...(lead.lostReason ? [] : [["", "Choose a reason"] as const]), ...LOST_REASONS.map((r) => [r, r] as const)]}
+                  action={setLostReasonAction.bind(null, lead.id)}
+                  field="reason"
+                  back={lead.lostReason && { reason: lead.lostReason }}
+                  done="Lost: "
+                />
+              </div>
             )}
             {/* They ticked the WhatsApp box on the form: the site's messages reach them there until someone stops it. */}
             {lead.whatsappOptIn === false && (
@@ -252,58 +263,16 @@ export async function LeadView({ id }: { id: string }) {
               <AITextarea label="Reply draft" task="leadReply" rows={6} copy folded request={{ task: "leadReply", leadId: lead.id }} />
             </Panel>
           </IfModule>
-          {/* Selling or trading in: the car's plate, and a lookup so the dealer sees what it is before calling back. */}
-          {lead.reg && (
-            <Panel title="Their car">
-              <p className="text-body">
-                Registration <span className="font-medium tabular-nums">{lead.reg}</span>
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <RegLookup reg={lead.reg} lookup={lookupRegStaffAction} place="dashboard" className="h-11 text-meta sm:w-44" />
-              </div>
-            </Panel>
-          )}
-          <NotesPanel notes={lead.notes} action={addNoteAction.bind(null, lead.id)} />
+          {/* Selling or trading in: the car read first, with Edit and the plate's Look up, so the dealer knows what it is before calling back. */}
+          {hasCar && <TheirCar car={theirCar({ reg: lead.reg, details: read.facts })} selling={lead.type === "sell" || lead.type === "trade-in"} action={saveTheirCarAction.bind(null, lead.id)} />}
+          <Notes notes={lead.notes} action={addNoteAction.bind(null, lead.id)} me={me.name} />
         </div>
 
         <div className="flex min-w-0 flex-col gap-6 max-lg:order-first">
           {/* The day to get back to them. Only while the lead is open: won and lost need none. */}
-          {isOpenLead(lead) && (
-            <Panel title="Follow up" action={lead.followUpOn && <Badge tone={followUpDue(lead, today) ? "warn" : "neutral"}>{lead.followUpOn === today ? "Today" : fmtDate(`${lead.followUpOn}T12:00:00Z`)}</Badge>}>
-              <div className="flex flex-wrap gap-2">
-                {([[1, "Tomorrow"], [3, "In 3 days"], [7, "Next week"]] as const).map(([n, label]) => (
-                  <ChoiceAct key={n} action={setFollowUpAction.bind(null, lead.id)} set={{ in: String(n) }} back={followUpBack} active={false} done={`Follow up ${label.toLowerCase()}`}>
-                    {label}
-                  </ChoiceAct>
-                ))}
-              </div>
-              <form action={setFollowUpAction.bind(null, lead.id)} className="flex flex-wrap items-end gap-2">
-                <Field label="Or a day" className="w-44">
-                  <input type="date" name="on" min={today} defaultValue={lead.followUpOn ?? ""} required className={adminInput} />
-                </Field>
-                <SubmitButton className={adminButtonQuiet}>
-                  Set
-                </SubmitButton>
-              </form>
-              {lead.followUpOn && (
-                <ChoiceAct action={setFollowUpAction.bind(null, lead.id)} set={{ clear: "1" }} back={followUpBack} active={false} done="Follow-up cleared" className={`${rowDanger} w-fit`}>
-                  Clear the follow-up
-                </ChoiceAct>
-              )}
-            </Panel>
-          )}
+          {isOpenLead(lead) && <FollowUp action={setFollowUpAction.bind(null, lead.id)} on={lead.followUpOn} today={today} due={followUpDue(lead, today)} back={followUpBack} />}
           <Panel title="Who has it" quiet>
-            <div className="flex flex-wrap gap-2">
-              <ChoiceAct action={assignLeadAction.bind(null, lead.id)} set={{ assignedTo: "" }} back={{ assignedTo: lead.assignedTo ?? "" }} active={!lead.assignedTo} done="Not taken">
-                Not taken
-              </ChoiceAct>
-              {settings.team.map((t) => (
-                <ChoiceAct key={t.id} action={assignLeadAction.bind(null, lead.id)} set={{ assignedTo: t.name }} back={{ assignedTo: lead.assignedTo ?? "" }} active={lead.assignedTo === t.name} done={`Given to ${t.name}`}>
-                  <Avatar name={t.name} className="-ml-2 size-7 bg-card!" />
-                  {t.name}
-                </ChoiceAct>
-              ))}
-            </div>
+            <PersonPicker label="Who has it" team={settings.team.map((t) => t.name)} value={lead.assignedTo} me={me.name} action={assignLeadAction.bind(null, lead.id)} />
           </Panel>
         </div>
       </div>

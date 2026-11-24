@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { RowMenu } from "@/components/admin/RowMenu";
 import { ActButton } from "@/components/admin/ActButton";
-import { AlertForm, DetailsForm, LimitsForm } from "@/components/admin/BillingForms";
-import { Badge, DataTable, EmptyState, Facts, PageHeader, Panel, Segmented, adminButtonQuiet, rowButton, tapArea } from "@/components/admin/kit";
+import { AlertAdd, DetailsEdit, LimitsEdit } from "@/components/admin/BillingForms";
+import { Badge, DataTable, EmptyState, Facts, FormActions, PageHeader, Panel, Segmented, adminButtonQuiet, rowButton, tapArea } from "@/components/admin/kit";
 import { listing, stockSource } from "@/lib/stock-source";
 import { currentDealer } from "@/lib/tenancy/current";
 import { fmtDay, fmtNum, plural } from "@/lib/admin/format";
@@ -10,6 +10,7 @@ import { MODULES, withModule } from "@/lib/modules-rules";
 import { enabledModules } from "@/lib/modules";
 import { can, currentMember } from "@/lib/permissions";
 import { billingDetails, listBills } from "@/lib/billing/bills";
+import type { BillingDetails } from "@/lib/billing/bills-rules";
 import { eur, fmtMonth, itemise, nextBillDate, scopeName, billedServices, type Bill } from "@/lib/billing/bills-rules";
 import { AI_MODELS, KINDS, MODULE_EUR, SHOW_PRICING, TERM_LABELS, allowanceFor, setupEur, setupLines, SERVICE_LABELS, UNIT_PRICE_EUR, VAT_PCT, capOf, planEur, planFor, planLines, termSetupEur, usageEstimate, round2, withVat, yearUpfrontEur, type BillingSettings, type Scope, type Service, type UsageCount } from "@/lib/billing/rules";
 import { billingSettings, monthCounts, monthUsage } from "@/lib/billing/usage";
@@ -51,11 +52,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
 
       {section === "limits" && (
         <>
-          <Panel title="Monthly limits">
-            <p className="max-w-measure text-body text-text-2">At a limit the service stops for the rest of the month. Raising a limit works at once.</p>
-            <LimitsForm scopes={scopes} caps={b.caps} ceilings={b.ceilings} alertAt80={b.alertAt80} />
-          </Panel>
-          <Panel title="In force this month">
+          {/* The limits read first, in a table with what is spent; Edit changes them in the house dialog (#141). */}
+          <Panel title="Monthly limits" action={<LimitsEdit scopes={scopes} caps={b.caps} ceilings={b.ceilings} alertAt80={b.alertAt80} />}>
+            <p className="max-w-measure text-body text-text-2">At a limit the service stops for the rest of the month.{b.alertAt80 && " You are told when usage reaches 80% of one."}</p>
             <DataTable
               bare
               rows={scopes}
@@ -76,7 +75,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
               ]}
             />
           </Panel>
-          <Panel title="Alerts">
+          <Panel title="Alerts" action={<AlertAdd scopes={scopes} />}>
             <p className="max-w-measure text-body text-text-2">Each alert comes once a month, to the owner and managers.</p>
             {b.alerts.length > 0 ? (
               <ul className="flex flex-col divide-y divide-hairline">
@@ -98,7 +97,6 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
             ) : (
               <p className="text-body text-text-2">No alerts of your own yet.</p>
             )}
-            <AlertForm scopes={scopes} />
           </Panel>
           {modules.has("ai") && (
             <Panel title="AI writing">
@@ -174,14 +172,14 @@ function PlanAndUsage({ modules, services, usage, counts, b, now }: { modules: M
         </Panel>
         <Panel title="Something look wrong?" quiet>
           <p className="text-body text-text-2">Tell us what you expected and we check it. Our reply shows in Help.</p>
-          <div className="flex flex-wrap gap-2">
-            <Link href="/help?type=Billing&from=/billing" className={adminButtonQuiet}>
-              Ask about my bill
-            </Link>
+          <FormActions>
             <Link href="/billing?section=bills" className={rowButton}>
               Past bills
             </Link>
-          </div>
+            <Link href="/help?type=Billing&from=/billing" className={adminButtonQuiet}>
+              Ask about my bill
+            </Link>
+          </FormActions>
         </Panel>
       </div>
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start">
@@ -368,9 +366,7 @@ async function WithoutPrices() {
         </Panel>
       )}
       <SetForYou />
-      <Panel title="Billing details">
-        <DetailsForm details={details} editable={me.role === "Owner"} />
-      </Panel>
+      <BillingDetailsPanel details={details} owner={me.role === "Owner"} />
     </>
   );
 }
@@ -402,15 +398,32 @@ async function Bills({ owner, estimate }: { owner: boolean; estimate: number }) 
         />
         <p className="text-meta text-text-2">Invoices are emailed as PDFs when each bill is issued.</p>
       </Panel>
-      <Panel title="Billing details">
-        <DetailsForm details={details} editable={owner} />
-      </Panel>
+      <BillingDetailsPanel details={details} owner={owner} />
       <Panel title="How you pay">
         <p className="text-body">Payments are by direct debit.</p>
-        <Link href="/help?type=Billing&from=/billing" className={`${adminButtonQuiet} w-fit`}>
-          Change how you pay
-        </Link>
+        <FormActions>
+          <Link href="/help?type=Billing&from=/billing" className={adminButtonQuiet}>
+            Change how you pay
+          </Link>
+        </FormActions>
       </Panel>
     </>
+  );
+}
+
+// The details bills are made out to, read first; the owner changes them in the house dialog (#141).
+function BillingDetailsPanel({ details, owner }: { details: BillingDetails; owner: boolean }) {
+  return (
+    <Panel title="Billing details" action={owner ? <DetailsEdit details={details} /> : undefined}>
+      <Facts
+        items={[
+          ["Company name", details.company || "Not set"],
+          ["VAT number", details.vatNumber || "Not set"],
+          ["Billing address", details.address || "Not set"],
+          ["Email bills go to", details.email || "Not set", "[overflow-wrap:anywhere]"],
+        ]}
+      />
+      {!owner && <p className="text-meta text-text-2">Only the owner can change these.</p>}
+    </Panel>
   );
 }

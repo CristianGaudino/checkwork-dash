@@ -6,25 +6,31 @@ test("a follow-up set on a lead shows on the lead and in the list's Follow-ups d
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto("/leads/lead-edge-1"); // an open lead no other spec changes
   const panel = page.getByRole("region", { name: "Follow up" });
-  await panel.getByRole("button", { name: "Tomorrow" }).click();
+  const dialog = page.getByRole("dialog");
+  // Read first (#134): Schedule follow-up, or the day set with Edit; both open the scheduler in the house dialog.
+  await panel.getByRole("button", { name: /^(Schedule follow-up|Edit the follow-up)$/ }).click();
+  await dialog.getByRole("button", { name: /^Tomorrow/ }).click();
+  await expect(dialog).toBeHidden();
   await expect(panel).not.toContainText("Today");
-  await expect(panel.getByRole("button", { name: "Clear the follow-up" })).toBeVisible();
+  await expect(panel.getByRole("button", { name: "Edit the follow-up" })).toBeVisible();
   // Not due yet: not in Follow-ups due.
   await page.goto("/leads?due=1");
   await expect(page.getByRole("row", { name: /Aleksandra/ })).toHaveCount(0);
   // Today: due.
   await page.goto("/leads/lead-edge-1");
   const today = new Date().toLocaleDateString("en-CA", { timeZone: "Europe/Dublin" });
-  await panel.getByLabel("Or a day").fill(today);
-  await panel.getByRole("button", { name: "Set" }).click();
+  await panel.getByRole("button", { name: "Edit the follow-up" }).click();
+  await dialog.getByLabel("Day").fill(today);
+  await dialog.getByRole("button", { name: "Save" }).click();
   await expect(panel).toContainText("Today");
   await page.goto("/leads?due=1");
   await expect(page.getByRole("row", { name: /Aleksandra/ })).toContainText("Follow up today");
   await page.goto("/");
   await expect(page.getByRole("list", { name: "To do" }).getByText(/^Follow up with |follow-ups? due$/).first()).toBeVisible();
   await page.goto("/leads/lead-edge-1");
-  await panel.getByRole("button", { name: "Clear the follow-up" }).click();
-  await expect(panel.getByRole("button", { name: "Clear the follow-up" })).toHaveCount(0);
+  await panel.getByRole("button", { name: "Edit the follow-up" }).click();
+  await dialog.getByRole("button", { name: "Clear" }).click();
+  await expect(panel.getByRole("button", { name: "Schedule follow-up" })).toBeVisible();
 });
 
 test("in the DoneDeal version a sold car's sale is asked for and recorded with a customer on file", async ({ page, context }) => {

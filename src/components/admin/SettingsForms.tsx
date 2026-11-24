@@ -2,18 +2,21 @@
 
 import { useKeptForm } from "@/components/admin/useKeptForm";
 import { Select } from "@/components/Select";
-import { startTransition, useActionState, useEffect, useState } from "react";
-import { Field, adminButton, adminButtonQuiet, adminInput } from "@/components/admin/kit";
-import { addTeamAction, setRoleAction, saveBusinessAction, saveLeadEmailsAction, saveMarketingAction, sendTestEmailAction, saveNotificationsAction, saveTargetsAction, type SettingsState } from "@/app/settings/actions";
-import type { DealerSettings, TeamMember } from "@/lib/admin/collections";
-import { ROLES } from "@/lib/permission-rules";
+import { useEffect, useState } from "react";
+import { Field, FormActions, adminButton, adminButtonQuiet, adminInput } from "@/components/admin/kit";
+import { DialogCancel } from "@/components/admin/Dialog";
+import { EditDialog, useDoneOnSave } from "@/components/admin/EditDialog";
+import { addTeamAction, saveBusinessAction, saveDefaultsAction, saveLeadEmailsAction, saveMarketingAction, saveMyNotificationsAction, savePersonAction, saveProfileAction, sendTestEmailAction, saveTargetsAction, type SettingsState } from "@/app/settings/actions";
+import type { DealerSettings } from "@/lib/admin/collections";
+import { columnsFor, type Channel, type Prefs } from "@/lib/notify-rules";
+import { NotifyGrid, type GridRow } from "@/components/admin/NotifyGrid";
+import { ROLES, type Role } from "@/lib/permission-rules";
 import type { DealerProfile } from "@/lib/tenancy/profile";
-import { CheckIcon } from "@/components/stock/icons";
-import { ConfirmDialog } from "@/components/admin/ActButton";
+import { BUSY } from "@/components/admin/ActButton";
 
 const ROLE_OPTIONS = ROLES.map((r) => [r, r] as const);
 
-// Each settings panel is its own small form that saves on its own and says so; where a section has two, each Save says what it saves. The server checks every value again.
+// Each settings panel is read on the page and changed in its own dialog, which saves on its own and says so. The server checks every value again.
 type Action = (prev: SettingsState, data: FormData) => Promise<SettingsState>;
 
 function useSave(action: Action) {
@@ -25,28 +28,53 @@ function useSave(action: Action) {
   return { state, run, pending, errors: state?.errors ?? {} };
 }
 
-// The form's button. `add` for a form that adds something (a person), so the button says what it does. `label` names what it saves where a
-// section has two forms, so nobody saves one and loses the other's edits.
-function Save({ pending, saved, add = false, label = "Save" }: { pending: boolean; saved?: boolean; add?: boolean; label?: string }) {
+// A dialog's Cancel and Save, bottom right with Save right-most.
+function DialogSave({ pending }: { pending: boolean }) {
   return (
-    <div className="flex items-center gap-4">
-      <button type="submit" disabled={pending} className={adminButton}>
-        {pending ? (add ? "Adding" : "Saving") : add ? "Add" : label}
+    <FormActions>
+      <DialogCancel />
+      <button type="submit" disabled={pending} aria-busy={pending || undefined} className={`${adminButton} ${BUSY}`}>
+        {pending ? "Saving" : "Save"}
       </button>
-      {/* Says it is done and that it works at once, so nobody saves twice to be sure. */}
-      {saved && !pending && (
-        <p role="status" className="inline-flex items-center gap-1.5 text-meta font-medium text-ok">
-          <CheckIcon aria-hidden="true" className="size-4" />
-          {add ? "Added to the team" : "Saved. It works from now on"}
-        </p>
-      )}
-    </div>
+    </FormActions>
   );
 }
 
+const SAVED = "Saved. It works from now on";
+type Business = { name: string; profile: Pick<DealerProfile, "siteUrl" | "phone" | "email" | "address" | "hours"> };
+
+// The panels of Settings are read first (the page shows the values) and changed in the house dialog (#141). A save that works closes it and
+// says so; a refused one keeps it open with the errors by their fields.
+export const BusinessEdit = (props: Business) => (
+  <EditDialog title="Business details" what="business details" saved={SAVED}>
+    {(done) => <BusinessForm {...props} done={done} />}
+  </EditDialog>
+);
+export const MarketingEdit = ({ settings }: { settings: DealerSettings }) => (
+  <EditDialog title="How your posts sound" what="how your posts sound" saved={SAVED}>
+    {(done) => <MarketingForm settings={settings} done={done} />}
+  </EditDialog>
+);
+export const TargetsEdit = ({ settings }: { settings: DealerSettings }) => (
+  <EditDialog title="Timings" what="timings" saved={SAVED}>
+    {(done) => <TargetsForm settings={settings} done={done} />}
+  </EditDialog>
+);
+export const ReplyTimeEdit = ({ settings }: { settings: DealerSettings }) => (
+  <EditDialog title="Reply time" what="reply time" saved={SAVED}>
+    {(done) => <ReplyTimeForm settings={settings} done={done} />}
+  </EditDialog>
+);
+export const LeadEmailsEdit = ({ settings }: { settings: DealerSettings }) => (
+  <EditDialog title="Lead emails" what="lead emails" saved={SAVED}>
+    {(done) => <LeadEmailsForm settings={settings} done={done} />}
+  </EditDialog>
+);
+
 // The dealer's own facts. Hours: a time each for opening and closing, empty for a closed day.
-export function BusinessForm({ name, profile }: { name: string; profile: Pick<DealerProfile, "siteUrl" | "phone" | "email" | "address" | "hours"> }) {
+function BusinessForm({ name, profile, done }: Business & { done: () => void }) {
   const f = useSave(saveBusinessAction);
+  useDoneOnSave(f.state, f.pending, done);
   return (
     <form {...f.run} className="flex flex-col gap-4" noValidate>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -90,76 +118,67 @@ export function BusinessForm({ name, profile }: { name: string; profile: Pick<De
           </div>
         ))}
       </fieldset>
-      <Save pending={f.pending} saved={f.state?.saved} label="Save details" />
+      <DialogSave pending={f.pending} />
     </form>
   );
 }
 
-export function TargetsForm({ settings }: { settings: DealerSettings }) {
+function TargetsForm({ settings, done }: { settings: DealerSettings; done: () => void }) {
   const f = useSave(saveTargetsAction);
+  useDoneOnSave(f.state, f.pending, done);
   return (
-    <form {...f.run} className="grid grid-cols-1 gap-4 sm:grid-cols-2" noValidate>
-      <Field label="Reply to a new lead within (hours)" hint="Leads waiting longer show on the overview" error={f.errors.leadSlaHours}>
-        <input name="leadSlaHours" type="number" inputMode="numeric" defaultValue={settings.leadSlaHours} className={adminInput} />
-      </Field>
+    <form {...f.run} className="flex flex-col gap-4" noValidate>
       <Field label="Test drive slot (minutes)" hint="The same car cannot be booked twice within this time" error={f.errors.driveSlotMinutes}>
         <input name="driveSlotMinutes" type="number" inputMode="numeric" defaultValue={settings.driveSlotMinutes} className={adminInput} />
       </Field>
-      <div className="sm:col-span-2">
-        <Save pending={f.pending} saved={f.state?.saved} />
-      </div>
+      <DialogSave pending={f.pending} />
     </form>
   );
 }
 
-export function LeadEmailsForm({ settings, fallback }: { settings: DealerSettings; fallback: boolean }) {
+function ReplyTimeForm({ settings, done }: { settings: DealerSettings; done: () => void }) {
+  const f = useSave(saveTargetsAction);
+  useDoneOnSave(f.state, f.pending, done);
+  return (
+    <form {...f.run} className="flex flex-col gap-4" noValidate>
+      <Field label="Reply to a new lead within (hours)" hint="Leads waiting longer show on the overview" error={f.errors.leadSlaHours}>
+        <input name="leadSlaHours" type="number" inputMode="numeric" defaultValue={settings.leadSlaHours} className={adminInput} />
+      </Field>
+      <DialogSave pending={f.pending} />
+    </form>
+  );
+}
+
+function LeadEmailsForm({ settings, done }: { settings: DealerSettings; done: () => void }) {
   const f = useSave(saveLeadEmailsAction);
+  useDoneOnSave(f.state, f.pending, done);
+  return (
+    <form {...f.run} className="flex flex-col gap-4" noValidate>
+      <Field label="Send new leads to" hint="Up to five addresses, one per line" error={f.errors.leadEmails}>
+        <textarea name="leadEmails" rows={4} defaultValue={settings.leadEmails.join(String.fromCharCode(10))} className={`${adminInput} h-auto py-2`} />
+      </Field>
+      <DialogSave pending={f.pending} />
+    </form>
+  );
+}
+
+// One test message to the saved addresses, so the dealer can see it arrive. Beside the addresses it tests, not in their dialog.
+export function TestEmail() {
   const t = useSave(sendTestEmailAction as Action);
   return (
-    <div className="flex flex-col gap-4">
-      <form {...f.run} className="flex flex-col gap-3" noValidate>
-        <Field label="Send new leads to" hint="One address per line." error={f.errors.leadEmails}>
-          <textarea name="leadEmails" rows={3} defaultValue={settings.leadEmails.join(String.fromCharCode(10))} className={`${adminInput} h-auto py-2`} />
-        </Field>
-        {settings.leadEmails.length === 0 && <p className="text-meta text-text-2">{fallback ? "Using the site's own address." : "No address is set, so new leads cannot be sent yet."}</p>}
-        <Save pending={f.pending} saved={f.state?.saved} label="Save addresses" />
-      </form>
-      <form {...t.run} className="flex items-center gap-4">
-        <button type="submit" disabled={t.pending} className={adminButtonQuiet}>
-          {t.pending ? "Sending" : "Send a test email"}
-        </button>
-        {t.state?.saved && !t.pending && <p role="status" className="text-meta text-ok">Sent</p>}
-        {t.errors.test && !t.pending && <p role="alert" className="text-meta text-destructive">{t.errors.test}</p>}
-      </form>
-    </div>
-  );
-}
-
-// Only what is sent: the morning follow-up email. A new lead's email is set under Lead emails; the dashboard's own bell needs no setting.
-const NOTES: [keyof DealerSettings["notifications"], string][] = [["followUps", "Each morning, email each salesperson the follow-ups due that day"]];
-
-export function NotificationsForm({ settings, emailConnected }: { settings: DealerSettings; emailConnected: boolean }) {
-  const f = useSave(saveNotificationsAction);
-  return (
-    <form {...f.run} className="flex flex-col gap-3">
-      <fieldset className="flex flex-col gap-1">
-        <legend className="mb-1 text-meta font-semibold">Emails</legend>
-        {NOTES.map(([k, label]) => (
-          <label key={k} className="flex min-h-11 items-center gap-3">
-            <input type="checkbox" name={k} defaultChecked={settings.notifications[k]} className="size-5 shrink-0 accent-accent" />
-            {label}
-          </label>
-        ))}
-      </fieldset>
-      {!emailConnected && <p className="text-meta text-text-2">Email is not set up yet. Ask us in Help and we will connect it.</p>}
-      {f.errors.notifications && !f.pending && <p role="alert" className="text-meta text-destructive">{f.errors.notifications}</p>}
-      <Save pending={f.pending} saved={f.state?.saved} label="Save reminder" />
+    <form {...t.run} className="flex flex-wrap items-center gap-x-4 gap-y-2">
+      <button type="submit" disabled={t.pending} className={adminButtonQuiet}>
+        {t.pending ? "Sending" : "Send a test email"}
+      </button>
+      {t.state?.saved && !t.pending && <p role="status" className="text-meta text-ok">Sent</p>}
+      {t.errors.test && !t.pending && <p role="alert" className="text-meta text-destructive">{t.errors.test}</p>}
     </form>
   );
 }
 
-export function MarketingForm({ settings }: { settings: DealerSettings }) {
+function MarketingForm({ settings, done }: { settings: DealerSettings; done: () => void }) {
   const f = useSave(saveMarketingAction);
+  useDoneOnSave(f.state, f.pending, done);
   return (
     <form {...f.run} className="grid grid-cols-1 gap-4" noValidate>
       <Field label="How we sound" hint="Used when posts and newsletters are written" error={f.errors.voice}>
@@ -173,77 +192,162 @@ export function MarketingForm({ settings }: { settings: DealerSettings }) {
           <input name="signOff" defaultValue={settings.marketing.signOff} className={adminInput} />
         </Field>
       </div>
-      <Save pending={f.pending} saved={f.state?.saved} label="Save post wording" />
+      <DialogSave pending={f.pending} />
     </form>
   );
 }
 
 // `owner`: the signed-in person is an owner, so Owner is a role they may give.
-export function AddTeamForm({ owner }: { owner: boolean }) {
+export const AddPersonEdit = ({ owner }: { owner: boolean }) => (
+  <EditDialog title="Add someone" text="They sign in with this email" label="Add someone" add saved="Added to the team">
+    {(done) => <AddTeamForm owner={owner} done={done} />}
+  </EditDialog>
+);
+
+function AddTeamForm({ owner, done }: { owner: boolean; done: () => void }) {
   const f = useSave(addTeamAction);
-  // The answer the person has since edited past: its errors go (an email "already on the team" may not be any more), until the next Add.
-  const [seen, setSeen] = useState<SettingsState>();
-  const errors = f.state === seen ? {} : f.errors;
+  useDoneOnSave(f.state, f.pending, done);
   return (
-    <form {...f.run} onChange={() => setSeen(f.state)} className="grid grid-cols-1 gap-4 sm:grid-cols-4 sm:items-start" noValidate>
-      <Field label="Name" error={errors.name}>
-        <input name="name" className={adminInput} autoComplete="off" />
+    <form {...f.run} className="flex flex-col gap-4" noValidate>
+      <Field label="Name" error={f.errors.name}>
+        <input name="name" data-autofocus className={adminInput} autoComplete="off" />
       </Field>
-      <Field label="Email" error={errors.email}>
+      <Field label="Email" error={f.errors.email}>
         <input name="email" type="email" className={adminInput} autoComplete="off" />
       </Field>
-      <Field label="Role" error={errors.role}>
+      <Field label="Role" error={f.errors.role}>
         <Select name="role" defaultValue="Sales" options={owner ? ROLE_OPTIONS : ROLE_OPTIONS.filter(([r]) => r !== "Owner")} />
       </Field>
-      <div className="sm:pt-6">
-        <Save pending={f.pending} saved={f.state?.saved} add />
-      </div>
+      <FormActions>
+        <DialogCancel />
+        <button type="submit" disabled={f.pending} aria-busy={f.pending || undefined} className={`${adminButton} ${BUSY}`}>
+          {f.pending ? "Adding" : "Add"}
+        </button>
+      </FormActions>
     </form>
   );
 }
 
-// One person's role, saved as soon as it is picked, by an owner or manager (the server checks again). A refused change shows why and puts
-// the picker back to the role they still have. A change to or from Owner asks first: an owner can change everything.
-export function RoleForm({ member, owner }: { member: TeamMember; owner: boolean }) {
-  // No form here (it saves as soon as a role is picked), so the plain hook.
-  const [state, run, pending] = useActionState<SettingsState, FormData>(setRoleAction.bind(null, member.id), undefined);
-  const f = { state, run, pending, errors: state?.errors ?? {} };
-  const [picked, setPicked] = useState<string>(member.role);
-  const shown = f.state?.errors && !f.pending ? member.role : picked;
-  const [asking, setAsking] = useState<string | null>(null);
-  const save = (role: string) => {
-    setPicked(role);
-    const data = new FormData();
-    data.set("role", role);
-    startTransition(() => f.run(data));
-  };
+// Your account, Profile: your own name and phone. The email is the sign-in address, so it is shown on the page, not here.
+export const ProfileEdit = ({ name, phone }: { name: string; phone: string }) => (
+  <EditDialog title="Profile" what="your profile" saved={SAVED}>
+    {(done) => <ProfileForm name={name} phone={phone} done={done} />}
+  </EditDialog>
+);
+
+function ProfileForm({ name, phone, done }: { name: string; phone: string; done: () => void }) {
+  const f = useSave(saveProfileAction);
+  useDoneOnSave(f.state, f.pending, done);
   return (
-    <div className="flex flex-col items-end gap-1">
-      <div className="w-36">
-        <Select
-          label={`Role for ${member.name}`}
-          value={shown}
-          onChange={(role) => (role !== member.role && (role === "Owner" || member.role === "Owner") ? setAsking(role) : save(role))}
-          options={owner ? ROLE_OPTIONS : ROLE_OPTIONS.filter(([r]) => r !== "Owner")}
-        />
+    <form {...f.run} className="flex flex-col gap-4" noValidate>
+      <Field label="Name" hint="As the team sees it on leads and bookings" error={f.errors.name}>
+        <input name="name" defaultValue={name} className={adminInput} autoComplete="name" />
+      </Field>
+      <PhoneField phone={phone} error={f.errors.phone} />
+      <DialogSave pending={f.pending} />
+    </form>
+  );
+}
+
+const PhoneField = ({ phone, error, onChange }: { phone: string; error?: string; onChange?: (v: string) => void }) => (
+  <Field label="Mobile phone" hint="With the country code. WhatsApp alerts go to it." error={error}>
+    <input name="phone" type="tel" inputMode="tel" autoComplete="tel" maxLength={18} defaultValue={phone} onChange={(e) => onChange?.(e.target.value)} aria-invalid={Boolean(error)} className={adminInput} />
+  </Field>
+);
+
+// Quiet hours hold WhatsApp alerts back, so they show with its column only.
+function QuietHours({ from, to, errors }: { from: string; to: string; errors: Record<string, string> }) {
+  return (
+    <fieldset className="flex flex-col gap-2">
+      <legend className="mb-1 text-meta font-semibold">Quiet hours</legend>
+      <p className="text-meta text-text-2">No WhatsApp alerts between these times. Leave both empty for none.</p>
+      <div className="grid max-w-sm grid-cols-2 gap-3">
+        <Field label="From" error={errors.quietFrom}>
+          <input name="quietFrom" type="time" defaultValue={from} aria-invalid={Boolean(errors.quietFrom)} className={adminInput} />
+        </Field>
+        <Field label="Until" error={errors.quietTo}>
+          <input name="quietTo" type="time" defaultValue={to} aria-invalid={Boolean(errors.quietTo)} className={adminInput} />
+        </Field>
       </div>
-      {asking && (
-        <ConfirmDialog
-          confirm={asking === "Owner" ? { title: `Make ${member.name} an Owner?`, text: "Owners can change everything, including the team and other owners.", yes: "Make Owner" } : { title: `Change ${member.name} from Owner to ${asking}?`, text: `They will see only what ${asking} can see.`, yes: "Change role" }}
-          onYes={() => save(asking)}
-          onClose={() => setAsking(null)}
-        />
-      )}
-      {f.errors.role && !f.pending && (
-        <p role="alert" className="max-w-48 text-right text-meta text-destructive">
-          {f.errors.role}
-        </p>
-      )}
-      {f.state?.saved && !f.pending && (
-        <p role="status" className="text-meta text-ok">
-          Saved
-        </p>
-      )}
-    </div>
+    </fieldset>
+  );
+}
+
+export type Grid = { rows: GridRow[]; columns: Channel[]; value: Prefs; role: Role | null };
+
+// Your account, Notifications: your own grid and quiet hours.
+export const NotificationsEdit = ({ grid, quietFrom, quietTo }: { grid: Grid; quietFrom: string; quietTo: string }) => (
+  <EditDialog title="Notifications" what="your notifications" saved={SAVED}>
+    {(done) => <NotificationsForm grid={grid} quietFrom={quietFrom} quietTo={quietTo} done={done} />}
+  </EditDialog>
+);
+
+function NotificationsForm({ grid, quietFrom, quietTo, done }: { grid: Grid; quietFrom: string; quietTo: string; done: () => void }) {
+  const f = useSave(saveMyNotificationsAction);
+  useDoneOnSave(f.state, f.pending, done);
+  return (
+    <form {...f.run} className="flex flex-col gap-5" noValidate>
+      <NotifyGrid {...grid} />
+      {grid.columns.includes("whatsapp") && <QuietHours from={quietFrom} to={quietTo} errors={f.errors} />}
+      <DialogSave pending={f.pending} />
+    </form>
+  );
+}
+
+// What a new person starts with, set by an owner: every event of the plan, every channel; cut to each person's role when they are added.
+export const DefaultsEdit = ({ grid }: { grid: Grid }) => (
+  <EditDialog title="What a new person gets" what="what a new person gets" saved={SAVED}>
+    {(done) => <DefaultsForm grid={grid} done={done} />}
+  </EditDialog>
+);
+
+function DefaultsForm({ grid, done }: { grid: Grid; done: () => void }) {
+  const f = useSave(saveDefaultsAction);
+  useDoneOnSave(f.state, f.pending, done);
+  return (
+    <form {...f.run} className="flex flex-col gap-5" noValidate>
+      <NotifyGrid {...grid} />
+      {f.errors.defaults && !f.pending && <p role="alert" className="text-meta text-destructive">{f.errors.defaults}</p>}
+      <DialogSave pending={f.pending} />
+    </form>
+  );
+}
+
+// One person, from Team: their name, sign-in email, phone, role and notifications, saved together. The WhatsApp column follows the phone
+// and role as they are typed and picked (never for Finance), so the grid shows what will be saved.
+export type PersonView = { id: string; name: string; email: string; role: Role; phone: string; quietFrom: string; quietTo: string; prefs: Prefs };
+export const PersonEdit = (props: { person: PersonView; rows: GridRow[]; whatsapp: boolean; owner: boolean; self: boolean }) => (
+  <EditDialog title={props.person.name} what={`${props.person.name}'s details`} saved={SAVED}>
+    {(done) => <PersonForm {...props} done={done} />}
+  </EditDialog>
+);
+
+function PersonForm({ person, rows, whatsapp, owner, self, done }: { person: PersonView; rows: GridRow[]; whatsapp: boolean; owner: boolean; self: boolean; done: () => void }) {
+  const f = useSave(savePersonAction.bind(null, person.id));
+  useDoneOnSave(f.state, f.pending, done);
+  const [phone, setPhone] = useState(person.phone);
+  const [role, setRole] = useState<Role>(person.role);
+  const columns = columnsFor(role, { on: whatsapp, phone });
+  return (
+    <form {...f.run} className="flex flex-col gap-5" noValidate>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Field label="Name" error={f.errors.name}>
+          <input name="name" defaultValue={person.name} className={adminInput} autoComplete="off" />
+        </Field>
+        <Field label="Email" hint={self ? "Another owner or manager changes your sign-in email" : "The address they sign in with"} error={f.errors.email}>
+          <input name="email" type="email" defaultValue={person.email} readOnly={self} className={adminInput} autoComplete="off" />
+        </Field>
+        <PhoneField phone={person.phone} error={f.errors.phone} onChange={setPhone} />
+        <Field label="Role" error={f.errors.role}>
+          <Select name="role" value={role} onChange={(r) => setRole(r as Role)} options={owner ? ROLE_OPTIONS : ROLE_OPTIONS.filter(([r]) => r !== "Owner")} />
+        </Field>
+      </div>
+      <fieldset className="flex flex-col gap-2">
+        <legend className="mb-1 text-meta font-semibold">Notifications</legend>
+        <NotifyGrid rows={rows} columns={columns} value={person.prefs} role={role} />
+      </fieldset>
+      {columns.includes("whatsapp") && <QuietHours from={person.quietFrom} to={person.quietTo} errors={f.errors} />}
+      <DialogSave pending={f.pending} />
+    </form>
   );
 }

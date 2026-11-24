@@ -1,15 +1,17 @@
 import Link from "next/link";
 import { FeedbackForm, HelpForm } from "@/components/admin/HelpForms";
 import { Badge, Columns, EmptyState, PageHeader, Panel, PanelLink, adminButtonQuiet, type Tone } from "@/components/admin/kit";
-import { CalendarIcon, CarIcon, InboxIcon, PhoneIcon, ReceiptIcon, ShareIcon, UsersIcon, WhatsAppIcon } from "@/components/stock/icons";
+import { ChevronDownIcon, InboxIcon, PhoneIcon, WhatsAppIcon } from "@/components/stock/icons";
 import { fmtDateTime } from "@/lib/admin/format";
 import { feedbackStore, requestsOf } from "@/lib/admin/help";
 import { STATUS_LABELS, SUPPORT, feedbackDue, safeFrom, supportTel, supportWhatsApp, typesFor, type HelpStatus } from "@/lib/admin/help-rules";
-import { can, currentMember } from "@/lib/permissions";
+import { currentMember } from "@/lib/permissions";
+import { helpGroups } from "@/lib/help/topics";
+import { dealerProfile } from "@/lib/tenancy/current";
+import { OpenFromHash } from "./OpenFromHash";
 import { DEALER_NAV } from "@/lib/admin/nav";
 import { enabledModules } from "@/lib/modules";
-import { stockSource } from "@/lib/stock-source";
-import { listing } from "@/lib/stock-source";
+import { listing, stockSource } from "@/lib/stock-source";
 import { NEW_TAB } from "@/components/ui";
 
 export const metadata = { title: "Help" };
@@ -21,30 +23,15 @@ const contact = `${adminButtonQuiet} !h-auto w-full justify-start gap-3 py-3 tex
 // The page a request came from, as the menu names it ("Margins", "Settings"); a page deeper in an area takes its area's name.
 const pageName = (from: string) => DEALER_NAV.filter((i) => from === i.href || from.startsWith(`${i.href}/`)).sort((a, b) => b.href.length - a.href.length)[0]?.label ?? "the dashboard";
 
-type Guide = { title: string; icon: React.ReactNode; steps: string[]; href: string; go: string };
-
-// Every team member can reach us from here. First a person, one press away; then how to do the everyday jobs (most questions end there)
+// Every team member can reach us from here. First a person, one press away; then how to do the everyday jobs (most questions end there),
+// one topic per job, each closed until opened, grouped as the menu is, only those for this person's role and this dealer's plan (src/lib/help/topics.ts),
 // beside the form; then what they sent, with our replies. `from` is the page they came from, when a link sets it (the Billing page does).
 export default async function Page({ searchParams }: { searchParams: Promise<{ from?: string; type?: string }> }) {
-  const [me, sp, mods, source, { site: listingSite }] = await Promise.all([currentMember(), searchParams, enabledModules(), stockSource(), listing()]);
+  const [me, sp, modules, source, { site: listingSite }, { rules }] = await Promise.all([currentMember(), searchParams, enabledModules(), stockSource(), listing(), dealerProfile()]);
   const types = typesFor(me.role);
   const first = types.find((t) => t === sp.type) ?? types[0];
   const [mine, last] = await Promise.all([requestsOf(me.name), feedbackStore.get(me.name.toLowerCase())]);
-  const synced = source === "donedeal";
-  const margins = await can("margins"); // the cost and prep panels are only for those who see margins
-  // The common jobs, only the ones this dealer has: a module that is off, or stock kept on DoneDeal, changes them.
-  const guides: Guide[] = [
-    { title: "Answer a new lead", icon: <InboxIcon />, steps: ["Open Leads and press the person's name.", "Call, email or WhatsApp them from the top of the lead.", "Set the status to Contacted so the team knows."], href: "/leads?status=new", go: "Go to leads" },
-    ...(mods.has("testDrives") ? [{ title: "Book a test drive", icon: <CalendarIcon />, steps: ["Press Book a test drive on the Overview.", "Pick the car, the day and a free time.", "Requests from your website show under To do: press Confirm."], href: "/test-drives/new", go: "Book a test drive" }] : []),
-    synced
-      ? { title: "Add or change a car", icon: <CarIcon />, steps: [`Your cars come from ${listingSite}: add or change them there.`, "The website and this dashboard update by themselves.", ...(margins ? ["Its cost and prep are added here, on its page in Stock."] : [])], href: "/stock", go: "Go to stock" }
-      : { title: "Add a car", icon: <CarIcon />, steps: ["Press Add a car on the Overview or in Stock.", "Add the photos, the price and the details.", "Press Add car, or Save draft to finish it later."], href: "/stock/new", go: "Add a car" },
-    synced
-      ? { title: "Record a sale", icon: <ReceiptIcon />, steps: [`When a car's ad comes down on ${listingSite}, it shows under To do.`, "Press Check, then It sold.", "Add the buyer and the price."], href: "/stock?view=sold", go: "Go to sold cars" }
-      : { title: "Mark a car as sold", icon: <ReceiptIcon />, steps: ["Open Stock and find the car.", "Press Mark sold.", "Add the buyer and the price. It shows as Sold on your website."], href: "/stock", go: "Go to stock" },
-    ...(mods.has("social") ? [{ title: "Post a car to Facebook, Instagram or TikTok", icon: <ShareIcon />, steps: ["Press New post on the Overview.", "Pick the car and the photos, and write a line or two.", "Post now, or choose a day and time."], href: "/marketing/new", go: "New post" }] : []),
-    { title: "Add someone to your team", icon: <UsersIcon />, steps: ["Open Settings, then Team.", "Enter their name and email, and choose their role.", "Only an owner or manager can do this."], href: "/settings?section=team", go: "Open team settings" },
-  ];
+  const groups = helpGroups({ role: me.role, modules, synced: source === "donedeal", listingSite, oldStockDays: rules.oldStockDays });
 
   return (
     <>
@@ -92,24 +79,50 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ f
         }
       >
         <Panel title="How to">
-          <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            {guides.map((g) => (
-              <li key={g.title} className="flex flex-col gap-3 rounded-control border border-hairline bg-row-alt p-4">
-                <h3 className="flex items-center gap-2 font-semibold">
-                  <span aria-hidden="true" className="grid size-8 shrink-0 place-items-center rounded-control bg-card text-text-2 [&>svg]:size-4">
-                    {g.icon}
-                  </span>
+          <OpenFromHash />
+          <div className="flex flex-col gap-6">
+            {groups.map((g) => (
+              <section key={g.id} aria-labelledby={`help-${g.id}`} className="flex flex-col gap-2">
+                <h3 id={`help-${g.id}`} className="text-meta font-semibold text-text-2">
                   {g.title}
                 </h3>
-                <ol className="flex flex-1 list-decimal flex-col gap-1 pl-5 text-body text-text-2">
-                  {g.steps.map((s) => (
-                    <li key={s}>{s}</li>
+                {/* One topic per row, closed until asked for, as GOV.UK's and Apple Support's help pages do; several can be open at once. */}
+                <ul className="flex flex-col divide-y divide-hairline rounded-control border border-hairline">
+                  {g.topics.map((t) => (
+                    <li key={t.id}>
+                      <details id={t.id} className="group scroll-mt-24">
+                        <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 px-4 py-2 [&::-webkit-details-marker]:hidden">
+                          <span className="flex min-w-0 flex-1 flex-col">
+                            <span className="text-body font-medium">{t.title}</span>
+                            <span className="text-meta text-text-2">{t.summary}</span>
+                          </span>
+                          <ChevronDownIcon aria-hidden="true" className="size-5 shrink-0 text-text-2 transition-transform group-open:rotate-180" />
+                        </summary>
+                        <div className="flex flex-col gap-2 px-4 pb-3">
+                          {t.steps && (
+                            <ol className="flex list-decimal flex-col gap-1 pl-5 text-body text-text-2">
+                              {t.steps.map((s) => (
+                                <li key={s}>{s}</li>
+                              ))}
+                            </ol>
+                          )}
+                          {t.points && (
+                            <ul className="flex list-disc flex-col gap-1 pl-5 text-body text-text-2">
+                              {t.points.map((s) => (
+                                <li key={s}>{s}</li>
+                              ))}
+                            </ul>
+                          )}
+                          {t.note && <p className="max-w-measure text-meta text-text-2">{t.note}</p>}
+                          <PanelLink href={t.href}>{t.go}</PanelLink>
+                        </div>
+                      </details>
+                    </li>
                   ))}
-                </ol>
-                <PanelLink href={g.href}>{g.go}</PanelLink>
-              </li>
+                </ul>
+              </section>
             ))}
-          </ul>
+          </div>
         </Panel>
       </Columns>
 

@@ -7,6 +7,7 @@ import { defineCollection } from "./docs";
 import { newId } from "./ids";
 import { after } from "next/server";
 import { pushToTeam } from "@/lib/push";
+import type { NotifyEvent } from "@/lib/notify-rules";
 import { currentDealer } from "@/lib/tenancy/current";
 
 // The dashboard's own notifications: the bell. In the app only, never emailed. Each says what happened (`text`, the heading) and what it
@@ -42,7 +43,10 @@ export const PUSH_KINDS: ReadonlySet<NoticeKind> = new Set(["lead", "order", "dr
 // Best effort: a notification is never worth failing the thing that caused it, so callers need not catch. Old ones go as new ones come.
 // A push goes to the same people as the bell: the one it is `for`, or everyone. It says the dealer and opens through /dealers/open, so
 // someone at several dealers lands in the one it came from. Sent after the answer (after()), so a slow push service never holds up a form.
-export async function notify(n: Omit<Notice, "id" | "at">, at = Date.now()): Promise<void> {
+// `event`: what it is in a person's Notifications (a lead's own kind, src/lib/whatsapp/rules.ts eventOfLead), so a push goes only to those
+// who keep it on; without one, the bell's kind says.
+const KIND_EVENT: Partial<Record<NoticeKind, NotifyEvent>> = { lead: "enquiry", order: "enquiry", drive: "test-drive", assigned: "assigned" };
+export async function notify(n: Omit<Notice, "id" | "at">, at = Date.now(), event?: NotifyEvent): Promise<void> {
   try {
     await noticesStore.put({ id: newId("note"), at, ...n });
     for (const old of await noticesStore.list()) if (old.at < at - NOTICE_KEEP_DAYS * DAY) await noticesStore.remove(old.id);
@@ -52,7 +56,7 @@ export async function notify(n: Omit<Notice, "id" | "at">, at = Date.now()): Pro
   if (!PUSH_KINDS.has(n.kind)) return;
   const dealer = await currentDealer().catch(() => null);
   if (!dealer) return;
-  const send = () => pushToTeam({ title: n.text, body: n.detail ? `${dealer.name}: ${n.detail}` : dealer.name, url: `/dealers/open?${new URLSearchParams({ dealer: dealer.id, to: n.href })}` }, n.for);
+  const send = () => pushToTeam({ title: n.text, body: n.detail ? `${dealer.name}: ${n.detail}` : dealer.name, url: `/dealers/open?${new URLSearchParams({ dealer: dealer.id, to: n.href })}` }, n.for, event ?? KIND_EVENT[n.kind]);
   try {
     after(send);
   } catch {

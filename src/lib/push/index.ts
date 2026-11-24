@@ -1,5 +1,6 @@
 import "server-only";
-import { getSettings } from "@/lib/admin/collections";
+import { gets, type NotifyEvent } from "@/lib/notify-rules";
+import { people } from "@/lib/people";
 import { defineCollection } from "@/lib/admin/docs";
 import { sendPush, type PushKeys, type Vapid } from "./webpush";
 export { pushId } from "./webpush";
@@ -46,15 +47,16 @@ export function deviceLabel(ua: string): string {
 export type PushMessage = { title: string; body: string; url: string };
 
 // To each device of the people who get the matching bell notification: `for` is the one team member it is for (by name, as in the bell);
-// with none, everyone on the team. Only people still on the team. Best effort: a push never fails the thing that caused it, so this never
-// throws. A device the push service says is gone (404, 410) is removed. Any other failure is logged with its status only.
-export async function pushToTeam(msg: PushMessage, forName?: string): Promise<void> {
+// with none, everyone on the team. Only people still on the team, and only those who keep push on for `event` (Settings, Notifications).
+// Best effort: a push never fails the thing that caused it, so this never throws. A device the push service says is gone (404, 410) is
+// removed. Any other failure is logged with its status only.
+export async function pushToTeam(msg: PushMessage, forName?: string, event?: NotifyEvent): Promise<void> {
   try {
     const v = vapid();
     if (!v) return;
     const subs = await pushStore.list();
     if (!subs.length) return;
-    const emails = new Set((await getSettings()).team.filter((t) => !forName || t.name === forName).map((t) => t.email.toLowerCase()));
+    const emails = new Set((await people()).filter((p) => (!forName || p.name === forName) && (!event || gets(p.prefs, p.role, "push", event))).map((p) => p.email.toLowerCase()));
     const payload = JSON.stringify(msg);
     await Promise.all(
       subs

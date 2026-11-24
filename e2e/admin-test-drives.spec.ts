@@ -59,11 +59,11 @@ test("the list filters, For me keeps the bookings given to me or nobody yet, and
   await expect(rows.nth(1)).toContainText("Completed");
   await page.getByRole("link", { name: "For me" }).click();
   await expect(page).toHaveURL(/mine=1/);
-  const me = "Aoife Brennan"; // the demo's owner, the role the tests run as
   for (const row of await rows.all().then((r) => r.slice(1))) await expect(row).toContainText(/You|Not taken/);
   await rows.filter({ hasText: "You" }).first().getByRole("link").first().click();
   await expect(page).toHaveURL(/\/test-drives\/drive-/);
-  await expect(page.getByRole("region", { name: "Taking them out" }).getByRole("button", { name: me })).toHaveAttribute("aria-pressed", "true");
+  // The PersonPicker (#135) names the signed-in person (the demo's owner, the role the tests run as) You.
+  await expect(page.getByRole("combobox", { name: "Taking them out" })).toHaveValue("You");
 });
 
 test("the week shows seven days, and a phone gets a strip of days", async ({ page }) => {

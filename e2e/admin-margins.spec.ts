@@ -47,39 +47,49 @@ test("the demo bar's role decides what the dealer sees, the owner by default", a
 test("only an owner or manager changes the team and the settings; a manager cannot change an owner", async ({ page, context }) => {
   await as(context, "Sales");
   await page.goto("/settings?section=targets");
-  await expect(page.getByLabel("Reply to a new lead within (hours)")).toHaveCount(0); // not theirs: only their own notifications show
+  await expect(page).toHaveURL(/\/settings$/); // the dealership's sections are not theirs: back to their own account
+  await expect(page.getByRole("button", { name: "Edit timings" })).toHaveCount(0);
   await page.goto("/settings?section=team");
   await expect(page.getByRole("button", { name: "Remove" })).toHaveCount(0);
   await as(context, "Manager");
-  await page.goto("/settings?section=targets");
+  await page.goto("/settings?section=routing");
+  await page.getByRole("button", { name: "Edit reply time" }).click();
   await expect(page.getByLabel("Reply to a new lead within (hours)")).toBeEnabled();
+  await page.keyboard.press("Escape");
   await page.goto("/settings?section=team");
-  await expect(page.getByLabel("Role for Conor Doyle")).toBeVisible();
-  await expect(page.getByLabel("Role for Aoife Brennan")).toHaveCount(0); // the owner: a badge, not a picker
+  await expect(page.getByRole("button", { name: "Edit Conor Doyle's details" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Edit Aoife Brennan's details" })).toHaveCount(0); // the owner: theirs to change, not a manager's
 });
 
-test("an owner changes a role as soon as it is picked, and the team cannot be left without an owner", async ({ page }) => {
+test("an owner changes a role in the person's dialog, and the team cannot be left without an owner", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   const name = `Role test ${Date.now()}`; // its own person, so parallel specs never see a changed team
   await page.goto("/settings?section=team");
-  const add = page.locator("form").filter({ has: page.getByLabel("Name", { exact: true }) });
+  await page.getByRole("button", { name: "Add someone" }).click();
+  const add = page.getByRole("dialog", { name: "Add someone" });
   await add.getByLabel("Name", { exact: true }).fill(name);
   await add.getByLabel("Email", { exact: true }).fill(`${Date.now()}@example.com`);
   await add.getByRole("button", { name: "Add", exact: true }).click();
-  const picker = page.getByLabel(`Role for ${name}`);
-  await expect(picker).toHaveValue("Sales");
-  await picker.click();
-  await page.getByRole("listbox").getByRole("option", { name: "Finance" }).click();
-  await expect(page.getByRole("status").filter({ hasText: "Saved" }).first()).toBeVisible();
-  await page.reload();
-  await expect(page.getByLabel(`Role for ${name}`)).toHaveValue("Finance");
-  // The only owner cannot be demoted: it says why and stays an owner.
-  await page.getByLabel("Role for Aoife Brennan").click();
-  await page.getByRole("listbox").getByRole("option", { name: "Sales" }).click();
-  await page.getByRole("dialog").getByRole("button", { name: "Change role" }).click(); // to or from Owner asks first
-  await expect(page.getByRole("alert").filter({ hasText: "Keep at least one owner on the team" })).toBeVisible();
-  await expect(page.getByLabel("Role for Aoife Brennan")).toHaveValue("Owner");
   const member = page.getByRole("row").filter({ hasText: name });
+  await expect(member).toContainText("Sales ·");
+  await page.getByRole("button", { name: `Edit ${name}'s details` }).click();
+  const person = page.getByRole("dialog", { name });
+  await person.getByRole("combobox", { name: "Role" }).click();
+  await page.getByRole("listbox").getByRole("option", { name: "Finance" }).click();
+  await person.getByRole("button", { name: "Save" }).click();
+  await expect(person).toBeHidden();
+  await page.reload();
+  await expect(member).toContainText("Finance ·");
+  // The only owner cannot be demoted: it says why, keeps the dialog open, and stays an owner.
+  await page.getByRole("button", { name: "Edit Aoife Brennan's details" }).click();
+  const owner = page.getByRole("dialog", { name: "Aoife Brennan" });
+  await owner.getByRole("combobox", { name: "Role" }).click();
+  await page.getByRole("listbox").getByRole("option", { name: "Sales" }).click();
+  await owner.getByRole("button", { name: "Save" }).click();
+  await expect(owner.getByRole("alert").filter({ hasText: "Keep at least one owner on the team" })).toBeVisible();
+  page.once("dialog", (d) => d.accept());
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("row").filter({ hasText: "Aoife Brennan" })).toContainText("Owner ·");
   await member.getByRole("button", { name: `More for ${name}` }).click(); // Remove is under the row's menu (#95)
   await member.getByRole("button", { name: "Remove" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Remove" }).click();

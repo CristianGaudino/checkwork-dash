@@ -1,11 +1,12 @@
 import { dealerProfile } from "@/lib/tenancy/current";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ActButton } from "@/components/admin/ActButton";
-import { MoveDriveForm } from "@/components/admin/AddDriveForm";
+import { PersonPicker } from "@/components/admin/PersonPicker";
+import { currentMember } from "@/lib/permissions";
+import { MoveDrive } from "@/components/admin/AddDriveForm";
 import { DriveStatusBadge } from "@/components/admin/badges";
 import { DriveSteps } from "@/components/admin/DriveSteps";
-import { Badge, Facts, PageHeader, Panel, choicePill } from "@/components/admin/kit";
+import { Badge, Facts, PageHeader, Panel } from "@/components/admin/kit";
 import { drivesStore, getSettings } from "@/lib/admin/collections";
 import { isOpenDrive, slotData } from "@/lib/admin/drives";
 import { dublinDay, fmtDateTime, fmtDay, fmtTime } from "@/lib/admin/format";
@@ -25,7 +26,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const { id } = await params;
   const d = await drivesStore.get(id);
   if (!d) notFound();
-  const [cars, drives, settings, { hours }] = await Promise.all([adminCars(), drivesStore.list(), getSettings(), dealerProfile()]);
+  const [cars, drives, settings, { hours }, me] = await Promise.all([adminCars(), drivesStore.list(), getSettings(), dealerProfile(), currentMember()]);
   const car = askedCar(cars, d.carSlug); // by its id: an edit to the make, model or year gives the car a new slug
   const open = isOpenDrive(d);
   const team = settings.team.map((t) => t.name);
@@ -34,7 +35,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       <PageHeader title={d.name} text={`${d.carTitle}, ${fmtDateTime(d.startsAt)}`} back={{ href: "/test-drives", label: "Test drives" }} />
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="flex min-w-0 flex-col gap-6">
-          <Panel title="The booking">
+          {/* Read first; Change time opens the free times in the house dialog (#141). */}
+          <Panel title="The booking" action={open ? <MoveDrive id={d.id} carSlug={d.carSlug} slots={{ ...slotData(drives, hours, d.id), windowMin: settings.driveSlotMinutes }} /> : undefined}>
             <Facts
               items={[
                 ["When", when(d.startsAt)],
@@ -46,11 +48,6 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
               ] as const}
             />
           </Panel>
-          {open && (
-            <Panel title="Change the time">
-              <MoveDriveForm id={d.id} carSlug={d.carSlug} slots={{ ...slotData(drives, hours, d.id), windowMin: settings.driveSlotMinutes }} />
-            </Panel>
-          )}
         </div>
         <div className="flex min-w-0 flex-col gap-6 max-lg:order-first">
           <Panel title="Contact">
@@ -60,17 +57,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             {/* The steps due now, or Rebook once it is over. A confirmed drive still to come has none: Cancel only. */}
             <DriveSteps drive={d} page />
           </Panel>
-          <Panel title="Taking them out">
-            <div className="flex flex-wrap gap-2">
-              {["", ...team].map((name) => {
-                const on = (d.assignedTo ?? "") === name;
-                return (
-                  <ActButton key={name || "none"} act={assignDriveAction.bind(null, d.id, name)} undo={assignDriveAction.bind(null, d.id, d.assignedTo ?? "")} done={name ? `Given to ${name}` : "Given to nobody"} pressed={on} className={choicePill(on)}>
-                    {name || "Not taken"}
-                  </ActButton>
-                );
-              })}
-            </div>
+          <Panel title="Taking them out" quiet>
+            <PersonPicker label="Taking them out" team={team} value={d.assignedTo} me={me.name} action={assignDriveAction.bind(null, d.id)} />
           </Panel>
         </div>
       </div>

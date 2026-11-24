@@ -51,7 +51,9 @@ describe("a demo Sales member with the demo bar on Owner", () => {
     const before = await membersOf("checkwork-motors");
     expect((await settings.addTeamAction(undefined, form({ name: "Sam Reilly", email: "sam@example.com", role: "Owner" })))?.errors?.role).toBe(DEMO_ROLE_REFUSED);
     expect(await settings.removeTeamAction((await conor()).id)).toEqual({ error: DEMO_ROLE_REFUSED });
-    expect(await settings.setRoleAction((await conor()).id, undefined, form({ role: "Owner" }))).toEqual({ errors: { role: DEMO_ROLE_REFUSED } });
+    const c = await conor();
+    expect(await settings.savePersonAction(c.id, undefined, form({ name: c.name, email: c.email, role: "Owner" }))).toEqual({ errors: { role: DEMO_ROLE_REFUSED } });
+    expect(await settings.savePersonAction(c.id, undefined, form({ name: c.name, email: "moved@example.com", role: c.role }))).toEqual({ errors: { role: DEMO_ROLE_REFUSED } }); // the sign-in address is the directory's
     expect(await membersOf("checkwork-motors")).toEqual(before);
   });
 

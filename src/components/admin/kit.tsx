@@ -359,6 +359,17 @@ export const adminButtonQuiet = `inline-flex h-11 items-center justify-center ga
 // For what cannot be taken back: a red tint, never solid, so it never reads as the main action.
 export const dangerButton = `inline-flex h-11 items-center justify-center gap-2 rounded-control bg-bad-soft px-5 text-meta font-semibold text-bad ${press}`;
 
+// The buttons at the foot of a form, a dialog or a panel's own actions: on the right, the main one right-most and Cancel (quiet) before it,
+// as macOS, iOS and Material dialogs order them. When they do not fit a phone's width the main one wraps to the right of the line
+// below, in thumb reach. A status beside them ("Saved") takes `mr-auto` to sit on the left. Inside a Dialog it stays at the foot.
+export function FormActions({ children }: { children: React.ReactNode }) {
+  return (
+    <div data-actions className="flex flex-wrap items-center justify-end gap-2">
+      {children}
+    </div>
+  );
+}
+
 // A labelled form control. `children` is the control itself, so selects, textareas and inputs share one frame.
 export function Field({ label, hint, error, children, className = "" }: { label: string; hint?: string; error?: string; children: React.ReactNode; className?: string }) {
   return (

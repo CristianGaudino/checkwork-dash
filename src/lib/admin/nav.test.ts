@@ -7,7 +7,7 @@ describe("the sidebar's groups", () => {
     expect(top.map((i) => i.label)).toEqual(["Overview", "Leads", "Test drives", "Stock", "Marketing"]);
     expect(groups.map((g) => g.name)).toEqual(["Customers", "Results", "Settings and help"]);
     expect(groups[0].items.map((i) => i.label)).toEqual(["Customers", "Orders", "Warranty claims", "Reviews"]);
-    expect(groups[2].items.map((i) => i.label)).toContain("WhatsApp");
+    expect(groups[2].items.map((i) => i.label)).not.toContain("WhatsApp"); // a channel in Settings now (#142), not a place
     expect(top.length + groups.reduce((n, g) => n + g.items.length, 0)).toBe(DEALER_NAV.length);
   });
   it("keeps a heading when a role filters out its first item", () => {

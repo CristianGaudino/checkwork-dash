@@ -42,10 +42,11 @@ export async function setDriveStatusAction(id: string, status: string, from?: st
   revalidatePath("/test-drives");
 }
 
-// Who takes the customer out: a team member's name, or "" for nobody yet. Anything else is refused.
-export async function assignDriveAction(id: string, name: string) {
+// Who takes the customer out (`assignedTo`, from the PersonPicker): a team member's name, or "" for nobody yet. Anything else is refused.
+export async function assignDriveAction(id: string, data: FormData) {
   await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
   await requireModule("testDrives"); // and only while the dealer has it
+  const name = String(data.get("assignedTo") ?? "").slice(0, DRIVE_LIMITS.name);
   const drive = await drivesStore.get(id);
   const { team } = await getSettings();
   if (!drive || (name && !team.some((t) => t.name === name)) || (drive.assignedTo ?? "") === name) return;

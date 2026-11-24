@@ -16,11 +16,14 @@ test("an order is placed, arrives into stock held for the buyer, and is handed o
   await page.getByLabel("Phone", { exact: true }).fill("+353 83 000 6666");
   await page.getByRole("button", { name: "Place order" }).click();
   await expect(page).toHaveURL(/\/orders\/order-/);
-  await expect(page.getByRole("region", { name: "Where it is" })).toContainText("Ordered");
+  // Where it is: a drop-down of the steps (#141), and Mark arrived beside it.
+  const where = page.getByRole("combobox", { name: "Where it is" });
+  await expect(where).toHaveValue("Ordered");
 
-  await page.getByRole("button", { name: "On its way" }).click();
-  await expect(page.getByRole("button", { name: "On its way" })).toHaveAttribute("aria-pressed", "true");
-  await page.getByRole("button", { name: "Arrived" }).click();
+  await choose(where, "On its way");
+  await expect(where).toHaveValue("On its way");
+  await expect(page.getByTestId("toast")).toContainText("Order: On its way");
+  await page.getByRole("button", { name: "Mark arrived" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "It has arrived" }).click(); // it cannot be stepped back, so it asks
   await page.getByRole("link", { name: "Hand over" }).click();
   await expect(page.getByText(/A deposit of €1,500 was paid on this car/)).toBeVisible();
@@ -48,10 +51,11 @@ test("cancelling an order asks first: Cancel leaves it as it was, yes cancels it
   await expect(page).toHaveURL(/\/orders\/order-/);
 
   await page.getByRole("button", { name: "Cancel the order" }).click();
+  // The house dialog is the asking: Keep the order leaves it as it was.
   const dialog = page.getByRole("dialog", { name: "Cancel this order?" });
-  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
-  await expect(dialog).toHaveCount(0);
-  await expect(page.getByRole("region", { name: "Where it is" })).toContainText("Ordered");
+  await dialog.getByRole("button", { name: "Keep the order" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByRole("combobox", { name: "Where it is" })).toHaveValue("Ordered");
 
   await page.getByRole("button", { name: "Cancel the order" }).click();
   await dialog.getByRole("button", { name: "Cancel the order" }).click();

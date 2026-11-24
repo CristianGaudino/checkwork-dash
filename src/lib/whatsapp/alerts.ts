@@ -5,6 +5,7 @@ import { modeOf } from "@/lib/integrations";
 import { recordUsage, usageAllowed } from "@/lib/billing/usage";
 import { EVENTS, alertText, eventOfLead, firstName, inQuiet, type EventId, type Facts } from "./rules";
 import { enabledModules } from "@/lib/modules";
+import { mayGet } from "@/lib/notify-rules";
 import { TIME_ZONE } from "@/lib/site";
 import { currentDealer } from "@/lib/tenancy/current";
 import type { Lead } from "@/lib/admin/collections";
@@ -18,12 +19,13 @@ import { DAY } from "@/lib/time";
 const clock = () => new Date().toLocaleTimeString("en-GB", { timeZone: TIME_ZONE, hour: "2-digit", minute: "2-digit" });
 type Draft = Omit<Msg, "id" | "at" | "via">;
 
-// Each team member's copy of one alert: still on the team, a linked phone, that alert on, and outside their quiet hours.
+// Each team member's copy of one alert: still on the team, a linked phone, that alert on and theirs to get (never Finance's, the Monday
+// summary only for those who see the full reports, src/lib/notify-rules.ts), and outside their quiet hours.
 async function staffCopies(event: EventId, text: string, extra: Partial<Draft>): Promise<Draft[]> {
   const now = clock();
-  const team = new Set((await getSettings()).team.map((t) => t.id)); // only people still on the team
+  const team = new Map((await getSettings()).team.map((t) => [t.id, t.role])); // only people still on the team
   return (await staffStore.list())
-    .filter((p) => team.has(p.id) && p.phone && p.alerts.includes(event) && !inQuiet(now, p.quietFrom, p.quietTo))
+    .filter((p) => team.has(p.id) && p.phone && p.alerts.includes(event) && mayGet(team.get(p.id)!, "whatsapp", event) && !inQuiet(now, p.quietFrom, p.quietTo))
     .map((p) => ({ thread: "staff", from: "site", to: p.name, event, text, buttons: EVENTS[event].buttons, ...extra }));
 }
 

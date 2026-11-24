@@ -9,7 +9,8 @@ import { dublinMs } from "./format";
 import { noticeOfLead, notify } from "./notifications";
 import { MINUTE } from "@/lib/time";
 import { alertStaffOnWhatsApp } from "@/lib/whatsapp/alerts";
-import { hasModule } from "@/lib/modules";
+import { enabledModules, hasModule } from "@/lib/modules";
+import { eventOfLead } from "@/lib/whatsapp/rules";
 import type { SpamVerdict } from "@/lib/leads/spam";
 
 // What visitors send reaches the dealer's admin as records. The lead pipeline (consent, bot check, retention) stays the one way in:
@@ -103,7 +104,7 @@ export async function mirrorLead(row: LeadRow, emailed = true, photos = 0, journ
     const known = await customersStore.get(id);
     const c: Customer = known ?? { id, name: row.name, email: row.email ?? "", phone: row.phone ?? "", source: "Website", marketingConsent: false, createdAt: row.consentAt.getTime(), lastContactAt: 0 };
     await customersStore.put({ ...c, lastContactAt: row.consentAt.getTime() });
-    await notify(noticeOfLead(m.lead, m.drive), row.consentAt.getTime());
+    await notify(noticeOfLead(m.lead, m.drive), row.consentAt.getTime(), eventOfLead(m.lead.type, await enabledModules()));
     await alertStaffOnWhatsApp(m.lead);
   }
 }

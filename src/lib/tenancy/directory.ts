@@ -120,6 +120,13 @@ export async function membershipsOf(email: string): Promise<(Member & { dealer: 
   return rows.map((r) => ({ ...toMember(r.members), dealer: toDealer(r.dealers) }));
 }
 
+// Every dealer this address is on, paused ones too: whether their sign-in is shared beyond one dealer.
+export async function dealerIdsOf(email: string): Promise<string[]> {
+  const e = email.trim().toLowerCase();
+  if (!hasD1()) return mem().members.filter((x) => x.email === e).map((x) => x.dealerId);
+  return (await quiet(db().select({ id: members.dealerId }).from(members).where(eq(members.email, e)), "dealerIdsOf")).map((r) => r.id);
+}
+
 // Everyone at one dealer, oldest first.
 export async function membersOf(dealerId: string): Promise<Member[]> {
   if (!hasD1()) return mem().members.filter((x) => x.dealerId === dealerId).map((x) => ({ ...x }));

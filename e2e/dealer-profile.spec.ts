@@ -24,19 +24,21 @@ test("Test Motors shows its own name and its plan's smaller menu, and the demo b
   await page.goto("/test-drives");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Not in your plan");
   // The role is the directory's (an owner here), not the cookie's Sales; the demo bar has the theme only.
-  await page.goto("/settings");
-  await expect(page.getByRole("navigation", { name: "Settings" })).toBeVisible(); // all of Settings, not only the notifications Sales sees
+  await page.goto("/settings?section=business");
+  await expect(page.getByRole("navigation", { name: "Settings" }).getByRole("link", { name: /^Business/ })).toBeVisible(); // the dealership's sections, not only Sales's own account
   const bar = page.locator("[data-demo-bar]");
   await expect(bar.getByRole("combobox", { name: "Role" })).toHaveCount(0);
   await expect(bar.getByRole("button", { name: /^Plan/ })).toHaveCount(0);
   await expect(bar.getByRole("button", { name: /^(Light|Dark)$/ })).toBeVisible();
   // Its own facts are its owner's to change, here.
-  const phone = page.getByRole("textbox", { name: "Phone", exact: true });
-  await phone.fill("01 555 0101");
-  await page.getByRole("button", { name: "Save" }).first().click();
-  await expect(page.getByRole("status").filter({ hasText: "Saved" })).toBeVisible();
+  await page.getByRole("button", { name: "Edit business details" }).click();
+  const dialog = page.getByRole("dialog", { name: "Business details" });
+  await dialog.getByRole("textbox", { name: "Phone", exact: true }).fill("01 555 0101");
+  await dialog.getByRole("button", { name: "Save" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByTestId("toast")).toContainText("Saved");
   await page.reload();
-  await expect(page.getByRole("textbox", { name: "Phone", exact: true })).toHaveValue("01 555 0101");
+  await expect(page.getByRole("region", { name: "Business details" })).toContainText("01 555 0101");
 });
 
 test("the demo dealer still shows everything: its logo, its website and every module", async ({ page, context, baseURL }) => {

@@ -8,7 +8,7 @@ vi.mock("@/lib/tenancy/directory", async (orig) => {
   const guard = <A extends unknown[]>(fn: (...a: A) => Promise<void>) => (...a: A) => (directoryDown ? Promise.reject(new Error("directory down")) : fn(...a));
   return { ...real, putMember: guard(real.putMember), removeMember: guard(real.removeMember) };
 });
-const { changeTeamMember, getSettings, settingsStore } = await import("./collections");
+const { changeTeamMember, getSettings, moveTeamMember, settingsStore } = await import("./collections");
 const { membersOf, resetMemoryDirectory } = await import("@/lib/tenancy/directory");
 
 const roleOf = async (email: string) => (await membersOf("checkwork-motors")).find((m) => m.email === email)?.role;
@@ -47,5 +47,17 @@ describe("the team, kept in the directory and the dealer's store together", () =
     expect(await roleOf("conor@example.com")).toBe("Sales");
     await expect(changeTeamMember("conor@example.com", null, fail)).rejects.toThrow("store down");
     expect(await roleOf("conor@example.com")).toBe("Sales");
+  });
+
+  it("moves a person's sign-in email in the directory, and puts it back when the details cannot be saved (#142)", async () => {
+    const fail = async () => {
+      throw new Error("store down");
+    };
+    await expect(moveTeamMember("conor@example.com", "conor.d@example.com", "Sales", fail)).rejects.toThrow("store down");
+    expect(await roleOf("conor@example.com")).toBe("Sales");
+    expect(await roleOf("conor.d@example.com")).toBeUndefined();
+    await moveTeamMember("Conor@Example.com", "Conor.D@example.com", "Sales", async () => {});
+    expect(await roleOf("conor@example.com")).toBeUndefined();
+    expect(await roleOf("conor.d@example.com")).toBe("Sales");
   });
 });

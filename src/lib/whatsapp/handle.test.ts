@@ -316,7 +316,7 @@ describe("someone with no linked phone", () => {
     await tap("Aoife", "a1", "available");
     await typed("Aoife", "8,500");
     expect(sent).toHaveLength(0);
-    expect(said().filter((t) => t === "Link your number in Staff phones to act from here.")).toHaveLength(2);
+    expect(said().filter((t) => t === "Add your mobile phone in Settings, Profile to act from here.")).toHaveLength(2);
   });
 });
 
