@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AddPersonEdit, BusinessEdit, LeadEmailsEdit, MarketingEdit, NotificationsEdit, PersonEdit, ProfileEdit, TargetsEdit, TestEmail } from "@/components/admin/SettingsForms";
-import { Badge, DataTable, Facts, FormActions, PageHeader, Panel, dangerButton, rowDanger, tapArea } from "@/components/admin/kit";
+import { Badge, DataTable, Facts, FormActions, PageHeader, Panel, dangerButton, rowButton, rowDanger, tapArea } from "@/components/admin/kit";
 import { formatHours } from "@/lib/dealer";
 import { TabRow } from "@/components/admin/TabRow";
 import { ActButton } from "@/components/admin/ActButton";
@@ -11,7 +11,7 @@ import { Phones } from "@/components/admin/whatsapp/Phones";
 import { ChevronDownIcon } from "@/components/stock/icons";
 import { getSettings } from "@/lib/admin/collections";
 import { INTEGRATIONS, type IntegrationId, integrationText, modeOf } from "@/lib/integrations";
-import { removeTeamAction, resetDemoAction } from "./actions";
+import { removeTeamAction, resetDemoAction, signOutPersonAction } from "./actions";
 import { fmtDate, fmtNum } from "@/lib/admin/format";
 import { mayResetDemo } from "@/lib/admin/docs";
 import { syncLine } from "@/components/admin/SyncPanel";
@@ -28,6 +28,7 @@ import { BrandIcon } from "@/components/admin/BrandIcon";
 import { PushPanel } from "@/components/admin/PushPanel";
 import { pushStore, vapid } from "@/lib/push";
 import { staffIdentity } from "@/lib/staff";
+import { signInMode } from "@/lib/auth/gate";
 import { columnsFor, eventLabel, eventsFor, reachLine } from "@/lib/notify-rules";
 import { people, whatsappOn, type Person } from "@/lib/people";
 import { monthUsage } from "@/lib/billing/usage";
@@ -245,6 +246,8 @@ async function Team({ team, me, owner, rows, waOn }: { team: Person[]; me: Membe
   // A manager changes everyone but an owner.
   const mayChange = (t: { role: Role }) => may && (owner || t.role !== "Owner");
   const plan = rows.map((r) => r.id);
+  // Sign out on all devices (docs/sign-in.md, section 1): only where our sign-in is on, since under Access alone there are no sessions of ours.
+  const ours = signInMode() !== "access";
   return (
     <Panel title="Team" count={team.length} action={may && <AddPersonEdit owner={owner} />}>
       <DataTable
@@ -253,7 +256,8 @@ async function Team({ team, me, owner, rows, waOn }: { team: Person[]; me: Membe
         rowKey={(t) => t.id}
         columns={[
           // One column: the name with their role and how they are reached under it, and Edit (the house dialog) and the row's menu
-          // (Remove, #95) at the end. Remove is never on their own row: removing yourself would lock you out.
+          // (Sign out on all devices and Remove, #95) at the end. Neither is on their own row: removing yourself would lock you out, and your
+          // own sessions are yours to end (Sign out everywhere, /sign-out).
           {
             key: "name",
             header: "Name",
@@ -271,6 +275,11 @@ async function Team({ team, me, owner, rows, waOn }: { team: Person[]; me: Membe
                     <PersonEdit person={{ id: t.id, name: t.name, email: t.email, role: t.role, phone: t.phone, quietFrom: t.quietFrom, quietTo: t.quietTo, prefs: t.prefs }} rows={rows} whatsapp={waOn} owner={owner} self={t.email.toLowerCase() === me.email.toLowerCase()} />
                     {team.length > 1 && t.email.toLowerCase() !== me.email.toLowerCase() ? (
                       <RowMenu label={`More for ${t.name}`}>
+                        {ours && (
+                          <ActButton act={signOutPersonAction.bind(null, t.id)} done={`${t.name} is signed out on all devices`} confirm={{ title: `Sign ${t.name} out on all devices?`, text: "They stay on the team and can sign in again.", yes: "Sign out", safe: true }} className={rowButton}>
+                            Sign out on all devices
+                          </ActButton>
+                        )}
                         <ActButton act={removeTeamAction.bind(null, t.id)} confirm={{ title: `Remove ${t.name} from the team?`, text: "Their leads and test drives go back to nobody. They can be added again later.", yes: "Remove" }} className={rowDanger}>
                           Remove
                         </ActButton>

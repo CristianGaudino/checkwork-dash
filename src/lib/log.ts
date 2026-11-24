@@ -18,8 +18,8 @@ export function logSite({ route, dealerId, outcome, status }: { route: SiteRoute
 
 // Our sign-in's one line (docs/sign-in.md, section 5): a step and an outcome from fixed words, built by name, so an email, an IP, a code, a
 // token, a cookie or a credential id can never reach Workers Logs. Steps 4 to 6 add their steps and outcomes here.
-export type SignInStep = "sign-out" | "email" | "code" | "link" | "session";
-export type SignInOutcome = "ok" | "bad-origin" | "wrong-code" | "expired" | "rate" | "locked" | "bad-data" | "no-dealer" | "send-failed" | "bot-check" | "bot-check-off";
+export type SignInStep = "sign-out" | "email" | "code" | "link" | "session" | "invite" | "team";
+export type SignInOutcome = "ok" | "bad-origin" | "wrong-code" | "expired" | "rate" | "locked" | "bad-data" | "no-dealer" | "send-failed" | "bot-check" | "bot-check-off" | "failed";
 export function logSignIn({ step, outcome }: { step: SignInStep; outcome: SignInOutcome }): void {
   console.log(JSON.stringify({ signIn: step, outcome }));
 }

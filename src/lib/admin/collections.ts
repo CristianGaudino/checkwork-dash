@@ -6,6 +6,8 @@ import { defineCollection } from "./docs";
 import { currentDealer } from "@/lib/tenancy/current";
 import { DEV_EMAIL, membersOf, putMember, removeMember } from "@/lib/tenancy/directory";
 import { moveStaffEmail } from "@/lib/auth/attempts";
+import { endRemoved } from "@/lib/auth/session";
+import { logSignIn } from "@/lib/log";
 import { AD_PLATFORMS, NETWORKS, type AdPlatform, type Network, type PostFormat, type StoryLayout } from "./networks";
 import { demoCost } from "./margins";
 import { DAY, HOUR, MINUTE } from "@/lib/time";
@@ -455,6 +457,9 @@ const hashOf = (s: string) => [...s].reduce((h, c) => Math.imul(h ^ c.charCodeAt
 
 // Adds, changes or removes one person, in both places together: the directory first (who may open this dealer, and as what), then the
 // dealer's own details (`details`). If the directory write fails nothing has changed; if the details fail, the directory is put back.
+// A removal (role null), and only once both have stood, then ends the person's sessions, at every dealer, and their passkeys and staff row
+// if they are at no dealer now (docs/sign-in.md, section 1). If that fails the removal still stands: the membership is gone, so their
+// sessions no longer reach this dealer, and the nightly purge deletes what is left. A role change ends nothing: the role is read every request.
 export async function changeTeamMember(email: string, role: Role | null, details: () => Promise<void>): Promise<void> {
   const { id } = await currentDealer();
   const e = email.trim().toLowerCase();
@@ -468,6 +473,7 @@ export async function changeTeamMember(email: string, role: Role | null, details
     else await removeMember(id, e);
     throw err;
   }
+  if (role === null) await endRemoved(e).catch(() => logSignIn({ step: "team", outcome: "failed" }));
 }
 
 // A person's sign-in email changes (#142): the directory's membership moves to the new address at this dealer, with `role`, then the details

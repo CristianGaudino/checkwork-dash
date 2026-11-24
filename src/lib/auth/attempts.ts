@@ -26,11 +26,11 @@ export async function endLive(email: string, kinds: Kind[], now: number): Promis
   await quiet(db().update(signInAttempts).set({ expiresAt: at(now) }).where(and(eq(signInAttempts.email, email), inArray(signInAttempts.kind, kinds), isNull(signInAttempts.usedAt), gt(signInAttempts.expiresAt, at(now)))), "endLive");
 }
 
-// The gate on emails is the write: a link row (every email sent writes exactly one) goes in only while the address has fewer than `perWindow`
-// in the last `windowMs` and fewer than `perLong` in the last `longMs`, counted and inserted in one statement (in memory, in one step with no await),
+// The gate on emails is the write: every email we send writes exactly one row (a link, a confirm-code, or an invitation's `invite`, which is
+// only a count), and it goes in only while the address has fewer than `perWindow` in the last `windowMs` and fewer than `perLong` in the last `longMs`, counted and inserted in one statement (in memory, in one step with no await),
 // so parallel requests cannot all pass. True means this request may send.
 export async function reserveLink(row: Attempt, now: number, windowMs: number, perWindow: number, longMs: number, perLong: number): Promise<boolean> {
-  const sent = (since: number) => (x: Attempt) => x.email === row.email && (x.kind === "link" || x.kind === "confirm-code") && x.createdAt.getTime() > since;
+  const sent = (since: number) => (x: Attempt) => x.email === row.email && (x.kind === "link" || x.kind === "confirm-code" || x.kind === "invite") && x.createdAt.getTime() > since;
   if (!hasD1()) {
     const rows = mem().signInAttempts;
     if (rows.filter(sent(now - windowMs)).length >= perWindow || rows.filter(sent(now - longMs)).length >= perLong) return false;
@@ -38,7 +38,7 @@ export async function reserveLink(row: Attempt, now: number, windowMs: number, p
     return true;
   }
   const t = signInAttempts;
-  const count = (since: number) => sql`(select count(*) from ${t} where ${t.email} = ${row.email} and ${t.kind} in ('link', 'confirm-code') and ${t.createdAt} > ${since})`;
+  const count = (since: number) => sql`(select count(*) from ${t} where ${t.email} = ${row.email} and ${t.kind} in ('link', 'confirm-code', 'invite') and ${t.createdAt} > ${since})`;
   const rows = await quiet(
     db().all<{ id: string }>(sql`insert into ${t} (id, kind, email, tries, created_at, expires_at, token_hmac) select ${row.id}, ${row.kind}, ${row.email}, 0, ${row.createdAt.getTime()}, ${row.expiresAt.getTime()}, ${row.tokenHmac} where ${count(now - windowMs)} < ${perWindow} and ${count(now - longMs)} < ${perLong} returning id`),
     "reserveLink",
