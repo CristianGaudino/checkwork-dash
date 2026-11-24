@@ -107,6 +107,10 @@ secrets.
 6. If their website is ours: make its key with the owner API in each environment (`POST /api/owner/v1/dealers/<id>/site-keys`,
    `docs/owner-api.md`) and set it on the website. The answer is the only time the key is shown.
 
+7. Set their contract as signed, in production (and on dev if you want Billing there to match): the term, 1 or 2 years (no setup fee
+   on 2), and the free first month if they have one (`PUT /api/owner/v1/dealers/<id>/billing` with `{"term": 2, "freeMonth": "2026-12"}`,
+   `docs/owner-api.md`, "Dealer contract term"). Without it a dealer is on 1 year with no free month.
+
 ## A dealer whose stock is synced (DoneDeal or CarsIreland)
 
 DoneDeal's API is for the dealer's own site, with their written consent, and its key is given per dealer (CarsIreland works the same way).
