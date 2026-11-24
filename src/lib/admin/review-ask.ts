@@ -55,6 +55,19 @@ export function reviewReach(c: Pick<Customer, "email">, theirLeads: Pick<Lead, "
   return c.email ? { via: "email" } : null;
 }
 
+// One message to a buyer (the review ask, the NCT and service reminders): WhatsApp when `reach` says so and it can go, counted as `kind`
+// (canEmail false: when it cannot go after all, nothing is recorded and the email goes instead), else email with the way out, its replies
+// to the dealer's lead inbox, not to us. A demo dealer sends no email. A WhatsApp buyer sent an email has their conversation say so.
+// Returns how it went, or null when it could not go. sendTo throws when none went, so a failed send is never recorded as sent.
+export async function messageBuyer(reach: NonNullable<Reach>, email: string, msg: { text: string; subject: string; ref?: string }, kind: "reply" | "marketing"): Promise<"whatsapp" | "email" | null> {
+  const draft = { thread: "buyer" as const, from: "site" as const, ...(reach.via === "whatsapp" && { leadId: reach.leadId }), text: msg.text, ...(msg.ref && { ref: msg.ref }) };
+  if (reach.via === "whatsapp" && (await sendWhatsApp(draft, kind, { canEmail: false }))) return "whatsapp";
+  if (!email) return null;
+  if (!(await simulating())) await sendTo([email], { subject: msg.subject, text: `${msg.text}\n\n${REVIEW_OPT_OUT}`, replyTo: (await leadRecipients())[0] });
+  if (reach.via === "whatsapp") await sendWhatsApp(draft, kind, { email: true });
+  return "email";
+}
+
 // After a new sale is saved with the tick on. Once per sale ever, never for one undone (it is read again: an undone sale has left the car's
 // id), and only with a review link (the profile's placeId). WhatsApp is counted as usage; when it cannot go (past the cap) it goes by email; a demo
 // dealer sends nothing outside. Returns how it went, or null when nobody was asked.
@@ -70,16 +83,8 @@ export async function askForReview(carId: string): Promise<"whatsapp" | "email" 
   if (!reach) return null;
   const dealer = (await currentDealer()).name;
   const text = reviewText(firstName(c.name), sale.carTitle, dealer, reviewLink(placeId));
-  // canEmail false: if WhatsApp cannot go after all, sendWhatsApp records nothing and the email below goes instead.
-  const sent = reach.via === "whatsapp" ? await sendWhatsApp({ thread: "buyer", from: "site", leadId: reach.leadId, text }, "reply", { canEmail: false }) : null;
-  const via = sent ? "whatsapp" : "email";
-  if (via === "email") {
-    if (!c.email) return null;
-    // sendTo throws when none went, so a failed send never marks the sale as asked nor says "by email" in their conversation. Replies go
-    // to the dealer's lead inbox, not to us.
-    if (!(await simulating())) await sendTo([c.email], { subject: `${dealer}: how did we do?`, text: `${text}\n\n${REVIEW_OPT_OUT}`, replyTo: (await leadRecipients())[0] });
-    if (reach.via === "whatsapp") await sendWhatsApp({ thread: "buyer", from: "site", leadId: reach.leadId, text }, "reply", { email: true });
-  }
+  const via = await messageBuyer(reach, c.email, { text, subject: `${dealer}: how did we do?` }, "reply");
+  if (!via) return null;
   await salesStore.update(carId, (s) => ({ ...s, reviewAskedOn: dublinDay() }));
   await logActivity("customers", `Asked the buyer for a Google review, by ${via === "whatsapp" ? "WhatsApp" : "email"}`, { kind: "car", id: carId, label: sale.carTitle }); // never the buyer
   return via;

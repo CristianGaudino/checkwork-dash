@@ -107,7 +107,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
     car.reg,
     car.listedAt && !sold ? (daysInStock(car.listedAt) === "Today" ? "Added today" : `${daysInStock(car.listedAt)} in stock`) : sale ? `Sold for ${fmtEur(sale.priceEur)} on ${day(sale.soldOn)}` : sold ? `Sold ${day(car.soldAt!)}` : undefined,
     sale?.reviewAskedOn ? `Asked for a review ${day(sale.reviewAskedOn)}` : undefined,
-    ...(sale && deposits ? reminderFacts(sale, carHistory, rules.serviceMonths, dublinDay()) : []), // the buyer's NCT and service (#171), the sales module
+    ...(sale && deposits ? reminderFacts(sale, { reg: car.reg, history: carHistory }, rules.serviceMonths, dublinDay()) : []), // the buyer's NCT and service (#171), the sales module
     `${car.photos.length} ${car.photos.length === 1 ? "photo" : "photos"}`,
     car.mileageKm !== undefined ? `${fmtNum(car.mileageKm)} km` : undefined,
   ].filter(Boolean).join(" · ");

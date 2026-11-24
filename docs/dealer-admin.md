@@ -243,8 +243,10 @@ with no D1). The actor is the signed-in person (`currentMember`), or a named one
   dealer sends nothing outside. A failed ask never stops the sale: it logs the car's id and `review-ask-failed` (never the buyer) and Stock
   says "The review request did not go". The car's page and the customer show the day it was asked; Activity records it against the car.
 - **NCT and service reminders** (#171, `src/lib/admin/reminders.ts`, the sales module): a sale has its NCT due (typed on the sale form, else
-  the car's history check's NCT expiry, unless that ran out before the sale) and its service due (typed, else the dealer's `serviceMonths`
-  after the sale, 12 by default, then every `serviceMonths` after). The morning cron (`/api/reminders`, after the WhatsApp alerts in
+  the car's history check's NCT expiry, only while the check is for the car's plate and not run out before the sale; correcting a car's
+  reg drops its check) and its service due (typed, else the dealer's `serviceMonths` after the sale, 12 by default, then every
+  `serviceMonths` after; 0 means none unless typed). The NCT reminder goes once for its date: a date more than a week past is no longer
+  shown or sent, until staff type the next one on the sale. The morning cron (`/api/reminders`, after the WhatsApp alerts in
   `worker.mjs`) reminds the buyer 30 days before the NCT and on the service day (`REMINDER_LEAD_DAYS`; a run missed still sends within a
   week), once per sale per due date ever (`reminders` on the sale: kind, due date, day sent and channel). Only a buyer with marketing
   consent on their customer record, never one who stopped WhatsApp on any lead, never for a sale undone. As the review ask: WhatsApp if
@@ -252,7 +254,8 @@ with no D1). The actor is the signed-in person (`currentMember`), or a named one
   else email (free) with the dealer's lead email as reply-to and the way out. A demo dealer sends nothing outside and still records it.
   Text: "Hi Pat, the NCT on your 2019 Ford Focus is due on 24 December. Byrne Motors can book it in for you: reply here or call 01 234
   5678." (the service one: "your 2019 Ford Focus is due a service on ..."). The customer's purchases and the car's page show "NCT due",
-  "Service due" and the last "NCT reminder sent"; owners and managers see "Reminders due this month" on Customers, with what was sent.
+  "Service due" and the last "NCT reminder sent"; owners and managers see "Reminders due this month" on Customers, with what was sent,
+  or why none will go ("No marketing", "Cannot reach"). The send is shared with the review ask (`messageBuyer` in `review-ask.ts`).
   Only dates and the channel are kept; a data request exports and erases them with the buyer, and the six-year purge removes them with
   the buyer. The job logs counts only.
 - **A lost lead** asks why, from a fixed list, and Reports shows "Why leads were lost".

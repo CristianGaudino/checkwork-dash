@@ -81,6 +81,8 @@ export async function saveCarAction(id: string | null, _prev: FormState, data: F
       await dropCarPhotos(ok).catch(() => undefined);
     }
   }
+  // A corrected reg makes the kept history check another car's: it goes, so no page or NCT reminder uses it (#171).
+  if (existing && existing.reg !== car.reg) await carHistoryStore.remove(car.id);
   if (cost === null) await costsStore.remove(car.id);
   else if (cost !== undefined) await costsStore.put({ id: car.id, costEur: cost });
   await logActivity("stock", existing ? carEditSummary(existing, car) : "Added the car", carRef(car));

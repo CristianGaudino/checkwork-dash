@@ -23,6 +23,7 @@ vi.mock("./collections", () => ({
 }));
 vi.mock("./activity", () => ({ logActivity: async () => {} }));
 vi.mock("@/lib/history", () => ({ carHistoryStore: { list: async () => db.histories } }));
+vi.mock("./stock-admin", () => ({ adminCars: async () => [{ id: "car-1", reg: "191-D-1" }] }));
 vi.mock("@/lib/tenancy/current", () => ({ currentDealer: async () => ({ name: "Byrne Motors", demo: db.demo, profile: { phone: "01 234 5678", rules: { serviceMonths: 12 } } }) }));
 vi.mock("@/lib/integrations", () => ({ simulating: async () => db.demo }));
 vi.mock("@/lib/modules", () => ({ hasModule: async (m: string) => db.modules.has(m) }));
@@ -59,9 +60,13 @@ beforeEach(() => {
 
 describe("the due dates", () => {
   it("takes the NCT typed on the sale, else the history check's, never one that ran out before the sale", () => {
-    expect(nctDue({ soldOn: "2026-01-10", nctDue: "2026-12-01" }, history("2027-05-01") as never)).toBe("2026-12-01");
-    expect(nctDue({ soldOn: "2026-01-10" }, history("2027-05-01") as never)).toBe("2027-05-01");
-    expect(nctDue({ soldOn: "2026-01-10" }, history("2025-12-01") as never)).toBeUndefined(); // done since, as prep
+    const car = (nct: string, reg = "191-D-1") => ({ reg, history: history(nct) as never });
+    expect(nctDue({ soldOn: "2026-01-10", nctDue: "2026-12-01" }, car("2027-05-01"))).toBe("2026-12-01");
+    expect(nctDue({ soldOn: "2026-01-10" }, car("2027-05-01"))).toBe("2027-05-01");
+    expect(nctDue({ soldOn: "2026-01-10" }, car("2027-05-01", "191 d 1"))).toBe("2027-05-01"); // the same plate, typed loosely
+    expect(nctDue({ soldOn: "2026-01-10" }, car("2025-12-01"))).toBeUndefined(); // done since, as prep
+    expect(nctDue({ soldOn: "2026-01-10" }, car("2027-05-01", "201-D-2"))).toBeUndefined(); // a check of another plate (the reg corrected since)
+    expect(nctDue({ soldOn: "2026-01-10" }, { history: history("2027-05-01") as never })).toBeUndefined(); // the car is gone: no plate to match
     expect(nctDue({ soldOn: "2026-01-10" })).toBeUndefined();
   });
   it("puts the service the rule's months after the sale, unless typed, and the next one after a past one", () => {
@@ -69,6 +74,8 @@ describe("the due dates", () => {
     expect(serviceDue({ soldOn: "2026-03-10", serviceDue: "2026-12-01" }, 12, "2026-11-24")).toBe("2026-12-01");
     expect(serviceDue({ soldOn: "2024-03-10" }, 12, "2026-11-24")).toBe("2027-03-10"); // the third
     expect(serviceDue({ soldOn: "2025-11-20" }, 12, "2026-11-24")).toBe("2026-11-20"); // a few days past still counts, for a missed run
+    expect(serviceDue({ soldOn: "2025-11-20" }, 0, "2026-11-24")).toBeUndefined(); // a rule of 0: no service reminder
+    expect(serviceDue({ soldOn: "2025-11-20", serviceDue: "2026-12-01" }, 0, "2026-11-24")).toBe("2026-12-01"); // unless typed
   });
   it("keeps month ends: 31 January is due on the last of each month after, never drifting", () => {
     expect(serviceDue({ soldOn: "2026-01-31" }, 1, "2026-01-31")).toBe("2026-02-28");
@@ -87,6 +94,11 @@ describe("which reminders are due", () => {
     expect(remindersDue(s, undefined, 12, "2026-12-24")).toEqual([{ kind: "nct", due: "2026-12-24" }, { kind: "service", due: "2026-12-24" }]);
     expect(remindersDue(s, undefined, 12, "2026-12-31")).toHaveLength(2);
     expect(remindersDue(s, undefined, 12, "2027-01-01")).toEqual([]);
+  });
+  it("drops an NCT past by more than the late week, so a page never shows it for ever", () => {
+    const s = sale({ soldOn: "2025-11-24", nctDue: "2026-11-10" }) as never;
+    expect(reminderFacts(s, undefined, 12, "2026-11-17")[0]).toBe("NCT due 10 Nov 2026");
+    expect(reminderFacts(s, undefined, 12, "2026-11-24")).toEqual(["Service due 24 Nov 2026"]);
   });
   it("once per due date, never for a sale undone or with no buyer", () => {
     const s = sale({ soldOn: "2025-11-24", reminders: [{ kind: "service", due: "2026-11-24", on: "2026-11-24", via: "email" }] }) as never;

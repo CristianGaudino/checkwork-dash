@@ -5,11 +5,11 @@ import { ActButton } from "@/components/admin/ActButton";
 import { can } from "@/lib/permissions";
 import { notFound } from "next/navigation";
 import { hasModule } from "@/lib/modules";
-import { ALERT_KINDS, ALERT_KIND_LABELS, alertsStore, claimOpen, claimsStore, customersStore, reservationsStore, salesStore, type Customer, type StockAlert } from "@/lib/admin/collections";
+import { ALERT_KINDS, ALERT_KIND_LABELS, alertsStore, claimOpen, claimsStore, customersStore, leadsStore, reservationsStore, salesStore, type Customer, type StockAlert } from "@/lib/admin/collections";
 import { stockSource } from "@/lib/stock-source";
 import { dublinDay, fmtAgo, fmtDate, fmtNum } from "@/lib/admin/format";
-import { dueThisMonth } from "@/lib/admin/reminders";
-import { carHistoryStore } from "@/lib/history";
+import { dueThisMonth, reminderByWhatsApp, reminderReach, soldCars } from "@/lib/admin/reminders";
+import { leadsIndex } from "@/lib/admin/review-ask";
 import { currentDealer } from "@/lib/tenancy/current";
 import { pauseAlertAction, removeAlertAction } from "./actions";
 import { CallButton } from "@/components/admin/LeadActions";
@@ -178,10 +178,12 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
 }
 
 async function remindersPanel(sales: Parameters<typeof dueThisMonth>[0], customers: Customer[]) {
-  const [histories, { profile }] = await Promise.all([carHistoryStore.list(), currentDealer()]);
-  const historyOf = new Map(histories.map((h) => [h.id, h.history]));
-  const rows = dueThisMonth(sales, customers, (id) => historyOf.get(id), profile.rules.serviceMonths, dublinDay());
+  const [carOf, { profile }] = await Promise.all([soldCars(), currentDealer()]);
+  const rows = dueThisMonth(sales, customers, carOf, profile.rules.serviceMonths, dublinDay());
   if (!rows.length) return null;
+  // Why one will not go: no consent, or no way to reach them (no email and no WhatsApp, or they stopped messages), as the job decides.
+  const [theirLeads, whatsapp] = [leadsIndex(await leadsStore.list()), await reminderByWhatsApp()];
+  const why = (c: Customer) => (!c.marketingConsent ? "No marketing" : !reminderReach(c, theirLeads(c), whatsapp) ? "Cannot reach" : undefined);
   const day = (d: string) => fmtDate(`${d}T12:00:00Z`);
   return (
     <Panel title="Reminders due this month" quiet>
@@ -192,7 +194,7 @@ async function remindersPanel(sales: Parameters<typeof dueThisMonth>[0], custome
             href={`/customers/${r.customer.id}`}
             title={r.customer.name}
             detail={`${r.kind === "nct" ? "NCT" : "Service"} due ${day(r.due)}, ${r.sale.carTitle}`}
-            action={r.sent ? <Badge tone="good">Sent {day(r.sent.on)}</Badge> : !r.customer.marketingConsent ? <Badge>No marketing</Badge> : undefined}
+            action={r.sent ? <Badge tone="good">Sent {day(r.sent.on)}</Badge> : why(r.customer) && <Badge>{why(r.customer)}</Badge>}
           />
         ))}
       </TaskList>
