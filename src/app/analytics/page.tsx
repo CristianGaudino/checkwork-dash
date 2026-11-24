@@ -8,7 +8,6 @@ import { visitorFigures } from "@/lib/admin/visitor-figures";
 import { countsBetween } from "@/lib/owner-api/counters";
 import type { Range } from "@/lib/admin/analytics";
 import { AreaChart, BarList } from "@/components/admin/charts";
-import { MoreDetail } from "@/components/admin/MoreDetail";
 import { DataTable, PageHeader, Panel, Segmented, StatCard, StatGrid } from "@/components/admin/kit";
 import { RANGES, buildAnalytics, changeText, changeTone, parseRange } from "@/lib/admin/analytics";
 import { fmtNum, fmtPct, plural, threeLetter } from "@/lib/admin/format";
@@ -127,20 +126,6 @@ async function Figures({ range }: { range: Range }) {
         />
       </Panel>
 
-      {/* Worth a look now and then, not every day: folded so the page stays short. */}
-      <MoreDetail>
-        <p className="text-body">
-          {fmtNum(a.totals.pageviews)} pages viewed, <span className={{ good: "text-ok", bad: "text-bad", none: "" }[changeTone(a.totals.pageviews, a.previous.pageviews) ?? "none"]}>{changeText(a.totals.pageviews, a.previous.pageviews).toLowerCase()}</span>.
-        </p>
-        <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
-          <Panel title="Where in Ireland" quiet>
-            <BarList items={a.places.map((p) => ({ label: p.name, value: p.visitors }))} />
-          </Panel>
-          <Panel title="Devices" quiet>
-            <BarList items={a.devices.map((d) => ({ label: d.name, value: d.visitors, note: fmtPct((d.visitors / a.totals.visitors) * 100) }))} of={a.totals.visitors} />
-          </Panel>
-        </div>
-      </MoreDetail>
     </>
   );
 }
