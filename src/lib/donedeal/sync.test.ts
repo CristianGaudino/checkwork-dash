@@ -33,6 +33,12 @@ vi.mock("@/lib/admin/stock-admin", async (orig) => {
   };
 });
 vi.mock("@/lib/leads/mail", () => ({ sendTo: async (to: string[], m: { subject: string; text: string }) => void sent.push({ to, subject: m.subject, text: m.text }) }));
+// The sync's bell notices, by their heading.
+const bells: string[] = [];
+vi.mock("@/lib/admin/notifications", async (orig) => {
+  const real = await orig<typeof import("@/lib/admin/notifications")>();
+  return { ...real, notify: async (n: Parameters<typeof real.notify>[0], at?: number) => (n.kind === "sync" && bells.push(n.text), real.notify(n, at)) };
+});
 // The stored photos a removed car takes with it (R2 on the Worker; tests have no bucket).
 const dropped: string[] = [];
 vi.mock("@/lib/admin/car-photos", async (orig) => ({ ...(await orig<typeof import("@/lib/admin/car-photos")>()), dropCarPhotos: async (p: { src: string }[]) => void dropped.push(...p.map((x) => x.src)) }));
@@ -46,6 +52,7 @@ const { runAsDealer } = await import("@/lib/tenancy/current");
 const { patchDealer } = await import("@/lib/tenancy/directory");
 const { salesStore } = await import("@/lib/admin/collections");
 const { removeCar, saveCar } = await import("@/lib/admin/stock-admin");
+const { syncLine } = await import("@/components/admin/SyncPanel");
 
 // What DoneDeal lists: the cars for sale (as the simulated feed sends, src/lib/donedeal/feed.ts).
 const forSale = async () => (await adminCars()).filter(isForSale);
@@ -291,5 +298,85 @@ describe("a refused DoneDeal key (#158)", () => {
     await runSync();
     expect(await adminCars()).toEqual(before);
     expect(dropped).toEqual([]);
+  });
+});
+
+// The whole state machine, one sequence a row: what a refused, missing or failing key does to the cars, the Stock line, the bell and the
+// owners' email. Steps run `at` minutes in. "delete": Checkwork removes the key (the owner API), "newkey": a key is set again.
+describe("the sync's state, sequence by sequence", () => {
+  type Step = ["ok" | "failed" | "refused" | "not-connected" | "held" | "delete-mid-run", number] | ["delete" | "newkey"];
+  const REMOVED = "Test Motors: the DoneDeal cars were removed";
+  const LATE = "Test Motors: the DoneDeal stock has not updated yet";
+  const FIRST_REFUSAL = "DoneDeal refused the key. If it still does at the next check, its cars come off the dashboard and the website.";
+  const BY_REFUSAL = "DoneDeal refused the key, so its cars were removed.";
+  const BY_DELETE = "DoneDeal cars were removed: the DoneDeal key was removed.";
+  const NONE_YET = "No cars have come through yet.";
+  const NOT_UPDATED = "Stock did not update";
+  const CARS_REMOVED = "DoneDeal cars removed";
+  const cases: { name: string; steps: Step[]; dealer?: "demo" | "own"; noCars?: true; cars: "kept" | "removed"; line: string | RegExp; bells: string[]; emails: string[]; email?: RegExp }[] = [
+    { name: "ok", steps: [["ok", 0]], cars: "kept", line: /^Last updated .*\. No changes\.$/, bells: [], emails: [] },
+    { name: "failed 1h+", steps: [["failed", 0], ["failed", 15], ["failed", 60], ["failed", 120]], cars: "kept", line: `DoneDeal did not answer. ${NONE_YET}`, bells: [NOT_UPDATED], emails: [LATE], email: /still shows the cars/ },
+    { name: "held", steps: [["ok", 0], ["held", 15]], cars: "kept", line: /^DoneDeal sent no cars, and the site has 2\. The site kept its stock\. .* The site shows the cars from the last update/, bells: [NOT_UPDATED], emails: [] },
+    { name: "refused once", steps: [["refused", 0]], cars: "kept", line: `${FIRST_REFUSAL} ${NONE_YET}`, bells: [NOT_UPDATED], emails: [] },
+    { name: "refused twice under 10 minutes", steps: [["refused", 0], ["refused", 5]], cars: "kept", line: `${FIRST_REFUSAL} ${NONE_YET}`, bells: [NOT_UPDATED], emails: [] },
+    { name: "refused twice 10+ minutes", steps: [["refused", 0], ["refused", 10]], cars: "removed", line: BY_REFUSAL, bells: [NOT_UPDATED, CARS_REMOVED], emails: [REMOVED], email: /^DoneDeal refused the key, so its cars were removed\./ },
+    { name: "refused twice 10+ minutes, no cars", noCars: true, steps: [["refused", 0], ["refused", 10]], cars: "removed", line: BY_REFUSAL, bells: [NOT_UPDATED, CARS_REMOVED], emails: [REMOVED] },
+    { name: "refused after removal", steps: [["refused", 0], ["refused", 10], ["refused", 30], ["refused", 120]], cars: "removed", line: BY_REFUSAL, bells: [NOT_UPDATED, CARS_REMOVED], emails: [REMOVED] },
+    { name: "refused, failed, refused", steps: [["refused", 0], ["failed", 5], ["refused", 15]], cars: "kept", line: `${FIRST_REFUSAL} ${NONE_YET}`, bells: [NOT_UPDATED, NOT_UPDATED], emails: [] },
+    { name: "an outage after removal keeps why", steps: [["refused", 0], ["refused", 10], ["failed", 20]], cars: "removed", line: `${BY_REFUSAL} DoneDeal did not answer.`, bells: [NOT_UPDATED, CARS_REMOVED], emails: [REMOVED] },
+    { name: "long outage emailed, then refused twice", steps: [["failed", 0], ["failed", 60], ["refused", 75], ["refused", 90]], cars: "removed", line: BY_REFUSAL, bells: [NOT_UPDATED, NOT_UPDATED, CARS_REMOVED], emails: [LATE, REMOVED] },
+    { name: "key deleted, then runs for 1h+", steps: [["delete"], ["not-connected", 0], ["not-connected", 15], ["not-connected", 60]], cars: "removed", line: BY_DELETE, bells: [CARS_REMOVED], emails: [REMOVED], email: /^DoneDeal cars were removed: the DoneDeal key was removed\./ },
+    { name: "key deleted mid-run", steps: [["delete-mid-run", 0]], cars: "removed", line: BY_DELETE, bells: [CARS_REMOVED], emails: [] },
+    { name: "key deleted after a refusal removal", steps: [["refused", 0], ["refused", 10], ["delete"], ["not-connected", 20], ["not-connected", 120]], cars: "removed", line: BY_REFUSAL, bells: [NOT_UPDATED, CARS_REMOVED], emails: [REMOVED] },
+    { name: "key deleted, then a new key refused", steps: [["delete"], ["not-connected", 0], ["newkey"], ["refused", 15], ["refused", 30]], cars: "removed", line: BY_DELETE, bells: [CARS_REMOVED], emails: [] },
+    { name: "reconnected after removal", steps: [["refused", 0], ["refused", 10], ["ok", 20]], cars: "kept", line: /^Last updated .*\. 2 added\.$/, bells: [NOT_UPDATED, CARS_REMOVED], emails: [REMOVED] },
+    { name: "demo dealer refused twice", dealer: "demo", steps: [["refused", 0], ["refused", 15]], cars: "kept", line: /^DoneDeal refused the key\. If it still does at the next check/, bells: [NOT_UPDATED], emails: [] },
+    { name: "dealer with stock kept here", dealer: "own", steps: [["delete"], ["refused", 0], ["refused", 15]], cars: "kept", line: `${FIRST_REFUSAL} ${NONE_YET}`, bells: [NOT_UPDATED], emails: [] },
+  ];
+
+  it.each(cases)("$name", async (c) => {
+    const as = <T,>(fn: () => Promise<T>) => (c.dealer === "demo" ? fn() : runAsDealer("test-motors", fn));
+    await patchDealer("test-motors", "Test Motors", { stock: { source: c.dealer === "own" ? "checkwork" : "donedeal", listingSite: "DoneDeal", listingUrl: "https://www.donedeal.ie/" } });
+    const [a, b] = await forSale();
+    await as(async () => {
+      await resetSyncStatus();
+      if (c.dealer === "demo") return;
+      for (const car of await adminCars()) await removeCar(car.id, car);
+      if (!c.noCars) for (const [car, id] of [[a, "910001"], [b, "910002"]] as const) await saveCar({ ...car, id, slug: `car-${id}`, photos: [] });
+    });
+    const listings = c.noCars ? [a, b].map((car, i) => ({ ...car, id: `91000${i + 1}`, slug: `car-91000${i + 1}`, photos: [] })) : await as(adminCars);
+    const before = (await as(adminCars)).length;
+    sent.length = 0;
+    bells.length = 0;
+    mode = "simulated";
+    const t0 = Date.now();
+    const deleteKey = () => as(() => removeSyncedCars("the DoneDeal key was removed", "Checkwork"));
+    try {
+      for (const [step, at] of c.steps) {
+        if (step === "delete") {
+          await deleteKey();
+          mode = "off";
+        } else if (step === "newkey") mode = "simulated";
+        else {
+          feed =
+            step === "ok" ? async () => ({ ok: true, listings })
+            : step === "held" ? async () => ({ ok: true, listings: [] })
+            : step === "delete-mid-run" ? async () => (await deleteKey(), (mode = "off"), { ok: true, listings })
+            : async () => ({ ok: false, reason: step });
+          if (step === "not-connected") mode = "off";
+          await as(() => runSync({ now: t0 + at! * MINUTE }));
+        }
+      }
+    } finally {
+      mode = "simulated";
+    }
+    expect((await as(adminCars)).length).toBe(c.cars === "removed" ? 0 : c.noCars ? listings.length : before);
+    const line = syncLine(await as(syncStatus));
+    if (typeof c.line === "string") expect(line).toBe(c.line);
+    else expect(line).toMatch(c.line);
+    expect(bells).toEqual(c.bells);
+    expect(sent.map((m) => m.subject)).toEqual(c.emails);
+    if (c.email) expect(sent.at(-1)!.text).toMatch(c.email);
+    for (const m of sent) expect(m.text.match(/Contact Checkwork/g)?.length ?? 0).toBeLessThanOrEqual(1);
   });
 });
