@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { SHOW_PRICING } from "@/lib/billing/rules";
 import { notFound } from "next/navigation";
 import { Badge, DataTable, Facts, PageHeader, Panel } from "@/components/admin/kit";
 import { fmtDay } from "@/lib/admin/format";
@@ -12,7 +11,7 @@ export const metadata = { title: "Bill" };
 
 // One bill, itemised: the plan, each usage line, VAT and the total. The invoice itself is emailed as a PDF when it is issued.
 export default async function Page({ params }: { params: Promise<{ month: string }> }) {
-  if (!SHOW_PRICING || !(await can("billing"))) notFound(); // hidden for now (SHOW_PRICING)
+  if (!(await can("billing"))) notFound();
   const { month } = await params;
   const bill = /^\d{4}-\d{2}$/.test(month) ? await getBill(month) : undefined;
   if (!bill) notFound();
@@ -27,7 +26,7 @@ export default async function Page({ params }: { params: Promise<{ month: string
   ];
   return (
     <>
-      <PageHeader title={`Bill for ${fmtMonth(bill.id)}`} back={{ href: "/billing?section=bills", label: "All bills" }} />
+      <PageHeader title={`Bill for ${fmtMonth(bill.id)}`} back={{ href: "/billing", label: "Billing" }} />
       <Panel>
         <Facts
           items={[

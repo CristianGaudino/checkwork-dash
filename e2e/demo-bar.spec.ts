@@ -24,25 +24,26 @@ test("on the narrowest phone the dealer's module switches open inside the panel 
   const modules = bar.getByRole("button", { name: /^Plan/ });
   await expect(modules).toBeInViewport({ ratio: 1 });
   await modules.click();
-  const dealer = bar.getByRole("button", { name: /^Dealer/ });
-  await expect(dealer).toBeInViewport({ ratio: 1 });
-  await dealer.click();
-  await expect(modules).toContainText("Dealer");
-  await expect(dealer).toHaveAttribute("aria-pressed", "true");
+  const dashboard = bar.getByRole("button", { name: /^Dashboard/ });
+  await expect(dashboard).toBeInViewport({ ratio: 1 });
+  await dashboard.click();
+  await expect(modules).toContainText("Dashboard");
+  await expect(modules).not.toContainText("Website"); // the dashboard alone, no longer Website + Dashboard
+  await expect(dashboard).toHaveAttribute("aria-pressed", "true");
 });
 
-test("on Showroom there is no dashboard: every page is not found, the dealer tools go, and the Plan switch brings it back", async ({ page }) => {
+test("on the Website plan there is no dashboard: every page is not found, the dealer tools go, and the Plan switch brings it back", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto("/");
   const bar = await demoBar(page);
   await bar.getByRole("button", { name: /^Plan/ }).click();
-  await bar.getByRole("button", { name: /^Showroom/ }).click();
+  await bar.getByRole("button", { name: /^Website\s?€/ }).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("We couldn't find that page");
   await expect(bar.getByRole("combobox", { name: "Role" })).toHaveCount(0);
   // The page is not reloaded (no 404 now: the layout answers), so the plan list may still be open.
   const plan = bar.getByRole("button", { name: /^Plan/ });
   if ((await plan.getAttribute("aria-expanded")) !== "true") await plan.click();
-  await bar.getByRole("button", { name: /^Dealer/ }).click();
+  await bar.getByRole("button", { name: /^Website \+ Dashboard/ }).click();
   await expect(bar.getByRole("combobox", { name: "Role" })).toBeVisible(); // the dealer tools are back
 });
 

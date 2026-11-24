@@ -28,7 +28,7 @@ async function asShown(): Promise<(bill: Bill) => Bill> {
   if (!(await currentDealer()).demo) return (bill) => bill;
   const [modules, b] = await Promise.all([enabledModules(), billingSettings()]);
   const allowance = allowanceFor(modules, b);
-  return (bill) => ({ ...bill, modules: planLines(modules, b), usage: usageLines(bill.usage, allowance) });
+  return (bill) => ({ ...bill, modules: planLines(modules, b, bill.id), usage: usageLines(bill.usage, allowance) });
 }
 
 export async function billingDetails(): Promise<BillingDetails> {
@@ -40,7 +40,6 @@ export async function billingDetails(): Promise<BillingDetails> {
 function seedBills(): Bill[] {
   const today = dublinDay();
   const [y, m] = today.slice(0, 7).split("-").map(Number);
-  const modules = planLines(MODULE_IDS); // every module: the Group plan as one line and Service
   const allowance = allowanceFor(MODULE_IDS, BILLING_DEFAULT);
   return Array.from({ length: 12 }, (_, i) => {
     const d = new Date(Date.UTC(y, m - 2 - i, 1)); // i = 0 is last month
@@ -56,6 +55,6 @@ function seedBills(): Bill[] {
       { service: "whatsapp", kind: "reply", count: 40 + grow * 5 },
       { service: "whatsapp", kind: "marketing", count: i % 3 === 0 ? 40 : 0 },
     ];
-    return { id, issuedOn, dueOn: issuedOn, status: issuedOn < today ? "paid" : "due", modules, usage: usageLines(counts, allowance) };
+    return { id, issuedOn, dueOn: issuedOn, status: issuedOn < today ? "paid" : "due", modules: planLines(MODULE_IDS, BILLING_DEFAULT, id), usage: usageLines(counts, allowance) }; // every module: Website + Dashboard and Social
   });
 }

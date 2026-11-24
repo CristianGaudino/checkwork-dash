@@ -14,13 +14,13 @@ comes from.
 
 ## Usage billed per use
 
-Registration lookups, AI actions and WhatsApp messages cost the dealer per use, on top of the plan, past the plan's monthly allowance
-(#181, #223). The code that makes a paid use
-counts it with `recordUsage` and asks `usageAllowed` first (`src/lib/billing/usage.ts`): past a monthly cap (the dealer's, set by the Owner
-or Manager on Billing, or our ceiling) the service stops for the month and falls back (a lookup gives the plate's own facts, AI leaves the
-text alone, a WhatsApp reply or alert goes by email, or nothing if the buyer gave none, and a marketing message is not sent; an alert the
-plan still includes always goes). Our default limits are `DEFAULT_CEILINGS`, WhatsApp's times the branches on Group (`withBranchCeilings`). Alerts at 80% of a cap, at the cap and at amounts the dealer chose go to the owners and managers in
-the bell, once a month each. Counts are one record per month per line of the bill. Prices are in `src/lib/billing/rules.ts`.
+Registration lookups and WhatsApp messages cost the dealer per use, on top of the plan, past the plan's monthly allowance (#147, #181).
+AI writing is fair use: counted the same way, never billed, and stopped at our ceiling (`AI_FAIR_USE` actions a month). The code that
+makes a use counts it with `recordUsage` and asks `usageAllowed` first (`src/lib/billing/usage.ts`): past a monthly limit (the dealer's,
+one per paid service, set by the Owner or Manager on Billing, or our ceiling) the service stops for the month and falls back (a lookup
+gives the plate's own facts, AI leaves the text alone, a WhatsApp reply or alert goes by email, or nothing if the buyer gave none, and a
+marketing message is not sent; an alert the plan still includes always goes). Our default limits are `DEFAULT_CEILINGS` (EUR 15 of
+lookups, EUR 20 of WhatsApp past the allowance). When a limit is reached the owners and managers get one notice in the bell, once a month. Counts are one record per month per line of the bill. Prices are in `src/lib/billing/rules.ts`.
 
 ## Roles and permissions
 
@@ -88,7 +88,7 @@ What differs between dealers beyond their records is in their profile (#5): one 
 - **Defaults:** a dealer with nothing set has the dashboard alone, stock kept here, the usual rules, no website and no logo (the menu
   shows the name). A demo dealer's base is the made-up demo business (`DEMO_PROFILE`: every module, its facts and logo); the demo reset
   puts its profile back to that.
-- **Billing settings** (term, branches, brands, ceilings, caps) were already per dealer: the settings record in the dealer's own store.
+- **Billing settings** (term, first month free, ceilings, caps) were already per dealer: the settings record in the dealer's own store.
 - **Not per dealer yet:** the time zone (Europe/Dublin for all), the finance terms (`src/lib/finance/`) and the services' keys (Worker
   secrets, ours). A lead from the site API is checked against the dealer's own opening hours (`leadSchemaFor`, docs/site-api.md).
 
@@ -421,37 +421,37 @@ Until both are set every page answers 404 for everyone. The Worker checks Access
 
 ## Billing and Help
 
-The plans (#223, `TIERS` in `src/lib/billing/rules.ts`, from `docs/sales/pricing-strategy.md`), a month before VAT. Only these three tiers
-and their add-ons are sold:
+The plans (#147, `PLANS` in `src/lib/billing/rules.ts`; the decision is in `docs/decisions.md`, Pricing), a month before VAT, for one
+dealership:
 
-| Tier | Modules | Monthly | Setup | Included each month |
+| Plan | Modules | Monthly | Setup | Included each month |
 |---|---|---|---|---|
-| Showroom | Trade-in, finance, car finder, lookup on the website, reviews shown | EUR 249 | EUR 950 | 25 lookups |
-| Dealer | Showroom plus the dashboard, test drives, sales, analytics, WhatsApp, AI writing, lookup in the dashboard | EUR 449 | EUR 950 | 100 lookups, 500 WhatsApp alerts and confirmations, 100 AI actions |
-| Group | Dealer plus margins, social, stock alerts, new cars, commercial | EUR 749, plus EUR 149 per extra branch | EUR 1,950 | 100 lookups and 500 WhatsApp alerts per branch, 300 AI actions |
+| Website | Trade-in, finance, car finder, commercial vehicles, reviews, lookup on the website | EUR 149 | EUR 500 | 25 lookups |
+| Dashboard | The dashboard and every module in it: test drives, sales and customers, margins, service, reviews, stock alerts, analytics, WhatsApp, AI writing, lookup in the dashboard | EUR 149 | none | 100 lookups, 500 WhatsApp alerts and confirmations |
+| Website + Dashboard | Both | EUR 249 | EUR 500 | 100 lookups, 500 WhatsApp alerts and confirmations |
 
-- **Add-ons** at module prices (`MODULE_EUR`): any module the tier lacks, such as commercial EUR 29, service EUR 49, margins EUR 49, social EUR 99 (with 200 more AI actions a month),
-  stock alerts (module id `newsletter`) EUR 59, new cars EUR 99. New cars covers 2 brands; each more brand is EUR 29 a month and EUR 100 at setup, in a tier or not
-  (setup EUR 400 as an add-on). A plan is the cheapest tier for the dealer's modules plus add-ons; no modules is Showroom. Showroom takes
-  no add-on that is or needs the dashboard, and more than one branch is Group. The demo bar names the plan as the Billing page does, and each switch shows what turning it on adds.
-- **Over the allowance** each use is billed: lookup EUR 0.30, WhatsApp alert EUR 0.05, reply EUR 0.03, marketing message EUR 0.12, AI
-  action EUR 0.04 (Standard) or EUR 0.08 (Premium). Replies and marketing messages are never included.
-- **Payment terms** (`term`): monthly at list price, a year upfront for 11 months' price, or a 2-year contract with no setup fee.
-- `term`, `branches` (default 1) and `brands` (default 1) are billing settings set from the owner's program, as the ceilings are. Branches
-  only change Group's price and allowance until multi-branch is built (#226).
+- The plans still turn modules on and off (Modules, above): a dealer's plan is the cheapest that holds their modules (`planFor`), so no
+  modules is Website and the dashboard with any website-only module is Website + Dashboard. Everything in a plan is included.
+- **Add-on**: Social and ads (module id `social`), EUR 99 a month and EUR 150 at setup, until marketing is priced (#148).
+- **Over the allowance** each use is billed: lookup EUR 0.30, WhatsApp alert EUR 0.05, reply EUR 0.03, marketing message EUR 0.12.
+  Replies and marketing messages are never included. AI writing is never billed.
+- **Term** (`term`): a 1-year or 2-year contract; no setup fee on 2 years. **First month free** (`freeMonth`, "YYYY-MM"): that month's bill
+  has a "First month free" line that takes the plan off. Both are billing settings set from the owner's program, as the ceilings are.
+  The 12-month price lock for first dealers is in the contract, not in the app.
+- A record from before #147 still reads: "monthly" and "annual" are a 1-year term, "twoYear" a 2-year one, and its branches, brands,
+  alerts, 80% switch and "all usage" limit are ignored. The plan follows the modules, so an old Showroom dealer is now Website, Dealer
+  is Website + Dashboard, and Group is Website + Dashboard with Social and ads.
 
-`/billing` is for the Owner and Manager (`can("billing")`; anyone else gets a 404, and so does every action). It has three sections:
-the plan and this month's usage (with the payment term, what
-the allowance covers, and an "Estimate" for the month end), the setup fees (the tier's, and those of add-ons set up with
-outside accounts (Social, New cars), none on a 2-year contract;
-`setupLines` in `src/lib/billing/rules.ts`, also totalled in the demo bar's plans panel), the limits and alerts (a euro limit per service
-and for all usage, never above ours (by default EUR 15 of lookups, EUR 20 of WhatsApp (EUR 20 per branch on Group: a WhatsApp ceiling the owner's program sets is per branch too) and EUR 50 of AI past the allowance, `DEFAULT_CEILINGS`); the 80% alert; "tell me when X passes EUR N"; AI writing's quality, Premium (Claude Opus) at EUR 0.08
-an action or Standard (Claude Sonnet) at EUR 0.04, each action counted under the model that wrote it; the dealer never sees the model
-or provider's name), and the bills. With `SHOW_PRICING` false the page shows only the plan's name, its modules, the payment
-term, the writing quality and the billing details, with no euro. On a year paid upfront the month's estimated bill is the usage only. Every change is written to the activity log. Rules and maths: `src/lib/billing/bills-rules.ts`
-(unit tested); the bills are a seeded collection, `src/lib/billing/bills.ts`. There is no PDF and no download: invoices come from the
-payment provider chosen at clone time and are emailed when issued. Billing details (company, VAT number, address, email) are the
-Owner's, stored in settings as `billingDetails`. "Ask us to add" sends a Help request of type "Add to my plan"; it switches nothing on.
+`/billing` is for the Owner and Manager (`can("billing")`; anyone else gets a 404, and so does every action). It is one page: this
+month's bill (the plan's lines, pay as you go estimated to the month end, VAT and the total, with the term and the setup fee under it),
+the monthly limits (one per paid service the dealer has: what was used, what the allowance covers, what it cost, the limit, never above
+ours), the bills (this month as an "Estimate", then each past bill, opening on `/billing/<month>`), the billing details and what we set
+for the dealer. Every change is written to the activity log. Rules and maths: `src/lib/billing/bills-rules.ts` (unit tested); the bills
+are a seeded collection, `src/lib/billing/bills.ts`. There is no PDF and no download: invoices come from the payment provider chosen at
+clone time and are emailed when issued. Billing details (company, VAT number, address, email) are the Owner's, stored in settings as
+`billingDetails`. A module the plan lacks shows its not-in-plan screen with what it would add and "Ask us to add", which sends a Help
+request of type "Add to my plan"; it switches nothing on. AI writing uses the model in the billing settings (`aiModel`, Premium by
+default); the dealer no longer chooses it, as it changes nothing they pay.
 
 `/help` is for every team member: our phone, email and WhatsApp, how-to topics (#143: one job per row that opens in place, grouped
 as the menu is, each shown only to the roles it is for and with its module, `src/lib/help/topics.ts`; `/help#<topic>` opens one; WhatsApp's
@@ -562,7 +562,7 @@ app store and no outside service.
 - **Calendar**: a week of scheduled and posted posts and started ads (`calendarWeek`); drafts are not on it. A post on it opens its page.
 - **Drafts** (#93): a post's page is `/marketing/posts/[id]`. A draft or a scheduled post opens there in the composer, filled in from what was saved, and saving, posting or scheduling updates the same post (`composeAction` with `id`, under the same checks as a new one). A post that went out is shown read-only with its figures. Post now (from a row too) needs what the post's format needs (`readyToPost`).
 - **Modules**: Marketing (posts, calendar and media) is the Social and ads module; without it the page is a 404 and not in the menu. Stock alerts are on Customers.
-- **AI writing** (#179): `writeAction` (`src/lib/ai/actions.ts`) checks the `ai` module, then the monthly cap, builds the facts from the records (the browser sends ids only), writes with the model chosen on Billing, then counts the action under that model. With no `ANTHROPIC_API_KEY` (local `next dev`, tests, E2E) `writeWithAI` is the mock in `src/lib/ai/mock.ts` (deterministic, facts only, dashes stripped, 700 ms pause). With `ANTHROPIC_API_KEY` set as a Worker secret (`npx wrangler secret put ANTHROPIC_API_KEY`) it is real Claude instead (`src/lib/ai/claude.ts`, every prompt in one place), for the demo dealer too, under the same module check, monthly cap, ceiling and `AI_LIMITER` as any dealer. The demo's AI usage is a `real-` record that the demo reset keeps (the seeded lines still reset), so its monthly cap is a real monthly cap, not a daily one. A refusal, a cut-off answer or an error is a failed write, not billed, and the facts and text are never logged. Limits: the monthly AI cap (demo €25), our AI ceiling that a cap can never go past (`AI_CEILING_EUR`, €50 on every site unless the owner's program sets another; €25 on a freshly seeded demo), `AI_LIMITER` of 10 calls a minute per dealer (wrangler.jsonc, namespace 3003, 4003 on dev; Cloudflare counts it per location), short prompts (a message or review is cut to 600 characters; phone numbers and emails are taken out of the facts and the draft, and the dealer's own are put back in the answer) and `max_tokens` 2048. Set a spend limit on the Claude Console workspace too. `AIWriter` / `AITextarea` show the button, adjust chips, Undo and an "AI draft" label, and hide with the module off. Used in the post composer, the car description, the lead page (Draft a reply) and review replies.
+- **AI writing** (#179): `writeAction` (`src/lib/ai/actions.ts`) checks the `ai` module, then the monthly cap, builds the facts from the records (the browser sends ids only), writes with the model in the billing settings, then counts the action under that model. With no `ANTHROPIC_API_KEY` (local `next dev`, tests, E2E) `writeWithAI` is the mock in `src/lib/ai/mock.ts` (deterministic, facts only, dashes stripped, 700 ms pause). With `ANTHROPIC_API_KEY` set as a Worker secret (`npx wrangler secret put ANTHROPIC_API_KEY`) it is real Claude instead (`src/lib/ai/claude.ts`, every prompt in one place), for the demo dealer too, under the same module check, monthly cap, ceiling and `AI_LIMITER` as any dealer. The demo's AI usage is a `real-` record that the demo reset keeps (the seeded lines still reset), so its fair use is a real monthly one, not a daily one. A refusal, a cut-off answer or an error is a failed write, not counted, and the facts and text are never logged. Limits: our fair use of `AI_FAIR_USE` actions a month (AI writing is never billed, so the dealer sets no limit on it), `AI_LIMITER` of 10 calls a minute per dealer (wrangler.jsonc, namespace 3003, 4003 on dev; Cloudflare counts it per location), short prompts (a message or review is cut to 600 characters; phone numbers and emails are taken out of the facts and the draft, and the dealer's own are put back in the answer) and `max_tokens` 2048. Set a spend limit on the Claude Console workspace too. `AIWriter` / `AITextarea` show the button, adjust chips, Undo and an "AI draft" label, and hide with the module off. Used in the post composer, the car description, the lead page (Draft a reply) and review replies.
 
 ## Where things are
 

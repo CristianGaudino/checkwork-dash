@@ -6,10 +6,11 @@ let plan: string | undefined;
 vi.mock("next/headers", () => ({ cookies: async () => ({ get: (n: string) => (n === "checkwork-demo-modules" && plan ? { value: plan } : undefined) }), headers: async () => ({ get: () => null }) }));
 vi.mock("next/navigation", () => ({ notFound: () => { throw new Error("not-found"); } }));
 const { writeAction } = await import("./actions");
-const { saveBilling, monthCounts, recordUsage } = await import("@/lib/billing/usage");
+const { saveBilling, monthCounts, recordUsage, usageStore } = await import("@/lib/billing/usage");
 const { adminCars } = await import("@/lib/admin/stock-admin");
 const { forSale } = await import("@/lib/stock/types");
 const { reviewsStore } = await import("@/lib/admin/collections");
+const { AI_FAIR_USE } = await import("@/lib/billing/rules");
 
 const count = async (kind: string) => (await monthCounts()).filter((c) => c.service === "ai" && c.kind === kind).reduce((n, c) => n + c.count, 0); // the demo's seeded line and its kept "real-" one
 
@@ -35,14 +36,14 @@ describe("writeWithAI behind the dashboard", () => {
     expect(await count("opus")).toBe(opus + 1);
   }, 10_000);
 
-  it("says the limit is reached past the cap, writes nothing and counts nothing", async () => {
-    await saveBilling({ caps: { ai: 0 } });
+  it("says the limit is reached at our fair use, writes nothing and counts nothing", async () => {
     const review = (await reviewsStore.list())[0].id;
-    expect(await writeAction({ task: "reviewReply", reviewId: review })).toMatchObject({ ok: true }); // the plan's AI is free, so a EUR 0 limit lets it through
-    await recordUsage("ai", "opus", 300); // the plan's 300 used up
+    expect(await writeAction({ task: "reviewReply", reviewId: review })).toMatchObject({ ok: true });
+    await recordUsage("ai", "opus", AI_FAIR_USE); // past the month's fair use, whatever was used before
     const before = await count("opus");
     expect(await writeAction({ task: "reviewReply", reviewId: (await reviewsStore.list())[0].id })).toEqual({ ok: false, reason: "limit" });
     expect(await count("opus")).toBe(before);
+    for (const c of await usageStore.list()) if (c.service === "ai") await usageStore.remove(c.id); // the month's AI back to none, for the tests after
   });
 
   it("fails quietly, uncounted, for a record that is not there or a request that is not valid", async () => {
