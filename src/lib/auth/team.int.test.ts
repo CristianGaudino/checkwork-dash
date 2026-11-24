@@ -12,7 +12,7 @@ vi.mock("@opennextjs/cloudflare", async () => {
 const sent: { to: string; subject: string; text: string }[] = [];
 vi.mock("./mail", () => ({ sendSignInMail: async (m: (typeof sent)[number]) => void sent.push(m) }));
 const { drizzle, truncateIn } = await import("@/test/sqlite-d1");
-const { members, passkeys, signInAttempts, staff } = await import("@/lib/db/directory-schema");
+const { dealers, members, passkeys, signInAttempts, staff } = await import("@/lib/db/directory-schema");
 const { eq } = await import("drizzle-orm");
 const { endRemoved, readSession, startSession } = await import("./session");
 const { sendInvitation } = await import("./invite");
@@ -85,9 +85,10 @@ describe("the invitation on D1", () => {
 });
 
 describe("signOutEverywhere on D1", () => {
-  it("ends every session, then at each dealer turns off their devices and writes one line in that dealer's own history", async () => {
+  it("ends every session, then at each dealer, a paused one too, turns off their devices and writes one line in its own history", async () => {
     await db.insert(members).values({ dealerId: "test-motors", email: "sam@example.com", role: "Sales" });
     await db.insert(members).values({ dealerId: "checkwork-motors", email: "sam@example.com", role: "Sales" });
+    await db.update(dealers).set({ status: "paused" }).where(eq(dealers.id, "test-motors"));
     const v = await signedIn();
     for (const d of ["checkwork-motors", "test-motors"])
       await runAsDealer(d, () => pushStore.put({ id: `p-${d}`, email: "sam@example.com", endpoint: "https://push.example/1", keys: { p256dh: "x", auth: "y" }, label: "iPhone", addedAt: 0 }));
@@ -100,5 +101,6 @@ describe("signOutEverywhere on D1", () => {
       expect(line, d).toMatchObject({ actor, summary: "Signed sam@example.com out on all devices" });
     }
     await db.delete(members).where(eq(members.email, "sam@example.com"));
+    await db.update(dealers).set({ status: "active" }).where(eq(dealers.id, "test-motors"));
   });
 });

@@ -1,4 +1,4 @@
-import { inArray, lt, notInArray, or, type SQL } from "drizzle-orm";
+import { inArray, lt, notInArray, or, type SQL, type SQLWrapper } from "drizzle-orm";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
 import type { SQLiteColumn } from "drizzle-orm/sqlite-core";
 import { members, passkeys, sessions, signInAttempts, staff } from "../db/directory-schema";
@@ -29,11 +29,16 @@ export async function purgeSignIn(db: DrizzleD1Database, now = Date.now(), { chu
   // A person at no dealer, paused ones included (a paused dealer's people keep their membership): their passkeys, sessions and pending
   // attempts (each points at the staff row), then the row, in one transaction, so someone added again meanwhile keeps all of it.
   const gone = db.select({ id: staff.id }).from(staff).where(notInArray(staff.email, db.select({ email: members.email }).from(members)));
-  const [keys, theirs, , people] = await db.batch([
+  const [keys, theirs, , people] = await db.batch(forgetGone(db, gone));
+  return { attempts, sessions: ended + changes(theirs), passkeys: changes(keys), staff: changes(people) };
+}
+
+// Forgets the people `gone` selects (staff ids): their passkeys, sessions and pending attempts, then their staff row (the others point at it).
+// For a batch, so it is one transaction: the nightly purge (everyone at no dealer) and a removal (endRemoved in session.ts, the one person).
+export const forgetGone = (db: DrizzleD1Database, gone: SQLWrapper) =>
+  [
     db.delete(passkeys).where(inArray(passkeys.staffId, gone)),
     db.delete(sessions).where(inArray(sessions.staffId, gone)),
     db.delete(signInAttempts).where(inArray(signInAttempts.staffId, gone)),
     db.delete(staff).where(inArray(staff.id, gone)),
-  ]);
-  return { attempts, sessions: ended + changes(theirs), passkeys: changes(keys), staff: changes(people) };
-}
+  ] as const;

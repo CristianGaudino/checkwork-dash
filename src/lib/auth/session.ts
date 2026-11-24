@@ -2,10 +2,10 @@ import "server-only";
 import { cache } from "react";
 import { cookies } from "next/headers";
 import { and, desc, eq, inArray, lte, notInArray } from "drizzle-orm";
-import { members, passkeys, sessions, signInAttempts, staff } from "@/lib/db/directory-schema";
+import { members, sessions, staff } from "@/lib/db/directory-schema";
 import { directoryDb, hashSiteKey as sha256Hex, hasD1, memoryDirectory, quietDirectory as quiet } from "@/lib/tenancy/directory";
 import { SESSION_COOKIE, SESSION_VALUE as VALUE } from "./gate";
-import { SESSION_IDLE_MS } from "./purge";
+import { SESSION_IDLE_MS, forgetGone } from "./purge";
 
 // Our own sessions (docs/sign-in.md, section 4). The cookie holds 32 random bytes; the directory keeps only their SHA-256, so someone who
 // reads the table cannot use a row as a cookie. A session is a person, not a dealer: which dealer stays the directory's, on every request.
@@ -106,12 +106,7 @@ export async function endRemoved(email: string): Promise<void> {
   const them = d.select({ id: staff.id }).from(staff).where(eq(staff.email, e));
   const gone = d.select({ id: staff.id }).from(staff).where(and(eq(staff.email, e), notInArray(staff.email, d.select({ email: members.email }).from(members).where(eq(members.email, e)))));
   await quiet(
-    d.batch([
-      d.delete(sessions).where(inArray(sessions.staffId, them)),
-      d.delete(passkeys).where(inArray(passkeys.staffId, gone)),
-      d.delete(signInAttempts).where(inArray(signInAttempts.staffId, gone)),
-      d.delete(staff).where(inArray(staff.id, gone)),
-    ]),
+    d.batch([d.delete(sessions).where(inArray(sessions.staffId, them)), ...forgetGone(d, gone)]),
     "endRemoved",
   );
 }

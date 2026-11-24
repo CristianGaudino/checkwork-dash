@@ -30,9 +30,17 @@ vi.mock("next/navigation", () => ({
 const mails: { to: string; subject: string; text: string }[] = [];
 let mailDown = false;
 vi.mock("@/lib/auth/mail", () => ({ sendSignInMail: async (m: (typeof mails)[number]) => (mailDown ? Promise.reject(new Error(m.to)) : void mails.push(m)) }));
+// Push removal with a switch to make it fail at one dealer, as a dealer's store being down would.
+let pushDownAt: string | null = null;
+vi.mock("@/lib/push", async (orig) => {
+  const real = await orig<typeof import("@/lib/push")>();
+  const { currentDealer } = await import("@/lib/tenancy/current");
+  return { ...real, removePushOf: async (e: string) => ((await currentDealer()).id === pushDownAt ? Promise.reject(new Error(e)) : real.removePushOf(e)) };
+});
 const { addTeamAction, removeTeamAction, signOutPersonAction } = await import("./actions");
 const { getSettings, settingsStore } = await import("@/lib/admin/collections");
 const { listActivity } = await import("@/lib/admin/activity");
+const { DEMO_ROLE_REFUSED } = await import("@/lib/permissions");
 const { DEV_EMAIL, memoryDirectory, membersOf, putMember, resetMemoryDirectory } = await import("@/lib/tenancy/directory");
 const { readSession, startSession } = await import("@/lib/auth/session");
 const { runAsDealer } = await import("@/lib/tenancy/current");
@@ -53,6 +61,7 @@ beforeEach(async () => {
   dealer = "test-motors";
   mails.length = 0;
   mailDown = false;
+  pushDownAt = null;
   vi.stubEnv("SIGN_IN", "own");
   vi.stubEnv("APP_URL", "https://dev.dash.checkwork.ie");
   for (const d of ["test-motors", "checkwork-motors"]) await runAsDealer(d, () => settingsStore.reset());
@@ -137,6 +146,31 @@ describe("Sign out on all devices", () => {
     expect((await runAsDealer("test-motors", () => listActivity({ area: "settings" }, 1, 1))).rows[0]).toMatchObject({ actor: DEV_EMAIL, summary: "Signed Sam Reilly out on all devices" });
     // At the other dealer, the name it knows them by, and not who did it here.
     expect((await runAsDealer("checkwork-motors", () => listActivity({ area: "settings" }, 1, 1))).rows[0]).toMatchObject({ actor: "Another dealer", summary: expect.stringMatching(/^Signed .+ out on all devices$/) });
+  });
+
+  it("ends the sessions first: a dealer whose store fails stops neither that nor the next dealer's line", async () => {
+    const v = await signIn("sam", "sam@example.com");
+    pushDownAt = "test-motors"; // the first of Sam's dealers
+    expect(await signOutPersonAction(await idOf("sam@example.com"))).toBeUndefined();
+    expect(await readSession(v)).toBeNull();
+    expect((await runAsDealer("checkwork-motors", () => listActivity({ area: "settings" }, 1, 1))).rows[0]).toMatchObject({ actor: "Another dealer", summary: expect.stringMatching(/out on all devices$/) });
+    expect(log.mock.calls.flat()).toContain(JSON.stringify({ signIn: "sign-out", outcome: "failed" }));
+    expect(log.mock.calls.flat().join()).not.toContain("sam@");
+  });
+
+  it("turns off their devices at a paused dealer too: every device is every device", async () => {
+    memoryDirectory().dealers.find((d) => d.id === "checkwork-motors")!.status = "paused";
+    await runAsDealer("checkwork-motors", () => pushStore.put({ id: "p", email: "sam@example.com", endpoint: "https://push.example/1", keys: { p256dh: "x", auth: "y" }, label: "iPhone", addedAt: 0 }));
+    await signOutPersonAction(await idOf("sam@example.com"));
+    expect(await runAsDealer("checkwork-motors", () => pushStore.list())).toEqual([]);
+  });
+
+  it("at a demo dealer, the demo bar's Owner cannot do it for a directory role of Sales", async () => {
+    dealer = "checkwork-motors";
+    await putMember("checkwork-motors", DEV_EMAIL, "Sales"); // the demo bar's role is Owner (no cookie)
+    const conor = await signIn("conor", "conor@example.com");
+    expect(await signOutPersonAction(await idOf("conor@example.com"))).toEqual({ error: DEMO_ROLE_REFUSED });
+    expect(await readSession(conor)).not.toBeNull();
   });
 
   it("a manager signs out anyone but an owner", async () => {
