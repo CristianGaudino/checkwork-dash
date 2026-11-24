@@ -5,7 +5,7 @@ import { Avatar, Badge, DataTable, EmptyState, PageHeader, Panel, SummaryTabs, T
 import { Suspense } from "react";
 import { Skeleton, TableBones } from "@/components/admin/Skeleton";
 import { CloseChoices, NextStatusButton, ReachButton, SpamButton } from "@/components/admin/LeadActions";
-import { firstReplies } from "@/lib/leads/first-reply";
+import { firstReplies } from "@/lib/leads/first-replies";
 import { RowMenu } from "@/components/admin/RowMenu";
 import { HeldTasks, RowActions } from "@/components/admin/HeldTasks";
 import { CalendarIcon, InboxIcon } from "@/components/stock/icons";

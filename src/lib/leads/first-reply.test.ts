@@ -1,9 +1,6 @@
-import { describe, expect, it, vi } from "vitest";
-
-vi.mock("server-only", () => ({}));
-vi.mock("next/headers", () => ({ cookies: async () => ({ get: () => undefined }), headers: async () => ({ get: () => null }) }));
-const { firstReply, mailtoHref } = await import("./first-reply");
-const { waHref } = await import("@/lib/phone");
+import { describe, expect, it } from "vitest";
+import { firstReply, mailtoHref } from "./first-reply";
+import { waHref } from "@/lib/phone";
 
 const SITE = "https://www.demo.checkwork.ie";
 const car = { slug: "2021-toyota-corolla-4508173", priceEur: 21950, soldAt: undefined, listing: undefined, condition: "used" } as const;
@@ -14,10 +11,10 @@ describe("the first reply to a lead", () => {
     const r = firstReply(base);
     expect(r.subject).toBe("The 2021 Toyota Corolla");
     expect(r.body).toBe(
-      "Hi Mary,\n\nThis is Sean Walsh at Checkwork Motors. Thanks for getting in touch about the 2021 Toyota Corolla.\n\nIt is €21,950.\n\nYou can see it here: https://www.demo.checkwork.ie/used-cars/2021-toyota-corolla-4508173",
+      "Hi Mary,\n\nThis is Sean Walsh at Checkwork Motors. Thanks for getting in touch about the 2021 Toyota Corolla.\n\nIt's €21,950.\n\nYou can see it here: https://www.demo.checkwork.ie/used-cars/2021-toyota-corolla-4508173",
     );
     expect(r.body).not.toMatch(/[—–]/);
-    expect(firstReply({ ...base, car: { ...car, vat: "ex" } }).body).toContain("It is €21,950 plus VAT.");
+    expect(firstReply({ ...base, car: { ...car, vat: "ex" } }).body).toContain("It's €21,950 plus VAT.");
   });
 
   it("gives no price and no link for a lead about no car", () => {
@@ -28,6 +25,12 @@ describe("the first reply to a lead", () => {
   it("says a sold car has sold, with no price or link", () => {
     const { body } = firstReply({ ...base, car: { ...car, soldAt: "2026-11-01" } });
     expect(body).toContain("It has sold");
+    expect(body).not.toMatch(/€|https:/);
+  });
+
+  it("says a reserved car is reserved, with no price or link", () => {
+    const { body } = firstReply({ ...base, car: { ...car, reserved: true } });
+    expect(body).toContain("It's reserved at the moment, but we can let you know if that changes.");
     expect(body).not.toMatch(/€|https:/);
   });
 

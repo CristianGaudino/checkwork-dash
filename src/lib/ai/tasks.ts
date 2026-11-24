@@ -35,7 +35,7 @@ export type FactsOf = {
   post: { dealer: string; car: CarFacts; network: Network; format: PostFormat; layout?: StoryLayout; voice: Voice };
   carDescription: { dealer: string; car: CarFacts; notes?: string };
   // type: the lead type id (stable), so a reply chooses its ask by it and never by the label, which can be reworded.
-  leadReply: { dealer: string; firstName: string; kind: string; type?: string; message: string; details?: Record<string, string>; car?: string; carDetails?: CarFacts & { forSale: boolean } };
+  leadReply: { dealer: string; firstName: string; kind: string; type?: string; message: string; details?: Record<string, string>; car?: string; carDetails?: CarFacts & { forSale: boolean; reserved?: true } };
   reviewReply: { dealer: string; firstName: string; rating: number; text: string };
   // "Prepare me" (#34): the lead's own fields (no name, no contacts), what they did on the site this visit, and the closest cars for sale.
   // Every string is the lead's cut message, the dealer's name, a fixed label or a car of the dealer's stock: nothing else about the person.

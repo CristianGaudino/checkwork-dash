@@ -36,7 +36,7 @@ import { isCarLabel, theirCar } from "./car";
 import { VisitPanel } from "@/components/admin/VisitPanel";
 import { askedCar } from "@/lib/leads/journey";
 import { ContactButtons } from "@/components/admin/ContactButtons";
-import { firstReplies } from "@/lib/leads/first-reply";
+import { firstReplies } from "@/lib/leads/first-replies";
 import { LeadKind, LeadTags, leadChips } from "@/components/admin/LeadKind";
 import { LeadMenu, SpamButton } from "@/components/admin/LeadActions";
 import { readLead } from "@/lib/leads/lead-text";

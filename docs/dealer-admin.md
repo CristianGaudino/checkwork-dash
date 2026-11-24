@@ -249,8 +249,8 @@ with no D1). The actor is the signed-in person (`currentMember`), or a named one
   message, no phone, or a link to a car or photos never count against a lead.
 - **Test drives** still to happen can move to another time (Change time on the booking, in the house dialog), by the same rules as a new booking.
 - **First reply** (#160): on a new lead, Email and WhatsApp (the lead's buttons, Leads rows and To do) open with a short reply filled in
-  (`firstReplies`, `src/lib/leads/first-reply.ts`): who it is from, the car, its price and its full link on the dealer's website. No price
-  for a sold car (it says it has sold) or one on request, no link without a website or a page there, and neither for a lead about no car.
+  (`firstReplies`, `src/lib/leads/first-replies.ts`; the text in `first-reply.ts`): who it is from, the car, its price and its full link on the dealer's website. No price
+  for a sold car (it says it has sold), a reserved one (it says so) or one on request, no link without a website or a page there, and neither for a lead about no car.
   Once the lead is past New the buttons open blank. The AI reply draft gets the same price and link in its facts.
 - **Leads rows** (#94): a row shows its next action (Call, WhatsApp or Email, the way they asked) and a menu with the rest (the next
   step, Spam, Not spam, Close). A To answer now row a press takes off the list stays in its place, faded, saying what it became

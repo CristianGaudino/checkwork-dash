@@ -53,10 +53,10 @@ export async function buildFacts(req: WriteRequest, dealer: string, siteUrl: str
       const lead = await leadsStore.get(req.leadId);
       if (!lead) return null;
       // The car's own details, so the reply can answer "is it still there, what mileage" instead of "I'll check". Its price and link as
-      // the first reply gives them (#160): none for a sold car or one on request, and no link to a page the website does not show.
+      // the first reply gives them (#160): none for a sold or reserved car or one on request, and no link to a page the website does not show.
       const car = askedCar(await adminCars(), lead.carSlug);
       const price = car && replyPrice(car);
-      const carDetails = car && { ...carFacts(car, siteUrl), price, ...(!price && { was: undefined }), link: replyLink(car, siteUrl, await enabledModules()), forSale: forSale(car) };
+      const carDetails = car && { ...carFacts(car, siteUrl), price, ...(!price && { was: undefined }), link: replyLink(car, siteUrl, await enabledModules()), forSale: forSale(car), ...(car.reserved && !isSold(car) && { reserved: true as const }) };
       return { task: "leadReply", facts: { dealer, firstName: firstName(lead.name, ""), kind: LEAD_TYPE_LABELS[lead.type], type: lead.type, ...said(lead), car: lead.carTitle, carDetails } };
     }
     case "leadBrief": {

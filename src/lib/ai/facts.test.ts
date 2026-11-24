@@ -29,6 +29,13 @@ describe("buildFacts for a lead reply", () => {
     expect(gone.price).toBeUndefined();
     expect(gone.was).toBeUndefined();
     expect(gone.link).toBeUndefined();
+    const { saveCar } = await import("@/lib/admin/stock-admin");
+    await saveCar({ ...live, reserved: true }); // a deposit on it
+    const held = await facts(live);
+    await saveCar(live);
+    expect(held).toMatchObject({ reserved: true, forSale: false });
+    expect(held.price).toBeUndefined();
+    expect(held.link).toBeUndefined();
   });
   it("gives the buyer's words as the message and the form's answers apart, as it reads an old lead too (#59)", async () => {
     const lead = (await leadsStore.list())[0]!;

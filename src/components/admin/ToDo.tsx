@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Task, WhoseSwitch, rowButton, rowButtonStrong, type TaskUrgency } from "@/components/admin/kit";
 import { AlertIcon, CalendarIcon, CarIcon, InboxIcon, PercentIcon, PhoneIcon, ReceiptIcon, StarIcon, SyncIcon, TruckIcon, WrenchIcon } from "@/components/stock/icons";
 import { CallButton, ReachButton } from "@/components/admin/LeadActions";
-import { firstReplies } from "@/lib/leads/first-reply";
+import { firstReplies } from "@/lib/leads/first-replies";
 import { RowMenu } from "@/components/admin/RowMenu";
 import { DriveSteps } from "@/components/admin/DriveSteps";
 import { carCosts } from "@/lib/admin/costs";
