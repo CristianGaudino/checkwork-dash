@@ -1,22 +1,33 @@
 import { expect, test } from "@playwright/test";
+import { as } from "./open";
 
-// The WhatsApp panel (#178): the conversation, a tap and a typed price that update the lead, and the page gone without its module.
-test("the page shows the dealer's conversation, with the buttons under an alert", async ({ page }) => {
+// WhatsApp (#178) is a way alerts reach a person (#142): its column in Notifications, the live demo under it, and the dealership's
+// number and use in Connected services. The old page sends each role to where it now lives.
+const tryIt = async (page: import("@playwright/test").Page) => {
+  await page.goto("/settings?section=emails");
+  await page.getByText("Try WhatsApp", { exact: true }).click();
+  return page.getByRole("region", { name: "Your WhatsApp" });
+};
+
+test("the old WhatsApp page sends owners to Connected services and Sales to their notifications; it is gone from the menu", async ({ page, context }) => {
   await page.goto("/whatsapp");
-  // Staff phones first; the demo folded under Try it. How it works and the alerts are in Help (#143).
-  await expect(page.getByRole("heading", { name: "Staff phones" })).toBeVisible();
-  await page.getByText("Try it", { exact: true }).click();
-  const phone = page.getByRole("region", { name: "Your WhatsApp" });
+  await expect(page).toHaveURL(/section=services/);
+  await expect(page.getByRole("region", { name: "WhatsApp", exact: true })).toContainText("Connected");
+  await expect(page.locator("aside").getByRole("link", { name: "WhatsApp", exact: true })).toHaveCount(0);
+  await as(context, "Sales");
+  await page.goto("/whatsapp");
+  await expect(page).toHaveURL(/section=emails/);
+});
+
+test("the conversation shows under Notifications, with the buttons under an alert", async ({ page }) => {
+  const phone = await tryIt(page);
   await expect(phone.getByText(/wants (to sell their car|a price for a trade-in)/).first()).toBeVisible();
   await expect(phone.getByRole("button", { name: "Reply with a price" })).toBeVisible();
   await expect(phone.getByRole("button", { name: "Yes, it's available" }).first()).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Staff phones" })).toBeVisible();
 });
 
 test("reply with a price: the lead gets the offer, and the buyer answers", async ({ page }) => {
-  await page.goto("/whatsapp");
-  await page.getByText("Try it", { exact: true }).click();
-  const phone = page.getByRole("region", { name: "Your WhatsApp" });
+  const phone = await tryIt(page);
   await phone.getByRole("button", { name: "Reply with a price" }).click();
   await expect(phone.getByText(/What price do you want to offer/)).toBeVisible();
   await phone.getByLabel("Message").fill("nonsense");
@@ -34,11 +45,20 @@ test("reply with a price: the lead gets the offer, and the buyer answers", async
   await expect(page.getByText("Offer sent by WhatsApp: €8,500").first()).toBeVisible();
 });
 
-test("without the WhatsApp module the page says it is not in the plan, and the owner can ask for it", async ({ page, context, baseURL }) => {
+test("without the WhatsApp module there is no WhatsApp column, demo or service panel", async ({ page, context, baseURL }) => {
   await context.addCookies([{ name: "checkwork-demo-modules", value: "dashboard", url: baseURL! }]);
-  await page.goto("/whatsapp");
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Not in your plan");
-  await expect(page.getByText("Leads to your phone, and replies from WhatsApp that the site sends on.")).toBeVisible();
-  await page.getByRole("button", { name: "Ask us to add WhatsApp" }).click();
-  await expect(page.getByText("We have your request. Our reply will show in Help.")).toBeVisible();
+  await page.goto("/settings?section=emails");
+  await expect(page.getByText("Try WhatsApp", { exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "Edit your notifications" }).click();
+  await expect(page.getByRole("dialog", { name: "Notifications" }).getByRole("checkbox", { name: "WhatsApp" })).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await page.goto("/settings?section=services");
+  await expect(page.getByRole("region", { name: "WhatsApp", exact: true })).toHaveCount(0);
+});
+
+test("Finance has no WhatsApp: no column and no demo", async ({ page, context }) => {
+  await as(context, "Finance");
+  await page.goto("/settings?section=emails");
+  await expect(page.getByText("Try WhatsApp", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "What reaches you" })).not.toContainText("WhatsApp");
 });

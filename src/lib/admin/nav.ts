@@ -4,7 +4,7 @@ import type { ModuleId } from "@/lib/modules-rules";
 // The dealer area's navigation, as data. `permission` hides an entry (and the page refuses) unless the dealer has it (src/lib/permissions.ts).
 // `icon` names a line icon (AdminNav maps it), so this file stays plain data the tests can import. `group` is the menu block an item sits in:
 // every item names its own, so a role that cannot see the first item of a group still sees the rest under the right heading.
-export type NavIcon = "home" | "inbox" | "car" | "calendar" | "users" | "megaphone" | "chart" | "percent" | "star" | "cog" | "history" | "report" | "shield" | "wrench" | "truck" | "whatsapp" | "receipt" | "help" | "swap";
+export type NavIcon = "home" | "inbox" | "car" | "calendar" | "users" | "megaphone" | "chart" | "percent" | "star" | "cog" | "history" | "report" | "shield" | "wrench" | "truck" | "receipt" | "help" | "swap";
 // `ours`: only for a dealer whose stock is kept here (not on DoneDeal). `module`: only with that module (#173); most follow from the
 // address (MODULES in src/lib/modules-rules.ts), this is for a page shared by modules (Marketing: social or the newsletter; Customers: sales or the newsletter).
 // `also`: other pages that are this place in the menu (a view of it at its own address), so the menu marks it there too.
@@ -28,8 +28,6 @@ export const DEALER_NAV: NavItem[] = [
   { href: "/analytics", label: "Analytics", icon: "chart", group: "Results" },
   { href: "/margins", label: "Margins", icon: "percent", group: "Results", permission: "margins" },
   { href: "/settings", label: "Settings", icon: "cog", group: "Settings and help" },
-  // Set-up, not an inbox: replies come in as leads.
-  { href: "/whatsapp", label: "WhatsApp", icon: "whatsapp", group: "Settings and help" },
   { href: "/help", label: "Help", icon: "help", group: "Settings and help" },
   { href: "/billing", label: "Billing", icon: "receipt", group: "Settings and help", permission: "billing" },
   { href: "/activity", label: "Activity", icon: "history", group: "Settings and help", permission: "activity" },

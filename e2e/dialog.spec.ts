@@ -6,7 +6,7 @@ test("the dialog takes focus, gives it back, and asks before losing changes", as
   await page.goto("/settings?section=targets");
   const edit = page.getByRole("button", { name: "Edit timings" });
   const dialog = page.getByRole("dialog", { name: "Timings" });
-  const hours = dialog.locator('input[name="leadSlaHours"]');
+  const hours = dialog.locator('input[name="driveSlotMinutes"]');
   await edit.click();
   await expect(dialog).toBeFocused();
   // No changes: Escape closes it at once and focus is back on Edit.
@@ -16,11 +16,11 @@ test("the dialog takes focus, gives it back, and asks before losing changes", as
   // Changes: Cancel asks; No keeps it open with what was typed, Yes closes it and the next opening starts afresh.
   await edit.click();
   const was = await hours.inputValue();
-  await hours.fill("9");
+  await hours.fill("99");
   page.once("dialog", (d) => d.dismiss());
   await dialog.getByRole("button", { name: "Cancel" }).click();
   await expect(dialog).toBeVisible();
-  await expect(hours).toHaveValue("9");
+  await expect(hours).toHaveValue("99");
   page.once("dialog", (d) => d.accept());
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();

@@ -4,7 +4,7 @@ vi.mock("server-only", () => ({}));
 const db = vi.hoisted(() => ({
   msgs: [] as Record<string, unknown>[],
   phones: [] as Record<string, unknown>[],
-  team: [] as { id: string }[],
+  team: [] as { id: string; role: string }[],
   modules: new Set<string>(),
   allowed: true,
   used: 0,
@@ -40,7 +40,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(MONDAY_NOON); // 12:00 in Dublin
   db.msgs = [];
-  db.team = [{ id: "a" }, { id: "b" }, { id: "c" }, { id: "d" }];
+  db.team = [{ id: "a", role: "Owner" }, { id: "b", role: "Owner" }, { id: "c", role: "Owner" }, { id: "d", role: "Owner" }];
   db.phones = [phone("a"), phone("b", { quietFrom: "11:00", quietTo: "13:00" }), phone("c", { phone: "" }), phone("d", { alerts: ["enquiry"] }), phone("gone")];
   db.modules = new Set(["dashboard", "whatsapp", "sales", "social", "reviews", "margins"]);
   db.allowed = true;
@@ -60,6 +60,14 @@ describe("alertStaff", () => {
     db.msgs = [];
     await alertStaff("deposit", { eur: 1000 });
     expect(to()).toEqual(["a", "b"]);
+  });
+  it("never reaches Finance on WhatsApp, and the Monday summary only those who see the full reports (#142)", async () => {
+    db.team = [{ id: "a", role: "Finance" }, { id: "b", role: "Sales" }];
+    db.phones = [phone("a"), phone("b")];
+    expect(await alertStaff("deposit", { eur: 1000 })).toBe(1);
+    expect(to()).toEqual(["b"]);
+    db.msgs = [];
+    expect(await alertStaff("monday", { leads: 1, drives: 0, sales: 0 })).toBe(0);
   });
   it("sends nothing without WhatsApp, or without the alert's own module", async () => {
     db.modules.delete("sales");

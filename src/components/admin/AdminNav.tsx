@@ -5,11 +5,11 @@ import { usePathname } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 import { navGroups, openGroupsCookie, type NavGroup, type NavIcon, type NavItem } from "@/lib/admin/nav";
 import { Sheet, leaveSheet } from "@/components/Sheet";
-import { CalendarIcon, CarIcon, ChartIcon, ChevronDownIcon, CogIcon, HistoryIcon, ReportIcon, ReceiptIcon, HelpIcon, WhatsAppIcon, ShieldCheckIcon, SwapIcon, TruckIcon, WrenchIcon, HomeIcon, InboxIcon, MegaphoneIcon, MenuIcon, PercentIcon, StarIcon, UsersIcon } from "@/components/stock/icons";
+import { CalendarIcon, CarIcon, ChartIcon, ChevronDownIcon, CogIcon, HistoryIcon, ReportIcon, ReceiptIcon, HelpIcon, ShieldCheckIcon, SwapIcon, TruckIcon, WrenchIcon, HomeIcon, InboxIcon, MegaphoneIcon, MenuIcon, PercentIcon, StarIcon, UsersIcon } from "@/components/stock/icons";
 import { NEW_TAB, press } from "@/components/ui";
 import { useDealerFacts } from "@/components/DealerFacts";
 
-const ICONS: Record<NavIcon, typeof HomeIcon> = { home: HomeIcon, inbox: InboxIcon, car: CarIcon, calendar: CalendarIcon, users: UsersIcon, megaphone: MegaphoneIcon, chart: ChartIcon, percent: PercentIcon, star: StarIcon, cog: CogIcon, history: HistoryIcon, report: ReportIcon, shield: ShieldCheckIcon, wrench: WrenchIcon, truck: TruckIcon, whatsapp: WhatsAppIcon, receipt: ReceiptIcon, help: HelpIcon, swap: SwapIcon };
+const ICONS: Record<NavIcon, typeof HomeIcon> = { home: HomeIcon, inbox: InboxIcon, car: CarIcon, calendar: CalendarIcon, users: UsersIcon, megaphone: MegaphoneIcon, chart: ChartIcon, percent: PercentIcon, star: StarIcon, cog: CogIcon, history: HistoryIcon, report: ReportIcon, shield: ShieldCheckIcon, wrench: WrenchIcon, truck: TruckIcon, receipt: ReceiptIcon, help: HelpIcon, swap: SwapIcon };
 
 // The four places staff go all day: the tab bar on a phone shows these, and More opens the rest.
 const TABS = ["/", "/leads", "/test-drives", "/stock"];

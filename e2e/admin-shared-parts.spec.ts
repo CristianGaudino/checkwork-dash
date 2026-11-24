@@ -35,15 +35,15 @@ test.describe("on a 390px phone", () => {
     await expect(page).toHaveURL(/tab=newsletters$/);
   });
 
-  test("small controls have a 44px hit area: activity links, Set a limit, the reminder switch, the order's choices, the pager", async ({ page }) => {
+  test("small controls have a 44px hit area: activity links, Set a limit, the notifications Edit, the order's choices, the pager", async ({ page }) => {
     const controls: [string, (p: typeof page) => Locator][] = [
       ["/activity", (p) => p.locator("main section[aria-label='Changes'] li a").first()],
       ["/billing", (p) => p.getByRole("link", { name: "Set a limit" })],
-      ["/settings?section=emails", (p) => p.locator('input[name="followUps"]')],
+      ["/settings?section=emails", (p) => p.getByRole("button", { name: "Edit your notifications" })],
       ["/leads?per=10", (p) => p.getByRole("navigation", { name: "Pages" }).getByRole("link", { name: "Next" })],
       ["/leads?per=10&page=2", (p) => p.getByRole("navigation", { name: "Pages" }).getByRole("link", { name: "Previous" })],
       ["/billing", (p) => p.getByRole("link", { name: "Ask us to change them" })],
-      ["/settings", (p) => p.locator("main").getByRole("link", { name: "Billing", exact: true })],
+      ["/settings?section=business", (p) => p.locator("main").getByRole("link", { name: "Billing", exact: true })],
       ["/orders/order-s1", (p) => p.getByRole("link", { name: "The website request" })],
     ];
     for (const [path, find] of controls) {

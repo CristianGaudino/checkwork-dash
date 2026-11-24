@@ -68,7 +68,7 @@ export function PushPanel({ publicKey, devices }: { publicKey: string | null; de
       {here === "unsupported" && <p className="text-body">This browser cannot show notifications.</p>}
       {here === "ready" && (
         <div className="flex flex-col items-start gap-3">
-          <p className="max-w-measure text-body">{on ? "On. New enquiries, test drive requests and leads given to you come here." : "Get new enquiries, test drive requests and leads given to you here."}</p>
+          <p className="max-w-measure text-body">{on ? "On. What you tick under Push comes here." : "Get what you tick under Push on this phone or computer."}</p>
           <button type="button" disabled={pending} onClick={() => (on ? turnOff(thisId!) : turnOn())} className={on ? adminButtonQuiet : adminButton}>
             {on ? "Turn off" : "Turn on"}
           </button>

@@ -25,11 +25,12 @@ test("a change shows at the top, by the person who made it, and the filters narr
   await page.setViewportSize({ width: 1280, height: 900 });
   const name = `Activity test ${Date.now()}`; // its own record, so parallel specs never move it
   await page.goto("/settings?section=team");
-  const add = page.locator("form").filter({ has: page.getByLabel("Name", { exact: true }) });
+  await page.getByRole("button", { name: "Add someone" }).click(); // the house dialog (#142)
+  const add = page.getByRole("dialog", { name: "Add someone" });
   await add.getByLabel("Name", { exact: true }).fill(name);
   await add.getByLabel("Email", { exact: true }).fill(`${Date.now()}@example.com`);
   await add.getByRole("button", { name: "Add", exact: true }).click();
-  await expect(page.getByLabel(`Role for ${name}`)).toBeVisible();
+  await expect(page.getByRole("button", { name: `Edit ${name}'s details` })).toBeVisible();
 
   await page.goto("/activity?area=settings");
   const row = page.getByRole("listitem").filter({ hasText: `Added ${name} to the team as Sales` });

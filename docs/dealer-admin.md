@@ -27,22 +27,36 @@ the bell, once a month each. Counts are one record per month per line of the bil
 Everyone the dashboard lets in works the everyday dashboard (leads, test drives, stock, customers, reviews, marketing). A role adds
 permissions, each checked on the server in every page and action that needs it (`src/lib/permissions.ts`, rules in `permission-rules.ts`):
 
-| Role | Margins (costs, prep and profit) | Reports | Team | Business settings | Activity history | Data requests and lead exports | Billing |
+| Role | Margins (costs, prep and profit) | Reports | Team | Settings | Activity history | Data requests and lead exports | Billing |
 |---|---|---|---|---|---|---|---|
-| Owner | Yes | The dealership's | Yes | Yes | Yes | Yes | Yes |
-| Manager | Yes | The dealership's | Yes, except an owner | Yes | Yes | Yes | Yes |
-| Finance | Yes | The dealership's | No | No | No | No | No |
-| Sales | No | Their own, counts only | No | No | No | No | No |
+| Owner | Yes | The dealership's | Yes | Your account and Dealership | Yes | Yes | Yes |
+| Manager | Yes | The dealership's | Yes, except an owner | Your account and Dealership | Yes | Yes | Yes |
+| Finance | Yes | The dealership's | No | Your account, without WhatsApp | No | No | No |
+| Sales | No | Their own, counts only | No | Your account | No | No | No |
 
 - **Margins:** a Margins screen, a margin column on the stock list, a Stock margin stat on the overview and a cost price box on the car
   form. Without it none of those are in the page, and the cost field answers as if it were not there. Costs are kept in the admin store
   (`car-costs`), never in the public car data.
 - **A page the role cannot open** (Margins, Reports, Activity, Data requests, Billing) says so and who it is for, worded from these rules
   (`whoCan`, `NotForRole`), with the way back to the overview. The page returns it before reading anything, so nothing of it shows.
-- **Team:** add people, change roles, remove people. A manager cannot add, change or remove an owner, or make anyone one. A team with an
-  owner always keeps one, and the last person cannot be removed.
-- **Business settings:** timings, lead emails, notifications, marketing voice and the demo reset. Others see only Notifications, for their
-  own devices.
+- **Settings** (#142) is in two groups, as Slack, HubSpot and Shopify split theirs, one section at a time (`?section=`):
+  - **Your account** (everyone): **Profile**, their own name and mobile phone (the email is shown: it is the sign-in address, changed by an
+    owner or manager in Team); **Notifications**, a grid of events by channel (push, email, WhatsApp) with only the events their role and the
+    plan cover, quiet hours, their devices for push, and on a demo dealer the WhatsApp conversation to try. Each saves for the signed-in
+    person only (`saveProfileAction`, `saveMyNotificationsAction`): who they are comes from the sign-in, never the form.
+  - **Dealership** (owners and managers): Business (details, hours, voice), Team, Lead routing (where new leads are emailed, the test email
+    and the reply time), Connected services (WhatsApp's number, connection and this month's messages among them), Timings (the test drive
+    slot) and Start again. Sales and Finance asking for one of these are sent back to `/settings`, and every action checks again.
+- **Team:** add people, change and remove them. Opening a person (the house dialog) changes their name, sign-in email, phone, role, their
+  notification grid and quiet hours, saved together (`savePersonAction`). The list says how each is reached ("WhatsApp, push, email";
+  push only with a device turned on, WhatsApp only with a phone and WhatsApp connected). An owner sets what a new person starts with ("What
+  a new person gets", `saveDefaultsAction`); until then a new person gets their role's. A manager cannot add, change or remove an owner, or
+  make anyone one. A team with an owner always keeps one, and the last person cannot be removed.
+- **A new name** follows the person to their leads, bookings, sales, bell notices and WhatsApp conversation; the activity history keeps
+  the name each change was made under. **A new email** moves their membership in the directory at this dealer (`moveTeamMember`: the new
+  address first, the old put back if anything fails), and their push devices and bell reads with it. Their memberships at other dealers
+  and our sign-in's record of them keep the old address, and under Access the new address must be added to the Access policy (ours to do),
+  as for a new person.
 
 - **Activity history** (`/activity`): every change made in the dashboard, newest first, with who made it, filtered by area,
   person and period. Changes only, never page views. See below.
@@ -94,8 +108,9 @@ code path reaches another dealer's (#3, #4, #6; `src/lib/tenancy/`).
   dealer gets it. Someone at several chooses (the chooser, and Switch dealer in the menu, `/dealers`); the choice is a cookie that is only a
   preference, checked against their memberships on every request and action, so a cookie, form, query or header naming another dealer opens
   nothing. An email at no dealer sees "No access" and nothing else, and every action refuses (`requireStaff()`).
-- **Who is on the team and as what** is the directory's. The rest of what the dealer knows about a person (name, WhatsApp phone, alerts)
-  stays in the dealer's own store, by email. Settings, Team changes both together (`changeTeamMember` in `src/lib/admin/collections.ts`):
+- **Who is on the team and as what** is the directory's. The rest of what the dealer knows about a person stays in the dealer's own store:
+  their name in the settings record (by email), and their phone, quiet hours and notifications in `whatsapp-staff` (by their team id, the
+  collection's old name kept so nothing stored moved; `src/lib/people.ts` reads the two as one person). Settings, Team changes both together (`changeTeamMember` in `src/lib/admin/collections.ts`):
   the directory first, so a failure there changes nothing; if the dealer's own record then fails, the directory is put back.
 - **Outside a request** (the Worker's jobs, the site API) code runs inside `runAsDealer(id, fn)`, and everything in it uses that
   dealer. A job's route takes the dealer's id from the request only behind `CRON_KEY` (`dealerJob` in `src/lib/tenancy/jobs.ts`).
@@ -136,7 +151,13 @@ code path reaches another dealer's (#3, #4, #6; `src/lib/tenancy/`).
 - **Real visitor records only appear behind Cloudflare Access.** The admin shows seeded records plus what visitors send (leads, test drives, stock alerts). That is personal data, so on a deployed site the admin only answers with a valid Access token (checked in `src/proxy.ts`). `NEXT_PUBLIC_ADMIN_OPEN=1` skips the check and is for CI only: never set it on a deploy (where the directory is bound it counts for nothing, `src/lib/staff.ts` and `src/proxy.ts`). Only `next dev` is open without it. Any build, even one that forgot `APP_ENV`, is closed, and the demo bar's cookies (role, plan, stock sync) only count for a demo dealer (`demoCookie` in `src/lib/tenancy/current.ts`).
 - **A demo dealer simulates the outward services, keys or not, except AI writing.** Posts, ads, newsletters, review replies, WhatsApp, the registration lookup, DoneDeal stock and AI writing go through `modeOf` (`src/lib/integrations.ts`; posting through `src/lib/admin/publishers.ts`). For a demo dealer each is simulated: it reports success marked `simulated`, and the admin records made-up figures so the flow can be shown. For any other dealer, with no keys they say "not connected"; with keys they say "not switched on" until the real adapter replaces the marked line. The one exception is AI writing (owner, 2026-11-22): with `ANTHROPIC_API_KEY` set a demo dealer's AI is real Claude (`modeOf("ai")` is "live", Settings shows it connected), and with no key (`next dev`, tests, E2E) it is the mock. Nothing else about the demo changes: it still never posts, advertises, sends or messages anyone. Lead email, the bot check and reviews are never simulated: Settings shows their true state. Unit tests pin all three modes.
 - **What visitors send reaches the admin.** A test drive booking and a stock alert are lead types in the one lead pipeline (consent, bot check, rate limit, retention). After a lead is stored, `src/lib/admin/real-leads.ts` copies it into the admin's collections (ids start `real-`) so the dealer can work it. The daily purge deletes the copies with the lead.
-- **Lead emails are a setting.** Settings, Lead emails: up to five addresses, a test button, and the dealer's profile `leadEmail` as the fallback.
+- **Lead emails are a setting.** Settings, Lead routing: up to five addresses, a test button, and the dealer's profile `leadEmail` as the fallback.
+- **What reaches each person, and how** (#142, `src/lib/notify-rules.ts`): one row per event, one column per channel, only where the channel
+  really sends it. Push: the website requests (enquiry, trade-in, test drive, service, finance) and a lead or booking given to you. Email:
+  your follow-ups due, each morning. WhatsApp: every WhatsApp alert. A role gets the plan's events, the Monday summary only with the full
+  reports, and Finance never WhatsApp; every sender checks this again whatever is stored (`mayGet`). A record from before keeps its WhatsApp
+  alerts and reads push (every request, as push always went) and email (the dealer's old morning switch, `notifications.followUps`) from the
+  role until the person saves; someone with no record starts from the owner's defaults (`notifyDefaults`) or their role's.
 - **The bell is in the app only** (`src/lib/admin/notifications.ts`). A new website request, test drive booking, warranty or order request,
   a DoneDeal ad taken down, a sync outage (once, as it starts), a lead given to you by someone else, a buyer's WhatsApp reply, a usage
   limit or spend alert (owners and managers), and Checkwork getting your help request. Each has a heading, what happened ("Test drive
@@ -230,8 +251,8 @@ with no D1). The actor is the signed-in person (`currentMember`), or a named one
   (Contacted, Spam, Closed) with its buttons gone, until the page is left or reloaded (`HeldTasks`); Undo puts it back. The count is the
   rows still to answer.
 - **A follow-up** (`followUpOn` on a lead): Tomorrow, In 3 days, Next week or a day, on the lead. Cleared when the lead is won or lost.
-  Overview counts the ones due (today and overdue); the leads list filters by them. The morning email (Settings, Notifications, off by
-  default) sends each salesperson theirs, and the unassigned ones to owners and managers, at 07:00 UTC (`/api/follow-ups/digest`).
+  Overview counts the ones due (today and overdue); the leads list filters by them. The morning email (each person's Notifications, "Your
+  follow-ups due"; for anyone who has not chosen, the dealer's old switch, off by default) sends each salesperson theirs, and the unassigned ones to owners and managers, at 07:00 UTC (`/api/follow-ups/digest`).
 - **What needs doing is one count** (#38). The leads waiting on you come from one rule, `leadsToAnswer` (`src/lib/admin/follow-ups.ts`):
   each lead once, as a follow-up due, else as a new lead. The Overview's headline, its To do and its Reply to leads button, Leads' To
   answer now and a salesperson's report all count from it, so they agree. The Leads table pins the ones it marks red (`answerNow`: late,
@@ -395,7 +416,7 @@ Owner's, stored in settings as `billingDetails`. "Ask us to add" sends a Help re
 
 `/help` is for every team member: our phone, email and WhatsApp, how-to topics (#143: one job per row that opens in place, grouped
 as the menu is, each shown only to the roles it is for and with its module, `src/lib/help/topics.ts`; `/help#<topic>` opens one; WhatsApp's
-how it works and its alerts are here under Your account and team, the WhatsApp page keeps the phones and the live demo), a message form (Question, Something isn't working with steps
+how it works and its alerts are here under Your account and team, for every role but Finance; the live demo is under Settings, Notifications), a message form (Question, Something isn't working with steps
 and an optional screenshot, Request a change, Feedback or an idea, Billing and Add to my plan for the Owner and Manager), their own requests
 with our status and reply, and a quarterly one-question feedback. The "Need help?" link in the menu foot passes `?from=<page>`, which is
 saved with the request (a dashboard path only, `safeFrom`). Requests are the `help-requests` collection (`src/lib/admin/help.ts`). On
@@ -427,16 +448,20 @@ the words for them are in `src/lib/leads/contact-topics.ts`; the steps and cards
 
 ## WhatsApp (#178)
 
-The `whatsapp` module. On the demo it is simulated (integration `whatsapp`): `/whatsapp` shows the dealer's WhatsApp as a phone, and a smaller buyer's phone, and nothing leaves the site.
+The `whatsapp` module. A way alerts reach a person, not a page (#142): each person's WhatsApp column in Settings, Notifications (once their
+phone is in their Profile and WhatsApp is connected; never for Finance), and the dealership's number, connection and this month's messages in
+Connected services. `/whatsapp` redirects there (owners and managers) or to Notifications (everyone else). On the demo it is simulated
+(integration `whatsapp`): Notifications has Try WhatsApp, the dealer's WhatsApp as a phone beside a smaller buyer's phone, and nothing leaves
+the site.
 
 - Each alert is answered once for everyone it went to: one offer, one decline, one confirm ("Already done." after). Asking for more
   photos keeps it open for the offer. A closed lead takes no more buyer messages, and a question expires after an hour.
 - Messages are kept 30 days (the daily purge), and go with their lead or an erasure. Removing someone from the team removes their phone.
-- Each new website request is added to the conversation of every team member who has that alert on and a linked number, outside their quiet hours (`alertStaffOnWhatsApp`, called once from `real-leads.ts`). The template is the request's own module's, or the plain enquiry when the dealer lacks that module (`eventOfLead`). A buyer who ticked the WhatsApp box (`whatsappOptIn` on the lead, read from the form's detail of the same name) gets a confirmation.
+- Each new website request is added to the conversation of every team member who has that alert on, may get it (`mayGet`) and has a phone, outside their quiet hours (`alertStaffOnWhatsApp`, called once from `real-leads.ts`). The template is the request's own module's, or the plain enquiry when the dealer lacks that module (`eventOfLead`). A buyer who ticked the WhatsApp box (`whatsappOptIn` on the lead, read from the form's detail of the same name) gets a confirmation.
 - The other alerts go the same way (`alertStaff`, also checking the alert's own module): Deposit taken from Reserve (`reserveAction`), A new car in stock when a car first goes on the website (added live, or a draft published), and from the morning cron (`/api/whatsapp/daily`, after the follow-up digest in `worker.mjs`) each car old stock (`DEALER_RULES.oldStockDays`, 120 days by default), each review from the last two days (each once while its alert is kept), and on a Monday last week's leads, test drives taken and cars sold, from the report's own sums. The demo's seeded alerts use the seed's own figures.
 - A tap or a typed reply goes through `src/lib/whatsapp/handle.ts`: it writes the lead (status, note), the activity log (never a name), and the buyer's message. Notes and replies say how the buyer was told (WhatsApp or email). Reply with a price reads "8,500", "€8.5k", "8500" (`parsePrice`), sends the offer, and the buyer's simulated answer lands six seconds later on both phones and the lead.
 - Call back is not a reply: it sets the follow-up to today and gives the lead to whoever tapped, and leaves the status. Its note and a buyer's answer are marked `auto`, so the report's first reply skips them. Confirm on a deposit records it in the activity log against the car. Suggest another time sends the buyer the time and leaves the alert open: the booking moves in Test drives once they agree. A test drive confirmed with its booking tells the buyer the day and time.
-- Only a team member with a linked phone can act, in their own conversation (an unlinked one is told to link it). With an alert's module off, its alert and questions are hidden and acting on them is refused. Margins are never in a message.
+- Only a team member with a phone in their Profile can act, in their own conversation (one without is told to add it). With an alert's module off, its alert and questions are hidden and acting on them is refused. Margins are never in a message.
 - The lead page shows "WhatsApp updates: on" for a buyer who ticked the box, with Stop WhatsApp, which clears `whatsappOptIn` (logged, without the buyer): nothing more goes to them on WhatsApp. Their own STOP reply comes with the adapter.
 - Every message to a phone or a buyer checks `usageAllowed("whatsapp")` and records `alert`, `reply` or `marketing`. Past the cap an alert or reply is stored as "Sent by email instead" and not counted, unless the plan's alerts still cover it (`inAllowance`); marketing is not sent. A buyer without the opt-in gets email, also uncounted. The site's acknowledgements to the dealer inside a conversation are free replies and not counted.
 - Messages about a lead are removed once the lead is gone (purge, data request), on the next read of the page.
@@ -473,7 +498,8 @@ app store and no outside service.
   5 second limit, so a slow push service never holds up a website's form or the page that gave a lead.
   Never the customer's name, email or phone: a lock screen is not private. Warranty requests, ads taken down, sync outages, WhatsApp
   replies and the rest stay in the bell. Each goes to everyone still on the team (a lead given to someone: that person only) who turned
-  notifications on, on each of their devices. A demo dealer sends them too: they go only to its own team's devices and cost nothing.
+  notifications on and keeps push on for that event in Notifications (a website request is its lead's own event, `eventOfLead`), on each of
+  their devices. A demo dealer sends them too: they go only to its own team's devices and cost nothing.
 - **Turning them on** is per person and per device: Settings, Notifications, "Notifications on this device". The panel lists your own devices
   with Turn off on each. Each turn on and turn off is in the activity history, with the device's kind (iPhone, Android phone, Mac), never its
   address. On an iPhone push needs iOS 16.4 or later and the app on the home screen; the panel says "Add this to your home screen first".

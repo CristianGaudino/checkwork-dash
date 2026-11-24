@@ -16,6 +16,7 @@ import { regPeriods } from "@/lib/leads/reg-periods";
 import type { Car } from "@/lib/stock/types";
 import { roleCan, type Role } from "@/lib/permission-rules";
 import type { PrepLine } from "./prep";
+import type { Prefs } from "@/lib/notify-rules";
 import type { Journey } from "@/lib/leads/journey";
 import { CHANNEL_LABELS } from "@/lib/visit-rules";
 import { carTitleOf, demoJourney, livePicks, person, rng } from "./seed-data";
@@ -364,7 +365,8 @@ export type DealerSettings = {
   id: "dealer";
   leadSlaHours: number; // a new lead waiting longer than this needs attention (overview)
   driveSlotMinutes: number; // one car cannot be booked twice within this many minutes (test drives)
-  notifications: { followUps: boolean }; // the morning email of follow-ups; new leads are emailed under Lead emails
+  notifications: { followUps: boolean }; // the morning follow-ups email for everyone who has not chosen yet (#142: each person chooses now)
+  notifyDefaults?: Prefs; // what a new person gets (an owner sets it in Team); missing means their role's (src/lib/notify-rules.ts)
   marketing: { voice: string; hashtags: string; signOff: string }; // used by the post and newsletter writers
   team: TeamMember[];
   leadEmails: string[]; // who gets the email when a visitor sends a form; empty means the dealer's profile's leadEmail
@@ -485,6 +487,24 @@ export async function changeTeamMember(email: string, role: Role | null, details
   } catch (err) {
     if (before) await putMember(id, e, before.role);
     else await removeMember(id, e);
+    throw err;
+  }
+}
+
+// A person's sign-in email changes (#142): the directory's membership moves to the new address at this dealer, with `role`, then the details
+// follow. The new address first, so a failure part way leaves them able to sign in; anything that fails puts the old membership back.
+// Only this dealer's: the person's memberships at other dealers, and our sign-in's record of them, keep the old address.
+export async function moveTeamMember(from: string, to: string, role: Role, details: () => Promise<void>): Promise<void> {
+  const { id } = await currentDealer();
+  const [a, b] = [from, to].map((e) => e.trim().toLowerCase());
+  const before = (await membersOf(id)).find((m) => m.email === a);
+  await putMember(id, b, role);
+  try {
+    await removeMember(id, a);
+    await details();
+  } catch (err) {
+    await removeMember(id, b);
+    if (before) await putMember(id, a, before.role);
     throw err;
   }
 }

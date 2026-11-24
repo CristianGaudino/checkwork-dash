@@ -11,6 +11,7 @@ import type { ModuleId } from "@/lib/modules-rules";
 import type { Role } from "@/lib/permission-rules";
 import { HOUR, MINUTE } from "@/lib/time";
 import { DEMO_PROFILE, type DealerProfile } from "@/lib/tenancy/profile";
+import type { PersonRecord } from "@/lib/notify-rules";
 import { EVENTS, alertText, defaultAlerts, firstName, moduleOf, type ButtonId, type EventId, type Facts } from "./rules";
 
 // The conversation between the site and the dealer's phones, and between the site and buyers (#178). One record per message, so a message
@@ -35,8 +36,9 @@ export type Msg = {
 };
 export const messagesStore = defineCollection<Msg>("whatsapp", seedMessages);
 
-// A team member's phone: linked or not, which alerts it gets, and its quiet hours ("" for none).
-export type StaffPhone = { id: string; name: string; phone: string; alerts: EventId[]; quietFrom: string; quietTo: string };
+// A team member's own details beyond the directory's (#142): their phone (empty: none), WhatsApp alerts, quiet hours ("" for none), and
+// what reaches them by push and email (src/lib/notify-rules.ts). By the team member's id. The name is kept in step with the team's.
+export type StaffPhone = PersonRecord;
 export const staffStore = defineCollection<StaffPhone>("whatsapp-staff", () =>
   TEAM_SEED.map((t, i) => ({ id: t.id, name: t.name, phone: `+353 83 000 ${1100 + i * 11}`, alerts: defaultAlerts(t.role as Role), quietFrom: t.role === "Sales" ? "22:00" : "", quietTo: t.role === "Sales" ? "07:00" : "" })),
 );

@@ -10,8 +10,8 @@ describe("help topics", () => {
     expect(ids("Owner")).toEqual(expect.arrayContaining(["answer-lead", "margins", "whatsapp", "add-team", "billing"]));
     expect(ids("Sales")).toEqual(expect.arrayContaining(["answer-lead", "whatsapp", "reports"]));
     for (const id of ["margins", "add-team", "billing"]) expect(ids("Sales")).not.toContain(id);
-    expect(ids("Finance")).toEqual(expect.arrayContaining(["record-sale", "margins", "notifications", "whatsapp"]));
-    for (const id of ["answer-lead", "add-team", "billing"]) expect(ids("Finance")).not.toContain(id);
+    expect(ids("Finance")).toEqual(expect.arrayContaining(["record-sale", "margins", "notifications"]));
+    for (const id of ["answer-lead", "add-team", "billing", "whatsapp", "whatsapp-how", "whatsapp-alerts"]) expect(ids("Finance")).not.toContain(id); // no WhatsApp for Finance (#142)
   });
   it("leaves out a module's help without it, and a group with nothing left", () => {
     const base = helpGroups({ role: "Owner", modules: new Set<ModuleId>(["dashboard"]), synced: false, listingSite: "DoneDeal", oldStockDays: 60 });

@@ -34,6 +34,10 @@ describe("digestGroups", () => {
     );
     expect(Object.fromEntries([...g].map(([k, v]) => [k, v.map((l) => l.id)]))).toEqual({ "conor@x.example": ["mine", "late"], "aoife@x.example": ["nobody", "gone"], "ciara@x.example": ["nobody", "gone"] });
   });
+  it("leaves out whoever turned the morning email off (#142)", () => {
+    const g = digestGroups([lead("mine", { assignedTo: "Conor", followUpOn: "2026-11-11" }), lead("nobody", { followUpOn: "2026-11-10" })], team, "2026-11-11", (e) => e !== "conor@x.example" && e !== "ciara@x.example");
+    expect([...g.keys()]).toEqual(["aoife@x.example"]);
+  });
 });
 
 describe("sendFollowUpDigest", () => {

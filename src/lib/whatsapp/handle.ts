@@ -38,7 +38,7 @@ const ACTS: Partial<Record<ButtonId | "confirm-test-drive", Act>> = {
   slot: { site: (f, by) => `Sent to ${f} by ${by}: we can fit them in and will call to agree a time.`, buyer: (f) => `Hi ${f}, we can fit you in. We will call you to agree a time.`, note: (by) => `Told the buyer by ${by} we can fit them in; a time to agree by phone.`, status: "contacted", activity: "Said we can fit them in, from WhatsApp" },
   ack: { site: (f, by) => `Sent to ${f} by ${by}: we have your application.`, buyer: (f) => `Hi ${f}, we have your finance application and will come back to you soon.`, note: (by) => `Application acknowledged from WhatsApp, told by ${by}.`, status: "contacted", activity: "Acknowledged the application, from WhatsApp" },
 };
-const LINK_FIRST = "Link your number in Staff phones to act from here.";
+const LINK_FIRST = "Add your mobile phone in Settings, Profile to act from here.";
 const MODULE_OFF = "That part of your plan is off, so I did nothing.";
 
 const RANK: Record<LeadStatus, number> = { new: 0, contacted: 1, appointment: 2, won: 3, lost: 3, closed: 3, spam: 3 };

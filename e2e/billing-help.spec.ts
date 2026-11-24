@@ -104,8 +104,7 @@ test("help topics open on their own and from a link, and only the role's own are
   await as(context, "Finance");
   await page.goto("/help");
   await expect(page.getByText("See what each car makes")).toBeVisible();
-  await expect(page.getByText("Get new leads on WhatsApp")).toBeVisible(); // Finance gets WhatsApp alerts too
-  for (const t of ["Answer a new lead", "Your plan and bills"]) await expect(page.getByText(t)).toHaveCount(0);
+  for (const t of ["Answer a new lead", "Your plan and bills", "Get new leads on WhatsApp"]) await expect(page.getByText(t)).toHaveCount(0); // no WhatsApp for Finance (#142)
 
   await page.goto("/help#%zz"); // a broken #link is ignored, not an error page
   await expect(page.getByText("See what each car makes")).toBeVisible();

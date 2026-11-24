@@ -21,7 +21,8 @@ test("someone at two dealers switches between them, and each shows only its own 
   await page.goto("/stock");
   await expect(page.getByText("No cars match")).toBeVisible();
   await page.goto("/settings?section=team");
-  const add = page.locator("form").filter({ has: page.locator('input[name="email"]') });
+  await page.getByRole("button", { name: "Add someone" }).click(); // the house dialog (#142)
+  const add = page.getByRole("dialog", { name: "Add someone" });
   await add.locator('input[name="name"]').fill(name);
   await add.locator('input[name="email"]').fill(`separate${Date.now() % 100000}@example.com`);
   await add.getByRole("button", { name: "Add", exact: true }).click();

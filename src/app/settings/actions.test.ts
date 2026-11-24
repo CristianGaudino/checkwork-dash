@@ -12,14 +12,21 @@ vi.mock("next/headers", () => ({
   cookies: async () => ({ get: (n: string) => (n === "checkwork-demo-role" && role ? { value: role } : undefined) }),
   headers: async () => ({ get: () => null }),
 }));
-const { addTeamAction, removeTeamAction, resetDemoAction, saveBusinessAction, saveLeadEmailsAction, saveMarketingAction, saveNotificationsAction, saveTargetsAction, sendTestEmailAction, setRoleAction } = await import("./actions");
+const { addTeamAction, removeTeamAction, resetDemoAction, saveBusinessAction, saveDefaultsAction, saveLeadEmailsAction, saveMarketingAction, saveMyNotificationsAction, savePersonAction, saveProfileAction, saveTargetsAction, sendTestEmailAction } = await import("./actions");
+const { staffStore } = await import("@/lib/whatsapp/store");
+const { membersOf } = await import("@/lib/tenancy/directory");
 const { adminCars, saveCar } = await import("@/lib/admin/stock-admin");
-const { getSettings, leadsStore, settingsStore } = await import("@/lib/admin/collections");
+const { getSettings, leadsStore, ordersStore, reservationsStore, settingsStore } = await import("@/lib/admin/collections");
 const { listActivity } = await import("@/lib/admin/activity");
 const { dealerById, resetMemoryDirectory } = await import("@/lib/tenancy/directory");
 beforeEach(() => resetMemoryDirectory()); // who is on the team, and as what, is the directory's
 
-const form = (o: Record<string, string>) => Object.entries(o).reduce((f, [k, v]) => (f.set(k, v), f), new FormData());
+const form = (o: Record<string, string | string[]>) => Object.entries(o).reduce((f, [k, v]) => ([v].flat().forEach((x) => f.append(k, x)), f), new FormData());
+// A person's role change from their Team dialog: the rest of what they have, as the dialog sends it.
+const setRole = async (id: string, role: string) => {
+  const t = (await getSettings()).team.find((x) => x.id === id)!;
+  return savePersonAction(id, undefined, form({ name: t.name, email: t.email, role }));
+};
 
 describe("business details", () => {
   const HOURS = Object.fromEntries([0, 1, 2, 3, 4].flatMap((i) => [[`opens${i}`, "09:00"], [`closes${i}`, "17:30"]]));
@@ -86,7 +93,7 @@ describe("team settings", () => {
 
   it("keeps an owner: the only owner cannot be demoted or removed", async () => {
     const owner = (await getSettings()).team.find((t) => t.role === "Owner")!;
-    expect((await setRoleAction(owner.id, undefined, form({ role: "Sales" })))?.errors?.role).toMatch(/at least one owner/);
+    expect((await setRole(owner.id, "Sales"))?.errors?.role).toMatch(/at least one owner/);
     await removeTeamAction(owner.id);
     expect((await getSettings()).team.some((t) => t.id === owner.id)).toBe(true);
   });
@@ -96,11 +103,11 @@ describe("team settings", () => {
     const { team } = await getSettings();
     const sales = team.find((t) => t.role === "Sales")!;
     const owner = team.find((t) => t.role === "Owner")!;
-    expect((await setRoleAction(sales.id, undefined, form({ role: "Finance" })))?.saved).toBe(true);
+    expect((await setRole(sales.id, "Finance"))?.saved).toBe(true);
     // The activity history has it, by the manager, naming the team member (staff, not a customer).
     expect((await listActivity({}, 1, 1)).rows[0]).toMatchObject({ actor: "Ciara Walsh", area: "settings", summary: `Changed ${sales.name}'s role from Sales to Finance`, refLabel: sales.name });
-    expect((await setRoleAction(sales.id, undefined, form({ role: "Owner" })))?.errors?.role).toMatch(/Only an owner/);
-    expect((await setRoleAction(owner.id, undefined, form({ role: "Sales" })))?.errors?.role).toMatch(/Only an owner/);
+    expect((await setRole(sales.id, "Owner"))?.errors?.role).toMatch(/Only an owner/);
+    expect((await setRole(owner.id, "Sales"))?.errors?.role).toMatch(/Only an owner/);
     expect((await addTeamAction(undefined, form({ name: "New boss", email: "boss@example.com", role: "Owner" })))?.errors?.role).toMatch(/Only an owner/);
     await removeTeamAction(owner.id);
     expect((await getSettings()).team.find((t) => t.id === owner.id)?.role).toBe("Owner");
@@ -111,7 +118,7 @@ describe("team settings", () => {
       role = r;
       const sales = (await getSettings()).team.find((t) => t.role === "Sales")!;
       expect((await addTeamAction(undefined, form({ name: "Sneaky", email: "sneaky@example.com", role: "Sales" })))?.errors?.role).toMatch(/owner or manager/);
-      expect((await setRoleAction(sales.id, undefined, form({ role: "Manager" })))?.errors?.role).toMatch(/owner or manager/);
+      expect((await setRole(sales.id, "Manager"))?.errors?.role).toMatch(/owner or manager/);
       await removeTeamAction(sales.id);
       expect((await saveTargetsAction(undefined, form({ leadSlaHours: "2", driveSlotMinutes: "30" })))?.errors?.leadSlaHours).toMatch(/owner or manager/);
     }
@@ -173,11 +180,10 @@ describe("the other settings", () => {
     expect((await getSettings()).driveSlotMinutes).toBe(90);
   });
 
-  it("switches the morning follow-up email on and off", async () => {
-    await saveNotificationsAction(undefined, form({}));
-    expect((await getSettings()).notifications.followUps).toBe(false);
-    await saveNotificationsAction(undefined, form({ followUps: "on" }));
-    expect((await getSettings()).notifications.followUps).toBe(true);
+  it("saves the reply time and the slot each on its own", async () => {
+    expect((await saveTargetsAction(undefined, form({ leadSlaHours: "6" })))?.saved).toBe(true);
+    expect((await saveTargetsAction(undefined, form({ driveSlotMinutes: "45" })))?.saved).toBe(true);
+    expect(await getSettings()).toMatchObject({ leadSlaHours: 6, driveSlotMinutes: 45 });
   });
 
   it("keeps the marketing voice within its lengths", async () => {
@@ -203,7 +209,6 @@ describe("the other settings", () => {
       role = r;
       const results = [
         await saveTargetsAction(undefined, form({ leadSlaHours: "2", driveSlotMinutes: "30" })),
-        await saveNotificationsAction(undefined, form({})),
         await saveMarketingAction(undefined, form({ voice: "x", hashtags: "", signOff: "" })),
         await saveLeadEmailsAction(undefined, form({ leadEmails: "sneaky@example.com" })),
         await sendTestEmailAction(),
@@ -252,5 +257,78 @@ describe("website keys", () => {
   it("the demo dealer's fixed key, in memory only, is the one its stored hash says", async () => {
     const { DEMO_SITE_KEY, dealerOfSiteKey } = await import("@/lib/tenancy/directory");
     expect((await dealerOfSiteKey(DEMO_SITE_KEY))?.dealer.id).toBe("checkwork-motors");
+  });
+});
+
+describe("your account and a person's details (#142)", () => {
+  beforeEach(async () => {
+    role = undefined;
+    await settingsStore.reset();
+    await staffStore.reset();
+    await leadsStore.reset();
+    await reservationsStore.reset();
+    await ordersStore.reset();
+  });
+  const find = async (r: string) => (await getSettings()).team.find((t) => t.role === r)!;
+
+  it("lets anyone change their own name and phone, and a new name follows them to their leads", async () => {
+    role = "Sales";
+    const me = await find("Sales");
+    const lead = (await leadsStore.list()).find((l) => l.assignedTo === me.name)!;
+    expect(await saveProfileAction(undefined, form({ name: "Conor D", phone: "+353 85 111 2222", email: "hacker@example.com" }))).toEqual({ saved: true });
+    expect((await getSettings()).team.find((t) => t.id === me.id)).toMatchObject({ name: "Conor D", email: me.email }); // never the email
+    expect((await staffStore.get(me.id))?.phone).toBe("+353 85 111 2222");
+    expect((await leadsStore.get(lead.id))?.assignedTo).toBe("Conor D");
+    // Their deposits and orders too, so a sale from a held car and the orders filter name someone on the team.
+    for (const x of [...(await reservationsStore.list()), ...(await ordersStore.list())]) expect(x.salesperson).not.toBe(me.name);
+    expect((await saveProfileAction(undefined, form({ name: "Aoife Brennan", phone: "" })))?.errors?.name).toMatch(/already on the team/);
+    expect((await saveProfileAction(undefined, form({ name: "Conor D", phone: "abc" })))?.errors?.phone).toBeTruthy();
+  });
+
+  it("saves their own grid, keeping what a hidden column or module had, and never WhatsApp for Finance", async () => {
+    role = "Sales";
+    const me = await find("Sales");
+    expect(await saveMyNotificationsAction(undefined, form({ "notify-grid": "1", "notify-push": ["enquiry"], "notify-email": ["follow-ups"], "notify-whatsapp": ["trade-in"], quietFrom: "21:00", quietTo: "08:00" }))).toEqual({ saved: true });
+    expect(await staffStore.get(me.id)).toMatchObject({ push: ["enquiry"], email: ["follow-ups"], alerts: ["trade-in"], quietFrom: "21:00", quietTo: "08:00" });
+    expect((await saveMyNotificationsAction(undefined, form({ "notify-grid": "1", quietFrom: "21:00" })))?.errors?.quietTo).toBeTruthy();
+    role = "Finance";
+    const fin = await find("Finance");
+    const was = (await staffStore.get(fin.id))!.alerts;
+    await saveMyNotificationsAction(undefined, form({ "notify-grid": "1", "notify-whatsapp": ["finance", "deposit"], "notify-push": [] }));
+    expect((await staffStore.get(fin.id))!.alerts).toEqual(was); // no WhatsApp column: what was there stays, and nothing is sent to it
+    expect((await staffStore.get(fin.id))!.push).toEqual([]);
+  });
+
+  it("an owner or manager changes a person's email, and the directory follows; sales cannot", async () => {
+    role = "Manager";
+    const sales = await find("Sales");
+    expect(await savePersonAction(sales.id, undefined, form({ name: sales.name, email: "conor.new@example.com", role: "Sales", phone: "" }))).toEqual({ saved: true });
+    const emails = (await membersOf("checkwork-motors")).map((m) => m.email);
+    expect(emails).toContain("conor.new@example.com");
+    expect(emails).not.toContain(sales.email);
+    expect((await getSettings()).team.find((t) => t.id === sales.id)?.email).toBe("conor.new@example.com");
+    expect((await savePersonAction(sales.id, undefined, form({ name: sales.name, email: "aoife@example.com", role: "Sales" })))?.errors?.email).toMatch(/already on the team/);
+    role = "Sales";
+    expect((await savePersonAction(sales.id, undefined, form({ name: "Renamed", email: "conor.new@example.com", role: "Sales" })))?.errors?.role).toMatch(/owner or manager/);
+    // Never their own: Access still signs them in with the old address.
+    role = "Manager";
+    const self = await find("Manager");
+    expect((await savePersonAction(self.id, undefined, form({ name: self.name, email: "manager.new@example.com", role: "Manager" })))?.errors?.email).toMatch(/your own sign-in email/);
+  });
+
+  it("starts a new person with the owner's defaults (a role's senders still skip what it may not get); only an owner sets them", async () => {
+    role = "Manager";
+    expect((await saveDefaultsAction(undefined, form({ "notify-grid": "1", "notify-push": ["assigned"] })))?.errors?.defaults).toMatch(/Only an owner/);
+    role = undefined;
+    expect(await saveDefaultsAction(undefined, form({ "notify-grid": "1", "notify-push": ["assigned"], "notify-email": ["follow-ups"], "notify-whatsapp": ["enquiry", "monday"] }))).toEqual({ saved: true });
+    await addTeamAction(undefined, form({ name: "New Person", email: "new.person@example.com", role: "Sales" }));
+    const added = (await getSettings()).team.find((t) => t.name === "New Person")!;
+    expect(await staffStore.get(added.id)).toMatchObject({ push: ["assigned"], email: ["follow-ups"], alerts: ["enquiry", "monday"], phone: "" });
+    // Someone already on the team with no record of their own keeps their role's, not the new defaults.
+    const sales = await find("Sales");
+    await staffStore.remove(sales.id);
+    const { people } = await import("@/lib/people");
+    const { roleDefaults } = await import("@/lib/notify-rules");
+    expect((await people()).find((t) => t.id === sales.id)?.prefs).toEqual(roleDefaults("Sales", (await getSettings()).notifications.followUps));
   });
 });
