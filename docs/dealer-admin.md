@@ -303,6 +303,11 @@ erases or sends them any more.
 - **Reports** (`/reports`, figures in `src/lib/admin/reports.ts`): the last 3, 6 or 12 months by month. Owners, managers and
   finance see sales, profit (sale price less cost and prep), days to sell, each salesperson, which lead sources win, stock by age and prep
   spend by kind. A salesperson sees their own Reports: cars sold, leads, leads won and follow-ups due. Counts only, no money, nobody else.
+- **Export sales** (Reports, margins roles, checked in `src/app/reports/export/route.ts`): a CSV for the accountant, one row per sale of the
+  period on screen (or `?from=2026-01&to=2026-03`): sale date, reg, make, model, year, sale price, cost price, prep, warranty repairs,
+  margin, warranty months, trade-in reg and allowance, salesperson. Sales undone in the period follow, marked Returned or Cancelled with the
+  refund and no price or margin, so the columns add up to Reports (`salesCsv` in `reports.ts`, tested against it). No buyer details, and no
+  VAT treatment (we do not record it). The file is named for the dealer and period, `sales-<dealer>-2026-11.csv`.
 - **Prep costs** (`prepStore`, kinds in `src/lib/admin/prep.ts`): lines on a car's dashboard page (Valet, Tyres, NCT, Service, Repairs,
   Bodywork, Transport, Other), each a row (what and its note, the day it was added, how much) over the total. Add opens the house dialog;
   a row's menu changes or removes it. Margins permission only. A car's whole cost is its cost price plus its prep
@@ -317,7 +322,7 @@ erases or sends them any more.
   the person asking. Erasure deletes the photos, then the rows and records; a purchase stays for the books without the buyer. The email or
   phone is never in an address. Each request is in the activity history, without the person.
 - **CSV exports**: Leads (with the list's filters) and Customers (the open tab) for owners and managers, each recorded in Activity;
-  Stock (view and search) for everyone, with cost, prep and margin only for the margins roles. A cell that starts like a formula is
+  Stock (view and search) for everyone, with cost, prep and margin only for the margins roles; Sales (Reports) for the margins roles. A cell that starts like a formula is
   prefixed with ' so a spreadsheet never runs it (`src/lib/admin/csv.ts`).
 
 ## Reviews
