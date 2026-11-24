@@ -25,7 +25,8 @@ Checkwork sets and removes each dealer's outside-service keys (Facebook, ads, Wh
 
 - `GET /api/owner/v1/dealers/{dealerId}/keys`: `{"version": 1, "services": [{"id", "connected", "names"}]}` for each per-dealer service. Names only.
 - `PUT /api/owner/v1/dealers/{dealerId}/keys/{service}`: a JSON object with exactly that service's names (the `names` above, from `perDealer` in `src/lib/integrations.ts`), each a non-empty string up to 4000 characters. `204` saved (replaces any keys it had). `400` wrong names or values, or the demo dealer; `404` no such dealer or service; `503` `DEALER_SECRETS_KEY` is not set.
-- `DELETE /api/owner/v1/dealers/{dealerId}/keys/{service}`: removes them. `204`.
+- `DELETE /api/owner/v1/dealers/{dealerId}/keys/{service}`: removes them. `204`. For `donedeal` at a dealer whose stock is synced, it also
+  removes the synced cars and their stored photos (a dealer leaving, `docs/new-dealer.md`).
 
 ```sh
 curl -H "Authorization: Bearer $OWNER_API_TOKEN" https://www.dash.checkwork.ie/api/owner/v1/dealers/test-motors/keys

@@ -27,12 +27,19 @@ vi.mock("@/lib/admin/stock-admin", async (orig) => {
   };
 });
 vi.mock("@/lib/leads/mail", () => ({ sendTo: async (to: string[], m: { subject: string }) => void sent.push({ to, subject: m.subject }) }));
+// The stored photos a removed car takes with it (R2 on the Worker; tests have no bucket).
+const dropped: string[] = [];
+vi.mock("@/lib/admin/car-photos", async (orig) => ({ ...(await orig<typeof import("@/lib/admin/car-photos")>()), dropCarPhotos: async (p: { src: string }[]) => void dropped.push(...p.map((x) => x.src)) }));
 
 const { runSync, syncStatus, resetSyncStatus, syncActor } = await import("./sync");
 const { adminCars } = await import("@/lib/admin/stock-admin");
 const { listActivity } = await import("@/lib/admin/activity");
 const { HOUR } = await import("@/lib/time");
 const { forSale: isForSale } = await import("@/lib/stock/types");
+const { runAsDealer } = await import("@/lib/tenancy/current");
+const { patchDealer } = await import("@/lib/tenancy/directory");
+const { salesStore } = await import("@/lib/admin/collections");
+const { removeCar, saveCar } = await import("@/lib/admin/stock-admin");
 
 // What DoneDeal lists: the cars for sale (as the simulated feed sends, src/lib/donedeal/feed.ts).
 const forSale = async () => (await adminCars()).filter(isForSale);
@@ -133,5 +140,55 @@ describe("the DoneDeal sync", () => {
     expect(sent).toHaveLength(0);
     await runSync({ now: 11 * HOUR });
     expect(sent).toHaveLength(1);
+  });
+});
+
+// A real dealer whose stock comes from DoneDeal (Test Motors, switched to synced for these tests), with two synced cars, one with a photo
+// stored here, and a sale of the other.
+describe("a refused DoneDeal key (#158)", () => {
+  const photo = "/car-photos/cars/900001/0f8fe0a4-7d55-4c3e-9a51-3c2d1a8e5b10.jpg";
+  const asTest = <T,>(fn: () => Promise<T>) => runAsDealer("test-motors", fn);
+  beforeEach(async () => {
+    sent.length = 0;
+    await patchDealer("test-motors", "Test Motors", { stock: { source: "donedeal", listingSite: "DoneDeal", listingUrl: "https://www.donedeal.ie/" } });
+    const [a, b] = await forSale(); // the demo's, as a shape
+    await asTest(async () => {
+      await resetSyncStatus();
+      for (const c of await adminCars()) await removeCar(c.id, c);
+      await saveCar({ ...a, id: "900001", slug: "car-900001", photos: [{ src: photo, width: 1, height: 1 }] });
+      await saveCar({ ...b, id: "900002", slug: "car-900002", photos: [] });
+      await salesStore.put({ id: "900002", carTitle: "2019 Ford Focus", priceEur: 1, soldOn: "2026-11-01", createdAt: 0 });
+    });
+    dropped.length = 0;
+  });
+
+  it("removes the synced cars and their stored photos, keeps the sale, says why and tells the owners once", async () => {
+    feed = async () => ({ ok: false, reason: "refused" });
+    const s = await asTest(() => runSync({ now: 1_000 }));
+    expect(s).toMatchObject({ problem: "DoneDeal refused the key, so its cars were removed.", removed: true });
+    expect(await asTest(adminCars)).toEqual([]);
+    expect(dropped).toEqual([photo]);
+    expect(await asTest(() => salesStore.get("900002"))).toMatchObject({ carTitle: "2019 Ford Focus" });
+    expect(sent.map((m) => m.subject)).toEqual(["Test Motors: DoneDeal refused the key, so its cars were removed"]);
+    const log = await asTest(() => listActivity({ actor: syncActor("DoneDeal") }, 1, 5));
+    expect(log.rows.map((r) => r.summary)).toContain("Removed 2 cars: DoneDeal refused the key");
+    await asTest(() => runSync({ now: 1_000 + HOUR }));
+    await asTest(() => runSync({ now: 1_000 + 2 * HOUR }));
+    expect(sent).toHaveLength(1); // once, not again an hour in
+  });
+
+  it("an outage keeps the stock", async () => {
+    feed = async () => ({ ok: false, reason: "failed" });
+    await asTest(() => runSync());
+    expect((await asTest(adminCars)).map((c) => c.id).sort()).toEqual(["900001", "900002"]);
+    expect(dropped).toEqual([]);
+  });
+
+  it("the demo dealer never removes anything", async () => {
+    const before = await adminCars();
+    feed = async () => ({ ok: false, reason: "refused" });
+    await runSync();
+    expect(await adminCars()).toEqual(before);
+    expect(dropped).toEqual([]);
   });
 });
