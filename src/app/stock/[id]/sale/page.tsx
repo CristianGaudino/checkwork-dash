@@ -8,6 +8,7 @@ import { isAsked } from "@/lib/leads/journey";
 import { can, currentMember } from "@/lib/permissions";
 import { leadsIndex, reviewByWhatsApp, reviewPlace, reviewReach } from "@/lib/admin/review-ask";
 import { stockSource } from "@/lib/stock-source";
+import { currentDealer } from "@/lib/tenancy/current";
 import { carName, priceLabel } from "@/lib/stock/format";
 import { isSold } from "@/lib/stock/types";
 
@@ -45,6 +46,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           today={today}
           submit={was ? "Save the sale" : isSold(car) ? "Record sale" : "Mark sold"}
           askable={askable}
+          serviceMonths={(await currentDealer()).profile.rules.serviceMonths}
           team={team.map((t) => t.name)}
           me={team.some((t) => t.name === me.name) ? me.name : undefined}
           leads={leads.filter((l) => isAsked(l.carSlug, car.id) && l.status !== "lost" && l.status !== "spam").sort((a, b) => b.createdAt - a.createdAt).map((l) => ({ id: l.id, label: `${l.name}, ${LEAD_TYPE_LABELS[l.type].toLowerCase()}, ${fmtDate(l.createdAt)}` }))}

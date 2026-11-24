@@ -15,7 +15,7 @@ describe("a data request", () => {
     await leadsStore.put({ id: "lead-x", type: "enquiry", status: "new", name: "Pat Byrne", email: "PAT@example.com", phone: "", message: "Hi", source: "Website", journey, notes: [], createdAt: now });
     await drivesStore.put({ id: "drive-x", name: "Pat", email: "", phone: "+353 87 123 4567", carSlug: "x", carTitle: "2016 Ford Focus", startsAt: now, status: "confirmed", notes: "", createdAt: now });
     await alertsStore.put({ id: "alert-x", email: "pat@example.com", kind: "price-drop", criteria: "Ford Focus", active: true, createdAt: now });
-    await salesStore.put({ id: "car-x", carTitle: "2016 Ford Focus", priceEur: 9000, soldOn: "2026-11-01", customerId: "cust-x", createdAt: now });
+    await salesStore.put({ id: "car-x", carTitle: "2016 Ford Focus", priceEur: 9000, soldOn: "2026-11-01", customerId: "cust-x", reminders: [{ kind: "service", due: "2026-11-20", on: "2026-11-20", via: "email" }], createdAt: now });
     await reservationsStore.put({ id: "res-x", carId: "car-y", carTitle: "2018 Kia Rio", customerId: "cust-x", depositEur: 500, method: "Card", paidOn: "2026-10-01", until: "2026-10-10", status: "refunded", refundEur: 500, createdAt: now });
     await ordersStore.put({ id: "order-x", customerId: "cust-x", make: "Kia", model: "Sportage", priceEur: 38000, depositEur: 1000, regPeriod: "271", orderedOn: "2026-11-01", status: "ordered", notes: [{ at: now, text: "Pat wants white" }], createdAt: now });
     await claimsStore.put({ id: "claim-x", saleId: "car-x", carId: "car-x", carTitle: "2016 Ford Focus", customerId: "cust-x", openedOn: "2026-11-05", fault: "Pat says the clutch slips", inCover: true, status: "open", costEur: 300, notes: [{ at: now, text: "Call Pat back" }], createdAt: now });
@@ -31,6 +31,7 @@ describe("a data request", () => {
     expect(heldCount(byPhone)).toBe(heldCount(byEmail));
     expect(heldCount(byEmail)).toBe(9);
     expect(JSON.stringify(exportOf(byEmail).purchases)).not.toContain("cust-x");
+    expect(exportOf(byEmail).purchases[0].reminders).toEqual([{ kind: "service", due: "2026-11-20", on: "2026-11-20", via: "email" }]); // the reminders sent to them are theirs to see
     expect(exportOf(byEmail).leads[0].journey).toEqual(journey); // their visit note goes with the lead: exported, and erased with it below
     expect(exportOf(byEmail).deposits).toEqual([{ car: "2018 Kia Rio", depositEur: 500, paidOn: "2026-10-01", until: "2026-10-10", status: "refunded", refundEur: 500 }]);
 
@@ -44,6 +45,7 @@ describe("a data request", () => {
     expect(await leadsStore.get("lead-x")).toBeUndefined();
     expect(await alertsStore.get("alert-x")).toBeUndefined();
     expect(await salesStore.get("car-x")).toMatchObject({ priceEur: 9000, customerId: undefined });
+    expect((await salesStore.get("car-x"))?.reminders).toBeUndefined(); // the reminders sent to them go with them
     expect(await drivesStore.get("drive-x")).toBeUndefined();
     expect((await leadsStore.list()).length).toBe(others); // nobody else touched
   });

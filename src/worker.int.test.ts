@@ -6,7 +6,7 @@ vi.mock("drizzle-orm/d1", () => import("@/test/sqlite-d1"));
 const { drizzle, env } = await import("@/test/sqlite-d1");
 const { dealers } = await import("@/lib/db/directory-schema");
 const { eq } = await import("drizzle-orm");
-const { fetched } = await import("@/test/open-next-worker");
+const { fetched, paths } = await import("@/test/open-next-worker");
 const worker = (await import("../worker.mjs")).default as { scheduled(c: { cron: string }, env: unknown, ctx: unknown): Promise<void> };
 
 describe("the Worker's scheduled jobs", () => {
@@ -19,6 +19,7 @@ describe("the Worker's scheduled jobs", () => {
     expect(ran.filter((r) => r.job === "purge-sign-in")).toEqual([{ job: "purge-sign-in", dealer: "directory", attempts: 0, sessions: 0, passkeys: 0, staff: 0 }]); // once, counts only
     await worker.scheduled({ cron: "0 7 * * *" }, { ...env, CRON_KEY: "k" }, {});
     expect([...new Set(fetched)]).toEqual(["checkwork-motors"]);
+    expect(paths).toContain("/api/reminders?dealer=checkwork-motors"); // the buyers' NCT and service reminders, each morning, active dealers only (#171)
     log.mockRestore();
   });
 });

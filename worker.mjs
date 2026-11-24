@@ -29,6 +29,7 @@ const APP_JOBS = {
   "0 7 * * *": [
     { job: "follow-up-digest", path: "/api/follow-ups/digest" }, // src/lib/admin/follow-up-digest.ts, 7am or 8am Irish time
     { job: "whatsapp-daily", path: "/api/whatsapp/daily" }, // src/lib/whatsapp/alerts.ts: slow stock, new reviews, the Monday summary
+    { job: "reminders", path: "/api/reminders" }, // src/lib/admin/reminders.ts: past buyers' NCT and service reminders
   ],
   "0 7 1 * *": { job: "monthly-report", path: "/api/reports/monthly" }, // src/lib/reports/send.ts, the 1st, 7am or 8am Irish time
   "30 6 * * *": { job: "demo-reset", path: "/api/demo/reset", demoOnly: true }, // demo dealers only, the demo only, each morning: the seed dated from today (so its new leads are not all late), and on a Monday after the 06:00 deploy moves the sold dates (deploy.yml)

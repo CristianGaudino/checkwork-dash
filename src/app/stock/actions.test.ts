@@ -474,4 +474,22 @@ describe("the car form, saved after the car changed elsewhere", () => {
     await expect(saveCarAction(car.id, undefined, form(car, reloaded.at, 1234))).rejects.toThrow(/redirect/);
     expect(await adminCar(car.id)).toMatchObject({ listing: "hidden", priceEur: 1234 }); // the price saved, and the hide kept
   });
+
+  it("drops the car's history check when its reg is corrected, never another car's NCT for a reminder (#171)", async () => {
+    const { adminCarAt } = await import("@/lib/admin/stock-admin");
+    const { carHistoryStore } = await import("@/lib/history");
+    const car = (await adminCars()).find((c) => !c.soldAt && c.reg)!;
+    await carHistoryStore.put({ id: car.id, history: { reg: car.reg!, checkedOn: "2026-11-01", financeOwed: false, mileage: [], mileageOff: false, imported: false, nctExpiry: "2027-05-01" } });
+    const save = async (reg: string) => {
+      const f = form(car, (await adminCarAt(car.id))!.at, car.priceEur);
+      f.set("reg", reg);
+      await expect(saveCarAction(car.id, undefined, f)).rejects.toThrow(/redirect/);
+    };
+    await save(car.reg!);
+    expect(await carHistoryStore.get(car.id)).toBeDefined(); // the same plate keeps it
+    await save(car.reg!.replace(/-/g, " ").toLowerCase());
+    expect(await carHistoryStore.get(car.id)).toBeDefined(); // and so does the same plate typed with other spacing (a paid check)
+    await save("191-D-99999");
+    expect(await carHistoryStore.get(car.id)).toBeUndefined();
+  });
 });

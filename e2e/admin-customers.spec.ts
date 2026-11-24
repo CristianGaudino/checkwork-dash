@@ -16,3 +16,11 @@ test("customers and stock alerts each have a table, and an alert can be stopped"
   await expect(page.getByRole("button", { name: /Resume|Turn on/ })).toHaveCount(0);
   await expect(page.getByRole("link", { name: /^Subscribers/ })).toHaveCount(0); // the newsletter is gone (#149)
 });
+
+// NCT and service reminders (#171): a purchase shows when each is due. The demo's first sale (cust-300's) has its NCT typed on the sale.
+test("a customer's purchase shows the NCT and service due", async ({ page }) => {
+  await page.goto("/customers/cust-300");
+  const purchases = page.getByRole("region", { name: "Purchases" });
+  await expect(purchases).toContainText(/NCT due \d+ \w{3} \d{4}/);
+  await expect(purchases).toContainText(/Service due \d+ \w{3} \d{4}/);
+});

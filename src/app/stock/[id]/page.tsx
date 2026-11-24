@@ -15,7 +15,8 @@ import { dealerProfile } from "@/lib/tenancy/current";
 import { CheckIcon, PencilIcon, ReceiptIcon, TagIcon, TrashIcon } from "@/components/stock/icons";
 import { costsStore, heldFor, prepStore, reservationsStore, salesStore } from "@/lib/admin/collections";
 import { RETURN_WINDOW_DAYS, withinReturnWindow } from "@/lib/admin/deposits";
-import { fmtAgo, fmtDate, fmtEur, fmtNum } from "@/lib/admin/format";
+import { dublinDay, fmtAgo, fmtDate, fmtEur, fmtNum } from "@/lib/admin/format";
+import { reminderFacts } from "@/lib/admin/reminders";
 import { PrepPanel } from "@/components/admin/PrepPanel";
 import { CarPhotos } from "@/components/admin/CarPhotos";
 import { CAR_PHOTOS_MAX } from "@/lib/admin/car-photos";
@@ -72,6 +73,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
   const [{ site: listingSite, url: listingUrl }, { rules }] = await Promise.all([listing(), dealerProfile()]);
   const sold = Boolean(car.soldAt);
   const sale = sales.find((s) => s.id === id);
+  const carHistory = (await carHistoryStore.get(id))?.history;
   const main = sold && !sale ? (
     <Link href={`/stock/${id}/sale`} className={adminButton}><ReceiptIcon className="shrink-0 size-4" />Record sale</Link>
   ) : synced && car.takenDownAt && !sold ? (
@@ -105,6 +107,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
     car.reg,
     car.listedAt && !sold ? (daysInStock(car.listedAt) === "Today" ? "Added today" : `${daysInStock(car.listedAt)} in stock`) : sale ? `Sold for ${fmtEur(sale.priceEur)} on ${day(sale.soldOn)}` : sold ? `Sold ${day(car.soldAt!)}` : undefined,
     sale?.reviewAskedOn ? `Asked for a review ${day(sale.reviewAskedOn)}` : undefined,
+    ...(sale && deposits ? reminderFacts(sale, { reg: car.reg, history: carHistory }, rules.serviceMonths, dublinDay()) : []), // the buyer's NCT and service (#171), the sales module
     `${car.photos.length} ${car.photos.length === 1 ? "photo" : "photos"}`,
     car.mileageKm !== undefined ? `${fmtNum(car.mileageKm)} km` : undefined,
   ].filter(Boolean).join(" · ");
@@ -132,7 +135,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
   // The history check (#170): the car's own, and a recorded sale's trade-in's. Kept beside the car, so synced stock has it too.
   const checks = (await hasModule("history")) && (
     <>
-      {car.reg && <HistoryPanel reg={car.reg} history={(await carHistoryStore.get(id))?.history} act={checkHistoryAction.bind(null, "car", id)} />}
+      {car.reg && <HistoryPanel reg={car.reg} history={carHistory} act={checkHistoryAction.bind(null, "car", id)} />}
       {sale?.tradeIn && <HistoryPanel title="Trade-in history" reg={sale.tradeIn.reg} history={sale.tradeIn.history} act={checkHistoryAction.bind(null, "sale", id)} />}
     </>
   );

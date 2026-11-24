@@ -66,7 +66,7 @@ export function exportOf(h: Held, at = new Date()) {
     testDrives: h.drives,
     stockAlerts: h.alerts,
     customerRecords: h.customers,
-    purchases: h.sales.map((s) => ({ car: s.carTitle, priceEur: s.priceEur, soldOn: s.soldOn, salesperson: s.salesperson, ...(s.returnedOn && { undoneOn: s.returnedOn, refundEur: s.refundEur, reason: s.reason }) })),
+    purchases: h.sales.map((s) => ({ car: s.carTitle, priceEur: s.priceEur, soldOn: s.soldOn, salesperson: s.salesperson, ...(s.returnedOn && { undoneOn: s.returnedOn, refundEur: s.refundEur, reason: s.reason }), ...(s.reminders && { reminders: s.reminders }) })),
     deposits: h.deposits.map((r) => ({ car: r.carTitle, depositEur: r.depositEur, paidOn: r.paidOn, until: r.until, status: r.status, refundEur: r.refundEur })),
     factoryOrders: h.orders.map((o) => ({ car: `${o.make} ${o.model}`, spec: o.spec, regPeriod: o.regPeriod, priceEur: o.priceEur, depositEur: o.depositEur, orderedOn: o.orderedOn, status: o.status, notes: o.notes.map((n) => n.text) })),
     warrantyClaims: h.claims.map((k) => ({ car: k.carTitle, openedOn: k.openedOn, fault: k.fault, status: k.status, notes: k.notes.map((n) => n.text) })),
@@ -79,7 +79,7 @@ export function exportOf(h: Held, at = new Date()) {
 // the notes may name them), so the repair cost still counts.
 export async function erasePerson(q: PersonQuery): Promise<number> {
   const h = await findPerson(q);
-  for (const s of h.sales) await salesStore.update(s.id, (x) => ({ ...x, customerId: undefined }));
+  for (const s of h.sales) await salesStore.update(s.id, (x) => ({ ...x, customerId: undefined, reminders: undefined })); // the reminders sent were theirs
   for (const r of h.deposits) await reservationsStore.update(r.id, (x) => ({ ...x, customerId: undefined }));
   for (const k of h.claims) await claimsStore.update(k.id, (x) => ({ ...x, customerId: undefined, leadId: undefined, fault: "Erased on request", notes: [] }));
   for (const o of h.orders) await ordersStore.update(o.id, (x) => ({ ...x, customerId: undefined, leadId: undefined, notes: [] }));

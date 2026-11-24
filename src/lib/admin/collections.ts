@@ -9,7 +9,7 @@ import { moveStaffEmail } from "@/lib/auth/attempts";
 import { AD_PLATFORMS, NETWORKS, type AdPlatform, type Network, type PostFormat, type StoryLayout } from "./networks";
 import { demoCost } from "./margins";
 import { DAY, HOUR, MINUTE } from "@/lib/time";
-import { dublinDay, dublinMs, fmtEur } from "./format";
+import { addMonths, dublinDay, dublinMs, fmtEur } from "./format";
 import { newId } from "./ids";
 import { COVER_MONTHS, DEPOSIT_METHODS, type DepositMethod } from "./deposits";
 import type { Note } from "./notes";
@@ -499,6 +499,7 @@ export async function moveTeamMember(from: string, to: string, role: Role, detai
 // SALE_KEEP_YEARS the link to the buyer is removed (src/lib/admin/sales-purge.ts) and the figures stay for the reports.
 // A sale that was undone keeps its record, under an id of its own (the car's id is free for the next sale): `returnedOn` says when, and
 // `kind` whether it fell through before the buyer took the car (cancelled) or the buyer brought it back (returned). Reports leave those out.
+export type SentReminder = { kind: "nct" | "service"; due: string; on: string; via: "whatsapp" | "email" };
 export type Sale = {
   id: string;
   carId?: string; // only on an undone sale: the car it was for (a live sale's id is the car's)
@@ -512,6 +513,9 @@ export type Sale = {
   tradeIn?: { reg: string; allowanceEur: number; history?: VehicleHistory }; // the buyer's car taken as a trade-in, and its last history check
   leadId?: string; // the lead the sale came from, marked won with it
   reviewAskedOn?: string; // the day the buyer was asked for a Google review (src/lib/admin/review-ask.ts), at most once
+  nctDue?: string; // typed on the sale form; absent: the car's history check says (src/lib/admin/reminders.ts)
+  serviceDue?: string; // typed on the sale form; absent: the dealer's serviceMonths after the sale
+  reminders?: SentReminder[]; // the NCT and service reminders sent to the buyer, one per due date: dates and channel only
   returnedOn?: string;
   kind?: "cancelled" | "returned";
   refundEur?: number;
@@ -537,7 +541,7 @@ function seedSales(): Sale[] {
     soldOn: c.soldAt!,
     salesperson: TEAM_SEED[i % 2 === 0 ? 1 : 0].name,
     customerId: `cust-${300 + i}`,
-    ...(i === 0 && { coverMonths: 24, tradeIn: { reg: "151-D-23817", allowanceEur: 2500 } }),
+    ...(i === 0 && { coverMonths: 24, tradeIn: { reg: "151-D-23817", allowanceEur: 2500 }, nctDue: addMonths(c.soldAt!, 3) }),
     ...(i === 1 && { depositEur: 500 }), // its deposit is in seedReservations
     createdAt: Date.parse(`${c.soldAt}T16:00:00Z`),
   }));

@@ -30,6 +30,7 @@ import { listing } from "@/lib/stock-source";
 import { requireStaff } from "@/lib/staff";
 import { requireModule } from "@/lib/modules";
 import { carHistoryStore } from "@/lib/history";
+import { parseIrishReg } from "@/lib/reg";
 import { alertNewIn, alertStaff } from "@/lib/whatsapp/alerts";
 import { STALE_CAR, STALE_STATUS, changedSince } from "@/lib/admin/stale";
 import { suggestedDrop } from "@/lib/admin/overview";
@@ -81,6 +82,9 @@ export async function saveCarAction(id: string | null, _prev: FormState, data: F
       await dropCarPhotos(ok).catch(() => undefined);
     }
   }
+  // A corrected reg makes the kept history check another car's: it goes, so no page or NCT reminder uses it (#171).
+  const plate = (r?: string) => (r && parseIrishReg(r)?.reg) || r; // the same plate typed with other spacing keeps its paid check
+  if (existing && plate(existing.reg) !== plate(car.reg)) await carHistoryStore.remove(car.id);
   if (cost === null) await costsStore.remove(car.id);
   else if (cost !== undefined) await costsStore.put({ id: car.id, costEur: cost });
   await logActivity("stock", existing ? carEditSummary(existing, car) : "Added the car", carRef(car));
@@ -346,6 +350,8 @@ const sale = z.object({
   tradeReg: z.preprocess(blank, z.string().trim().toUpperCase().max(12).optional()),
   tradeEur: z.preprocess(blank, euros(1_000_000).optional()),
   leadId: z.string().max(60).optional(),
+  nctDue: z.preprocess(blank, isoDay("Choose the day the NCT is due").optional()),
+  serviceDue: z.preprocess(blank, isoDay("Choose the day the service is due").optional()),
   ...buyerFields,
 });
 
@@ -390,6 +396,9 @@ export async function recordSaleAction(carId: string, _prev: FormState, data: Fo
     ...(d.tradeReg && d.tradeEur && { tradeIn: { reg: d.tradeReg, allowanceEur: d.tradeEur, ...(was?.tradeIn?.history && { history: was.tradeIn.history }) } }),
     ...(leadId && { leadId }),
     ...(was?.reviewAskedOn && { reviewAskedOn: was.reviewAskedOn }), // asked once per sale, whatever is changed later
+    ...(d.nctDue && { nctDue: d.nctDue }),
+    ...(d.serviceDue && { serviceDue: d.serviceDue }),
+    ...(was?.reminders && { reminders: was.reminders }), // one per due date ever, whatever is changed later
     createdAt: was?.createdAt ?? Date.now(),
   });
   const markSold =
