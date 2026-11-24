@@ -27,7 +27,7 @@ export const syncActor = (site: string) => `${site} sync`;
 export const syncRunsHere = async () => (await currentDealer()).demo || (await stockSource()) === "donedeal";
 export const ALERT_AFTER = HOUR;
 // A refused key counts once it is still refused this long after the first refusal, so two quick presses of Refresh stock never remove cars.
-export const REFUSED_FOR = 10 * MINUTE;
+const REFUSED_FOR = 10 * MINUTE;
 
 export type SyncStatus = {
   id: "status";
@@ -39,7 +39,7 @@ export type SyncStatus = {
   failingSince?: number; // the first failed run of this outage
   alertedAt?: number;
   refusedSince?: number; // the first of this run of refused answers; cleared by any other run
-  removed?: boolean; // the key was refused and the synced cars removed; until a sync works again
+  removed?: boolean; // access ended (a refused or removed key) and the synced cars removed; until a sync works again
 };
 
 // The demo's last sync, a few minutes ago with nothing to change (its feed is the stock itself). A real site starts with none.
@@ -52,7 +52,7 @@ export async function syncStatus(): Promise<SyncStatus> {
 }
 
 const problems = (site: string): Record<Exclude<FeedResult, { ok: true }>["reason"], string> => ({
-  "not-connected": `${site} is not connected. Add the API key under Settings, Connected services.`,
+  "not-connected": `${site} is not connected. Contact Checkwork to connect it.`,
   "not-installed": `The ${site} key is set, but the connection is not switched on yet.`,
   refused: `${site} refused the key, so its cars were removed.`,
   failed: `${site} did not answer.`,
@@ -116,7 +116,8 @@ export async function removeSyncedCars(why: string, actor: string): Promise<numb
   for (const c of cars) await removeCar(c.id, c);
   if (cars.length) {
     await logActivity("stock", `Removed ${cars.length === 1 ? "1 car" : `${cars.length} cars`}: ${why}`, undefined, actor);
-    await statusStore.put({ ...(await syncStatus()), removed: true }); // so Stock and a later email never say the site still shows them
+    // So Stock and a later email never say the site still shows them.
+    await statusStore.put({ ...(await syncStatus()), removed: true, problem: `${(await listing()).site} cars were removed: ${why}.` });
   }
   return cars.length;
 }

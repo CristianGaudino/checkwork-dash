@@ -84,11 +84,11 @@ const markDone = async (all: Msg[]) => void (await Promise.all(all.map((m) => me
 async function linked(name: string) {
   return (await staffStore.list()).some((p) => p.name === name && p.phone);
 }
-// A team member's role, by their name in the conversation, or null when they are no longer on the team.
+// A team member's role, by their name in the conversation, or null when they are no longer on the team. A departed namesake's record
+// never counts: only records of people still on the team.
 async function roleOf(name: string) {
   const [staff, { team }] = await Promise.all([staffStore.list(), getSettings()]);
-  const id = staff.find((p) => p.name === name)?.id;
-  return team.find((t) => t.id === id)?.role ?? null;
+  return staff.filter((p) => p.name === name).map((p) => team.find((t) => t.id === p.id)?.role).find(Boolean) ?? null;
 }
 
 export async function tap(me: string, msgId: string, button: ButtonId): Promise<void> {

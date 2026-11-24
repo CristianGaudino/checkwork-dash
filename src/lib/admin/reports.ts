@@ -25,7 +25,7 @@ export function monthsBetween(from: string, to: string): string[] | null {
 
 // The months' sales, and the sales undone in them (by the day undone). An undone sale is not a sale: it is left out of every figure and
 // counted under returns instead.
-export function salesIn(all: Sale[], months: string[]) {
+function salesIn(all: Sale[], months: string[]) {
   const inPeriod = new Set(months);
   return { sales: all.filter((s) => !s.returnedOn && inPeriod.has(s.soldOn.slice(0, 7))), undone: all.filter((s) => s.returnedOn && inPeriod.has(s.returnedOn.slice(0, 7))) };
 }

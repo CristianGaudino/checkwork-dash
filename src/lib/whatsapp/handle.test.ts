@@ -14,6 +14,7 @@ const db = vi.hoisted(() => ({
   phone: "+353 83 000 1100",
   activity: [] as string[],
   role: "Owner",
+  staff: [] as Record<string, unknown>[],
 }));
 vi.mock("@/lib/admin/activity", () => ({ logActivity: async (_area: string, text: string) => void db.activity.push(text) }));
 vi.mock("@/lib/modules", () => ({ enabledModules: async () => db.modules }));
@@ -54,7 +55,7 @@ vi.mock("./send", () => ({ sendWhatsApp: async (m: Record<string, unknown>, _kin
 vi.mock("@/lib/admin/notifications", () => ({ notify: async () => {}, leadLine: () => "" }));
 vi.mock("./store", () => ({
   messagesStore: { get: async (id: string) => db.msgs.get(id), put: async (m: { id: string }) => void db.msgs.set(m.id, m), list: async () => [...db.msgs.values()] },
-  staffStore: { list: async () => [{ id: "t1", name: "Aoife", phone: db.phone, alerts: [], quietFrom: "", quietTo: "" }] },
+  staffStore: { list: async () => [...db.staff, { id: "t1", name: "Aoife", phone: db.phone, alerts: [], quietFrom: "", quietTo: "" }] },
   addMessage: async (m: Record<string, unknown>) => {
     const msg = { id: `m${db.msgs.size}`, at: Date.now(), ...m };
     db.msgs.set(msg.id, msg);
@@ -74,6 +75,7 @@ beforeEach(() => {
   db.source = "demo";
   db.car = { id: "c1", priceEur: 10000, listedAt: "2026-01-01" };
   db.role = "Owner";
+  db.staff = [];
   db.drives.clear();
   db.reviews.clear();
   db.deposits.clear();
@@ -113,6 +115,12 @@ describe("Drop the price", () => {
     expect(db.saved).toEqual([]);
     expect(said()).toContain("Only owners and managers can drop a price.");
     expect(db.msgs.get("a1")?.done).toBeFalsy();
+  });
+  it("takes the role of the Aoife still on the team, never a departed namesake's record", async () => {
+    db.staff = [{ id: "gone", name: "Aoife", phone: db.phone, alerts: [], quietFrom: "", quietTo: "" }]; // listed first, no longer on the team
+    alert("a1", ["drop"], { ref: "c1" });
+    await tap("Aoife", "a1", "drop");
+    expect(db.saved).toEqual([expect.objectContaining({ priceEur: 9500 })]);
   });
   it("leaves a car already reduced alone: one suggested drop per car", async () => {
     db.car = { id: "c1", priceEur: 9500, wasPriceEur: 10000, listedAt: "2026-01-01" };

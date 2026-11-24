@@ -199,6 +199,17 @@ describe("recording a sale", () => {
     role = "Sales";
   });
 
+  it("says so when the ticked review ask could go to nobody", async () => {
+    stockCookie = "checkwork";
+    const recorded = new Set((await salesStore.list()).flatMap((x) => [x.id, x.carId]));
+    const car = (await adminCars()).find((c) => !c.soldAt && !c.listing && !c.reserved && !recorded.has(c.id))!;
+    const customer = (await customersStore.list()).find((c) => c.email)!;
+    const ask = await import("@/lib/admin/review-ask");
+    vi.spyOn(ask, "askForReview").mockResolvedValueOnce(null);
+    await expect(recordSaleAction(car.id, undefined, form({ priceEur: "9000", soldOn: today, customerId: customer.id, askReview: "on" }))).rejects.toThrow(`redirect:/stock?view=sold&sale=${car.id}&review=none`);
+    expect(await salesStore.get(car.id)).toBeDefined();
+  });
+
   it("saves the sale when the review ask fails, logs the car only and tells staff", async () => {
     stockCookie = "checkwork";
     const recorded = new Set((await salesStore.list()).flatMap((x) => [x.id, x.carId]));

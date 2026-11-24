@@ -223,7 +223,7 @@ describe("a refused DoneDeal key (#158)", () => {
 
   it("the key removed by Checkwork: the status says the cars were removed, and so does a later email", async () => {
     expect(await asTest(() => removeSyncedCars("the DoneDeal key was removed", "Checkwork"))).toBe(2);
-    expect(await asTest(syncStatus)).toMatchObject({ removed: true });
+    expect(await asTest(syncStatus)).toMatchObject({ removed: true, problem: "DoneDeal cars were removed: the DoneDeal key was removed." });
     mode = "off";
     feed = async () => ({ ok: false, reason: "not-connected" });
     await asTest(() => runSync({ now: 1_000 }));
@@ -242,7 +242,7 @@ describe("a refused DoneDeal key (#158)", () => {
     const s = await asTest(() => runSync({ now: 1_000 }));
     mode = "simulated";
     expect(await ids()).toEqual([]);
-    expect(s).toMatchObject({ removed: true, problem: expect.stringMatching(/not connected/) });
+    expect(s).toMatchObject({ removed: true, problem: "DoneDeal is not connected. Contact Checkwork to connect it." });
   });
 
   it("an outage keeps the stock", async () => {

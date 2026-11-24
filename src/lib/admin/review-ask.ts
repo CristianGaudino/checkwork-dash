@@ -22,7 +22,7 @@ export async function reviewPlace(): Promise<string | undefined> {
 
 // Google's own page for writing a review of a place.
 export const reviewLink = (placeId: string) => `https://search.google.com/local/writereview?placeid=${encodeURIComponent(placeId)}`;
-export const reviewText = (first: string, car: string, dealer: string, link: string) => `Hi ${first}, thanks for buying your ${car} from ${dealer}. If you have a minute, a Google review would help us a lot: ${link}`;
+const reviewText = (first: string, car: string, dealer: string, link: string) => `Hi ${first}, thanks for buying your ${car} from ${dealer}. If you have a minute, a Google review would help us a lot: ${link}`;
 // The email's way out (WhatsApp has its own STOP).
 export const REVIEW_OPT_OUT = "If you'd rather not hear from us, reply and say so.";
 

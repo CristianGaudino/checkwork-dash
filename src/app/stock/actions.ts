@@ -394,9 +394,9 @@ export async function recordSaleAction(carId: string, _prev: FormState, data: Fo
     Boolean(await updateCar(car.id, (cur) => (isSold(cur) ? null : { ...cur, soldAt: d.soldOn, reserved: undefined, ...(cur.takenDownAt && { takenDownAt: undefined, listing: undefined }) })));
   await logActivity("stock", `${was ? "Changed the sale to" : "Recorded the sale for"} ${fmtEur(d.priceEur)}${markSold ? " and marked it sold" : ""}`, carRef(car));
   // The review ask is on a new sale only (Change the sale has no tick). Best effort: the sale is saved whatever happens to the message, and
-  // a failure is logged (the car's id only) and told to staff on the next page.
-  const asked = !was && data.get("askReview") === "on" ? await askForReview(car.id).then(() => true, () => (logReviewAsk({ carId: car.id, outcome: "review-ask-failed" }), false)) : true;
-  redirect(`/stock?view=sold&sale=${car.id}${asked ? "" : "&review=failed"}`);
+  // a failure is logged (the car's id only) and told to staff on the next page, as is an ask that could not go to anyone ("none").
+  const review = !was && data.get("askReview") === "on" ? await askForReview(car.id).then((via) => (via ? "" : "none"), () => (logReviewAsk({ carId: car.id, outcome: "review-ask-failed" }), "failed")) : "";
+  redirect(`/stock?view=sold&sale=${car.id}${review && `&review=${review}`}`);
 }
 
 // A deposit: the car is reserved, on the website as Reserved, until the day agreed. Anyone on the team. Our version only.
