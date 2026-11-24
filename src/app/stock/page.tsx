@@ -37,7 +37,7 @@ export const metadata = { title: "Stock" };
 
 // The views (src/lib/admin/stock-views.ts) are the summary: each is a tile with its count, and the chosen one filters the table.
 
-type StockParams = { view?: string; status?: string; q?: string; make?: string; fuel?: string; gearbox?: string; sort?: string; dir?: string; per?: string; saved?: string; deleted?: string; sale?: string; reserved?: string; undone?: string; page?: string; synced?: string };
+type StockParams = { view?: string; status?: string; q?: string; make?: string; fuel?: string; gearbox?: string; sort?: string; dir?: string; per?: string; saved?: string; deleted?: string; sale?: string; reserved?: string; undone?: string; page?: string; synced?: string; review?: string };
 
 export default async function Page({ searchParams }: { searchParams: Promise<StockParams> }) {
   const sp = await searchParams;
@@ -159,6 +159,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sto
           )}
         </Notice>
       )}
+      {saleFor && sp.review === "failed" && <Notice tone="warn">The review request did not go.</Notice>}
       {sp.deleted && <Notice tone="neutral">Car deleted.</Notice>}
       {reservedNow && <Notice>Deposit taken. {carName(reservedNow)} shows as Reserved on the website.</Notice>}
       {undoneNow && <Notice tone="neutral">Sale undone for {carName(undoneNow)}. The record is kept.</Notice>}

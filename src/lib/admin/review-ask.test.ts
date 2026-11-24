@@ -8,9 +8,9 @@ const db = vi.hoisted(() => ({
   placeId: "ChIJ1" as string | undefined,
   demo: false,
   whatsapp: true,
-  waVia: undefined as "email" | undefined | null, // null: sendWhatsApp sent nothing
+  channel: "whatsapp" as "whatsapp" | "email", // what sendWhatsApp would pick (simulated and under the cap, or not)
   wa: [] as Record<string, unknown>[],
-  mail: [] as { to: string[]; text: string }[],
+  mail: [] as { to: string[]; text: string; replyTo?: string }[],
   activity: [] as string[],
 }));
 const store = (m: Map<string, Record<string, unknown>>) => ({
@@ -26,11 +26,17 @@ vi.mock("./activity", () => ({ logActivity: async (_a: string, text: string) => 
 vi.mock("@/lib/tenancy/current", () => ({ currentDealer: async () => ({ name: "Byrne Motors", demo: db.demo, profile: { placeId: db.placeId } }) }));
 vi.mock("@/lib/integrations", () => ({ simulating: async () => db.demo }));
 vi.mock("@/lib/modules", () => ({ hasModule: async () => db.whatsapp }));
-vi.mock("@/lib/leads/mail", () => ({ sendTo: async (to: string[], m: { text: string }) => void db.mail.push({ to, text: m.text }) }));
-vi.mock("@/lib/whatsapp/send", () => ({
-  sendWhatsApp: async (d: Record<string, unknown>) => (db.waVia === null ? null : (db.wa.push(d), { ...d, via: db.waVia })),
+vi.mock("@/lib/leads/mail", () => ({
+  leadRecipients: async () => ["sales@byrne.ie"],
+  sendTo: async (to: string[], m: { text: string; replyTo?: string }) => void db.mail.push({ to, text: m.text, replyTo: m.replyTo }),
 }));
-const { DEMO_PLACE_ID, askForReview, reviewLink, reviewReach } = await import("./review-ask");
+// As the real one: `email` records it as sent by email; otherwise WhatsApp when it can go, else (no address to fall back to) nothing.
+vi.mock("@/lib/whatsapp/send", () => ({
+  whatsappChannel: async () => db.channel,
+  sendWhatsApp: async (d: Record<string, unknown>, _k: string, o: { email?: boolean; canEmail?: boolean } = {}) =>
+    o.email ? (db.wa.push({ ...d, via: "email" }), { ...d, via: "email" }) : db.channel === "whatsapp" ? (db.wa.push(d), d) : o.canEmail === false ? null : (db.wa.push({ ...d, via: "email" }), { ...d, via: "email" }),
+}));
+const { DEMO_PLACE_ID, REVIEW_OPT_OUT, askForReview, leadsIndex, leadsOf, reviewByWhatsApp, reviewLink, reviewReach } = await import("./review-ask");
 
 const lead = (o: Record<string, unknown>) => ({ id: "lead-1", type: "enquiry", status: "won", name: "Pat Byrne", email: "", phone: "+353 83 000 1234", message: "", source: "Website", notes: [], createdAt: 0, ...o });
 beforeEach(() => {
@@ -40,7 +46,7 @@ beforeEach(() => {
   db.placeId = "ChIJ1";
   db.demo = false;
   db.whatsapp = true;
-  db.waVia = undefined;
+  db.channel = "whatsapp";
   db.wa = [];
   db.mail = [];
   db.activity = [];
@@ -60,10 +66,46 @@ describe("reviewReach", () => {
   });
 });
 
+describe("reviewByWhatsApp", () => {
+  it("is on only when a WhatsApp message would really go", async () => {
+    expect(await reviewByWhatsApp()).toBe(true);
+    db.channel = "email"; // not simulated (no adapter yet) or past the cap
+    expect(await reviewByWhatsApp()).toBe(false);
+    db.channel = "whatsapp";
+    db.whatsapp = false;
+    expect(await reviewByWhatsApp()).toBe(false);
+  });
+});
+
+describe("leadsIndex", () => {
+  it("finds the same leads as leadsOf, in the same order", () => {
+    const leads = [
+      lead({ id: "a", email: "Pat@Mail.ie ", phone: "" }),
+      lead({ id: "b", email: "", phone: "087 123 4567" }),
+      lead({ id: "c", email: "pat@mail.ie", phone: "+353 87 123 4567" }),
+      lead({ id: "d", email: "other@mail.ie", phone: "12" }),
+      lead({ id: "e", email: "", phone: "00353831112222" }),
+    ] as never[];
+    const theirs = leadsIndex(leads);
+    for (const c of [
+      { email: "pat@mail.ie", phone: "" },
+      { email: "", phone: "0871234567" },
+      { email: "PAT@mail.ie", phone: "083 111 2222" },
+      { email: "nobody@mail.ie", phone: "12" },
+      { email: "", phone: "" },
+      { email: "not an email 0831112222", phone: "" },
+    ])
+      expect(theirs(c).map((l) => (l as { id: string }).id)).toEqual(leadsOf(c, leads).map((l) => l.id));
+  });
+});
+
 describe("askForReview", () => {
   it("emails the review link once, and stores the day it asked", async () => {
     expect(await askForReview("car-1")).toBe("email");
-    expect(db.mail).toEqual([{ to: ["pat@mail.ie"], text: expect.stringContaining(reviewLink("ChIJ1")) }]);
+    expect(db.mail).toEqual([{ to: ["pat@mail.ie"], text: expect.stringContaining(reviewLink("ChIJ1")), replyTo: "sales@byrne.ie" }]); // replies reach the dealer
+    expect(db.mail[0].text.endsWith(`
+
+${REVIEW_OPT_OUT}`)).toBe(true);
     expect(db.mail[0].text).toMatch(/^Hi Pat, thanks for buying your 2019 Ford Focus from Byrne Motors/);
     expect(db.mail[0].text).not.toMatch(/—/);
     expect(db.sales.get("car-1")?.reviewAskedOn).toMatch(/^\d{4}-\d{2}-\d{2}$/);
@@ -79,9 +121,22 @@ describe("askForReview", () => {
     expect(db.wa).toMatchObject([{ thread: "buyer", leadId: "lead-1" }]);
     expect(db.mail).toEqual([]);
     db.sales.set("car-1", { ...db.sales.get("car-1"), reviewAskedOn: undefined });
-    db.waVia = "email"; // sendWhatsApp only records the fallback: the one email is sent here
+    expect(db.wa[0].text).not.toContain(REVIEW_OPT_OUT); // the way out is the email's
+    db.wa = [];
+    db.channel = "email"; // past the cap: the email goes, then their conversation says so
     expect(await askForReview("car-1")).toBe("email");
-    expect(db.mail).toEqual([{ to: ["pat@mail.ie"], text: expect.any(String) }]);
+    expect(db.mail).toEqual([{ to: ["pat@mail.ie"], text: expect.any(String), replyTo: "sales@byrne.ie" }]);
+    expect(db.wa).toMatchObject([{ leadId: "lead-1", via: "email" }]);
+  });
+
+  it("never says it went by email in their conversation when the email failed", async () => {
+    db.leads = [lead({ whatsappOptIn: true })];
+    db.channel = "email";
+    const mail = await import("@/lib/leads/mail");
+    vi.spyOn(mail, "sendTo").mockRejectedValueOnce(new Error("No lead email went out"));
+    await expect(askForReview("car-1")).rejects.toThrow();
+    expect(db.wa).toEqual([]);
+    expect(db.sales.get("car-1")?.reviewAskedOn).toBeUndefined();
   });
 
   it("sends nothing outside for a demo dealer, but still records the ask", async () => {
@@ -118,7 +173,7 @@ describe("askForReview", () => {
     expect(await askForReview("car-1")).toBeNull();
     db.leads = [lead({ whatsappOptIn: true })];
     db.customers.set("cust-1", { ...db.customers.get("cust-1"), email: "" });
-    db.waVia = null; // WhatsApp could not send and there is no address
+    db.channel = "email"; // WhatsApp could not send and there is no address
     expect(await askForReview("car-1")).toBeNull();
     expect(db.mail).toEqual([]);
     expect(db.sales.get("car-1")?.reviewAskedOn).toBeUndefined();

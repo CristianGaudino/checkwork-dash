@@ -14,6 +14,8 @@ export const replyPrice = (car: ReplyCar) => (isSold(car) || car.reserved || onR
 export const replyLink = (car: ReplyCar, siteUrl: string, modules: Set<ModuleId>) => (siteUrl && !isSold(car) && !car.reserved && !car.listing && conditionShown(modules, car.condition) ? siteCarUrl(siteUrl, car.slug) : undefined);
 
 export type Reply = { subject: string; body: string };
+// Who signs the reply: the staff member's name, or none when all we have is their email (someone not in the team) or a demo role.
+export const replyFrom = (me: { name: string; email: string; role: string | null }) => (me.name && me.name !== me.email && me.name !== me.role && !me.name.includes("@") ? me.name : "");
 // `from`: the staff member's name (none when not known); `title`: the car as the lead names it; `car`: that car in stock, if it still is.
 export function firstReply(o: { name: string; from: string; dealer: string; title?: string; car?: ReplyCar; siteUrl: string; modules: Set<ModuleId> }): Reply {
   const { car, title } = o;

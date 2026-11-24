@@ -56,7 +56,7 @@ export const WhoseToggle = ({ path, mine }: { path: string; mine: boolean }) => 
 // `mine`: the page's ?mine; For me is on by default for Sales (their report counts their own follow-ups).
 export async function loadToDo(mineParam: string | undefined) {
   const [leads, drives, reviews, all, settings, source, sales, reservations, claims, mods, me, { site: listingSite }, { rules }] = await Promise.all([leadsStore.list(), drivesStore.list(), reviewsStore.list(), adminCars(), getSettings(), stockSource(), salesStore.list(), reservationsStore.list(), claimsStore.list(), enabledModules(), currentMember(), listing(), dealerProfile()]);
-  const reply = await firstReplies();
+  const reply = await firstReplies(all);
   const mine = Boolean(me.name) && (mineParam ? mineParam === "1" : me.role === "Sales");
   const synced = source === "donedeal";
   const sync = synced ? await syncStatus() : null;
