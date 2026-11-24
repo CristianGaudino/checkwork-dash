@@ -3,7 +3,7 @@ import { defineCollection } from "@/lib/admin/docs";
 import { dublinDay } from "@/lib/admin/format";
 import { SETTINGS_DEFAULT, getSettings, settingsStore, type DealerSettings } from "@/lib/admin/collections";
 import { notify } from "@/lib/admin/notifications";
-import { SHOW_PRICING, alertsCrossed, allowanceFor, inAllowance, usageCosts, usageId, withinCaps, withBranchCeilings, type BillingSettings, type Kind, type Service, type UsageCount, withBillingDefaults } from "./rules";
+import { alertsCrossed, allowanceFor, inAllowance, usageCosts, usageId, withinCaps, type BillingSettings, type Kind, type Service, type UsageCount, withBillingDefaults } from "./rules";
 import { enabledModules } from "@/lib/modules";
 import { roleCan } from "@/lib/permission-rules";
 import { currentDealer } from "@/lib/tenancy/current";
@@ -12,13 +12,13 @@ import { currentDealer } from "@/lib/tenancy/current";
 // once, by the code that makes it; the Billing page, the owner API (#174) and the bill all read these counts, so they never disagree.
 // A month's line is one record (usageId), so the store grows by a few records a month, not one per use.
 export const usageStore = defineCollection<UsageCount>("usage", seedUsage);
-// The alerts already sent, by key (a month, a scope and a mark), so each goes once.
+// The limit notices already sent, by key (a month, a service and the limit), so each goes once.
 export const sentAlertsStore = defineCollection<{ id: string }>("usage-alerts", () => []);
 
 export const monthOf = (t: number = Date.now()) => dublinDay(t).slice(0, 7);
 
 // A record saved before the AI assistant was dropped may still carry `aiPlan`: nothing reads it.
-export const billingSettings = async (): Promise<BillingSettings> => withBranchCeilings(withBillingDefaults((await getSettings()).billing));
+export const billingSettings = async (): Promise<BillingSettings> => withBillingDefaults((await getSettings()).billing);
 // What the plan includes this month before usage is billed.
 export const monthAllowance = async (b: BillingSettings) => allowanceFor(await enabledModules(), b);
 export async function monthCounts(month = monthOf()): Promise<UsageCount[]> {
@@ -28,8 +28,9 @@ export async function monthUsage(month = monthOf()) {
   return usageCosts(await monthCounts(month), await monthAllowance(await billingSettings()));
 }
 
-// Whether one more use is allowed: false once the month's spend reaches a cap (the dealer's or ours), unless the plan still includes it
-// (a use inside the allowance costs nothing, so even a EUR 0 limit lets it through). The caller falls back without it.
+// Whether one more use is allowed: false once the month's spend reaches a limit (the dealer's or ours), unless the plan still includes it
+// (a use inside the allowance costs nothing, so even a EUR 0 limit lets it through), and for AI writing once it reaches our fair use.
+// The caller falls back without it.
 export async function usageAllowed(service: Service, kind?: string): Promise<boolean> {
   try {
     const b = await billingSettings();
@@ -41,8 +42,7 @@ export async function usageAllowed(service: Service, kind?: string): Promise<boo
   }
 }
 
-// Counts one use, then sends any alert it set off (80% of a cap, the cap, an amount the dealer chose) to the owners and managers, in the
-// bell. Best effort: a use is never undone because its count could not be written.
+// Counts one use, then tells the owners and managers in the bell if it reached a limit. Best effort: a use is never undone because its count could not be written.
 // shortcut: read then write, so two uses at the same moment can count once. Fine for a dealer's volume; a Durable Object counter if exact.
 export async function recordUsage<S extends Service>(service: S, kind: Kind<S>, n = 1): Promise<void> {
   try {
@@ -58,7 +58,7 @@ export async function recordUsage<S extends Service>(service: S, kind: Kind<S>, 
     const after = [...before.filter((c) => c.id !== id), next];
     const allowance = await monthAllowance(b);
     const alerts = alertsCrossed(usageCosts(before, allowance), usageCosts(after, allowance), b, month);
-    if (!alerts.length || !SHOW_PRICING) return; // no limit notices while pricing is hidden, and none marked sent
+    if (!alerts.length) return;
     const { team } = await getSettings();
     // Each owner and manager, by the name the bell knows them by (src/lib/permissions.ts): the team's, from the directory (an owner added
     // there with no name yet goes by their email). Only them, so Sales and Finance never see what the dealer pays; with nobody, no notice.
@@ -73,9 +73,9 @@ export async function recordUsage<S extends Service>(service: S, kind: Kind<S>, 
   }
 }
 
-// Saves the dealer's limits and alerts. Ours (the ceilings) are set from the owner's program, never here.
-// `change` may be worked out from the billing as it is when written (adding or removing one alert), so two saves at once both land.
-type BillingChange = Partial<Pick<BillingSettings, "caps" | "alerts" | "alertAt80" | "aiModel">>;
+// Saves the dealer's limits. Ours (the ceilings), the term and the free month are set from the owner's program, never here.
+// `change` may be worked out from the billing as it is when written, so two saves at once both land.
+type BillingChange = Partial<Pick<BillingSettings, "caps" | "aiModel">>;
 export async function saveBilling(change: BillingChange | ((now: BillingSettings) => BillingChange)) {
   // On the settings as they are now, so a team change saved at the same moment is never undone.
   const apply = (s: Partial<DealerSettings>) => {

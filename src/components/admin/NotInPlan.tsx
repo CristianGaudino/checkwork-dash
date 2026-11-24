@@ -6,17 +6,17 @@ import { askModuleAction } from "@/app/billing/actions";
 import { MODULES, withModule, type ModuleId } from "@/lib/modules-rules";
 import { enabledModules } from "@/lib/modules";
 import { can } from "@/lib/permissions";
-import { SHOW_PRICING, eur, planFor } from "@/lib/billing/rules";
+import { eur, planFor } from "@/lib/billing/rules";
 import { billingSettings } from "@/lib/billing/usage";
 import { LayersIcon } from "@/components/stock/icons";
 
-// A dashboard page whose module the plan lacks: what it is, what it would add to the bill (owners and managers, while our prices show),
+// A dashboard page whose module the plan lacks: what it is, what it would add to the bill (owners and managers),
 // how to get it, and the way back. Owners and managers ask for it here, as on Billing; anyone else is told who can.
 export async function NotInPlan({ id }: { id: ModuleId }) {
   const m = MODULES.find((x) => x.id === id)!;
   const billing = await can("billing");
   let price: string | undefined;
-  if (billing && SHOW_PRICING) {
+  if (billing) {
     const [mods, b] = await Promise.all([enabledModules(), billingSettings()]);
     const add = planFor(withModule(mods, id), b).eur - planFor(mods, b).eur;
     price = add > 0 ? `Adds ${eur(add)} a month to your plan, before VAT.` : "Your plan already pays for it: ask and we switch it on.";

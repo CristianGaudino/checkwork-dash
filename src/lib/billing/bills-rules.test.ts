@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { itemise, nextBillDate, parseAlert, parseEuro, parseLimits, usageLines, type Bill } from "./bills-rules";
+import { itemise, nextBillDate, parseEuro, parseLimits, usageLines, type Bill } from "./bills-rules";
 
 describe("parseEuro", () => {
   it("reads blank, whole euros and cents", () => {
@@ -17,31 +17,21 @@ describe("parseEuro", () => {
 describe("parseLimits", () => {
   const get = (v: Record<string, string>) => (k: string) => v[k] ?? "";
   it("keeps what is set and drops blanks", () => {
-    expect(parseLimits(get({ "cap-ai": "9", "cap-total": "" }), {}, ["ai", "total"]).caps).toEqual({ ai: 9 });
+    expect(parseLimits(get({ "cap-lookup": "9", "cap-whatsapp": "" }), {}, ["lookup", "whatsapp"]).caps).toEqual({ lookup: 9 });
   });
   it("never lets a limit pass ours", () => {
-    const r = parseLimits(get({ "cap-total": "200" }), { total: 150 }, ["total"]);
-    expect(r.errors["cap-total"]).toBe("Our limit for your account is €150");
-    expect(parseLimits(get({ "cap-total": "150" }), { total: 150 }, ["total"]).errors).toEqual({});
-  });
-});
-
-describe("parseAlert", () => {
-  it("adds one for a scope the dealer has, once", () => {
-    expect(parseAlert("ai", "20", ["ai", "total"], [])).toEqual({ alert: { scope: "ai", amountEur: 20 } });
-    expect(parseAlert("ai", "20", ["ai"], [{ scope: "ai", amountEur: 20 }]).error).toBeTruthy();
-    expect(parseAlert("whatsapp", "20", ["ai"], []).error).toBeTruthy();
-    expect(parseAlert("ai", "", ["ai"], []).error).toBeTruthy();
-    expect(parseAlert("ai", "0", ["ai"], []).error).toBeTruthy();
+    const r = parseLimits(get({ "cap-whatsapp": "200" }), { whatsapp: 150 }, ["whatsapp"]);
+    expect(r.errors["cap-whatsapp"]).toBe("Our limit for your account is €150");
+    expect(parseLimits(get({ "cap-whatsapp": "150" }), { whatsapp: 150 }, ["whatsapp"]).errors).toEqual({});
   });
 });
 
 describe("itemise", () => {
   const bill: Bill = {
-    id: "2026-10", issuedOn: "2026-11-01", dueOn: "2026-12-01", status: "due", modules: [{ label: "Showroom plan", eur: 249 }, { label: "Commercial vehicles", eur: 29 }],
+    id: "2026-10", issuedOn: "2026-11-01", dueOn: "2026-12-01", status: "due", modules: [{ label: "Website + Dashboard plan", eur: 249 }, { label: "Social and ads", eur: 29 }], // as stored, whatever today's prices
     usage: [{ service: "ai", kind: "opus", count: 10, unitEur: 0.05 }, { service: "whatsapp", kind: "alert", count: 0, unitEur: 0.05 }],
   };
-  it("adds the plan and the usage, then VAT", () => {
+  it("adds the plan and the usage, then VAT, and takes a first month free off", () => {
     const t = itemise(bill);
     expect(t.planEur).toBe(278);
     expect(t.usageEur).toBe(0.5);
@@ -50,9 +40,11 @@ describe("itemise", () => {
     expect(t.total).toBe(342.56);
     expect(t.usage).toHaveLength(1); // a line with no uses is left out
     expect(t.usage[0].detail).toBe("10 x €0.05");
+    expect(itemise({ ...bill, modules: [...bill.modules, { label: "First month free", eur: -278 }] }).planEur).toBe(0);
   });
-  it("bills only the uses past what the plan includes", () => {
-    const usage = usageLines([{ service: "lookup", kind: "website", count: 20 }, { service: "lookup", kind: "dashboard", count: 10 }, { service: "whatsapp", kind: "reply", count: 10 }], { lookup: 25 });
+  it("bills only the uses past what the plan includes, and never AI writing", () => {
+    const usage = usageLines([{ service: "lookup", kind: "website", count: 20 }, { service: "lookup", kind: "dashboard", count: 10 }, { service: "whatsapp", kind: "reply", count: 10 }, { service: "ai", kind: "opus", count: 50 }], { lookup: 25 });
+    expect(usage.some((u) => u.service === "ai")).toBe(false);
     const t = itemise({ ...bill, usage });
     expect(t.usage.map((l) => l.detail)).toEqual(["5 x €0.30", "10 x €0.03"]);
     expect(t.usageEur).toBe(1.8);
@@ -67,8 +59,8 @@ describe("dates", () => {
 
 import { servicesOf } from "./bills-rules";
 describe("servicesOf", () => {
-  it("lists a service only when its module is on", () => {
-    expect(servicesOf(new Set(["lookupDashboard", "ai"]))).toEqual(["lookup", "ai"]);
+  it("lists a paid service only when its module is on, and never AI writing", () => {
+    expect(servicesOf(new Set(["lookupDashboard", "ai", "whatsapp"]))).toEqual(["lookup", "whatsapp"]);
     expect(servicesOf(new Set(["dashboard"]))).toEqual([]);
   });
 });

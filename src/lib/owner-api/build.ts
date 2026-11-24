@@ -16,7 +16,7 @@ export const API_VERSION = 1;
 export async function modulesBody() {
   const on = await enabledModules();
   const b = await billingSettings();
-  return { version: API_VERSION, appVersion: pkg.version, modules: MODULE_IDS.filter((m) => on.has(m)), planEur: planEur(on, b) }; // the tier and its add-ons, as the Billing page
+  return { version: API_VERSION, appVersion: pkg.version, modules: MODULE_IDS.filter((m) => on.has(m)), planEur: planEur(on, b) }; // the plan and its add-ons, as the Billing page
 }
 
 // Each month the range touches (at most 13), with its counts by service and kind. Costs only for the month in progress: a past month may

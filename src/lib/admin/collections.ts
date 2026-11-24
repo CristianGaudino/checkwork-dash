@@ -361,7 +361,7 @@ export type DealerSettings = {
   marketing: { voice: string; hashtags: string; signOff: string }; // used by the post writer
   team: TeamMember[];
   leadEmails: string[]; // who gets the email when a visitor sends a form; empty means the dealer's profile's leadEmail
-  billing?: BillingSettings; // usage limits and alerts, and our ceilings (#181, src/lib/billing/usage.ts); missing on a record from before
+  billing?: BillingSettings; // usage limits, our ceilings and the contract (#181, src/lib/billing/usage.ts); missing on a record from before
   billingDetails?: BillingDetails; // who the bills are made out to (Billing, the Owner edits it); missing means the dealer's own details
   updatedAt: number;
 };
@@ -378,8 +378,8 @@ export const SETTINGS_DEFAULT: DealerSettings = {
 // A real dealer starts with no team (the made-up one is the demo's) and adds its people in Settings.
 // The demo has the morning follow-up email on, so it can be shown (the made-up team's mail goes to the lead inbox, src/lib/leads/mail.ts).
 const seedSettings = (demo: boolean): DealerSettings[] => {
-  // The demo's limits: well above a month of its seeded use plus visitors trying things, so nothing on the demo stops; a ceiling of ours.
-  const billing: BillingSettings | undefined = demo ? { ...BILLING_DEFAULT, caps: { ai: 25, whatsapp: 15, total: 140 }, ceilings: { ai: 25, total: 150 }, alerts: [{ scope: "total", amountEur: 25 }] } : undefined;
+  // The demo's WhatsApp limit: well above a month of its seeded use plus visitors trying things, so nothing on the demo stops.
+  const billing: BillingSettings | undefined = demo ? { ...BILLING_DEFAULT, caps: { whatsapp: 15 } } : undefined;
   return [{ ...SETTINGS_DEFAULT, team: demo ? SETTINGS_DEFAULT.team : [], notifications: { ...SETTINGS_DEFAULT.notifications, followUps: demo }, billing, updatedAt: Date.now() }];
 };
 export const settingsStore = defineCollection<DealerSettings>("settings", seedSettings, { always: true });

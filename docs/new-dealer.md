@@ -125,7 +125,7 @@ node scripts/dealer-profile.mjs example-motors plan.json --remote               
 node scripts/dealer-profile.mjs example-motors plan.json --remote --env production   # production
 ```
 
-with, for example, `plan.json` holding `{ "modules": "all" }` for the Group plan, or `{ "stock": { "source": "donedeal" } }` once
+with, for example, `plan.json` holding `{ "modules": "all" }` for Website + Dashboard with Social and ads, or `{ "stock": { "source": "donedeal" } }` once
 their DoneDeal sync is connected.
 
 ## Pausing a dealer

@@ -50,7 +50,7 @@ function useRoomFor(extra: number) {
 // 1024px it is one slim line at the foot of the screen (docs/mobile-navigation.md).
 export function DemoBar({ demo, donedeal }: { demo: boolean; donedeal: boolean }) {
   const router = useRouter();
-  // A plan without the dashboard (Showroom) has nothing to show here, so only the Plan switch and the theme stay, to go back.
+  // A plan without the dashboard (Website) has nothing to show here, so only the Plan switch and the theme stay, to go back.
   const dashboard = useModules().has("dashboard");
   const { listingSite } = useDealerFacts();
   const theme = useSyncExternalStore(subscribe, read, () => "light" as Theme);

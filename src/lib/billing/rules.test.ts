@@ -1,169 +1,125 @@
 import { describe, expect, it } from "vitest";
 import { MODULE_IDS } from "@/lib/modules-rules";
-import { BILLING_DEFAULT, inAllowance, withBranchCeilings, allowanceFor, alertsCrossed, setupEur, setupLines, capOf, monthEndEstimate, planEur, planFor, planLines, presetName, switchTier, termSetupEur, TIERS, usageCosts, usageEstimate, withinCaps, yearUpfrontEur, type BillingSettings, type UsageCount } from "./rules";
+import { AI_FAIR_USE, BILLING_DEFAULT, PLANS, inAllowance, allowanceFor, alertsCrossed, capOf, monthEndEstimate, planEur, planFor, planLines, switchPlan, termOf, usageCosts, usageEstimate, withBillingDefaults, withinCaps, type BillingSettings, type UsageCount } from "./rules";
 
 const c = (service: UsageCount["service"], kind: string, count: number): UsageCount => ({ id: `m:${service}:${kind}`, month: "2026-11", service, kind, count });
 
-const SHOWROOM = ["tradeIn", "finance", "carFinder", "lookupWebsite", "reviews"] as const;
-const DEALER = [...SHOWROOM, "dashboard", "testDrives", "sales", "analytics", "whatsapp", "ai", "lookupDashboard"] as const;
-const GROUP = [...DEALER, "margins", "social", "newsletter", "newCars", "commercial"] as const;
-const opts = (o: Partial<BillingSettings> = {}): BillingSettings => ({ ...BILLING_DEFAULT, ...o });
+const WEBSITE = ["tradeIn", "finance", "carFinder", "commercial", "lookupWebsite", "reviews"] as const;
+const DASHBOARD = ["dashboard", "testDrives", "sales", "margins", "service", "reviews", "newsletter", "analytics", "whatsapp", "ai", "lookupDashboard"] as const;
+const BOTH = [...WEBSITE, ...DASHBOARD];
 
 describe("usage costs", () => {
-  it("prices each line, and adds them up", () => {
+  it("prices each paid line, and adds them up; AI writing is counted, never billed", () => {
     const u = usageCosts([c("lookup", "website", 10), c("whatsapp", "alert", 20), c("whatsapp", "reply", 50), c("ai", "opus", 4), c("ai", "sonnet", 5)], {});
     expect(u.lookup.costEur).toBe(3);
     expect(u.whatsapp.costEur).toBe(2.5); // 20 x 0.05 + 50 x 0.03
-    expect(u.ai.costEur).toBe(0.52); // 4 x 0.08 + 5 x 0.04
-    expect(u.totalEur).toBe(6.02);
+    expect(u.ai).toMatchObject({ count: 9, costEur: 0 });
+    expect(u.totalEur).toBe(5.5);
   });
 
   it("puts the allowance against each service first, then bills per use over it; WhatsApp's covers alerts only", () => {
-    expect(usageCosts([c("ai", "opus", 250), c("ai", "sonnet", 50)], { ai: 300 }).ai.costEur).toBe(0);
-    expect(usageCosts([c("ai", "opus", 250), c("ai", "sonnet", 70)], { ai: 300 }).ai.costEur).toBe(0.8); // 20 Sonnet over x 0.04
     expect(usageCosts([c("lookup", "website", 20), c("lookup", "dashboard", 10)], { lookup: 25 }).lookup.costEur).toBe(1.5); // 5 over x 0.30
     const w = usageCosts([c("whatsapp", "alert", 510), c("whatsapp", "reply", 10)], { whatsapp: 500 }).whatsapp;
     expect(w.costEur).toBe(0.8); // 10 alerts over x 0.05 + 10 replies x 0.03
     expect(w.kinds.map((k) => k.included)).toEqual([500, 0, 0]);
   });
 
-  it("each tier's allowance, Group's lookups and alerts per branch", () => {
-    expect(allowanceFor([], opts())).toEqual({ lookup: 25 }); // no modules is Showroom
-    expect(allowanceFor(SHOWROOM, opts())).toEqual({ lookup: 25 });
-    expect(allowanceFor(DEALER, opts())).toEqual({ lookup: 100, whatsapp: 500, ai: 100 });
-    expect(allowanceFor(GROUP, opts({ branches: 3 }))).toEqual({ lookup: 300, whatsapp: 1500, ai: 300 });
-    expect(allowanceFor([...DEALER, "social"], opts())).toEqual({ lookup: 100, whatsapp: 500, ai: 300 }); // Social as an add-on: 200 more AI
-    expect(allowanceFor([...GROUP, "service"], opts())).toMatchObject({ ai: 300 }); // Group's own Social is not counted twice
-    expect(allowanceFor(["dashboard", "ai"], opts())).toEqual({ lookup: 100, whatsapp: 500, ai: 100 }); // AI needs the dashboard: Dealer
+  it("each plan's allowance: lookups, and WhatsApp alerts with the dashboard; none for AI writing", () => {
+    expect(allowanceFor([], BILLING_DEFAULT)).toEqual({ lookup: 25 }); // no modules is Website
+    expect(allowanceFor(WEBSITE, BILLING_DEFAULT)).toEqual({ lookup: 25 });
+    expect(allowanceFor(DASHBOARD, BILLING_DEFAULT)).toEqual({ lookup: 100, whatsapp: 500 });
+    expect(allowanceFor(BOTH, BILLING_DEFAULT)).toEqual({ lookup: 100, whatsapp: 500 });
+    expect(allowanceFor([...BOTH, "social"], BILLING_DEFAULT)).toEqual({ lookup: 100, whatsapp: 500 });
   });
 });
 
-describe("setup fees", () => {
-  it("are the tier's, plus each add-on set up with an outside account, and new-car brands past two", () => {
-    expect(setupLines([])).toEqual([{ label: "Showroom plan", eur: 950 }]);
-    expect(setupEur(["dashboard", "finance"])).toBe(950); // Dealer
-    expect(setupEur(SHOWROOM)).toBe(950);
-    expect(setupEur(DEALER)).toBe(950); // WhatsApp is in the tier
-    expect(setupEur([...DEALER, "social"])).toBe(950 + 150);
-    expect(setupEur([...DEALER, "newCars"], opts({ brands: 4 }))).toBe(950 + 400 + 2 * 100);
-    expect(setupEur(GROUP)).toBe(1950);
-    expect(setupEur(GROUP, opts({ brands: 3 }))).toBe(1950 + 100);
+describe("the plans", () => {
+  const one = { term: 1 } as const;
+  const two = { term: 2 } as const;
+  it("prices each plan, with a setup fee for the website on a 1-year term and none on 2 years", () => {
+    expect(planFor(WEBSITE, one)).toMatchObject({ name: "Website", eur: 149, setupEur: 500, extras: [] });
+    expect(planFor(WEBSITE, two)).toMatchObject({ name: "Website", eur: 149, setupEur: 0 });
+    expect(planFor(DASHBOARD, one)).toMatchObject({ name: "Dashboard", eur: 149, setupEur: 0, extras: [] });
+    expect(planFor(DASHBOARD, two)).toMatchObject({ name: "Dashboard", eur: 149, setupEur: 0 });
+    expect(planFor(BOTH, one)).toMatchObject({ name: "Website + Dashboard", eur: 249, setupEur: 500, extras: [] });
+    expect(planFor(BOTH, two)).toMatchObject({ name: "Website + Dashboard", eur: 249, setupEur: 0 });
   });
-  it("are waived on a 2-year contract, and a year upfront is 11 months' price", () => {
-    expect(termSetupEur(950, "twoYear")).toBe(0);
-    expect(termSetupEur(950, "annual")).toBe(950);
-    expect(termSetupEur(950, "monthly")).toBe(950);
-    expect(yearUpfrontEur(planEur(DEALER))).toBe(4939);
+  it("is the cheapest plan that holds the modules: none is Website, the dashboard alone is Dashboard, a website module with it is both", () => {
+    expect(planFor([]).name).toBe("Website");
+    expect(planFor(["reviews"]).name).toBe("Website");
+    expect(planFor(["dashboard"]).name).toBe("Dashboard");
+    expect(planFor(["dashboard", "reviews"]).name).toBe("Dashboard");
+    expect(planFor(["dashboard", "finance"]).name).toBe("Website + Dashboard");
+    expect(planEur(MODULE_IDS.filter((m) => m !== "social"))).toBe(249); // everything is included
+    for (const p of PLANS) expect(planFor(p.modules).plan.id).toBe(p.id);
+  });
+  it("keeps Social and ads as the only add-on, at its own price and setup", () => {
+    expect(planFor([...BOTH, "social"], one)).toMatchObject({ eur: 249 + 99, setupEur: 500 + 150, extras: ["social"] });
+    expect(planFor([...DASHBOARD, "social"], two)).toMatchObject({ eur: 149 + 99, setupEur: 0 });
+    expect(planLines([...BOTH, "social"])).toEqual([{ label: "Website + Dashboard plan", eur: 249 }, { label: "Social and ads", eur: 99 }]);
+  });
+  it("takes the plan off the dealer's first month, and only that month", () => {
+    const o = { term: 1, freeMonth: "2026-11" } as const;
+    expect(planLines(DASHBOARD, o, "2026-11")).toEqual([{ label: "Dashboard plan", eur: 149 }, { label: "First month free", eur: -149 }]);
+    expect(planEur([...BOTH, "social"], o, "2026-11")).toBe(0);
+    expect(planEur(DASHBOARD, o, "2026-12")).toBe(149);
+    expect(planEur(DASHBOARD, o)).toBe(149);
+  });
+  it("has no branches: a stored record from the tiers reads as one dealership, its term as 1 or 2 years", () => {
+    const old = withBillingDefaults({ branches: 3, brands: 4, term: "twoYear", alerts: [{ scope: "total", amountEur: 5 }], alertAt80: true } as never);
+    expect(old.term).toBe(2);
+    expect(planFor(BOTH, old).eur).toBe(249);
+    expect(allowanceFor(BOTH, old)).toEqual({ lookup: 100, whatsapp: 500 });
+    expect(old.ceilings).toEqual({ lookup: 15, whatsapp: 20 });
+    expect([termOf("monthly"), termOf("annual"), termOf(undefined), termOf(2)]).toEqual([1, 1, 1, 2]);
+    for (const p of PLANS) expect(p).not.toHaveProperty("branchEur");
+  });
+  it("keeps the add-ons when the plan changes, and drops only those the new plan cannot hold, saying which", () => {
+    const plan = (id: string) => PLANS.find((p) => p.id === id)!;
+    const dash = switchPlan([...BOTH, "social"], plan("dashboard"));
+    expect([...dash.modules].sort()).toEqual([...DASHBOARD, "newCars", "social"].sort());
+    expect(dash.dropped).toEqual([]);
+    expect(switchPlan([...BOTH, "social"], plan("website"))).toEqual({ modules: new Set(WEBSITE), dropped: ["social"] });
   });
 });
 
-describe("caps", () => {
-  const b: BillingSettings = { ...BILLING_DEFAULT, caps: { ai: 10, total: 30 }, ceilings: { ai: 8 } };
-  it("uses the lower of the dealer's cap and our ceiling", () => {
-    expect(capOf(b, "ai")).toBe(8);
-    expect(capOf(b, "total")).toBe(30);
-    expect(capOf(b, "lookup")).toBeUndefined();
+describe("limits", () => {
+  const b: BillingSettings = { ...BILLING_DEFAULT, caps: { lookup: 10, whatsapp: 30 }, ceilings: { lookup: 8 } };
+  it("uses the lower of the dealer's limit and our ceiling", () => {
+    expect(capOf(b, "lookup")).toBe(8);
+    expect(capOf(b, "whatsapp")).toBe(30);
+    expect(capOf({ ...b, caps: {} }, "whatsapp")).toBeUndefined();
   });
-  it("stops a service at its own cap or at the total cap", () => {
-    expect(withinCaps(usageCosts([c("ai", "opus", 99)], {}), b, "ai")).toBe(true); // 7.92
-    expect(withinCaps(usageCosts([c("ai", "opus", 100)], {}), b, "ai")).toBe(false); // 8.00
-    expect(withinCaps(usageCosts([c("lookup", "website", 100)], {}), b, "lookup")).toBe(false); // 30, the total
+  it("stops a paid service at its own limit, and AI writing at our fair use", () => {
+    expect(withinCaps(usageCosts([c("lookup", "website", 26)], {}), b, "lookup")).toBe(true); // 7.80
+    expect(withinCaps(usageCosts([c("lookup", "website", 27)], {}), b, "lookup")).toBe(false); // 8.10
+    expect(withinCaps(usageCosts([c("ai", "opus", AI_FAIR_USE - 1)], {}), b, "ai")).toBe(true);
+    expect(withinCaps(usageCosts([c("ai", "opus", AI_FAIR_USE)], {}), b, "ai")).toBe(false);
   });
-});
-
-describe("alerts", () => {
-  const b: BillingSettings = { ...BILLING_DEFAULT, caps: { lookup: 10 }, alerts: [{ scope: "total", amountEur: 5 }] };
-  it("fires the 80% mark, the cap and a chosen amount as each is crossed, once each", () => {
-    const before = usageCosts([c("lookup", "website", 26)], {}); // 7.80
-    const after = usageCosts([c("lookup", "website", 27)], {}); // 8.10
-    expect(alertsCrossed(before, after, b, "2026-11").map((a) => a.key)).toEqual(["2026-11:lookup:80:10"]);
-    const atCap = alertsCrossed(usageCosts([c("lookup", "website", 33)], {}), usageCosts([c("lookup", "website", 34)], {}), b, "2026-11");
-    expect(atCap.map((a) => a.key)).toEqual(["2026-11:lookup:cap:10"]);
-    const chosen = alertsCrossed(usageCosts([c("lookup", "website", 16)], {}), usageCosts([c("lookup", "website", 17)], {}), b, "2026-11");
-    expect(chosen.map((a) => a.key)).toEqual(["2026-11:total:5"]);
-  });
-  it("sends no 80% alert when it is turned off", () => {
-    const off = { ...b, alertAt80: false };
-    expect(alertsCrossed(usageCosts([c("lookup", "website", 26)], {}), usageCosts([c("lookup", "website", 27)], {}), off, "2026-11")).toEqual([]);
+  it("sends one notice as a limit is reached, and none on the way to it", () => {
+    const lookups = (n: number) => usageCosts([c("lookup", "website", n)], {});
+    expect(alertsCrossed(lookups(21), lookups(22), b, "2026-11")).toEqual([]); // 80% passed: nothing
+    expect(alertsCrossed(lookups(26), lookups(27), b, "2026-11").map((a) => a.key)).toEqual(["2026-11:lookup:cap:8"]);
+    expect(alertsCrossed(lookups(27), lookups(28), b, "2026-11")).toEqual([]);
+    expect(alertsCrossed(usageCosts([], {}), usageCosts([c("ai", "opus", 10_000)], {}), b, "2026-11")).toEqual([]);
   });
 });
 
-describe("the plan and the estimate", () => {
-  it("is always a tier: no modules is Showroom, and the dashboard makes it Dealer at least", () => {
-    expect(planFor([])).toMatchObject({ name: "Showroom", eur: 249, extras: [] });
-    expect(planFor(["finance"])).toMatchObject({ name: "Showroom", eur: 249, extras: [] });
-    expect(planEur(["dashboard", "finance"])).toBe(449);
-    expect(planFor(["dashboard"])).toMatchObject({ name: "Dealer", eur: 449 });
-  });
-  it("prices the cheapest tier, with add-ons at their own price", () => {
-    expect(planFor(SHOWROOM)).toMatchObject({ name: "Showroom", eur: 249, extras: [] });
-    expect(planFor(DEALER)).toMatchObject({ name: "Dealer", eur: 449, extras: [] });
-    expect(planFor([...DEALER, "service", "commercial"])).toMatchObject({ name: "Dealer", eur: 449 + 49 + 29, extras: ["service", "commercial"] });
-    expect(planFor(GROUP)).toMatchObject({ name: "Group", eur: 749 });
-    expect(planFor([...DEALER, "margins", "social", "newsletter", "newCars"])).toMatchObject({ name: "Group", eur: 749 }); // Dealer and these add-ons would be 755
-    expect(planFor(SHOWROOM, { branches: 2, brands: 1 })).toMatchObject({ name: "Group", eur: 898 }); // more than one branch is a Group
-    expect(planFor([...SHOWROOM, "commercial"])).toMatchObject({ name: "Showroom", eur: 249 + 29 });
-    expect(planFor([...SHOWROOM, "dashboard"])).toMatchObject({ name: "Dealer", eur: 449 });
-    for (const m of ["dashboard", "whatsapp", "ai"] as const) expect(planFor([...SHOWROOM, "dashboard", m]).tier.id).not.toBe("showroom"); // no dashboard on Showroom
-    expect(planEur(GROUP, opts({ branches: 3 }))).toBe(1047); // 749 + 2 x 149
-    expect(planEur(MODULE_IDS)).toBe(749 + 49); // Group and Service
-    expect(presetName(SHOWROOM)).toBe("Showroom");
-    expect(presetName(DEALER)).toBe("Dealer");
-    expect(presetName(GROUP)).toBe("Group");
-    expect(presetName(DEALER.filter((m) => m !== "ai"))).toBe("Dealer"); // a per-use module (€0) is not part of the plan's name
-    expect(presetName([...DEALER, "service"])).toBe("Custom");
-    expect(presetName([])).toBe("Custom"); // not exactly a tier's modules, though it is priced as Showroom
-    // A free module off never makes the plan dearer, and adding a module never makes it cheaper.
-    expect(planEur(MODULE_IDS.filter((m) => m !== "ai"))).toBe(798);
-    for (const m of MODULE_IDS) {
-      const without = MODULE_IDS.filter((x) => x !== m);
-      expect(planFor(MODULE_IDS).eur - planFor(without).eur).toBeGreaterThanOrEqual(0);
-    }
-    expect(planLines([...SHOWROOM, "commercial"])).toEqual([{ label: "Showroom plan", eur: 249 }, { label: "Commercial vehicles", eur: 29 }]);
-    expect(planLines([])).toEqual([{ label: "Showroom plan", eur: 249 }]);
-    expect(planLines(GROUP, opts({ branches: 3 }))).toEqual([{ label: "Group plan", eur: 749 }, { label: "2 more branches", eur: 298 }]);
-  });
-  it("keeps the add-ons when the plan changes, and drops only those the new tier cannot hold, saying which", () => {
-    const tier = (id: string) => TIERS.find((t) => t.id === id)!;
-    const sorted = (s: Iterable<string>) => [...s].sort();
-    // Dealer with Service and Commercial on top, to Group: Commercial is in Group, Service stays an add-on, and the total follows.
-    const group = switchTier([...DEALER, "service", "commercial"], tier("group"));
-    expect(sorted(group.modules)).toEqual(sorted([...GROUP, "service"]));
-    expect(group.dropped).toEqual([]);
-    expect(planEur(group.modules)).toBe(749 + 49);
-    // Back to Showroom: Commercial stays, Service needs the dashboard Showroom lacks, so it drops and is named.
-    const showroom = switchTier([...DEALER, "service", "commercial"], tier("showroom"));
-    expect(sorted(showroom.modules)).toEqual(sorted([...SHOWROOM, "commercial"]));
-    expect(showroom.dropped).toEqual(["service"]);
-    expect(planEur(showroom.modules)).toBe(249 + 29);
-    // A tier's own modules are not add-ons: Group to Dealer is Dealer, with nothing to report.
-    expect(switchTier(GROUP, tier("dealer"))).toEqual({ modules: new Set(DEALER), dropped: [] });
-  });
-  it("prices new cars for 2 brands, then each more brand, in a tier or as an add-on", () => {
-    const newCars = (brands: number) => planEur([...DEALER, "newCars"], opts({ brands })) - 449;
-    expect(newCars(1)).toBe(99);
-    expect(newCars(2)).toBe(99);
-    expect(newCars(4)).toBe(157); // 99 + 2 x 29
-    expect(planLines(GROUP, opts({ brands: 3 }))).toEqual([{ label: "Group plan", eur: 749 }, { label: "New cars: 1 more brand", eur: 29 }]);
-  });
+describe("the estimate", () => {
   it("takes the month to date to a whole month at the same pace", () => {
     expect(monthEndEstimate(10, "2026-11-10")).toBe(30); // 10 of 30 days
     expect(monthEndEstimate(1, "2026-12-01")).toBe(31); // the 1st in Dublin, whatever the UTC day
   });
-  it("stops each service at its own limit, then all of it at the total limit, and never below what is spent", () => {
-    const counts = [c("lookup", "website", 30), c("ai", "sonnet", 25)]; // EUR 9 and EUR 1 by the 10th, so 27 and 3 at that pace
+  it("stops each service at its own limit, never below what is spent, and never counts AI", () => {
+    const counts = [c("lookup", "website", 30), c("whatsapp", "reply", 100), c("ai", "opus", 300)]; // EUR 9 and EUR 3 by the 10th, so 27 and 9 at that pace
     const b = (caps: BillingSettings["caps"]): BillingSettings => ({ ...BILLING_DEFAULT, caps, ceilings: {} });
-    expect(usageEstimate(counts, {}, b({ lookup: 10 }), "2026-11-10")).toBe(13); // lookups stop at 10, AI goes on to 3
-    expect(usageEstimate(counts, {}, b({ total: 12 }), "2026-11-10")).toBe(12);
-    expect(usageEstimate(counts, {}, b({ lookup: 5 }), "2026-11-10")).toBe(12); // a limit lowered below the spend: 9 spent, AI to 3
+    expect(usageEstimate(counts, {}, b({}), "2026-11-10")).toBe(36);
+    expect(usageEstimate(counts, {}, b({ lookup: 10 }), "2026-11-10")).toBe(19); // lookups stop at 10, WhatsApp goes on to 9
+    expect(usageEstimate(counts, {}, b({ lookup: 5 }), "2026-11-10")).toBe(18); // a limit lowered below the spend: 9 spent, WhatsApp to 9
   });
   it("estimates past the allowance at the month's pace, not from what is billed so far", () => {
-    expect(usageEstimate([c("lookup", "website", 60)], { lookup: 100 }, opts({ ceilings: {} }), "2026-11-10")).toBe(24); // 180 at that pace, 80 x 0.30
-    expect(usageEstimate([c("lookup", "website", 60)], { lookup: 100 }, opts(), "2026-11-10")).toBe(15); // our EUR 15 limit stops it
-  });
-  it("grows Group's WhatsApp limit with its branches, and only that one", () => {
-    expect(withBranchCeilings(opts({ branches: 3 })).ceilings).toEqual({ lookup: 15, whatsapp: 60, ai: 50 });
-    expect(withBranchCeilings(opts()).ceilings).toEqual({ lookup: 15, whatsapp: 20, ai: 50 });
+    expect(usageEstimate([c("lookup", "website", 60)], { lookup: 100 }, { ...BILLING_DEFAULT, ceilings: {} }, "2026-11-10")).toBe(24); // 180 at that pace, 80 x 0.30
+    expect(usageEstimate([c("lookup", "website", 60)], { lookup: 100 }, BILLING_DEFAULT, "2026-11-10")).toBe(15); // our EUR 15 limit stops it
   });
   it("lets a use the plan still includes past any limit, as it costs nothing; WhatsApp only for alerts", () => {
     const allowance = { lookup: 25, whatsapp: 500 };
