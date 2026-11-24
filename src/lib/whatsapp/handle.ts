@@ -5,7 +5,7 @@ import { dublinDay, fmtDateTime, fmtEur } from "@/lib/admin/format";
 import { isOpenLead } from "@/lib/admin/follow-ups";
 import { adminCar, adminCars, updateCar } from "@/lib/admin/stock-admin";
 import { suggestedDrop } from "@/lib/admin/overview";
-import { roleCan } from "@/lib/permission-rules";
+import { roleCan, type Role } from "@/lib/permission-rules";
 import { askedCar } from "@/lib/leads/journey";
 import { carEditSummary } from "@/lib/admin/activity-text";
 import { postReviewReply } from "@/lib/admin/publishers";
@@ -90,9 +90,9 @@ async function onTeam(name: string) {
   });
 }
 const linked = async (name: string) => (await onTeam(name)).some((p) => p.phone);
-const roleOf = async (name: string) => (await onTeam(name))[0]?.role ?? null;
 
-export async function tap(me: string, msgId: string, button: ButtonId): Promise<void> {
+// `role`: the signed-in person's (currentMember), for what only some roles may do.
+export async function tap(me: string, msgId: string, button: ButtonId, role: Role | null): Promise<void> {
   const msg = await messagesStore.get(msgId);
   if (!msg || msg.to !== me || !msg.buttons?.includes(button)) return;
   if (!(await linked(me))) return void (await say(me, { text: LINK_FIRST }));
@@ -132,7 +132,7 @@ export async function tap(me: string, msgId: string, button: ButtonId): Promise<
   if (button === "other") return void (await say(me, { leadId: msg.leadId, ref: msg.id, text: "What time suits? Type it, like Saturday at 11.", expects: "time" }));
   if (button === "drop") {
     // The suggested drop is for owners and managers only (the settings permission), as on Stock; checked here whatever the alert showed.
-    if (!roleCan(await roleOf(me), "settings")) return void (await say(me, { text: "Only owners and managers can drop a price." }));
+    if (!roleCan(role, "settings")) return void (await say(me, { text: "Only owners and managers can drop a price." }));
     if ((await stockSource()) === "donedeal") return void (await say(me, { text: `The price comes from ${(await listing()).site}. Change it there.` }));
     await markDone(all); // first, so a second tap while this runs finds it done
     const car = msg.ref ? await adminCar(msg.ref) : undefined;

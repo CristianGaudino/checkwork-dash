@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { Role } from "@/lib/permission-rules";
 
 vi.mock("server-only", () => ({}));
 const db = vi.hoisted(() => ({
@@ -88,58 +89,52 @@ const said = () => [...db.msgs.values()].map((m) => String(m.text));
 describe("Drop the price", () => {
   it("applies once, then marks the message done", async () => {
     alert("a1", ["drop"], { ref: "c1" });
-    await tap("Aoife", "a1", "drop");
+    await tap("Aoife", "a1", "drop", db.role as Role);
     expect(db.saved).toEqual([expect.objectContaining({ priceEur: 9500 })]);
     expect(db.msgs.get("a1")?.done).toBe(true);
-    await tap("Aoife", "a1", "drop");
+    await tap("Aoife", "a1", "drop", db.role as Role);
     expect(db.saved).toHaveLength(1);
   });
   it("applies once for all the copies of one alert", async () => {
     alert("a1", ["drop"], { ref: "c1", event: "slow-stock" });
     alert("a2", ["drop"], { ref: "c1", event: "slow-stock", to: "Sean" });
-    await tap("Aoife", "a1", "drop");
-    await tap("Aoife", "a2", "drop");
+    await tap("Aoife", "a1", "drop", db.role as Role);
+    await tap("Aoife", "a2", "drop", db.role as Role);
     expect(db.saved).toHaveLength(1);
     expect(db.msgs.get("a2")?.done).toBe(true);
   });
   it("leaves a sold car alone", async () => {
     db.car = { id: "c1", priceEur: 10000, listedAt: "2026-01-01", soldAt: "2026-11-01" };
     alert("a1", ["drop"], { ref: "c1" });
-    await tap("Aoife", "a1", "drop");
+    await tap("Aoife", "a1", "drop", db.role as Role);
     expect(db.saved).toEqual([]);
   });
   it("is refused to a role without the settings permission (Sales), whatever the alert showed", async () => {
     db.role = "Sales";
     alert("a1", ["drop"], { ref: "c1" });
-    await tap("Aoife", "a1", "drop");
+    await tap("Aoife", "a1", "drop", db.role as Role);
     expect(db.saved).toEqual([]);
     expect(said()).toContain("Only owners and managers can drop a price.");
     expect(db.msgs.get("a1")?.done).toBeFalsy();
-  });
-  it("takes the role of the Aoife still on the team, never a departed namesake's record", async () => {
-    db.staff = [{ id: "gone", name: "Aoife", phone: db.phone, alerts: [], quietFrom: "", quietTo: "" }]; // listed first, no longer on the team
-    alert("a1", ["drop"], { ref: "c1" });
-    await tap("Aoife", "a1", "drop");
-    expect(db.saved).toEqual([expect.objectContaining({ priceEur: 9500 })]);
   });
   it("never takes a departed namesake's linked phone as linked", async () => {
     db.phone = ""; // the Aoife on the team has no phone
     db.staff = [{ id: "gone", name: "Aoife", phone: "+353 83 000 9999", alerts: [], quietFrom: "", quietTo: "" }];
     alert("a1", ["drop"], { ref: "c1" });
-    await tap("Aoife", "a1", "drop");
+    await tap("Aoife", "a1", "drop", db.role as Role);
     expect(db.saved).toEqual([]);
     expect(said()).toContain("Add your mobile phone in Settings, Profile to act from here.");
   });
   it("leaves a car already reduced alone: one suggested drop per car", async () => {
     db.car = { id: "c1", priceEur: 9500, wasPriceEur: 10000, listedAt: "2026-01-01" };
     alert("a1", ["drop"], { ref: "c1" });
-    await tap("Aoife", "a1", "drop");
+    await tap("Aoife", "a1", "drop", db.role as Role);
     expect(db.saved).toEqual([]);
   });
   it("leaves a car synced from the listing site alone", async () => {
     db.source = "donedeal";
     alert("a1", ["drop"], { ref: "c1" });
-    await tap("Aoife", "a1", "drop");
+    await tap("Aoife", "a1", "drop", db.role as Role);
     expect(db.saved).toEqual([]);
   });
 });
@@ -149,8 +144,8 @@ describe("a lead button on two copies of one alert", () => {
     db.leads.set("real-1", lead("new"));
     alert("a1", ["available"], { leadId: "real-1", event: "enquiry" });
     alert("a2", ["available"], { leadId: "real-1", event: "enquiry" });
-    await tap("Aoife", "a1", "available");
-    await tap("Aoife", "a2", "available");
+    await tap("Aoife", "a1", "available", db.role as Role);
+    await tap("Aoife", "a2", "available", db.role as Role);
     expect(sent).toHaveLength(1);
   });
 });
@@ -159,10 +154,10 @@ describe("Not for us", () => {
   it("moves a lead to lost, but never reopens a won lead", async () => {
     alert("a1", ["decline"], { leadId: "real-1" });
     db.leads.set("real-1", lead("contacted"));
-    await tap("Aoife", "a1", "decline");
+    await tap("Aoife", "a1", "decline", db.role as Role);
     expect(db.leads.get("real-1")?.status).toBe("lost");
     db.leads.set("real-1", lead("won"));
-    await tap("Aoife", "a1", "decline");
+    await tap("Aoife", "a1", "decline", db.role as Role);
     expect(db.leads.get("real-1")?.status).toBe("won");
   });
 });
@@ -184,13 +179,13 @@ describe("asking for more photos, then making an offer", () => {
     db.leads.set("real-1", lead("new"));
     alert("a1", ["photos", "price"], { leadId: "real-1", event: "trade-in" });
     alert("a2", ["photos", "price"], { leadId: "real-1", event: "trade-in" });
-    await tap("Aoife", "a1", "photos");
+    await tap("Aoife", "a1", "photos", db.role as Role);
     sent.length = 0;
-    await tap("Aoife", "a1", "price");
+    await tap("Aoife", "a1", "price", db.role as Role);
     await typed("Aoife", "8,500");
     expect(sent.some((m) => String(m.text).includes("8,500"))).toBe(true);
     sent.length = 0;
-    await tap("Aoife", "a2", "price");
+    await tap("Aoife", "a2", "price", db.role as Role);
     await typed("Aoife", "9,000");
     expect(sent.some((m) => String(m.text).includes("9,000"))).toBe(false);
   });
@@ -202,7 +197,7 @@ describe("an enquiry about a car that has sold since", () => {
     db.leads.set("real-1", { ...lead("new"), type: "enquiry", carSlug: "audi-a3-c1" });
     alert("a1", ["available"], { leadId: "real-1", event: "enquiry" });
     sent.length = 0;
-    await tap("Aoife", "a1", "available");
+    await tap("Aoife", "a1", "available", db.role as Role);
     expect(sent).toHaveLength(0);
     expect(db.leads.get("real-1")?.status).toBe("new");
     expect([...db.msgs.values()].some((m) => String(m.text).includes("That car is sold"))).toBe(true);
@@ -213,7 +208,7 @@ describe("a buyer who can be reached neither way", () => {
   it("gets nothing sent, the lead is left as it was, and the dealer is told to call", async () => {
     db.leads.set("real-1", { ...lead("new"), whatsappOptIn: false, email: "", phone: "+353 87 000 0001" });
     alert("a1", ["price"], { leadId: "real-1", event: "trade-in" });
-    await tap("Aoife", "a1", "price");
+    await tap("Aoife", "a1", "price", db.role as Role);
     sent.length = 0;
     await typed("Aoife", "8,500");
     expect(sent).toHaveLength(0);
@@ -226,7 +221,7 @@ describe("a buyer with only a phone, and more photos asked twice", () => {
   it("changes nothing on a decline the buyer cannot be told about", async () => {
     db.leads.set("real-1", { ...lead("new"), whatsappOptIn: false });
     alert("a1", ["decline"], { leadId: "real-1", event: "trade-in" });
-    await tap("Aoife", "a1", "decline");
+    await tap("Aoife", "a1", "decline", db.role as Role);
     expect(db.leads.get("real-1")?.status).toBe("new");
     expect(db.msgs.get("a1")?.done).toBeFalsy();
   });
@@ -235,8 +230,8 @@ describe("a buyer with only a phone, and more photos asked twice", () => {
     alert("a1", ["photos"], { leadId: "real-1", event: "trade-in" });
     alert("a2", ["photos"], { leadId: "real-1", event: "trade-in" });
     sent.length = 0;
-    await tap("Aoife", "a1", "photos");
-    await tap("Aoife", "a2", "photos");
+    await tap("Aoife", "a1", "photos", db.role as Role);
+    await tap("Aoife", "a2", "photos", db.role as Role);
     expect(sent.filter((m) => m.thread === "buyer")).toHaveLength(1);
     expect((db.leads.get("real-1")?.notes as { text: string }[]).filter((n) => /more photos/.test(n.text))).toHaveLength(1);
   });
@@ -247,8 +242,8 @@ describe("two people asked to reply to one alert", () => {
     db.leads.set("real-1", lead("new"));
     alert("a1", ["price"], { leadId: "real-1", event: "trade-in" });
     alert("a2", ["price"], { leadId: "real-1", event: "trade-in" });
-    await tap("Aoife", "a1", "price");
-    await tap("Aoife", "a2", "price"); // both questions are open before either is answered
+    await tap("Aoife", "a1", "price", db.role as Role);
+    await tap("Aoife", "a2", "price", db.role as Role); // both questions are open before either is answered
     sent.length = 0;
     await typed("Aoife", "8,500");
     await typed("Aoife", "9,000");
@@ -261,9 +256,9 @@ describe("a closed lead and an old question", () => {
     db.leads.set("real-1", lead("contacted"));
     alert("a1", ["decline"], { leadId: "real-1", event: "trade-in" });
     alert("a2", ["price"], { leadId: "real-1", event: "trade-in", to: "Aoife" });
-    await tap("Aoife", "a1", "decline");
+    await tap("Aoife", "a1", "decline", db.role as Role);
     sent.length = 0;
-    await tap("Aoife", "a2", "price");
+    await tap("Aoife", "a2", "price", db.role as Role);
     expect(db.msgs.get("a2")?.done).toBe(true);
     await typed("Aoife", "8,500");
     expect(sent).toHaveLength(0);
@@ -287,7 +282,7 @@ describe("Confirm on a test drive booking", () => {
     db.leads.set("real-1", { ...lead("new"), type: "test-drive", carTitle: "2019 Ford Focus" });
     db.drives.set("real-1", { id: "real-1", status: "requested", startsAt: Date.parse("2026-11-21T11:00:00Z") });
     alert("a1", ["confirm", "other"], { leadId: "real-1", ref: "real-1", event: "test-drive" });
-    await tap("Aoife", "a1", "confirm");
+    await tap("Aoife", "a1", "confirm", db.role as Role);
     expect(db.drives.get("real-1")?.status).toBe("confirmed");
     expect(db.leads.get("real-1")?.status).toBe("appointment");
     expect(sent.find((m) => m.thread === "buyer")?.text).toMatch(/confirmed for 21 Nov, 11:00\. See you then/);
@@ -300,7 +295,7 @@ describe("Suggest another time", () => {
     db.leads.set("real-1", { ...lead("new"), type: "test-drive" });
     db.drives.set("real-1", { id: "real-1", status: "requested", startsAt: 1 });
     alert("a1", ["confirm", "other"], { leadId: "real-1", ref: "real-1", event: "test-drive" });
-    await tap("Aoife", "a1", "other");
+    await tap("Aoife", "a1", "other", db.role as Role);
     await typed("Aoife", "Saturday at 11");
     expect(sent.find((m) => m.thread === "buyer")?.text).toMatch(/could we do Saturday at 11 instead/);
     expect(db.drives.get("real-1")?.status).toBe("requested");
@@ -313,7 +308,7 @@ describe("a typed review reply", () => {
   it("is posted and kept on the review", async () => {
     db.reviews.set("rev-1", { id: "rev-1", author: "Orla R.", rating: 5, text: "Great", createdAt: 1 });
     alert("a1", ["review"], { ref: "rev-1", event: "review" });
-    await tap("Aoife", "a1", "review");
+    await tap("Aoife", "a1", "review", db.role as Role);
     await typed("Aoife", "Thanks Orla!");
     expect(db.reviews.get("rev-1")?.reply).toBe("Thanks Orla!");
     expect(said()).toContain("Posted on Google.");
@@ -321,7 +316,7 @@ describe("a typed review reply", () => {
   it("is refused with Reviews off", async () => {
     db.reviews.set("rev-1", { id: "rev-1", author: "Orla R.", rating: 5, text: "Great", createdAt: 1 });
     alert("a1", ["review"], { ref: "rev-1", event: "review" });
-    await tap("Aoife", "a1", "review");
+    await tap("Aoife", "a1", "review", db.role as Role);
     db.modules.delete("reviews");
     await typed("Aoife", "Thanks Orla!");
     expect(db.reviews.get("rev-1")?.reply).toBeUndefined();
@@ -332,11 +327,11 @@ describe("an alert whose module is off", () => {
   it("sends no offer when Trade-in is switched off after Reply with a price", async () => {
     db.leads.set("real-1", lead("new"));
     alert("a1", ["price"], { leadId: "real-1", event: "trade-in" });
-    await tap("Aoife", "a1", "price");
+    await tap("Aoife", "a1", "price", db.role as Role);
     db.modules.delete("tradeIn");
     await typed("Aoife", "8,500");
     expect(sent).toHaveLength(0);
-    await tap("Aoife", "a1", "price");
+    await tap("Aoife", "a1", "price", db.role as Role);
     expect(said().at(-1)).toMatch(/is off, so I did nothing/);
   });
 });
@@ -346,7 +341,7 @@ describe("someone with no linked phone", () => {
     db.phone = "";
     db.leads.set("real-1", lead("new"));
     alert("a1", ["available"], { leadId: "real-1", event: "enquiry" });
-    await tap("Aoife", "a1", "available");
+    await tap("Aoife", "a1", "available", db.role as Role);
     await typed("Aoife", "8,500");
     expect(sent).toHaveLength(0);
     expect(said().filter((t) => t === "Add your mobile phone in Settings, Profile to act from here.")).toHaveLength(2);
@@ -357,7 +352,7 @@ describe("Call back", () => {
   it("sets the follow-up to today and gives the lead to the tapper, without changing the status", async () => {
     db.leads.set("real-1", lead("new"));
     alert("a1", ["call", "handled"], { leadId: "real-1", event: "enquiry" });
-    await tap("Aoife", "a1", "call");
+    await tap("Aoife", "a1", "call", db.role as Role);
     const l = db.leads.get("real-1") as { status: string; followUpOn: string; assignedTo: string; notes: { auto?: boolean }[] };
     expect(l.status).toBe("new");
     expect(l.followUpOn).toBe(new Date().toLocaleDateString("en-CA", { timeZone: "Europe/Dublin" }));
@@ -370,7 +365,7 @@ describe("the channel on the note", () => {
   it("says email when the buyer was told by email", async () => {
     db.leads.set("real-1", { ...lead("new"), type: "enquiry", whatsappOptIn: false, email: "pat@example.com" });
     alert("a1", ["available"], { leadId: "real-1", event: "enquiry" });
-    await tap("Aoife", "a1", "available");
+    await tap("Aoife", "a1", "available", db.role as Role);
     expect((db.leads.get("real-1")?.notes as { text: string }[]).at(-1)?.text).toBe("Told the buyer by email that the car is available.");
     expect(said().some((t) => t.includes("by email: yes, it's available"))).toBe(true);
   });
@@ -381,15 +376,15 @@ describe("Confirm on a deposit", () => {
     db.deposits.set("res-1", { id: "res-1", carId: "c1", carTitle: "2019 Ford Focus", depositEur: 1000, status: "held" });
     alert("a1", ["confirm"], { ref: "res-1", event: "deposit" });
     alert("a2", ["confirm"], { ref: "res-1", event: "deposit" });
-    await tap("Aoife", "a1", "confirm");
-    await tap("Aoife", "a2", "confirm");
+    await tap("Aoife", "a1", "confirm", db.role as Role);
+    await tap("Aoife", "a2", "confirm", db.role as Role);
     expect(db.activity.filter((t) => t.startsWith("Confirmed the deposit"))).toHaveLength(1);
     expect(db.msgs.get("a2")?.done).toBe(true);
   });
   it("says so when the deposit has ended", async () => {
     db.deposits.set("res-1", { id: "res-1", carId: "c1", carTitle: "2019 Ford Focus", depositEur: 1000, status: "refunded" });
     alert("a1", ["confirm"], { ref: "res-1", event: "deposit" });
-    await tap("Aoife", "a1", "confirm");
+    await tap("Aoife", "a1", "confirm", db.role as Role);
     expect(db.activity).toEqual([]);
     expect(said().at(-1)).toBe("That deposit is no longer held.");
   });

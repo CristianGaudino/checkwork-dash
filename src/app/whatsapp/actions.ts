@@ -37,7 +37,7 @@ export async function tapAction(msgId: string, button: string): Promise<View> {
   const name = await onWhatsApp();
   if (name === null) return NOTHING;
   if (button in BUTTON_LABELS) {
-    await tap(name, String(msgId).slice(0, 64), button as ButtonId);
+    await tap(name, String(msgId).slice(0, 64), button as ButtonId, (await currentMember()).role);
     revalidatePath("/leads");
   }
   return view();

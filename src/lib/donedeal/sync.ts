@@ -65,8 +65,9 @@ export async function runSync({ force = false, now = Date.now() } = {}): Promise
   const prev = await syncStatus();
   const { site } = await listing();
   const feed: FeedResult = await fetchListings().catch(() => ({ ok: false, reason: "failed" }) as const);
-  // Once the cars were removed, a key still missing or refused changes nothing: the removal's reason stays what Stock and the email say.
-  const problemOf = (reason: keyof ReturnType<typeof problems>, s: SyncStatus) => (s.removedWhy && (reason === "not-connected" || reason === "refused") ? s.removedWhy : problems(site)[reason]);
+  // Once the cars were removed, a key still missing, or still refused after a refusal removed them, changes nothing: the removal's reason
+  // stays what Stock and the email say. A new key refused after the key was deleted is said after it.
+  const problemOf = (reason: keyof ReturnType<typeof problems>, s: SyncStatus) => (s.removedWhy && (reason === "not-connected" || (reason === "refused" && s.removedWhy === problems(site).refused)) ? s.removedWhy : problems(site)[reason]);
   if (!feed.ok) return failed(prev, problemOf(feed.reason, prev), false, now, site, feed.reason === "refused");
   const today = dublinDay(now); // the Irish day, as the rest of the dashboard dates a sale
   const current = await adminCars();
