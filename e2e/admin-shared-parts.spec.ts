@@ -21,9 +21,9 @@ test.describe("on a 390px phone", () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
   test("a row of summary tabs fades where there is more, and its last tab can be reached", async ({ page }) => {
-    await page.goto("/marketing");
-    const row = page.getByRole("navigation", { name: "Marketing" });
-    const last = row.getByRole("link", { name: /^Newsletters/ });
+    await page.goto("/stock");
+    const row = page.getByRole("navigation", { name: "Stock views" });
+    const last = row.getByRole("link", { name: /^All/ });
     // Which edges fade, read from the mask (set once the page has loaded): "#000 2rem," is a left fade, "100% - 2rem" a right one.
     const fade = () => row.evaluate((n) => { const m = n.style.maskImage; return [/2rem,/.test(m), m.includes("- 2rem")]; });
     await expect.poll(fade).toEqual([false, true]); // at the start: more to the right only
@@ -32,7 +32,7 @@ test.describe("on a 390px phone", () => {
     const [r, l] = [(await row.boundingBox())!, (await last.boundingBox())!];
     expect(l.x + l.width).toBeLessThanOrEqual(r.x + r.width + 1); // the last tab wholly in view
     await last.click();
-    await expect(page).toHaveURL(/tab=newsletters$/);
+    await expect(page).toHaveURL(/view=all$/);
   });
 
   test("small controls have a 44px hit area: activity links, Set a limit, the notifications Edit, the order's choices, the pager", async ({ page }) => {
@@ -62,8 +62,8 @@ test.describe("on a 390px phone", () => {
 test("from 640px a row of summary tabs that fits has no mask, so nothing clips a tab's focus ring", async ({ page }) => {
   // On a phone the row overflows and the mask is set, which proves it has measured itself; widened, it fits and the mask goes.
   await page.setViewportSize({ width: 390, height: 800 });
-  await page.goto("/marketing");
-  const row = page.getByRole("navigation", { name: "Marketing" });
+  await page.goto("/stock");
+  const row = page.getByRole("navigation", { name: "Stock views" });
   const mask = () => row.evaluate((n) => getComputedStyle(n).maskImage);
   await expect.poll(mask).toContain("gradient");
   await page.setViewportSize({ width: 1280, height: 800 });

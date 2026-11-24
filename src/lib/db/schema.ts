@@ -72,7 +72,7 @@ export const activity = sqliteTable(
     actor: text().notNull(), // a team member's name, or the sync
     area: text().notNull(), // stock, leads, test-drives, customers, reviews, marketing, settings
     summary: text().notNull(), // "Changed the price from €17,950 to €16,950"
-    refKind: text("ref_kind"), // car, lead, drive, alert, subscriber, review, post, ad, newsletter, team
+    refKind: text("ref_kind"), // car, lead, drive, alert, review, post, ad, team (older rows may say subscriber or newsletter)
     refId: text("ref_id"),
     refLabel: text("ref_label"), // only for a record with no personal data (a car's title, a post's car, a team member)
   },

@@ -2,7 +2,7 @@ import { FUEL_LABELS, GEARBOX_LABELS, forSale, isSold, type Car, type Fuel, type
 import { readLead } from "@/lib/leads/lead-text";
 import { askedCar, closestCars, readVisit, wantOf } from "@/lib/leads/journey";
 import { leadChips } from "@/components/admin/LeadKind";
-import { carFacts, newestForSale } from "@/lib/admin/marketing";
+import { carFacts } from "@/lib/admin/marketing";
 import { adminCars } from "@/lib/admin/stock-admin";
 import { getSettings, leadsStore, LEAD_TYPE_LABELS, reviewsStore, type Lead } from "@/lib/admin/collections";
 import { noContacts, type CarFacts, type FactsOf, type VisitFacts, type WriteRequest } from "./tasks";
@@ -42,10 +42,6 @@ export async function buildFacts(req: WriteRequest, dealer: string, siteUrl: str
     case "post": {
       const car = askedCar((await adminCars()).filter(forSale), req.carSlug);
       return car ? { task: "post", facts: { dealer, car: carFacts(car, siteUrl), network: req.network, format: req.format, layout: req.layout, voice: v } } : null;
-    }
-    case "newsletter": {
-      const cars = newestForSale(await adminCars(), 5);
-      return { task: "newsletter", facts: { dealer, cars: cars.map((c) => carFacts(c, siteUrl)), voice: v } };
     }
     case "carDescription": {
       const car = formCarFacts(req.fields);

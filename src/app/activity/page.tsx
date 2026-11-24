@@ -5,7 +5,7 @@ import { card } from "@/components/ui";
 import { perPage } from "@/lib/admin/paging";
 import { ACTIVITY_AREAS, AREA_LABELS, PERSONAL_KINDS, listActivity, type ActivityArea, type ActivityEntry } from "@/lib/admin/activity";
 import { refView } from "@/lib/admin/activity-refs";
-import { alertsStore, drivesStore, leadsStore, reviewsStore, subscribersStore } from "@/lib/admin/collections";
+import { alertsStore, drivesStore, leadsStore, reviewsStore } from "@/lib/admin/collections";
 import { addDays, dublinDay, fmtDateTime, fmtDay, fmtNum, fmtTime, dublinMs } from "@/lib/admin/format";
 import { adminCars } from "@/lib/admin/stock-admin";
 import { can } from "@/lib/permissions";
@@ -130,15 +130,14 @@ async function refViews(rows: ActivityEntry[]) {
   const kinds = new Set(rows.map((e) => e.refKind));
   const pick = async <T extends { id: string }>(kind: string, store: { list(): Promise<T[]> }, name: (r: T) => string) =>
     kinds.has(kind as never) ? (await store.list()).map((r) => [`${kind}:${r.id}`, name(r)] as const) : [];
-  const [leads, drives, alerts, subs, reviews, cars] = await Promise.all([
+  const [leads, drives, alerts, reviews, cars] = await Promise.all([
     pick("lead", leadsStore, (l) => l.name),
     pick("drive", drivesStore, (d) => `${d.name}, ${d.carTitle}`),
     pick("alert", alertsStore, (a) => a.email),
-    pick("subscriber", subscribersStore, (s) => s.email),
     pick("review", reviewsStore, (r) => `Review by ${r.author}`),
     kinds.has("car") ? adminCars() : Promise.resolve([]),
   ]);
-  const people = new Map([...leads, ...drives, ...alerts, ...subs, ...reviews]);
+  const people = new Map([...leads, ...drives, ...alerts, ...reviews]);
   const carIds = new Set(cars.map((c) => c.id));
   return (e: ActivityEntry) =>
     refView(e, people, (kind, id) => (kind === "car" ? carIds.has(id) : PERSONAL_KINDS.includes(kind) ? people.has(`${kind}:${id}`) : true));

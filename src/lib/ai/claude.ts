@@ -34,7 +34,6 @@ const PROMPTS: Record<Task, string> = {
 - format "story": a few words on a photo, one or two short lines. Start with "Just in" or, for layout "price-drop", "Price drop" with the price now and the price it was. No hashtags, no link.
 - format "reel": a caption for a walkaround video of the car, as for a post.
 - format "carousel": a caption for a set of photos of the car, as for a post.`,
-  newsletter: `Write the body of a short email newsletter about the cars in the facts, to people who asked to hear about new stock. One plain line of introduction (no "We're excited to"), then one line per car starting with "- " with its name, the one detail that makes it worth a look, its price (or "ask for the price") and its link if given, then voice.signOff. Plain text only; the "- " lines are the one list allowed.`,
   carDescription: `Write the description for the car's page on the dealer's website. The page already shows the price, the spec table and the contact buttons, so the description is there to tell a buyer what the spec table cannot: why this particular car is worth a look.
 - Two or three short paragraphs. Lead with what a buyer weighs first: the year, mileage, owners, NCT and anything in the dealer's notes about service history or condition.
 - Then the equipment that makes a difference day to day, in a sentence or two, not a list of every item.

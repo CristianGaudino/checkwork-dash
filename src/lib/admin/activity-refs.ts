@@ -8,11 +8,9 @@ const WHERE: Record<RefKind, { noun: string; href: (id: string) => string }> = {
   lead: { noun: "lead", href: (id) => `/leads/${id}` },
   drive: { noun: "test drive", href: (id) => `/test-drives/${id}` },
   alert: { noun: "stock alert", href: () => "/customers?tab=alerts" },
-  subscriber: { noun: "subscriber", href: () => "/customers?tab=newsletter" },
   review: { noun: "review", href: () => "/reviews" },
   post: { noun: "post", href: () => "/marketing?tab=posts" },
   ad: { noun: "ad", href: () => "/marketing?tab=posts" },
-  newsletter: { noun: "newsletter", href: () => "/marketing?tab=newsletters" },
   team: { noun: "team member", href: () => "/settings?section=team" },
 };
 
@@ -22,6 +20,7 @@ export type RefView = { label: string; href?: string };
 export function refView(e: Pick<ActivityEntry, "refKind" | "refId" | "refLabel">, people: Map<string, string>, exists: (kind: RefKind, id: string) => boolean): RefView | null {
   if (!e.refKind || !e.refId) return null;
   const where = WHERE[e.refKind];
+  if (!where) return null; // a kind no longer kept, on an older row (the newsletter's subscriber and newsletter, #149)
   const live = e.refLabel ?? people.get(`${e.refKind}:${e.refId}`);
   if (live === undefined || !exists(e.refKind, e.refId)) return { label: live ?? `A deleted ${where.noun}` };
   return { label: live, href: where.href(e.refId) };

@@ -6,7 +6,7 @@ import type { ModuleId } from "@/lib/modules-rules";
 // every item names its own, so a role that cannot see the first item of a group still sees the rest under the right heading.
 export type NavIcon = "home" | "inbox" | "car" | "calendar" | "users" | "megaphone" | "chart" | "percent" | "star" | "cog" | "history" | "report" | "shield" | "wrench" | "truck" | "receipt" | "help" | "swap";
 // `ours`: only for a dealer whose stock is kept here (not on DoneDeal). `module`: only with that module (#173); most follow from the
-// address (MODULES in src/lib/modules-rules.ts), this is for a page shared by modules (Marketing: social or the newsletter; Customers: sales or the newsletter).
+// address (MODULES in src/lib/modules-rules.ts), this is for a page shared by modules (Customers: sales, or the stock alerts of the "newsletter" module).
 // `also`: other pages that are this place in the menu (a view of it at its own address), so the menu marks it there too.
 export type NavItem = { href: string; label: string; icon: NavIcon; group?: string; permission?: Permission; ours?: true; module?: ModuleId | readonly ModuleId[]; also?: string[] };
 
@@ -16,7 +16,7 @@ export const DEALER_NAV: NavItem[] = [
   { href: "/leads", label: "Leads", icon: "inbox" },
   { href: "/test-drives", label: "Test drives", icon: "calendar" },
   { href: "/stock", label: "Stock", icon: "car" },
-  { href: "/marketing", label: "Marketing", icon: "megaphone", module: ["social", "newsletter"] },
+  { href: "/marketing", label: "Marketing", icon: "megaphone", module: "social" },
   { href: "/customers", label: "Customers", icon: "users", group: "Customers", module: ["sales", "newsletter"] },
   { href: "/orders", label: "Orders", icon: "truck", group: "Customers", ours: true },
   { href: "/aftersales", label: "Warranty claims", icon: "wrench", group: "Customers" },

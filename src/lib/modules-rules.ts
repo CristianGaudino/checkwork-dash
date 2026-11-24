@@ -10,13 +10,13 @@ export const MODULES = [
   { id: "finance", label: "Finance", blurb: "Payment estimator with your lender's wording, and finance applications.", pages: ["/finance"], dashboard: [] },
   { id: "testDrives", label: "Test drives", blurb: "Slot booking on the site and a calendar in the dashboard.", pages: ["/test-drive"], dashboard: ["/test-drives"], needs: ["dashboard"] },
   { id: "carFinder", label: "Car finder", blurb: "Requests for cars not in stock.", pages: ["/find-a-car"], dashboard: [] },
-  { id: "sales", label: "Sales and customers", blurb: "Deposits and reservations, sale records and a customer list.", pages: [], dashboard: [], needs: ["dashboard"] }, // /customers is shared with the newsletter: the page checks both
+  { id: "sales", label: "Sales and customers", blurb: "Deposits and reservations, sale records and a customer list.", pages: [], dashboard: [], needs: ["dashboard"] }, // /customers is shared with stock alerts: the page checks both
   { id: "margins", label: "Margins and reports", blurb: "Cost prices, margins for the staff allowed, sales reports, targets.", pages: [], dashboard: ["/margins", "/reports"], needs: ["sales"] },
   { id: "service", label: "Service and aftersales", blurb: "Service booking, warranty claims and their progress.", pages: ["/service"], dashboard: ["/aftersales"], needs: ["dashboard"] },
   // No needs (#224): a Showroom site shows its reviews without the dashboard; /reviews (replies) also needs the dashboard, as every dashboard page.
   { id: "reviews", label: "Reviews", blurb: "Google reviews on the site; replies from the dashboard when you have it.", pages: ["/reviews"], dashboard: ["/reviews"] },
   { id: "social", label: "Social and ads", blurb: "Posts, stories, reels and ads from the dashboard.", pages: [], dashboard: ["/marketing/new"], needs: ["dashboard"] },
-  { id: "newsletter", label: "Newsletter and alerts", blurb: "Newsletters, price-drop and new-stock alerts.", pages: [], dashboard: [], needs: ["dashboard"] },
+  { id: "newsletter", label: "Stock alerts", blurb: "Emails when a car someone asked about comes in or drops in price.", pages: [], dashboard: [], needs: ["dashboard"] },
   { id: "commercial", label: "Commercial vehicles", blurb: "A commercial section with ex. VAT pricing.", pages: ["/commercial"], dashboard: [] },
   { id: "newCars", label: "New cars and factory orders", blurb: "New car pages by brand and ordering of factory cars.", pages: ["/new-cars"], dashboard: ["/orders"], needs: ["dashboard"] },
   { id: "analytics", label: "Site analytics", blurb: "Visitor numbers and where they came from.", pages: [], dashboard: ["/analytics"], needs: ["dashboard"] },

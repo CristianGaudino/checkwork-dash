@@ -103,37 +103,6 @@ test("an idea starts the composer on its car, and the list filters to ads", asyn
   await expect(page.getByRole("list", { name: "Posts and ads" }).getByRole("listitem").first()).toContainText(" ad");
 });
 
-test("write a newsletter from the newest cars: it opens to check before it is saved, and sending sends it", async ({ page }) => {
-  await page.goto("/marketing?tab=newsletters");
-  await page.getByRole("link", { name: "Write from the newest cars" }).click();
-  await expect(page).toHaveURL(/\/marketing\/newsletters\/new$/);
-  await expect(page.getByRole("textbox", { name: "Text", exact: true })).toHaveValue(/New in this week:/);
-  await page.getByRole("button", { name: "Save draft" }).click();
-  await expect(page.getByRole("status")).toContainText("Newsletter draft saved");
-  await expect(page.getByText("New in this week:").first()).toBeVisible();
-  await page.getByRole("button", { name: /^Send / }).first().click();
-  await page.getByRole("dialog").getByRole("button", { name: "Send" }).click();
-  await expect(page.getByRole("status")).toContainText("Newsletter sent");
-});
-
-test("a newsletter draft opens from its row, and a change saved is kept", async ({ page }) => {
-  const subject = `Spring cars ${Date.now()}`;
-  await page.goto("/marketing?tab=newsletters");
-  await page.getByText("Write your own").click();
-  await page.getByLabel("Subject").fill(subject);
-  await page.getByRole("textbox", { name: "Text", exact: true }).fill("First words.");
-  await page.getByRole("button", { name: "Save draft" }).click();
-  await expect(page.getByRole("status")).toContainText("Newsletter draft saved");
-  await page.getByRole("link", { name: `Edit ${subject}` }).first().click();
-  await expect(page).toHaveURL(/\/marketing\/newsletters\/nl-/);
-  await expect(page.getByLabel("Subject")).toHaveValue(subject);
-  await page.getByRole("textbox", { name: "Text", exact: true }).fill("Changed words.");
-  await page.getByRole("button", { name: "Save draft" }).click();
-  await expect(page.getByRole("status")).toContainText("Newsletter draft saved");
-  await expect(page.getByRole("listitem").filter({ hasText: subject })).toHaveCount(1); // the same draft, not a second one
-  await expect(page.getByRole("listitem").filter({ hasText: subject })).toContainText("Changed words.");
-});
-
 test("a post draft opens from the list on its words, and a change saved is kept on the same post", async ({ page }) => {
   await startPost(page);
   await next(page);

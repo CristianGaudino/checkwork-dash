@@ -277,7 +277,7 @@ function seedDiary(): TestDrive[] {
 export const demoDrives = () => [...seedDrives(), ...seedDiary()];
 export const drivesStore = defineCollection<TestDrive>("test-drives", demoDrives);
 
-// ---- Customers, stock alerts, newsletter ----
+// ---- Customers, stock alerts ----
 export type Customer = { id: string; name: string; email: string; phone: string; source: string; marketingConsent: boolean; createdAt: number; lastContactAt: number };
 function seedCustomers(): Customer[] {
   const r = rng(31);
@@ -306,14 +306,6 @@ function seedAlerts(): StockAlert[] {
   });
 }
 export const alertsStore = defineCollection<StockAlert>("alerts", seedAlerts);
-
-export type Subscriber = { id: string; email: string; status: "subscribed" | "unsubscribed"; createdAt: number };
-function seedSubscribers(): Subscriber[] {
-  const r = rng(53);
-  const now = Date.now();
-  return Array.from({ length: 30 }, (_, i) => ({ id: `sub-${500 + i}`, email: person(r).email, status: r.next() > 0.1 ? "subscribed" : "unsubscribed", createdAt: now - r.int(1, 240) * DAY }));
-}
-export const subscribersStore = defineCollection<Subscriber>("subscribers", seedSubscribers);
 
 // ---- Reviews ----
 export type AdminReview = { id: string; author: string; rating: 1 | 2 | 3 | 4 | 5; text: string; createdAt: number; reply?: string; repliedAt?: number };
@@ -368,7 +360,7 @@ export type DealerSettings = {
   driveSlotMinutes: number; // one car cannot be booked twice within this many minutes (test drives)
   notifications: { followUps: boolean }; // the morning follow-ups email for everyone who has not chosen yet (#142: each person chooses now)
   notifyDefaults?: Prefs; // what a new person gets (an owner sets it in Team); missing means their role's (src/lib/notify-rules.ts)
-  marketing: { voice: string; hashtags: string; signOff: string }; // used by the post and newsletter writers
+  marketing: { voice: string; hashtags: string; signOff: string }; // used by the post writer
   team: TeamMember[];
   leadEmails: string[]; // who gets the email when a visitor sends a form; empty means the dealer's profile's leadEmail
   billing?: BillingSettings; // usage limits and alerts, and our ceilings (#181, src/lib/billing/usage.ts); missing on a record from before
@@ -394,11 +386,10 @@ const seedSettings = (demo: boolean): DealerSettings[] => {
 };
 export const settingsStore = defineCollection<DealerSettings>("settings", seedSettings, { always: true });
 
-// ---- Marketing: social posts, ads, newsletters ----
+// ---- Marketing: social posts, ads ----
 export { NETWORKS, type Network };
 export type SocialPost = { id: string; network: Network; carSlug?: string; carTitle?: string; text: string; photos?: string[]; format?: PostFormat; layout?: StoryLayout; video?: string; status: "draft" | "scheduled" | "posted"; scheduledFor?: number; postedAt?: number; simulated?: boolean; claimedAt?: number; reach?: number; clicks?: number; createdAt: number };
 export type Ad = { id: string; platform: AdPlatform; name: string; carTitle: string; budgetEur: number; status: "draft" | "running" | "paused" | "ended"; impressions: number; clicks: number; leads: number; createdAt: number; startedAt?: number };
-export type Newsletter = { id: string; subject: string; body: string; status: "draft" | "sent"; sentAt?: number; recipients?: number; opens?: number; clicks?: number; createdAt: number };
 
 function seedPosts(): SocialPost[] {
   const r = rng(79);
@@ -441,16 +432,6 @@ function seedAds(): Ad[] {
   });
 }
 export const adsStore = defineCollection<Ad>("ads", seedAds);
-
-function seedNewsletters(): Newsletter[] {
-  const now = Date.now();
-  return [
-    { id: "nl-900", subject: "New arrivals this week", body: "Six new cars in the yard this week, including two SUVs under €20,000.", status: "sent", sentAt: now - 12 * DAY, recipients: 27, opens: 15, clicks: 6, createdAt: now - 13 * DAY },
-    { id: "nl-901", subject: "Trade-in event this Saturday", body: "Bring your car in this Saturday for a free, no-obligation valuation.", status: "sent", sentAt: now - 40 * DAY, recipients: 24, opens: 12, clicks: 4, createdAt: now - 41 * DAY },
-    { id: "nl-902", subject: "Winter service offer", body: "Book your winter check in November.", status: "draft", createdAt: now - 2 * DAY },
-  ];
-}
-export const newslettersStore = defineCollection<Newsletter>("newsletters", seedNewsletters);
 
 // The settings record, or the defaults if it is somehow missing, so no page has to handle "no settings". A saved record from before a
 // setting existed still reads whole. The team is the directory's (who is on it, and as what) with the dealer's own details for each.
@@ -751,4 +732,4 @@ function seedPrep(): CarPrep[] {
 export const prepStore = defineCollection<CarPrep>("car-prep", seedPrep);
 
 // Every dealer collection, so "Reset demo data" puts the whole demo back to its seed.
-export const DEALER_COLLECTIONS = [leadsStore, drivesStore, customersStore, alertsStore, subscribersStore, reviewsStore, settingsStore, postsStore, adsStore, newslettersStore, mediaStore, costsStore, salesStore, prepStore, reservationsStore, claimsStore, ordersStore];
+export const DEALER_COLLECTIONS = [leadsStore, drivesStore, customersStore, alertsStore, reviewsStore, settingsStore, postsStore, adsStore, mediaStore, costsStore, salesStore, prepStore, reservationsStore, claimsStore, ordersStore];

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 const { exportOf, erasePerson, findPerson, heldCount } = await import("./data-requests");
 const { messagesStore } = await import("@/lib/whatsapp/store");
-const { alertsStore, claimsStore, customersStore, drivesStore, leadsStore, ordersStore, reservationsStore, salesStore, subscribersStore } = await import("./collections");
+const { alertsStore, claimsStore, customersStore, drivesStore, leadsStore, ordersStore, reservationsStore, salesStore } = await import("./collections");
 const { parsePersonQuery } = await import("./person-match");
 
 // The memory path (no D1): the dashboard's records. The D1 form submissions are the same match, read from the table.
@@ -15,7 +15,6 @@ describe("a data request", () => {
     await leadsStore.put({ id: "lead-x", type: "enquiry", status: "new", name: "Pat Byrne", email: "PAT@example.com", phone: "", message: "Hi", source: "Website", journey, notes: [], createdAt: now });
     await drivesStore.put({ id: "drive-x", name: "Pat", email: "", phone: "+353 87 123 4567", carSlug: "x", carTitle: "2016 Ford Focus", startsAt: now, status: "confirmed", notes: "", createdAt: now });
     await alertsStore.put({ id: "alert-x", email: "pat@example.com", kind: "price-drop", criteria: "Ford Focus", active: true, createdAt: now });
-    await subscribersStore.put({ id: "sub-x", email: "pat@example.com", status: "subscribed", createdAt: now });
     await salesStore.put({ id: "car-x", carTitle: "2016 Ford Focus", priceEur: 9000, soldOn: "2026-11-01", customerId: "cust-x", createdAt: now });
     await reservationsStore.put({ id: "res-x", carId: "car-y", carTitle: "2018 Kia Rio", customerId: "cust-x", depositEur: 500, method: "Card", paidOn: "2026-10-01", until: "2026-10-10", status: "refunded", refundEur: 500, createdAt: now });
     await ordersStore.put({ id: "order-x", customerId: "cust-x", make: "Kia", model: "Sportage", priceEur: 38000, depositEur: 1000, depositMethod: "Card", regPeriod: "271", expected: "2027-01", orderedOn: "2026-11-01", status: "ordered", notes: [{ at: now, text: "Pat wants white" }], createdAt: now });
@@ -25,17 +24,17 @@ describe("a data request", () => {
     const others = (await leadsStore.list()).length - 1;
 
     const byEmail = await findPerson(parsePersonQuery("pat@example.com")!);
-    expect([byEmail.customers, byEmail.leads, byEmail.alerts, byEmail.subscribers, byEmail.sales, byEmail.drives, byEmail.deposits, byEmail.claims, byEmail.orders].map((x) => x.length)).toEqual([1, 1, 1, 1, 1, 1, 1, 1, 1]);
+    expect([byEmail.customers, byEmail.leads, byEmail.alerts, byEmail.sales, byEmail.drives, byEmail.deposits, byEmail.claims, byEmail.orders].map((x) => x.length)).toEqual([1, 1, 1, 1, 1, 1, 1, 1]);
     expect(byEmail.messages.map((m) => m.id)).toEqual(["wa-x"]);
     // The booking gave only a phone: found through the phone on their customer record. And the other way round.
     const byPhone = await findPerson(parsePersonQuery("0871234567")!);
     expect(heldCount(byPhone)).toBe(heldCount(byEmail));
-    expect(heldCount(byEmail)).toBe(10);
+    expect(heldCount(byEmail)).toBe(9);
     expect(JSON.stringify(exportOf(byEmail).purchases)).not.toContain("cust-x");
     expect(exportOf(byEmail).leads[0].journey).toEqual(journey); // their visit note goes with the lead: exported, and erased with it below
     expect(exportOf(byEmail).deposits).toEqual([{ car: "2018 Kia Rio", depositEur: 500, paidOn: "2026-10-01", until: "2026-10-10", status: "refunded", refundEur: 500 }]);
 
-    expect(await erasePerson(parsePersonQuery("pat@example.com")!)).toBe(6); // the sale and the deposit are kept, so not counted
+    expect(await erasePerson(parsePersonQuery("pat@example.com")!)).toBe(5); // the sale and the deposit are kept, so not counted
     expect(await reservationsStore.get("res-x")).toMatchObject({ depositEur: 500, customerId: undefined });
     expect(await ordersStore.get("order-x")).toMatchObject({ priceEur: 38000, customerId: undefined, notes: [] });
     expect(await claimsStore.get("claim-x")).toMatchObject({ costEur: 300, customerId: undefined, fault: "Erased on request", notes: [] });
@@ -44,7 +43,6 @@ describe("a data request", () => {
     expect(await customersStore.get("cust-x")).toBeUndefined();
     expect(await leadsStore.get("lead-x")).toBeUndefined();
     expect(await alertsStore.get("alert-x")).toBeUndefined();
-    expect(await subscribersStore.get("sub-x")).toBeUndefined();
     expect(await salesStore.get("car-x")).toMatchObject({ priceEur: 9000, customerId: undefined });
     expect(await drivesStore.get("drive-x")).toBeUndefined();
     expect((await leadsStore.list()).length).toBe(others); // nobody else touched

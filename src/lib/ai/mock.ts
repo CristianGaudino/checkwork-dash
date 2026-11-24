@@ -1,4 +1,4 @@
-import { newsletterText, postText } from "@/lib/admin/marketing";
+import { postText } from "@/lib/admin/marketing";
 import { ADJUSTS, type Adjust, type CarFacts, type FactsOf, type Task } from "./tasks";
 
 // The demo's writer: no key, no cost. The same facts and button always give the same text, and it is built only from the facts it is
@@ -45,15 +45,6 @@ function post(f: FactsOf["post"], a: Adjust | undefined, current: string): strin
     }
     default: return plain;
   }
-}
-
-function newsletter(f: FactsOf["newsletter"], a: Adjust | undefined): string {
-  const list = f.cars.map((c) => `- ${c.name}, ${c.price ?? "ask for the price"}. ${c.link ?? ""}`.trim());
-  const sign = f.voice.signOff.trim();
-  if (a === "shorter") return lines(...list, sign);
-  if (a === "friendlier") return lines("Hi there,", `Here is what has just come in at ${f.dealer}.`, BR, ...list, BR, "Pop in and say hello.", sign);
-  if (a === "professional") return lines("Dear subscriber,", `These cars are now available at ${f.dealer}.`, BR, ...list, BR, "Please contact us to arrange a viewing.", sign);
-  return clean(newsletterText(f.cars, f.voice)); // the free writer's text (src/lib/admin/marketing.ts): only the buttons write differently
 }
 
 function description(f: FactsOf["carDescription"], a: Adjust | undefined): string {
@@ -115,7 +106,6 @@ export function mockText<T extends Task>(task: T, facts: FactsOf[T], adjust?: Ad
   if (adjust && !Object.hasOwn(ADJUSTS, adjust)) adjust = undefined;
   switch (task) {
     case "post": return post(facts as FactsOf["post"], adjust, current);
-    case "newsletter": return newsletter(facts as FactsOf["newsletter"], adjust);
     case "carDescription": return description(facts as FactsOf["carDescription"], adjust);
     case "leadReply": return leadReply(facts as FactsOf["leadReply"], adjust);
     case "leadBrief": return leadBrief(facts as FactsOf["leadBrief"]);

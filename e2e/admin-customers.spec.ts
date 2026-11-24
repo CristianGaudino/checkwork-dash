@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("customers, stock alerts and newsletter each have a table, and an alert can be stopped", async ({ page }) => {
+test("customers and stock alerts each have a table, and an alert can be stopped", async ({ page }) => {
   await page.goto("/customers");
   expect((await page.getByRole("row").count()) - 1).toBeGreaterThan(5);
   await page.getByRole("link", { name: "Stock alerts" }).click();
@@ -11,15 +11,8 @@ test("customers, stock alerts and newsletter each have a table, and an alert can
   await expect(page.getByRole("link", { name: "Stock alerts" })).toHaveAttribute("aria-current", "true");
   const paused = page.getByRole("row").filter({ hasText: "Stopped" }).first();
   await expect(paused).toBeVisible();
-  // Consent only goes one way: staff can stop an alert or the newsletter, never start one again for the person.
+  // Consent only goes one way: staff can stop an alert, never start one again for the person.
   await expect(paused.getByRole("button", { name: "Stop" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: /Resume|Turn on/ })).toHaveCount(0);
-  await page.getByRole("link", { name: /^Subscribers/ }).click();
-  await expect(page.getByRole("link", { name: /^Subscribers/ })).toHaveAttribute("aria-current", "true"); // not an alert's row, still showing
-  const subscribed = page.getByRole("row").filter({ has: page.getByRole("button", { name: /^More for / }) }).first(); // only a subscribed one has a menu
-  await subscribed.getByRole("button", { name: /^More for / }).click();
-  await expect(subscribed.getByRole("button", { name: "Unsubscribe" })).toBeVisible();
-  await page.keyboard.press("Escape");
-  await expect(page.getByRole("button", { name: /^(Resubscribe|Subscribe|Subscribe again)$/ })).toHaveCount(0);
-  await expect(page.getByRole("row").filter({ hasText: "Unsubscribed" }).first().getByRole("button")).toHaveCount(0);
+  await expect(page.getByRole("link", { name: /^Subscribers/ })).toHaveCount(0); // the newsletter is gone (#149)
 });

@@ -12,7 +12,6 @@ import { requireStaff } from "@/lib/staff";
 
 const request = z.discriminatedUnion("task", [
   z.object({ task: z.literal("post"), carSlug: z.string().max(200), network: z.enum(NETWORKS), format: z.enum(POST_FORMATS), layout: z.enum(STORY_LAYOUTS).optional() }),
-  z.object({ task: z.literal("newsletter") }),
   z.object({ task: z.literal("carDescription"), fields: z.record(z.string().max(60), z.string().max(4000)) }),
   z.object({ task: z.literal("leadReply"), leadId: z.string().max(80) }),
   z.object({ task: z.literal("reviewReply"), reviewId: z.string().max(80) }),

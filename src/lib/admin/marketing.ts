@@ -8,7 +8,7 @@ import { slugId } from "./stock-admin-pure";
 import { FORMAT_LIMITS, PUBLISH_MODE, type PostFormat } from "./networks";
 import type { CarFacts } from "@/lib/ai/tasks";
 
-// The writers for posts and newsletters. Plain templates over the car's own facts and the dealer's voice settings: the same car and
+// The writer for posts. Plain templates over the car's own facts and the dealer's voice settings: the same car and
 // settings always give the same text, and nothing is invented (no claims, no offers). The dealer edits the text before it goes anywhere.
 // The AI writer's plain draft (src/lib/ai/mock.ts) is this text too, so only its adjust buttons write differently.
 type Voice = Pick<DealerSettings["marketing"], "signOff" | "hashtags">;
@@ -74,18 +74,6 @@ export function calendarWeek(posts: SocialPost[], ads: Ad[], days: string[]): Re
   return out;
 }
 
-// `dealer`: their name and website, from the directory.
-export function writeNewsletter(cars: Car[], voice: Voice, dealer: { name: string; siteUrl: string }): { subject: string; body: string } {
-  return {
-    subject: cars.length ? `New arrivals at ${dealer.name}` : `News from ${dealer.name}`,
-    body: newsletterText(cars.map((c) => ({ name: carName(c), price: priceText(c), link: dealer.siteUrl ? `${dealer.siteUrl}${carHref(c.slug)}` : undefined })), voice),
-  };
-}
-export function newsletterText(cars: Pick<CarFacts, "name" | "price" | "link">[], voice: Voice): string {
-  const list = cars.map((c) => `- ${c.name}, ${c.price ?? "ask for the price"}. ${c.link ?? ""}`.trim());
-  return [cars.length ? "New in this week:" : "", ...list, "", voice.signOff.trim()].filter((l, i, a) => l !== "" || (i > 0 && a[i - 1] !== "")).join("\n").trim();
-}
-
 // What a send or a publish returns. A service that is not connected is a message, never a thrown error and never a pretend success.
 export type SendResult = { ok: true; simulated?: boolean } | { ok: false; reason: "not-connected" | "not-installed" };
 
@@ -94,7 +82,6 @@ export type SendResult = { ok: true; simulated?: boolean } | { ok: false; reason
 const spread = (id: string, mod: number) => [...id].reduce((n, ch) => (n * 31 + ch.charCodeAt(0)) % 100003, 7) % mod;
 export const simulatedPost = (id: string) => ({ reach: 380 + spread(id, 900), clicks: 14 + spread(id + "c", 60) });
 export const simulatedAd = (id: string) => ({ impressions: 2400 + spread(id, 6000), clicks: 40 + spread(id + "c", 160), leads: 1 + spread(id + "l", 7) });
-export const simulatedLetter = (id: string, subscribers: number) => ({ recipients: subscribers, opens: Math.round(subscribers * (0.38 + spread(id, 12) / 100)), clicks: Math.round(subscribers * (0.05 + spread(id + "c", 6) / 100)) });
 
 // Cars worth a post: new this week, or reduced, with no post for them in the last two weeks. New ones first, newest first. At most three,
 // so it reads as a nudge, not a to-do list. Pure, so the rules are tested.

@@ -66,7 +66,7 @@ describe("the CSV exports", () => {
     const one = people[0];
     const found = await lines(await get(customers, `/customers/export?q=${encodeURIComponent(one.email)}`));
     expect(found.slice(1).every((r) => r.includes(one.email))).toBe(true);
-    expect((await lines(await get(customers, "/customers/export?tab=newsletter&state=unsubscribed"))).slice(1).every((r) => r.includes("Unsubscribed"))).toBe(true);
+    expect((await lines(await get(customers, "/customers/export?tab=alerts&state=paused"))).slice(1).every((r) => r.includes(",No,"))).toBe(true);
     expect((await lines(await get(customers, "/customers/export?tab=alerts")))[0]).toMatch(/^Email,Alert,/);
   });
 });

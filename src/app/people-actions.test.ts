@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// The actions on people's data: stock alerts and the newsletter (consent only goes one way), review replies, and data requests.
+// The actions on people's data: stock alerts (consent only goes one way), review replies, and data requests.
 vi.mock("server-only", () => ({}));
 vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
 vi.mock("next/navigation", () => ({ redirect: (to: string) => { throw new Error(`redirect:${to}`); }, notFound: () => { throw new Error("not-found"); } }));
@@ -22,10 +22,10 @@ vi.mock("next/headers", () => ({
   cookies: async () => ({ get: (n: string) => (n === "checkwork-demo-role" ? { value: role } : n === "checkwork-demo-modules" && modules ? { value: modules } : undefined) }),
   headers: async () => ({ get: () => null }),
 }));
-const { pauseAlertAction, removeAlertAction, unsubscribeAction } = await import("./customers/actions");
+const { pauseAlertAction, removeAlertAction } = await import("./customers/actions");
 const { replyAction } = await import("./reviews/actions");
 const { eraseAction, exportAction, findAction } = await import("./data-requests/actions");
-const { alertsStore, drivesStore, reviewsStore, subscribersStore } = await import("@/lib/admin/collections");
+const { alertsStore, drivesStore, reviewsStore } = await import("@/lib/admin/collections");
 
 const form = (o: Record<string, string>) => Object.entries(o).reduce((f, [k, v]) => (f.set(k, v), f), new FormData());
 const target = async (run: () => Promise<unknown>) => {
@@ -36,16 +36,13 @@ const target = async (run: () => Promise<unknown>) => {
   }
 };
 
-describe("stock alerts and the newsletter", () => {
-  it("pauses an alert and unsubscribes, and never starts either again", async () => {
+describe("stock alerts", () => {
+  it("pauses an alert, and never starts it again", async () => {
     const alert = (await alertsStore.list()).find((a) => a.active)!;
     await pauseAlertAction(alert.id);
     expect((await alertsStore.get(alert.id))!.active).toBe(false);
     await pauseAlertAction(alert.id); // already paused: nothing
-    const sub = (await subscribersStore.list()).find((s) => s.status === "subscribed")!;
-    await unsubscribeAction(sub.id);
-    expect((await subscribersStore.get(sub.id))!.status).toBe("unsubscribed");
-    await unsubscribeAction("nope");
+    await pauseAlertAction("nope");
   });
   it("removes an alert", async () => {
     const alert = (await alertsStore.list())[0];
@@ -53,13 +50,13 @@ describe("stock alerts and the newsletter", () => {
     expect(await alertsStore.get(alert.id)).toBeUndefined();
     await removeAlertAction(alert.id); // gone: nothing
   });
-  it("belongs to the newsletter module, where visitors sign up, not to sales", async () => {
-    const sub = (await subscribersStore.list()).find((s) => s.status === "subscribed")!;
+  it("belongs to the alerts module (id \"newsletter\"), where visitors sign up, not to sales", async () => {
+    const alert = (await alertsStore.list()).find((a) => a.active)!;
     modules = "dashboard,sales";
-    await expect(unsubscribeAction(sub.id)).rejects.toThrow("not-found");
+    await expect(pauseAlertAction(alert.id)).rejects.toThrow("not-found");
     modules = "dashboard,newsletter";
-    await unsubscribeAction(sub.id);
-    expect((await subscribersStore.get(sub.id))!.status).toBe("unsubscribed");
+    await pauseAlertAction(alert.id);
+    expect((await alertsStore.get(alert.id))!.active).toBe(false);
     modules = undefined;
   });
 });
