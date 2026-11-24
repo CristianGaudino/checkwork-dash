@@ -23,13 +23,11 @@ describe("buildAnalytics", () => {
       expect(a.days[0].date < a.days[1].date).toBe(true);
     }
   });
-  it("agrees with itself: days, channels, places and devices all add up to the visitors", () => {
+  it("agrees with itself: days and channels all add up to the visitors", () => {
     const a = buildAnalytics({ range: 30, cars, now });
     expect(total(a.days)).toBe(a.totals.visitors);
     expect(a.channels.reduce((s, x) => s + x.visits, 0)).toBe(a.totals.visitors);
     expect(a.previous.channels.reduce((s, x) => s + x.visits, 0)).toBe(a.previous.visitors);
-    expect(total(a.places)).toBe(a.totals.visitors);
-    expect(total(a.devices)).toBe(a.totals.visitors);
     expect(a.channels.reduce((s, x) => s + x.leads, 0)).toBe(a.totals.leads);
   });
   it("never grows going down the funnel, and the top step is the visitors", () => {

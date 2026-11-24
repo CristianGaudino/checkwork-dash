@@ -5,20 +5,14 @@ import { fmtNum, plural } from "@/lib/admin/format";
 import { sourceGroups, sourceTiles, type ChannelCount, type SourceFigures, type SourceTile } from "@/lib/admin/visit-sources";
 
 // "Where visits come from" (#35), one tile per channel: its mark, visits and the change on the period before, the leads it brought and
-// leads per 100 visits. The channel with the most leads has an indigo edge and says so in words. With `top`, the busiest few channels
-// (the Overview); without, the groups (Search, Social, Listing sites...), each opening into its networks (Analytics, the monthly report).
+// leads per 100 visits. The channel with the most leads has an indigo edge and says so in words. The groups (Search, Social, Listing
+// sites...) each open into their networks (Analytics, the monthly report).
 // The panel around it names the period ("Last 30 days, compared with the 30 before"), so a tile says only "Up 6%".
-type Props = { now: ChannelCount[]; before: Pick<ChannelCount, "channel" | "visits">[]; top?: number };
+type Props = { now: ChannelCount[]; before: Pick<ChannelCount, "channel" | "visits">[] };
 
-export function VisitSources({ now, before, top }: Props) {
+export function VisitSources({ now, before }: Props) {
   const tiles = sourceTiles(now, before);
   if (!tiles.length) return <p className="text-meta text-text-2">No visits in this period.</p>;
-  if (top) {
-    const shown = tiles.slice(0, top);
-    const best = tiles.find((t) => t.best);
-    if (best && !shown.includes(best)) shown[top - 1] = best; // the best channel always shows, even when it is not among the busiest
-    return <StatGrid>{shown.map((t) => <Tile key={t.channel} f={t} best={t.best} icon={<ChannelIcon channel={t.channel} />} />)}</StatGrid>;
-  }
   return (
     <StatGrid>
       {sourceGroups(tiles, before).map((g) =>

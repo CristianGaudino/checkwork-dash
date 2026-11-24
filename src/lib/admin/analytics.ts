@@ -16,8 +16,6 @@ export const parseRange = (v: unknown): Range => (RANGES.includes(Number(v) as R
 
 // Each channel's share of the visits and how readily its visitors get in touch (the real site's channels, src/lib/visit-rules.ts).
 const SOURCES: readonly (readonly [Channel, number, number])[] = [["google", 38, 1.0], ["direct", 20, 1.2], ["facebook", 13, 0.7], ["instagram", 8, 0.6], ["donedeal", 7, 1.4], ["bing", 4, 0.9], ["carzone", 3, 1.2], ["other", 2.6, 0.9], ["email", 2.2, 1.8], ["tiktok", 1.6, 0.4]];
-const PLACES = [["Dublin", 24], ["Cork", 14], ["Galway", 9], ["Limerick", 8], ["Kerry", 7], ["Waterford", 6], ["Kildare", 5], ["Meath", 5], ["Other Irish counties", 17], ["Outside Ireland", 5]] as const;
-const DEVICES = [["Phone", 68], ["Desktop", 27], ["Tablet", 5]] as const;
 
 // Whole numbers that add up exactly to `total`, shared by weight (the largest remainder goes to the heaviest first).
 export function share(total: number, weights: readonly number[]): number[] {
@@ -97,9 +95,6 @@ export function buildAnalytics(input: { range: Range; cars: Car[]; now?: number;
   const mix = rng(seed + range + 1);
   const channelsBefore = share(sum(before, "visitors"), SOURCES.map((s) => s[1] * (0.75 + mix.next() * 0.5))).map((v, i) => ({ channel: SOURCES[i][0], visits: v }));
 
-  const places = share(visitors, PLACES.map((p) => p[1])).map((v, i) => ({ name: PLACES[i][0], visitors: v }));
-  const devices = share(visitors, DEVICES.map((d) => d[1])).map((v, i) => ({ name: DEVICES[i][0], visitors: v }));
-
   const carViews = input.cars.map((c) => ({ ...c, views: Math.round(visitors * (0.004 + r.next() * 0.03)) })).sort((a, b) => b.views - a.views).slice(0, 8);
   const topCars = carViews.map((c) => {
     const saves = Math.round(c.views * (0.06 + r.next() * 0.1));
@@ -122,8 +117,6 @@ export function buildAnalytics(input: { range: Range; cars: Car[]; now?: number;
     totals: { visitors, pageviews: sum(days, "pageviews"), leads, conversion: visitors ? (leads / visitors) * 100 : 0 },
     previous: { visitors: sum(before, "visitors"), pageviews: sum(before, "pageviews"), leads: sum(before, "leads"), channels: channelsBefore },
     channels,
-    places,
-    devices,
     topCars,
     funnel,
   };
