@@ -52,9 +52,10 @@ test.describe("on a 390px phone", () => {
     }
     // An order's cancel form (a seeded order on its way, with a deposit): what happens to the deposit.
     await page.goto("/orders/order-s4");
-    const radios = page.locator('input[name="outcome"][type="radio"]');
+    await page.getByRole("button", { name: "Cancel the order" }).click(); // the form is in the house dialog (#141)
+    const radios = page.getByRole("dialog").locator('input[name="outcome"][type="radio"]');
     await expect(radios).toHaveCount(2);
-    for (const r of await radios.all()) expect(await hitsAt44(r)).toBe(true);
+    for (const r of await radios.all()) await expect.poll(() => hitsAt44(r)).toBe(true); // once the sheet has finished sliding up
   });
 });
 
