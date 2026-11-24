@@ -243,7 +243,7 @@ test("old stock: owners see a suggested price and Drop to; sales see neither", a
   await page.goto("/stock?view=old");
   const drop = page.getByRole("button", { name: /^Drop .+ to €[\d,]+$/ });
   await expect(drop.first()).toBeVisible();
-  await expect(page.getByRole("row").filter({ has: drop.first() })).toContainText(/suggested €[\d,]+/);
+  await expect(page.getByRole("row").filter({ has: drop }).first()).toContainText(/suggested €[\d,]+/);
   await as(context, "Sales");
   await page.goto("/stock?view=old");
   await expect(page.getByRole("row").nth(1)).toBeVisible();
