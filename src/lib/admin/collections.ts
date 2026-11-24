@@ -7,9 +7,10 @@ import { DEV_EMAIL, membersOf, putMember, removeMember } from "@/lib/tenancy/dir
 import { AD_PLATFORMS, NETWORKS, type AdPlatform, type Network, type PostFormat, type StoryLayout } from "./networks";
 import { demoCost } from "./margins";
 import { DAY, HOUR, MINUTE } from "@/lib/time";
-import { dublinDay, dublinMs } from "./format";
+import { dublinDay, dublinMs, fmtEur } from "./format";
 import { newId } from "./ids";
 import { COVER_MONTHS, DEPOSIT_METHODS, type DepositMethod } from "./deposits";
+import type { Note } from "./notes";
 import { ALERT_KINDS } from "@/lib/leads/schema";
 import { regPeriods } from "@/lib/leads/reg-periods";
 import type { Car } from "@/lib/stock/types";
@@ -88,7 +89,7 @@ export type Lead = {
   statusBefore?: LeadStatus; // on a closed or spam lead: the status Reopen or Not spam puts back
   maybeSpam?: true; // the spam check was unsure on arrival: "Possible spam" while it is new, with Spam and Not spam (#56)
   // `auto`: written by the site (a buyer's WhatsApp answer, a call-back reminder), not a reply to the buyer, so the reports skip it.
-  notes: { at: number; text: string; auto?: true }[];
+  notes: Note[];
   createdAt: number;
 };
 
@@ -104,8 +105,9 @@ const MESSAGES: Record<LeadType, string[]> = {
   enquiry: ["Is this still available? I could view it this weekend.", "Does it have a full service history?", "Is there any room on the price?", "Can you send me more photos of the interior?"],
   "test-drive": ["Could I drive it on Saturday morning?", "Free after 5pm most days this week."],
   finance: ["What would the monthly payment be with 10% down?", "Looking at 48 months. Can you come back to me with options?"],
-  "trade-in": ["I have a 2016 hatchback with 90,000 km to trade in against this.", "How much would you give me for my current car?"],
-  sell: ["Selling my 2018 Golf, 110,000 km, full service history.", "Not buying right now, just want to sell my car."],
+  "trade-in": ["I'd like to trade in my hatchback against this.", "How much would you give me for my current car?"],
+  // No make, year or mileage: the car itself is the lead's Their car details, so the message can never contradict them.
+  sell: ["Looking to sell my car. It has a full service history.", "Not buying right now, just want to sell my car."],
   "find-a-car": ["Looking for a diesel estate under 15k, low mileage.", "Want an automatic SUV, family car, around 20k."],
   order: ["Looking at a new hybrid SUV on a 271 reg, mid spec, white.", "Want to order the estate in grey for July."],
   warranty: ["The engine warning light came on this morning. Reg 191-D-4521.", "The gearbox is slipping into second. Bought it here in the summer."],
@@ -137,6 +139,17 @@ function seedLeads(): Lead[] {
       carTitle: car && carTitleOf(car),
       // A plate for the cars people want to sell or trade in, from the index (not the random sequence, so the rest of the seed is unchanged).
       ...((type === "trade-in" || type === "sell") && { reg: `${15 + (i % 9)}${1 + (i % 2)}-${["D", "C", "KY", "G", "L", "WX"][i % 6]}-${1000 + i * 37}` }),
+      // And what that car is, its year the plate's (also by index); one in four is left not looked up, as a lead fresh off the site is.
+      ...((type === "trade-in" || type === "sell") && i % 4 !== 3 && {
+        details: {
+          Make: ["Volkswagen", "Toyota", "Ford"][i % 3]!,
+          Model: ["Golf", "Corolla", "Focus"][i % 3]!,
+          Year: String(2015 + (i % 9)),
+          Mileage: `${((60 + i * 7) * 1000).toLocaleString("en-IE")} km`,
+          Condition: ["Excellent", "Good", "Fair", "Needs work"][i % 4]!,
+          "Asking price": fmtEur(6000 + i * 450),
+        },
+      }),
       assignedTo: status === "new" ? undefined : r.pick(TEAM_SEED).name,
       ...((i % 2 === 0 || type === "trade-in") && { whatsappOptIn: true }), // by index, so the random sequence is unchanged
       // A few open leads with a follow-up: one overdue, one today, two coming (by index, so the random sequence above is unchanged).
@@ -614,7 +627,7 @@ export type Claim = {
   status: ClaimStatus;
   costEur?: number; // what the repair cost the dealer: margins permission only
   leadId?: string; // the website claim it came from
-  notes: { at: number; text: string }[];
+  notes: Note[];
   createdAt: number;
 };
 // Claims at every stage, on the demo's sales: the newest from a website request (lead-2000), the repaired ones with what they cost.
@@ -671,7 +684,7 @@ export type Order = {
   salesperson?: string;
   leadId?: string; // the website request it came from
   refundEur?: number; // on a cancelled order: the deposit given back
-  notes: { at: number; text: string }[];
+  notes: Note[];
   createdAt: number;
 };
 // Orders at every stage, for this registration period and the next, so the dates always look current.

@@ -19,7 +19,7 @@ export type Confirm = { title: string; text?: string; yes: string; safe?: boolea
 // that takes a second is seen to be working. SubmitButton uses it too.
 export const BUSY = "aria-busy:cursor-progress aria-busy:opacity-70 motion-safe:aria-busy:animate-pulse";
 
-const errorOf = (r: unknown) => (r && typeof r === "object" && "error" in r && typeof r.error === "string" ? r.error : undefined);
+export const errorOf = (r: unknown) => (r && typeof r === "object" && "error" in r && typeof r.error === "string" ? r.error : undefined);
 
 export function ActButton({ act, undo, done, confirm, label, pressed, className, children }: { act: () => Promise<unknown>; undo?: () => Promise<unknown>; done?: string; confirm?: Confirm; label?: string; pressed?: boolean; className: string; children: React.ReactNode }) {
   const router = useRouter();
@@ -69,7 +69,7 @@ export function ConfirmDialog({ confirm, onYes, onClose, yesClassName = danger }
 
 // One of a few choices (a status, who has it, a follow-up) that posts a form action, with Undo: `set` is what this choice sends, `back` what
 // puts it back as it was (left out when there is no way back). The action checks every value, as it does for a form.
-const formOf = (fields: Record<string, string>) => {
+export const formOf = (fields: Record<string, string>) => {
   const f = new FormData();
   for (const [k, v] of Object.entries(fields)) f.set(k, v);
   return f;
