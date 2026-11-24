@@ -73,9 +73,9 @@ export async function recordUsage<S extends Service>(service: S, kind: Kind<S>, 
   }
 }
 
-// Saves the dealer's limits. Ours (the ceilings), the term and the free month are set from the owner's program, never here.
+// Saves the dealer's limits (the Billing page), or the term and the free month (the owner API, #177). Ours, the ceilings, are never set here.
 // `change` may be worked out from the billing as it is when written, so two saves at once both land.
-type BillingChange = Partial<Pick<BillingSettings, "caps">>;
+type BillingChange = Partial<Pick<BillingSettings, "caps" | "term" | "freeMonth">>;
 export async function saveBilling(change: BillingChange | ((now: BillingSettings) => BillingChange)) {
   // On the settings as they are now, so a team change saved at the same moment is never undone.
   const apply = (s: Partial<DealerSettings>) => {

@@ -47,6 +47,24 @@ curl -X POST -H "Authorization: Bearer $OWNER_API_TOKEN" -H "Content-Type: appli
 curl -X DELETE -H "Authorization: Bearer $OWNER_API_TOKEN" https://www.dash.checkwork.ie/api/owner/v1/dealers/test-motors/site-keys/<keyId>
 ```
 
+## Dealer contract term (#177)
+
+Checkwork sets each dealer's contract term (1 or 2 years; no setup fee on 2) and their free first month; the dealer sees both on Billing,
+under "What we set for you", and never changes them. The same bearer token; no token or a wrong one: `404`. Written to the dealer's
+billing settings (the record Billing reads) inside their own store, and the activity history says what changed, by Checkwork ("Set the
+contract to 2 years", "Set the first month free to December 2026", "Removed the first month free"). The demo dealer is allowed: it is
+its own billing settings and nothing goes outside.
+
+- `GET /api/owner/v1/dealers/{dealerId}/billing`: `{"version": 1, "term": 1, "freeMonth": "2026-12"}` (`freeMonth` is `null` when there is none).
+- `PUT /api/owner/v1/dealers/{dealerId}/billing`: `{"term": 1 | 2, "freeMonth": "YYYY-MM" | null}`, nothing else. `term` is required;
+  `freeMonth` left out keeps it, `null` removes it. A free month is from last month (Irish time; its bill may not be issued yet) to 12
+  months ahead: a bill already issued is never changed. `200` with the answer `GET` gives; `400` a bad body; `404` no such dealer.
+
+```sh
+curl -H "Authorization: Bearer $OWNER_API_TOKEN" https://www.dash.checkwork.ie/api/owner/v1/dealers/test-motors/billing
+curl -X PUT -H "Authorization: Bearer $OWNER_API_TOKEN" -H "Content-Type: application/json" -d '{"term":2,"freeMonth":"2026-12"}' https://www.dash.checkwork.ie/api/owner/v1/dealers/test-motors/billing
+```
+
 ## Shape of `summary` (version 1)
 
 ```json

@@ -481,7 +481,7 @@ dealership:
   price), WhatsApp alert EUR 0.05, reply EUR 0.03, marketing message EUR 0.12.
   Replies and marketing messages are never included. AI writing is never billed.
 - **Term** (`term`): a 1-year or 2-year contract; no setup fee on 2 years. **First month free** (`freeMonth`, "YYYY-MM"): that month's bill
-  has a "First month free" line that takes the plan off. Both are billing settings set from the owner's program, as the ceilings are.
+  has a "First month free" line that takes the plan off. Both are billing settings Checkwork sets with the owner API (`PUT /api/owner/v1/dealers/<id>/billing`, #177).
   The 12-month price lock for first dealers is in the contract, not in the app.
 - A record from before #147 still reads: "monthly" and "annual" are a 1-year term, "twoYear" a 2-year one, and its branches, brands,
   alerts, 80% switch and "all usage" limit are ignored. The plan follows the modules, so an old Showroom dealer is now Website, Dealer

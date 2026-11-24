@@ -8,7 +8,7 @@ import { enabledModules } from "@/lib/modules";
 import { can, currentMember } from "@/lib/permissions";
 import { billingDetails, listBills } from "@/lib/billing/bills";
 import { eur, fmtMonth, itemise, nextBillDate, billedServices, type Bill, type BillingDetails } from "@/lib/billing/bills-rules";
-import { SERVICE_LABELS, VAT_PCT, allowanceFor, capOf, planFor, planLines, round2, usageEstimate, withVat, type Scope } from "@/lib/billing/rules";
+import { SERVICE_LABELS, VAT_PCT, allowanceFor, capOf, planFor, planLines, round2, usageEstimate, withVat, type BillingSettings, type Scope } from "@/lib/billing/rules";
 import { billingSettings, monthCounts, monthUsage } from "@/lib/billing/usage";
 import { NotForRole } from "@/components/admin/NotForRole";
 
@@ -140,19 +140,21 @@ export default async function Page() {
         <p className="text-meta text-text-2">Paid by direct debit. Invoices are emailed as PDFs when each bill is issued.</p>
       </Panel>
       <BillingDetailsPanel details={details} owner={me.role === "Owner"} />
-      <SetForYou />
+      <SetForYou b={b} />
     </>
   );
 }
 
 // Ours to set with the plan (the owner's program, docs/new-dealer.md): shown, never changed here. It was "Your plan" in Settings.
-async function SetForYou() {
+async function SetForYou({ b }: { b: BillingSettings }) {
   const [source, { site }, { profile }] = await Promise.all([stockSource(), listing(), currentDealer()]);
   const r = profile.rules;
   return (
     <Panel title="What we set for you" quiet>
       <Facts
         items={[
+          ["Contract", b.term === 2 ? "2 years" : "1 year"],
+          ...(b.freeMonth ? [["First month free", fmtMonth(b.freeMonth)] as const] : []),
           ["Stock", source === "donedeal" ? `From ${site}` : "Kept here"],
           ["Old stock after", `${r.oldStockDays} days`],
           ["Price drop suggested", `€${r.slowDropEur}`],
