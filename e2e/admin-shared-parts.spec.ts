@@ -35,7 +35,7 @@ test.describe("on a 390px phone", () => {
     await expect(page).toHaveURL(/view=all$/);
   });
 
-  test("small controls have a 44px hit area: activity links, Set a limit, the notifications Edit, the order's choices, the pager", async ({ page }) => {
+  test("small controls have a 44px hit area: activity links, Set a limit, the notifications Edit, the pager", async ({ page }) => {
     const controls: [string, (p: typeof page) => Locator][] = [
       ["/activity", (p) => p.locator("main section[aria-label='Changes'] li a").first()],
       ["/billing", (p) => p.getByRole("link", { name: "Set a limit" })],
@@ -44,18 +44,11 @@ test.describe("on a 390px phone", () => {
       ["/leads?per=10&page=2", (p) => p.getByRole("navigation", { name: "Pages" }).getByRole("link", { name: "Previous" })],
       ["/billing", (p) => p.getByRole("link", { name: "Ask us to change them" })],
       ["/settings?section=business", (p) => p.locator("main").getByRole("link", { name: "Billing", exact: true })],
-      ["/orders/order-s1", (p) => p.getByRole("link", { name: "The website request" })],
     ];
     for (const [path, find] of controls) {
       await page.goto(path);
       expect(await hitsAt44(find(page)), path).toBe(true);
     }
-    // An order's cancel form (a seeded order on its way, with a deposit): what happens to the deposit.
-    await page.goto("/orders/order-s4");
-    await page.getByRole("button", { name: "Cancel the order" }).click(); // the form is in the house dialog (#141)
-    const radios = page.getByRole("dialog").locator('input[name="outcome"][type="radio"]');
-    await expect(radios).toHaveCount(2);
-    for (const r of await radios.all()) await expect.poll(() => hitsAt44(r)).toBe(true); // once the sheet has finished sliding up
   });
 });
 

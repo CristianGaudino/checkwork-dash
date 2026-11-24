@@ -80,7 +80,7 @@ these levels, from the kit (`src/components/admin/kit.tsx`). No outline-only but
 | Row, strong | `rowButtonStrong` | Tonal, row size | A row's or task's next step: Confirm, Record sale, Call on a follow-up. One per row. |
 | Tertiary | `rowButton` | Text only, indigo, a soft fill on hover | See all, the row menu's icon, menu items (neutral text inside a menu). |
 | Destructive | `dangerButton`, `rowDanger` | Red tonal fill, or red text in a row | Delete, Remove, Revoke, Clear. Never filled solid red, never the primary. |
-| Choice | `choicePill` | Neutral chip; the chosen one filled ink | One of two or three, side by side. A choice, not an action. A lead's stage, why it was lost and who has it, a claim's and an order's stage and every person picker (who takes a test drive out, sold or taken by) are drop-downs (`ActSelect`, `PersonPicker`), never a block of chips (#135, #136, #141). |
+| Choice | `choicePill` | Neutral chip; the chosen one filled ink | One of two or three, side by side. A choice, not an action. A lead's stage, why it was lost and who has it, a claim's stage and every person picker (who takes a test drive out, sold or taken by) are drop-downs (`ActSelect`, `PersonPicker`), never a block of chips (#135, #136, #141). |
 
 - **Icons** sit before the words where they help recognition (Call, WhatsApp, Email, Edit, Post, Confirm). The words stay: never an icon alone, but for a row's menu (`RowMenu`), three dots with an accessible name, 44px to press.
 - **Contrast:** indigo text on `accent-soft` is 5:1 or more in light and dark, and 4.5:1 on hover. Red on `bad-soft` is the status tone pair.
@@ -117,6 +117,6 @@ the body, then `FormActions`. On a short phone the body scrolls and the actions 
   staff details move to it as their pages are reworked.
 - **`EditDialog`** (`src/components/admin/EditDialog.tsx`) is the Edit (or Add) button and its dialog in one, with `useDoneOnSave` to close
   it on a save. The #141 pass put it on Settings (business details, how posts sound), Billing (limits, alerts, billing details), a cost
-  (a claim's repair cost, a synced car's cost price) and a test drive's time (Change time). Cancelling an order, ending a reservation and a
+  (a claim's repair cost, a synced car's cost price) and a test drive's time (Change time). Ending a reservation and a
   review's reply open the same dialog, which is then the asking: no second confirm. A booking's steps sit bottom right, the next one
   right-most and Cancel far left.

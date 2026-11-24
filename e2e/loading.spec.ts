@@ -6,7 +6,7 @@ import { as } from "./open";
 // records stay 404s, and the header and the tabs come in the first chunk, where a tap at once always goes.
 
 test("an unknown record answers 404, and sign-in answers as before", async ({ request }) => {
-  for (const path of ["/leads/no-such-lead", "/stock/no-such-car", "/test-drives/no-such-booking", "/customers/no-such-customer", "/orders/no-such-order", "/aftersales/no-such-claim", "/billing/1999-01"]) {
+  for (const path of ["/leads/no-such-lead", "/stock/no-such-car", "/test-drives/no-such-booking", "/customers/no-such-customer", "/aftersales/no-such-claim", "/billing/1999-01"]) {
     expect((await request.get(path, { maxRedirects: 0 })).status(), path).toBe(404);
   }
   // The open server has no sign-in page (e2e/sign-in.spec.ts).

@@ -25,7 +25,6 @@ import { dublinDay, fmtDateTime, fmtDay, fmtTime } from "@/lib/admin/format";
 import { followUpDue, isOpenLead, leadMain, possibleSpam, replyVia } from "@/lib/admin/leads";
 import { siteCarUrl } from "@/lib/stock/format";
 import { dealerProfile } from "@/lib/tenancy/current";
-import { stockSource } from "@/lib/stock-source";
 import { Notes } from "@/components/admin/Notes";
 import { ActSelect } from "@/components/admin/ActSelect";
 import { PersonPicker } from "@/components/admin/PersonPicker";
@@ -61,7 +60,7 @@ export async function LeadView({ id }: { id: string }) {
   const undoStatus = { status: lead.status, ...(lead.followUpOn && { on: lead.followUpOn }), ...(reason && { reason }), ...(lead.statusBefore && { before: lead.statusBefore }) };
   // The one filled button: the request's own job when it can be done here, else answering them the way they got in touch.
   const modules = await enabledModules();
-  const main = leadMain(lead.type, { drive: !drive && isOpenLead(lead) && modules.has("testDrives"), order: modules.has("newCars") && (await stockSource()) !== "donedeal", claim: modules.has("service") });
+  const main = leadMain(lead.type, { drive: !drive && isOpenLead(lead) && modules.has("testDrives"), claim: modules.has("service") });
   const read = readLead(lead);
   const text = read.text;
   // A car to sell or trade in has its own panel with its facts, so the answers here leave them out.
@@ -149,7 +148,7 @@ export async function LeadView({ id }: { id: string }) {
                     Test drive {fmtDay(dublinDay(drive.startsAt), "weekday")} {fmtDay(dublinDay(drive.startsAt), "day")} {fmtDay(dublinDay(drive.startsAt), "month")}, {fmtTime(drive.startsAt)}
                   </Link>
                 ) : (
-                  // Filled only on a test drive request: elsewhere the reply (or the order) is the main job.
+                  // Filled only on a test drive request: elsewhere the reply is the main job.
                   <Link href={`/test-drives/new?lead=${lead.id}`} className={main === "drive" ? adminButton : adminButtonQuiet}>
                     <CalendarIcon className="shrink-0 size-4" />
                     Book a test drive
@@ -157,8 +156,6 @@ export async function LeadView({ id }: { id: string }) {
                 )}
               </IfModule>
             )}
-            {/* A factory order request from the website: place it, copying from what they asked for. Orders are for stock kept here. */}
-            {main === "order" && <Link href={`/orders/new?lead=${lead.id}`} className={adminButton}>Place the order</Link>}
             {/* A warranty claim from the website: open it on the sale, with the buyer found from their details. */}
             {main === "claim" && <Link href={`/aftersales/new?lead=${lead.id}`} className={adminButton}>Open a claim</Link>}
             {/* Where it stands (#136): one stage drop-down, as HubSpot's record and its phone app set a deal stage, never a block of chips.

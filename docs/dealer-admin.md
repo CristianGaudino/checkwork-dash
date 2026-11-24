@@ -88,7 +88,7 @@ What differs between dealers beyond their records is in their profile (#5): one 
 - **Defaults:** a dealer with nothing set has the dashboard alone, stock kept here, the usual rules, no website and no logo (the menu
   shows the name). A demo dealer's base is the made-up demo business (`DEMO_PROFILE`: every module, its facts and logo); the demo reset
   puts its profile back to that.
-- **Billing settings** (term, branches, brands, ceilings, caps) were already per dealer: the settings record in the dealer's own store.
+- **Billing settings** (term, branches, ceilings, caps) were already per dealer: the settings record in the dealer's own store.
 - **Not per dealer yet:** the time zone (Europe/Dublin for all), the finance terms (`src/lib/finance/`) and the services' keys (Worker
   secrets, ours). A lead from the site API is checked against the dealer's own opening hours (`leadSchemaFor`, docs/site-api.md).
 
@@ -159,7 +159,7 @@ code path reaches another dealer's (#3, #4, #6; `src/lib/tenancy/`).
   alerts and reads push (every request, as push always went) and email (the dealer's old morning switch, `notifications.followUps`) from the
   role until the person saves; someone with no record gets their role's. An owner's old choice for a new person (`notifyDefaults`, before
   #150) may still be stored in the settings record; nothing reads it.
-- **The bell is in the app only** (`src/lib/admin/notifications.ts`). A new website request, test drive booking, warranty or order request,
+- **The bell is in the app only** (`src/lib/admin/notifications.ts`). A new website request, test drive booking or warranty request,
   a DoneDeal ad taken down, a sync outage (once, as it starts), a lead given to you by someone else, a buyer's WhatsApp reply, a usage
   limit or spend alert (owners and managers), and Checkwork getting your help request. Each has a heading, what happened ("Test drive
   request", "Monthly limit reached"), and a line under it, what it is about: for a lead the contact form's topic and answers as the leads
@@ -213,7 +213,7 @@ with no D1). The actor is the signed-in person (`currentMember`), or a named one
 - **A sale** (`salesStore`, one per car): the price it sold for, the day, who sold it and the buyer, a customer on file or a new one made
   on the form. In our version Mark sold opens the form and marks the car sold on the sale's day. In the DoneDeal version the dealer
   answers for a car whose ad came down, and the Sold view on Stock (Record sale) asks for a sold car with none. Margins use the sale price
-  for a sold car. After six years the daily job removes the buyer from sales, deposits, warranty claims and factory orders (a claim or order
+  for a sold car. After six years the daily job removes the buyer from sales, deposits, warranty claims and older factory orders (a claim or order
   also loses its lead, notes and fault text, as an erasure does) (`src/lib/admin/sales-purge.ts`,
   `{"job":"anonymise-sales"}`); the figures stay. /privacy says so.
 - **A deposit** (`reservationsStore`, our version only): Reserve on a car for sale takes the amount, how it was paid, the day, the buyer
@@ -241,8 +241,7 @@ with no D1). The actor is the signed-in person (`currentMember`), or a named one
   (`spamCheck`, `src/lib/leads/spam.ts`), once per lead by the site API (`src/lib/site-api/leads.ts`, the only way in) before its
   fallback lead email: rules only, no outside service, nothing logged. Clear spam is only what no person types into a contact form:
   forum or web page link markup. Words and links are only ever a hint, because real buyers sign off with job titles, mention crypto,
-  link another dealer or give their company site as their name. Clear spam is filed as spam, with no email, booking, customer, bell notice or WhatsApp alert, and is never linked to a sale or a
-  factory order. A test drive booking, a warranty request or a question about a car bought here is never filed as spam, only as possible spam (`arrivalSpam`). When unsure
+  link another dealer or give their company site as their name. Clear spam is filed as spam, with no email, booking, customer, bell notice or WhatsApp alert, and is never linked to a sale. A test drive booking, a warranty request or a question about a car bought here is never filed as spam, only as possible spam (`arrivalSpam`). When unsure
   (a pitch word such as SEO services, backlinks or crypto, read in the message only; a link to a site that is not a car, photo or chat
   site or the dealer's own; or a web address in the name) the lead stays new with `maybeSpam`:
   "Possible spam" on the list and To answer now, with Spam and Not spam in the row's menu (as buttons on the lead). Careful by design: a name in any language, a short or empty
@@ -285,18 +284,16 @@ erases or sends them any more.
 - **Personal data:** claims are in data requests; erasure keeps the claim and its cost without the buyer, the fault or the notes. The
   six-year purge removes the buyer from old claims, as from sales and deposits.
 
-## Factory orders (our version only)
+## No new cars (#168)
 
-- **Orders** (`ordersStore`, in the menu only for stock kept here): a new car ordered from the maker for a customer, with its spec, price,
-  deposit, the registration period it is for (271 is January to June 2027, `src/lib/leads/reg-periods.ts`) and the month it is due. No
-  maker's system is connected: the dealer moves it from Ordered to Built, On its way and Arrived as the maker says.
-- **Arrived** adds the car to stock, hidden (it is sold) and reserved for the buyer with their deposit. Hand over opens Mark sold on it,
-  which takes the deposit and the buyer, and marks the order Handed over. Overview counts cars arrived and waiting.
-- **Cancel** (owners and managers): the deposit refunded or kept. A car that already arrived stays in stock, hidden, for the dealer to
-  decide.
-- **From the website:** /new-cars/order (linked from New cars) takes the make, model, spec and period as an order request (lead type
-  `order`). The lead's "Place the order" starts the form, and marks the lead won. With DoneDeal stock the page is not there.
-- **Personal data:** orders are in data requests and the six-year purge, like sales: the figures stay without the buyer.
+Checkwork is for independent used-car dealers: franchise dealers use the maker's systems. The dashboard has no new cars module, no
+Orders pages and no factory orders.
+
+- **A new car order a website still sends** (lead type `order` at `/api/site/v1/leads`) is taken and filed as a car enquiry, its
+  message the car asked for ("Kia Sportage, 271 reg") then their words (`src/lib/admin/real-leads.ts`), so nothing a buyer sends is
+  lost. Order requests stored before are car enquiries too (migration `drizzle/0005_order_leads_to_enquiries.sql`).
+- **Older order rows stay** (`ordersStore`, nothing writes it and the demo seeds none): they are personal data like a sale, so data
+  requests still find and erase them and the six-year purge removes their buyer. The collection can go once the last is past six years.
 
 ## Reports and prep costs
 
@@ -393,22 +390,22 @@ and their add-ons are sold:
 |---|---|---|---|---|
 | Showroom | Trade-in, finance, car finder, lookup on the website, reviews shown | EUR 249 | EUR 950 | 25 lookups |
 | Dealer | Showroom plus the dashboard, test drives, sales, analytics, WhatsApp, AI writing, lookup in the dashboard | EUR 449 | EUR 950 | 100 lookups, 500 WhatsApp alerts and confirmations, 100 AI actions |
-| Group | Dealer plus margins, social, stock alerts, new cars, commercial | EUR 749, plus EUR 149 per extra branch | EUR 1,950 | 100 lookups and 500 WhatsApp alerts per branch, 300 AI actions |
+| Group | Dealer plus margins, social, stock alerts, commercial | EUR 650, plus EUR 149 per extra branch | EUR 1,950 | 100 lookups and 500 WhatsApp alerts per branch, 300 AI actions |
 
 - **Add-ons** at module prices (`MODULE_EUR`): any module the tier lacks, such as commercial EUR 29, service EUR 49, margins EUR 49, social EUR 99 (with 200 more AI actions a month),
-  stock alerts (module id `newsletter`) EUR 59, new cars EUR 99. New cars covers 2 brands; each more brand is EUR 29 a month and EUR 100 at setup, in a tier or not
-  (setup EUR 400 as an add-on). A plan is the cheapest tier for the dealer's modules plus add-ons; no modules is Showroom. Showroom takes
+  stock alerts (module id `newsletter`) EUR 59. Group was EUR 749 with new cars (EUR 99) in it,
+  until #168 took them out; #147 reprices the tiers. A plan is the cheapest tier for the dealer's modules plus add-ons; no modules is Showroom. Showroom takes
   no add-on that is or needs the dashboard, and more than one branch is Group. The demo bar names the plan as the Billing page does, and each switch shows what turning it on adds.
 - **Over the allowance** each use is billed: lookup EUR 0.30, WhatsApp alert EUR 0.05, reply EUR 0.03, marketing message EUR 0.12, AI
   action EUR 0.04 (Standard) or EUR 0.08 (Premium). Replies and marketing messages are never included.
 - **Payment terms** (`term`): monthly at list price, a year upfront for 11 months' price, or a 2-year contract with no setup fee.
-- `term`, `branches` (default 1) and `brands` (default 1) are billing settings set from the owner's program, as the ceilings are. Branches
+- `term` and `branches` (default 1) are billing settings set from the owner's program, as the ceilings are. Branches
   only change Group's price and allowance until multi-branch is built (#226).
 
 `/billing` is for the Owner and Manager (`can("billing")`; anyone else gets a 404, and so does every action). It has three sections:
 the plan and this month's usage (with the payment term, what
 the allowance covers, and an "Estimate" for the month end), the setup fees (the tier's, and those of add-ons set up with
-outside accounts (Social, New cars), none on a 2-year contract;
+outside accounts (Social), none on a 2-year contract;
 `setupLines` in `src/lib/billing/rules.ts`, also totalled in the demo bar's plans panel), the limits and alerts (a euro limit per service
 and for all usage, never above ours (by default EUR 15 of lookups, EUR 20 of WhatsApp (EUR 20 per branch on Group: a WhatsApp ceiling the owner's program sets is per branch too) and EUR 50 of AI past the allowance, `DEFAULT_CEILINGS`); the 80% alert; "tell me when X passes EUR N"; AI writing's quality, Premium (Claude Opus) at EUR 0.08
 an action or Standard (Claude Sonnet) at EUR 0.04, each action counted under the model that wrote it; the dealer never sees the model
@@ -490,7 +487,7 @@ app store and no outside service.
   against the RFC's own example). Three of the bell's notices also go to the phone, to the same people the bell shows them to:
   | What happened | Title | Text | Opens |
   |---|---|---|---|
-  | A new website request (any lead in Leads, an order request too) | Its kind ("Car enquiry", "Message") | Its topic and answers, and the car | The lead |
+  | A new website request (any lead in Leads) | Its kind ("Car enquiry", "Message") | Its topic and answers, and the car | The lead |
   | A test drive request | Test drive request | The car, and the day and time asked for | The booking |
   | A lead given to you by someone else | "Ciara Walsh gave you a lead" | Its kind, topic and car | The lead |
   | A test drive given to you by someone else | "Ciara Walsh gave you a test drive" | The car | The booking |

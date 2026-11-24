@@ -16,15 +16,16 @@ import type { SpamVerdict } from "@/lib/leads/spam";
 // What visitors send reaches the dealer's admin as records. The lead pipeline (consent, bot check, retention) stays the one way in:
 // after a lead is stored, this copies it into the admin's own collections so it can be worked (status, notes, who has it). The copies
 // are marked by an id starting "real-" and are deleted with the lead by the daily purge (src/lib/leads/purge.ts).
-const LEAD_TYPE: Record<Exclude<LeadRow["type"], "alert">, LeadType> = { enquiry: "enquiry", sourcing: "find-a-car", trade_in: "trade-in", finance: "finance", general: "general", test_drive: "test-drive", order: "order" };
+const LEAD_TYPE: Record<Exclude<LeadRow["type"], "alert">, LeadType> = { enquiry: "enquiry", sourcing: "find-a-car", trade_in: "trade-in", finance: "finance", general: "general", test_drive: "test-drive", order: "enquiry" };
 // A general message is a warranty claim or a service request when it was sent from that page.
 // The guided form's topic says the same when it is sent from /contact. Both are Aftersales work, the service module (#173): a dealer
 // without it gets them as general messages, in Leads, so none is filed where nobody can open it.
 const pageType = (path: string, topic: string | number | undefined, service: boolean): LeadType =>
   !service ? "general" : path.startsWith("/warranty") || topic === "bought" ? "warranty" : path.startsWith("/service") || topic === "service" ? "service" : "general";
 
-// Their own words only (#59): the other answers are kept as the lead's details (detailsOf). A factory order reads as the car it is
-// ("Hyundai Tucson, 1.6 Hybrid, 271 reg"), then their words, so the order and the leads list keep the car.
+// Their own words only (#59): the other answers are kept as the lead's details (detailsOf). A new car order, still sent by an older
+// website though the dashboard has no new cars (#168), is filed as a car enquiry that reads as the car asked for ("Hyundai Tucson,
+// 1.6 Hybrid, 271 reg"), then their words, so nothing they sent is lost.
 export function messageOf(row: LeadRow): string {
   const d = row.details;
   const car = row.type === "order" ? [[d.make, d.model].filter(Boolean).join(" "), d.spec, d.regPeriod && `${d.regPeriod} reg`].filter(Boolean).join(", ") : "";

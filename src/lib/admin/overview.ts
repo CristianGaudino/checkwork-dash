@@ -1,4 +1,4 @@
-import type { AdminReview, Lead, Order, Reservation, TestDrive } from "./collections";
+import type { AdminReview, Lead, Reservation, TestDrive } from "./collections";
 import { DAY } from "@/lib/time";
 import { forSale, isSold, type Car } from "@/lib/stock/types";
 import { isOpenDrive } from "./drives";
@@ -22,7 +22,7 @@ const RANK: Record<Urgency, number> = { now: 0, soon: 1, info: 2 };
 // `sales`: the car ids with a sale recorded. `reservations`: the deposits, for the ones past their date. `rules` and `listingSite`: the
 // dealer's, from their profile. `mine`: a person's name, for To do's For me: the leads and test drives given to them or to nobody yet
 // (forPerson; their own follow-ups only, as in their report). The rest (stock, reviews) is nobody's, so it stays.
-export function overview(input: { leads: Lead[]; drives: TestDrive[]; reviews: AdminReview[]; rules: DealerRules; listingSite: string; cars?: Car[]; costs?: Set<string>; sales?: Set<string>; reservations?: Reservation[]; orders?: Order[]; warrantyRequests?: number; syncProblem?: boolean; now?: number; slaHours?: number; mine?: string }) {
+export function overview(input: { leads: Lead[]; drives: TestDrive[]; reviews: AdminReview[]; rules: DealerRules; listingSite: string; cars?: Car[]; costs?: Set<string>; sales?: Set<string>; reservations?: Reservation[]; warrantyRequests?: number; syncProblem?: boolean; now?: number; slaHours?: number; mine?: string }) {
   const now = input.now ?? Date.now();
   const slaHours = input.slaHours ?? 24;
   const { leads, drives, reviews, rules, listingSite } = input;
@@ -56,7 +56,6 @@ export function overview(input: { leads: Lead[]; drives: TestDrive[]; reviews: A
     { key: "sync", label: "Stock is not updating", count: input.syncProblem ? 1 : 0, href: "/stock", urgency: "now" },
     { key: "sold-drives", label: "Test drives booked on a car no longer for sale", count: ownDrives.filter((d) => d.startsAt >= now && isOpenDrive(d) && offSale.has(slugId(d.carSlug))).length, href: "/test-drives?view=list&car=gone&when=ahead", urgency: "now" },
     { key: "deposits", label: "Reservations past their date", count: overdue.length, href: overdue.length === 1 ? `/stock/${overdue[0].carId}/reserve` : "/stock?view=reserved", urgency: "now" },
-    { key: "orders", label: "Ordered cars arrived, to hand over", count: (input.orders ?? []).filter((o) => o.status === "arrived").length, href: "/orders?view=arrived", urgency: "soon" },
     { key: "taken-down", label: `${listingSite} ads taken down: did they sell?`, count: cars.filter((c) => c.takenDownAt).length, href: "/stock?view=hidden", urgency: "soon" },
     { key: "old", label: `Cars for sale ${rules.oldStockDays} days or more`, count: cars.filter(old).length, href: "/stock?view=old", urgency: "info" },
     { key: "sales", label: "Sold cars with no sale recorded", count: unrecorded.length, href: "/stock", urgency: "soon" }, // Stock's To do opens each sale to record in turn

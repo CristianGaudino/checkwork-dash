@@ -31,21 +31,16 @@ export type AiModel = (typeof AI_MODELS)[number];
 // Each add-on a month, before VAT, on top of a tier that does not hold it.
 export const MODULE_EUR: Record<ModuleId, number> = {
   dashboard: 49, tradeIn: 49, finance: 29, testDrives: 29, carFinder: 19, sales: 59, margins: 49, service: 49, reviews: 29, social: 99, newsletter: 59,
-  commercial: 29, newCars: 99, analytics: 19, whatsapp: 49, ai: 0, lookupWebsite: 0, lookupDashboard: 0,
+  commercial: 29, analytics: 19, whatsapp: 49, ai: 0, lookupWebsite: 0, lookupDashboard: 0,
 };
-// New cars covers this many brands; each one past them costs a month and once at setup, whether New cars is an add-on or in the tier.
-export const NEW_CAR_BRANDS = { included: 2, eur: 29, setupEur: 100 } as const;
-const extraBrands = (o: PlanOptions) => Math.max(0, o.brands - NEW_CAR_BRANDS.included);
 // One-off fees at launch, before VAT: the tier's, and the add-ons set up with outside accounts.
-export const MODULE_SETUP_EUR: Partial<Record<ModuleId, number>> = { social: 150, newCars: 400 };
+export const MODULE_SETUP_EUR: Partial<Record<ModuleId, number>> = { social: 150 };
 export function setupLines(modules: Iterable<ModuleId>, o: PlanOptions = ONE_SITE): { label: string; eur: number }[] {
   const set = new Set(modules);
   const { tier, extras } = planFor(set, o);
-  const brands = set.has("newCars") ? extraBrands(o) : 0;
   return [
     { label: `${tier.label} plan`, eur: tier.setupEur },
     ...MODULES.filter((m) => extras.includes(m.id) && MODULE_SETUP_EUR[m.id]).map((m) => ({ label: m.label, eur: MODULE_SETUP_EUR[m.id]! })),
-    ...(brands ? [{ label: `New cars: ${brands} more ${brands === 1 ? "brand" : "brands"}`, eur: brands * NEW_CAR_BRANDS.setupEur }] : []),
   ];
 }
 export const setupEur = (modules: Iterable<ModuleId>, o: PlanOptions = ONE_SITE) => setupLines(modules, o).reduce((n, l) => n + l.eur, 0);
@@ -108,16 +103,15 @@ export type BillingSettings = {
   alertAt80: boolean;
   aiModel: AiModel;
   // Set from the owner's program, as the ceilings: how the dealer pays, their branches (only Group's price and allowances count them
-  // until multi-branch is built, #226) and their new-car brands.
+  // until multi-branch is built, #226).
   term: Term;
   branches: number;
-  brands: number;
 };
 // Every site starts with our limits past the allowance, so no per-use service runs without one; the dealer can set lower, and the owner's
 // program can set others per dealer.
 export const AI_CEILING_EUR = 50;
 export const DEFAULT_CEILINGS: Partial<Record<Scope, number>> = { lookup: 15, whatsapp: 20, ai: AI_CEILING_EUR };
-export const BILLING_DEFAULT: BillingSettings = { caps: {}, ceilings: DEFAULT_CEILINGS, alerts: [], alertAt80: true, aiModel: "opus", term: "monthly", branches: 1, brands: 1 };
+export const BILLING_DEFAULT: BillingSettings = { caps: {}, ceilings: DEFAULT_CEILINGS, alerts: [], alertAt80: true, aiModel: "opus", term: "monthly", branches: 1 };
 // Group's WhatsApp limit grows with its branches, as its alerts do. Worked out when read, never stored, so a save never multiplies it.
 export const withBranchCeilings = (b: BillingSettings): BillingSettings =>
   b.branches > 1 && b.ceilings.whatsapp !== undefined ? { ...b, ceilings: { ...b.ceilings, whatsapp: b.ceilings.whatsapp * b.branches } } : b;
@@ -181,12 +175,13 @@ const DEALER: ModuleId[] = [...SHOWROOM, "dashboard", "testDrives", "sales", "an
 export const TIERS: { id: string; label: string; modules: readonly ModuleId[]; eur: number; branchEur?: number; setupEur: number; allowance: Allowance; perBranch?: readonly Service[] }[] = [
   { id: "showroom", label: "Showroom", modules: SHOWROOM, eur: 249, setupEur: 950, allowance: { lookup: 25 } },
   { id: "dealer", label: "Dealer", modules: DEALER, eur: 449, setupEur: 950, allowance: { lookup: 100, whatsapp: 500, ai: 100 } },
-  { id: "group", label: "Group", modules: [...DEALER, "margins", "social", "newsletter", "newCars", "commercial"], eur: 749, branchEur: 149, setupEur: 1950, allowance: { lookup: 100, whatsapp: 500, ai: 300 }, perBranch: ["lookup", "whatsapp"] },
+  // Group was EUR 749 with new cars (EUR 99) in it: less those since #168, so it stays EUR 35 under Dealer and the same add-ons. #147 reprices.
+  { id: "group", label: "Group", modules: [...DEALER, "margins", "social", "newsletter", "commercial"], eur: 650, branchEur: 149, setupEur: 1950, allowance: { lookup: 100, whatsapp: 500, ai: 300 }, perBranch: ["lookup", "whatsapp"] },
 ];
 export type Tier = (typeof TIERS)[number];
 // What the price depends on besides the modules (BillingSettings has both).
-export type PlanOptions = { branches: number; brands: number };
-const ONE_SITE: PlanOptions = { branches: 1, brands: 1 };
+export type PlanOptions = { branches: number };
+const ONE_SITE: PlanOptions = { branches: 1 };
 const extraBranches = (o: PlanOptions) => Math.max(0, o.branches - 1);
 const tierEur = (t: Tier, o: PlanOptions) => t.eur + (t.branchEur ?? 0) * extraBranches(o);
 const DASHBOARD_MODULES = new Set(MODULES.filter((m) => m.id === "dashboard" || (m as { needs?: readonly string[] }).needs?.includes("dashboard")).map((m) => m.id));
@@ -196,7 +191,7 @@ const DASHBOARD_MODULES = new Set(MODULES.filter((m) => m.id === "dashboard" || 
 export function planFor(modules: Iterable<ModuleId>, o: PlanOptions = ONE_SITE): { tier: Tier; extras: ModuleId[]; eur: number; name: string } {
   const set = new Set(modules);
   const on = MODULE_IDS.filter((m) => set.has(m)); // the list's order, each once
-  const sum = (ms: ModuleId[]) => ms.reduce((n, m) => n + MODULE_EUR[m], 0) + (set.has("newCars") ? extraBrands(o) * NEW_CAR_BRANDS.eur : 0);
+  const sum = (ms: ModuleId[]) => ms.reduce((n, m) => n + MODULE_EUR[m], 0);
   // More than one branch is a Group: the only tier sold per branch.
   const ways = TIERS.filter((t) => !extraBranches(o) || t.branchEur).flatMap((tier) => {
     const extras = on.filter((m) => !tier.modules.includes(m));
@@ -220,18 +215,15 @@ export function presetName(modules: Iterable<ModuleId>): string {
   const mine = paid(modules);
   return TIERS.find((t) => paid(t.modules) === mine)?.label ?? "Custom";
 }
-// The plan as bill lines: the tier as one line and its extra branches, then each add-on that costs a month, and the new-car brands past
-// those included.
+// The plan as bill lines: the tier as one line and its extra branches, then each add-on that costs a month.
 export function planLines(modules: Iterable<ModuleId>, o: PlanOptions = ONE_SITE): { label: string; eur: number }[] {
   const set = new Set(modules);
   const p = planFor(set, o);
   const branches = p.tier.branchEur ? extraBranches(o) : 0;
-  const brands = set.has("newCars") ? extraBrands(o) : 0;
   return [
     { label: `${p.tier.label} plan`, eur: p.tier.eur },
     ...(branches ? [{ label: `${branches} more ${branches === 1 ? "branch" : "branches"}`, eur: branches * p.tier.branchEur! }] : []),
     ...MODULES.filter((m) => p.extras.includes(m.id) && MODULE_EUR[m.id] > 0).map((m) => ({ label: m.label, eur: MODULE_EUR[m.id] })),
-    ...(brands ? [{ label: `New cars: ${brands} more ${brands === 1 ? "brand" : "brands"}`, eur: brands * NEW_CAR_BRANDS.eur }] : []),
   ];
 }
 // The plan's monthly price for these modules.

@@ -52,8 +52,8 @@ describe("mirrorOf", () => {
     expect(mirrorOf(row({ type: "general", carId: null, sourcePath: "/service" })).lead?.type).toBe("service");
     expect(mirrorOf(row({ type: "general", carId: null, sourcePath: "/contact" })).lead?.type).toBe("general");
   });
-  it("keeps the answers with the words: a factory order says the car", () => {
-    expect(mirrorOf(row({ type: "order", carId: null, message: "White please", details: { make: "Kia", model: "Sportage", regPeriod: "271" } })).lead).toMatchObject({ type: "order", message: "Kia Sportage, 271 reg\n\nWhite please" });
+  it("files a new car order from an older website as a car enquiry that says the car (#168)", () => {
+    expect(mirrorOf(row({ type: "order", carId: null, message: "White please", details: { make: "Kia", model: "Sportage", regPeriod: "271" } })).lead).toMatchObject({ type: "enquiry", details: {}, message: "Kia Sportage, 271 reg\n\nWhite please" });
   });
   it("keeps a form's answers as details, never run into the message (#59)", () => {
     const m = mirrorOf(row({ type: "finance", message: null, details: { deposit: 2000, term: 48, product: "pcp", employment: "self_employed" } }));

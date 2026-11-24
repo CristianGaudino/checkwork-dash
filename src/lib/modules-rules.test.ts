@@ -26,7 +26,6 @@ describe("modules", () => {
   it("finds the module of a path by its longest prefix", () => {
     expect(moduleForPath("/test-drives/abc")).toBe("testDrives");
     expect(moduleForPath("/leads")).toBeUndefined(); // the dashboard alone
-    expect(moduleForPath("/orders/new")).toBe("newCars");
     expect(moduleForPath("/test-drivesx")).toBeUndefined(); // a prefix is a whole segment
   });
 

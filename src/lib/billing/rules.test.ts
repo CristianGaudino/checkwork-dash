@@ -6,7 +6,7 @@ const c = (service: UsageCount["service"], kind: string, count: number): UsageCo
 
 const SHOWROOM = ["tradeIn", "finance", "carFinder", "lookupWebsite", "reviews"] as const;
 const DEALER = [...SHOWROOM, "dashboard", "testDrives", "sales", "analytics", "whatsapp", "ai", "lookupDashboard"] as const;
-const GROUP = [...DEALER, "margins", "social", "newsletter", "newCars", "commercial"] as const;
+const GROUP = [...DEALER, "margins", "social", "newsletter", "commercial"] as const;
 const opts = (o: Partial<BillingSettings> = {}): BillingSettings => ({ ...BILLING_DEFAULT, ...o });
 
 describe("usage costs", () => {
@@ -39,15 +39,13 @@ describe("usage costs", () => {
 });
 
 describe("setup fees", () => {
-  it("are the tier's, plus each add-on set up with an outside account, and new-car brands past two", () => {
+  it("are the tier's, plus each add-on set up with an outside account", () => {
     expect(setupLines([])).toEqual([{ label: "Showroom plan", eur: 950 }]);
     expect(setupEur(["dashboard", "finance"])).toBe(950); // Dealer
     expect(setupEur(SHOWROOM)).toBe(950);
     expect(setupEur(DEALER)).toBe(950); // WhatsApp is in the tier
     expect(setupEur([...DEALER, "social"])).toBe(950 + 150);
-    expect(setupEur([...DEALER, "newCars"], opts({ brands: 4 }))).toBe(950 + 400 + 2 * 100);
     expect(setupEur(GROUP)).toBe(1950);
-    expect(setupEur(GROUP, opts({ brands: 3 }))).toBe(1950 + 100);
   });
   it("are waived on a 2-year contract, and a year upfront is 11 months' price", () => {
     expect(termSetupEur(950, "twoYear")).toBe(0);
@@ -99,14 +97,13 @@ describe("the plan and the estimate", () => {
     expect(planFor(SHOWROOM)).toMatchObject({ name: "Showroom", eur: 249, extras: [] });
     expect(planFor(DEALER)).toMatchObject({ name: "Dealer", eur: 449, extras: [] });
     expect(planFor([...DEALER, "service", "commercial"])).toMatchObject({ name: "Dealer", eur: 449 + 49 + 29, extras: ["service", "commercial"] });
-    expect(planFor(GROUP)).toMatchObject({ name: "Group", eur: 749 });
-    expect(planFor([...DEALER, "margins", "social", "newsletter", "newCars"])).toMatchObject({ name: "Group", eur: 749 }); // Dealer and these add-ons would be 755
-    expect(planFor(SHOWROOM, { branches: 2, brands: 1 })).toMatchObject({ name: "Group", eur: 898 }); // more than one branch is a Group
+    expect(planFor(GROUP)).toMatchObject({ name: "Group", eur: 650 }); // Dealer and these add-ons would be 685
+    expect(planFor(SHOWROOM, { branches: 2 })).toMatchObject({ name: "Group", eur: 799 }); // more than one branch is a Group
     expect(planFor([...SHOWROOM, "commercial"])).toMatchObject({ name: "Showroom", eur: 249 + 29 });
     expect(planFor([...SHOWROOM, "dashboard"])).toMatchObject({ name: "Dealer", eur: 449 });
     for (const m of ["dashboard", "whatsapp", "ai"] as const) expect(planFor([...SHOWROOM, "dashboard", m]).tier.id).not.toBe("showroom"); // no dashboard on Showroom
-    expect(planEur(GROUP, opts({ branches: 3 }))).toBe(1047); // 749 + 2 x 149
-    expect(planEur(MODULE_IDS)).toBe(749 + 49); // Group and Service
+    expect(planEur(GROUP, opts({ branches: 3 }))).toBe(948); // 650 + 2 x 149
+    expect(planEur(MODULE_IDS)).toBe(650 + 49); // Group and Service
     expect(presetName(SHOWROOM)).toBe("Showroom");
     expect(presetName(DEALER)).toBe("Dealer");
     expect(presetName(GROUP)).toBe("Group");
@@ -114,14 +111,14 @@ describe("the plan and the estimate", () => {
     expect(presetName([...DEALER, "service"])).toBe("Custom");
     expect(presetName([])).toBe("Custom"); // not exactly a tier's modules, though it is priced as Showroom
     // A free module off never makes the plan dearer, and adding a module never makes it cheaper.
-    expect(planEur(MODULE_IDS.filter((m) => m !== "ai"))).toBe(798);
+    expect(planEur(MODULE_IDS.filter((m) => m !== "ai"))).toBe(699);
     for (const m of MODULE_IDS) {
       const without = MODULE_IDS.filter((x) => x !== m);
       expect(planFor(MODULE_IDS).eur - planFor(without).eur).toBeGreaterThanOrEqual(0);
     }
     expect(planLines([...SHOWROOM, "commercial"])).toEqual([{ label: "Showroom plan", eur: 249 }, { label: "Commercial vehicles", eur: 29 }]);
     expect(planLines([])).toEqual([{ label: "Showroom plan", eur: 249 }]);
-    expect(planLines(GROUP, opts({ branches: 3 }))).toEqual([{ label: "Group plan", eur: 749 }, { label: "2 more branches", eur: 298 }]);
+    expect(planLines(GROUP, opts({ branches: 3 }))).toEqual([{ label: "Group plan", eur: 650 }, { label: "2 more branches", eur: 298 }]);
   });
   it("keeps the add-ons when the plan changes, and drops only those the new tier cannot hold, saying which", () => {
     const tier = (id: string) => TIERS.find((t) => t.id === id)!;
@@ -130,7 +127,7 @@ describe("the plan and the estimate", () => {
     const group = switchTier([...DEALER, "service", "commercial"], tier("group"));
     expect(sorted(group.modules)).toEqual(sorted([...GROUP, "service"]));
     expect(group.dropped).toEqual([]);
-    expect(planEur(group.modules)).toBe(749 + 49);
+    expect(planEur(group.modules)).toBe(650 + 49);
     // Back to Showroom: Commercial stays, Service needs the dashboard Showroom lacks, so it drops and is named.
     const showroom = switchTier([...DEALER, "service", "commercial"], tier("showroom"));
     expect(sorted(showroom.modules)).toEqual(sorted([...SHOWROOM, "commercial"]));
@@ -138,13 +135,6 @@ describe("the plan and the estimate", () => {
     expect(planEur(showroom.modules)).toBe(249 + 29);
     // A tier's own modules are not add-ons: Group to Dealer is Dealer, with nothing to report.
     expect(switchTier(GROUP, tier("dealer"))).toEqual({ modules: new Set(DEALER), dropped: [] });
-  });
-  it("prices new cars for 2 brands, then each more brand, in a tier or as an add-on", () => {
-    const newCars = (brands: number) => planEur([...DEALER, "newCars"], opts({ brands })) - 449;
-    expect(newCars(1)).toBe(99);
-    expect(newCars(2)).toBe(99);
-    expect(newCars(4)).toBe(157); // 99 + 2 x 29
-    expect(planLines(GROUP, opts({ brands: 3 }))).toEqual([{ label: "Group plan", eur: 749 }, { label: "New cars: 1 more brand", eur: 29 }]);
   });
   it("takes the month to date to a whole month at the same pace", () => {
     expect(monthEndEstimate(10, "2026-11-10")).toBe(30); // 10 of 30 days
