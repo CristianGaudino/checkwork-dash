@@ -14,13 +14,14 @@ comes from.
 
 ## Usage billed per use
 
-Registration lookups and WhatsApp messages cost the dealer per use, on top of the plan, past the plan's monthly allowance (#147, #181).
+Registration lookups, history checks and WhatsApp messages cost the dealer per use, on top of the plan, past the plan's monthly allowance
+(#147, #181, #170; no plan includes a history check).
 AI writing is fair use: counted the same way, never billed, and stopped at our ceiling (`AI_FAIR_USE` actions a month). The code that
 makes a use counts it with `recordUsage` and asks `usageAllowed` first (`src/lib/billing/usage.ts`): past a monthly limit (the dealer's,
 one per paid service, set by the Owner or Manager on Billing, or our ceiling) the service stops for the month and falls back (a lookup
-gives the plate's own facts, AI leaves the text alone, a WhatsApp reply or alert goes by email, or nothing if the buyer gave none, and a
+gives the plate's own facts, a history check says the limit is reached, AI leaves the text alone, a WhatsApp reply or alert goes by email, or nothing if the buyer gave none, and a
 marketing message is not sent; an alert the plan still includes always goes). Our default limits are `DEFAULT_CEILINGS` (EUR 15 of
-lookups, EUR 20 of WhatsApp past the allowance). When a limit is reached the owners and managers get one notice in the bell, once a month. Counts are one record per month per line of the bill. Prices are in `src/lib/billing/rules.ts`.
+lookups, EUR 25 of history checks, EUR 20 of WhatsApp past the allowance). When a limit is reached the owners and managers get one notice in the bell, once a month. Counts are one record per month per line of the bill. Prices are in `src/lib/billing/rules.ts`.
 
 ## Roles and permissions
 
@@ -149,7 +150,7 @@ code path reaches another dealer's (#3, #4, #6; `src/lib/tenancy/`).
   paths is not enough: each action starts with `requireStaff()` (`src/lib/staff.ts`), which verifies the Access token and that the person
   has a dealer open (the directory), and who the person is comes from that token, never from a header. Open where the dashboard is open (development, `NEXT_PUBLIC_ADMIN_OPEN=1`).
 - **Real visitor records only appear behind Cloudflare Access.** The admin shows seeded records plus what visitors send (leads, test drives, stock alerts). That is personal data, so on a deployed site the admin only answers with a valid Access token (checked in `src/proxy.ts`). `NEXT_PUBLIC_ADMIN_OPEN=1` skips the check and is for CI only: never set it on a deploy (where the directory is bound it counts for nothing, `src/lib/staff.ts` and `src/proxy.ts`). Only `next dev` is open without it. Any build, even one that forgot `APP_ENV`, is closed, and the demo bar's cookies (role, plan, stock sync) only count for a demo dealer (`demoCookie` in `src/lib/tenancy/current.ts`).
-- **A demo dealer simulates the outward services, keys or not, except AI writing.** Posts, ads, review replies, WhatsApp, the registration lookup, DoneDeal stock and AI writing go through `modeOf` (`src/lib/integrations.ts`; posting through `src/lib/admin/publishers.ts`). For a demo dealer each is simulated: it reports success marked `simulated`, and the admin records made-up figures so the flow can be shown. For any other dealer, with no keys they say "not connected"; with keys they say "not switched on" until the real adapter replaces the marked line. The one exception is AI writing (owner, 2026-11-22): with `ANTHROPIC_API_KEY` set a demo dealer's AI is real Claude (`modeOf("ai")` is "live", Settings shows it connected), and with no key (`next dev`, tests, E2E) it is the mock. Nothing else about the demo changes: it still never posts, advertises, sends or messages anyone. Lead email, the bot check and reviews are never simulated: Settings shows their true state. Unit tests pin all three modes.
+- **A demo dealer simulates the outward services, keys or not, except AI writing.** Posts, ads, review replies, WhatsApp, the registration lookup and history check, DoneDeal stock and AI writing go through `modeOf` (`src/lib/integrations.ts`; posting through `src/lib/admin/publishers.ts`). For a demo dealer each is simulated: it reports success marked `simulated`, and the admin records made-up figures so the flow can be shown. For any other dealer, with no keys they say "not connected"; with keys they say "not switched on" until the real adapter replaces the marked line. The one exception is AI writing (owner, 2026-11-22): with `ANTHROPIC_API_KEY` set a demo dealer's AI is real Claude (`modeOf("ai")` is "live", Settings shows it connected), and with no key (`next dev`, tests, E2E) it is the mock. Nothing else about the demo changes: it still never posts, advertises, sends or messages anyone. Lead email, the bot check and reviews are never simulated: Settings shows their true state. Unit tests pin all three modes.
 - **What visitors send reaches the admin.** A test drive booking and a stock alert are lead types in the one lead pipeline (consent, bot check, rate limit, retention). After a lead is stored, `src/lib/admin/real-leads.ts` copies it into the admin's collections (ids start `real-`) so the dealer can work it. The daily purge deletes the copies with the lead.
 - **Lead emails are a setting.** Settings, Lead routing: up to five addresses, a test button, and the dealer's profile `leadEmail` as the fallback.
 - **What reaches each person, and how** (#142, `src/lib/notify-rules.ts`): one row per event, one column per channel, only where the channel
@@ -357,6 +358,32 @@ Orders pages and no factory orders.
   sorts first, and the "3 stars or fewer" tab lists them; its stars are its only mark (#169).
 - **Questions** (`/faq`) answers only from what the site already says (warranty, finance wording, selling, hours), so it promises nothing new.
 
+## History check (#170)
+
+A vehicle history check from the registration: finance owed (and the finance house when given), a write-off and its category, the
+mileage readings with whether they add up (a reading lower than the one before), an import and where from, the number of owners, the NCT
+expiry, the first registration and the day it was checked. Facts about the car only: no owner's name or anything personal is read or
+kept, and the plate is never logged.
+
+- **Where:** "Check history" on a car's page (stock kept here and synced), on a trade-in or sell lead with a plate, and on a sold car's page
+  for its recorded sale's trade-in. The answer is kept on the record (a car's beside it in `car-history`, so the sync never overwrites it;
+  a lead's on the lead; a trade-in's on the sale) and shown as a short summary in plain words ("Finance owed", "Written off, category B",
+  "Mileage does not add up", "Imported from the UK"), with Check again. A check kept for another plate is not shown.
+- **Who:** everyone on the dashboard, as the lookup. Module `history` (in the Dashboard plan); without it the panels are gone and the action
+  refuses (`requireModule`). Code: `src/lib/history.ts` (cache, meter, modes), `src/lib/history-rules.ts` (summary, mock),
+  `src/app/history-action.ts`, `src/components/admin/HistoryPanel.tsx`.
+- **Billing:** service `history` (`recordUsage("history", "dashboard")`, `usageAllowed("history")`), shown on Billing with its limit.
+  The same plate within 30 days (`HISTORY_CACHE_DAYS`, the lookup's `REG_CACHE_DAYS`) is answered from the cache, free, even past the
+  limit, and Check again says when it was checked. A check that fails is neither paid nor cached. The daily purge clears the cache with
+  the lookup's (`src/lib/leads/purge.ts`), and the demo reset clears it and the cars' checks. With the key set but the adapter not
+  installed yet, a check says the service is not connected, as with no key.
+- **Provider:** One Auto API, the same service as the registration lookup (`reglookup` in `integrations.ts`, `ONE_AUTO_API_KEY`). The
+  adapter (`src/lib/vehicle-data/one-auto.ts`) is a marked stub that answers "not-installed" until the owner has keys and their docs (see
+  Connecting a service).
+- **Demo plates** (simulated, `DEMO_HISTORY`): `151-D-1000` (a trade-in lead) finance owed; `162-C-1037` (a sell lead) mileage does not add
+  up; `151-D-23817` (the first recorded sale's trade-in) written off, category B; `171-D-1384` (a car in stock) imported from the UK. Any
+  other Irish plate is a clean car, the same answer for the same plate.
+
 ## Listing site stock (DoneDeal or CarsIreland)
 
 Both DoneDeal and CarsIreland offer a dealer API for the dealer's own site, and the site reads either the same way (`src/lib/donedeal/`,
@@ -427,13 +454,14 @@ dealership:
 | Plan | Modules | Monthly | Setup | Included each month |
 |---|---|---|---|---|
 | Website | Trade-in, finance, car finder, commercial vehicles, reviews, lookup on the website | EUR 149 | EUR 500 | 25 lookups |
-| Dashboard | The dashboard and every module in it: test drives, sales and customers, margins, service, reviews, stock alerts, analytics, WhatsApp, AI writing, lookup in the dashboard | EUR 149 | none | 100 lookups, 500 WhatsApp alerts and confirmations |
+| Dashboard | The dashboard and every module in it: test drives, sales and customers, margins, service, reviews, stock alerts, analytics, WhatsApp, AI writing, lookup in the dashboard, vehicle history check | EUR 149 | none | 100 lookups, 500 WhatsApp alerts and confirmations |
 | Website + Dashboard | Both | EUR 249 | EUR 500 | 100 lookups, 500 WhatsApp alerts and confirmations |
 
 - The plans still turn modules on and off (Modules, above): a dealer's plan is the cheapest that holds their modules (`planFor`), so no
   modules is Website and the dashboard with any website-only module is Website + Dashboard. Everything in a plan is included.
 - **Add-on**: Social and ads (module id `social`), EUR 99 a month and EUR 150 at setup, until marketing is priced (#148).
-- **Over the allowance** each use is billed: lookup EUR 0.30, WhatsApp alert EUR 0.05, reply EUR 0.03, marketing message EUR 0.12.
+- **Over the allowance** each use is billed: lookup EUR 0.30, history check EUR 2.50 (a placeholder, to confirm against One Auto's
+  price), WhatsApp alert EUR 0.05, reply EUR 0.03, marketing message EUR 0.12.
   Replies and marketing messages are never included. AI writing is never billed.
 - **Term** (`term`): a 1-year or 2-year contract; no setup fee on 2 years. **First month free** (`freeMonth`, "YYYY-MM"): that month's bill
   has a "First month free" line that takes the plan off. Both are billing settings set from the owner's program, as the ceilings are.
@@ -595,11 +623,17 @@ Each service in `integrations.ts` lists the settings it needs. Settings, Connect
 
 **Whose key it is** (#26). `perDealer` on a service names the settings that are the dealer's own accounts; the rest of `env` is ours and stays a Worker secret.
 - Per dealer: the listing site key (`DONEDEAL_API_KEY`), Google Business (`GOOGLE_BUSINESS_LOCATION`, `GOOGLE_BUSINESS_REFRESH_TOKEN`), Meta posting (`META_PAGE_ID`, `META_PAGE_ACCESS_TOKEN`, `META_INSTAGRAM_ID`), ads (`META_AD_ACCOUNT_ID`, `GOOGLE_ADS_CUSTOMER_ID`), WhatsApp (`WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_ACCESS_TOKEN`) and the stock alert emails' sending address (`NEWSLETTER_FROM_EMAIL`, its old name kept).
-- Ours, always the Worker secret: `ANTHROPIC_API_KEY`, `GOOGLE_PLACES_API_KEY` (their place is their profile's `placeId`), `CARTELL_API_KEY`, `GOOGLE_ADS_DEVELOPER_TOKEN`, `NEWSLETTER_API_KEY`, `UNSUBSCRIBE_SECRET`, `WHATSAPP_APP_SECRET`, the email binding. We bill these through usage.
+- Ours, always the Worker secret: `ANTHROPIC_API_KEY`, `GOOGLE_PLACES_API_KEY` (their place is their profile's `placeId`), `ONE_AUTO_API_KEY`, `GOOGLE_ADS_DEVELOPER_TOKEN`, `NEWSLETTER_API_KEY`, `UNSUBSCRIBE_SECRET`, `WHATSAPP_APP_SECRET`, the email binding. We bill these through usage.
 
 **Where a dealer's keys live.** `src/lib/dealer-secrets.ts`: a `secrets` collection in the dealer's own store. Each value is sealed with AES-GCM, under a key HKDF-derived from the Worker secret `DEALER_SECRETS_KEY` with the dealer's id as info, a random 12-byte iv, and the dealer and the setting's name as AAD, so a value read under another dealer or name fails. Stored as `v1.<iv>.<ciphertext>`; a new key version is added there to rotate (read the old, reseal under the new). The plaintext is never stored, returned to a browser, logged or put in Activity. Adapters and `isConnected` ask `secretFor(name)` / `missingEnv`: for a per-dealer setting only the dealer's own saved value counts, never an app-wide variable (one leftover token would be every dealer's account), so a service that was a Worker secret must be set per dealer through the owner API. A value that cannot be opened (no `DEALER_SECRETS_KEY`, or a different one) makes `secretFor` give nothing, and the service reads as not connected. Our settings stay Worker secrets.
 
 **In Settings** (Connected services): every role sees only "Connected" or "Not connected" for each service. A dealer never sets, replaces or removes a key (#80): Checkwork does it through the owner API (`docs/owner-api.md`), which calls `saveSecrets` and `removeSecrets`. Every change is in Activity with the service's name and no value. Scripts may write the same way through `saveSecret` inside `runAsDealer`.
+
+**One Auto** (the registration lookup and history checks, #170): one vehicle data provider, ours, so one key for every dealer
+(`ONE_AUTO_API_KEY`, a Worker secret in each environment; nothing per dealer). Before it goes live: a business account with Irish data
+(Cartell's), the key, and their API docs to confirm what `src/lib/vehicle-data/one-auto.ts` marks as ours to confirm: the base address,
+the auth header, the lookup and history paths, and the answers' field names (finance, write-off category, mileage records, import,
+owners, NCT expiry, first registration). Then set `INSTALLED` there, and confirm the history check's price in `UNIT_PRICE_EUR`.
 
 **Owner step, once per environment:** `openssl rand -base64 32 | npx wrangler secret put DEALER_SECRETS_KEY` (dev), and the same with `--env production`. Keep a copy somewhere safe: without it every saved key is lost and must be pasted again. Changing it does the same, so rotate only with the reseal step.
 

@@ -29,6 +29,9 @@ import { deleteCarAction, dropPriceAction, saveCostAction, undoDropAction } from
 import { suggestedDrop } from "@/lib/admin/overview";
 import { enabledModules, hasModule } from "@/lib/modules";
 import { conditionShown } from "@/lib/modules-rules";
+import { HistoryPanel } from "@/components/admin/HistoryPanel";
+import { carHistoryStore } from "@/lib/history";
+import { checkHistoryAction } from "@/app/history-action";
 
 // The tab names the car, so several open cars can be told apart.
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
@@ -126,6 +129,13 @@ export default async function Page({ params, searchParams }: { params: Promise<{
       {actions.length > 0 && <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap max-sm:[&>*]:h-auto max-sm:[&>*]:min-h-11 max-sm:[&>*]:px-2 max-sm:[&>*]:py-2 max-sm:[&>*]:text-center">{actions}</div>}
     </section>
   );
+  // The history check (#170): the car's own, and a recorded sale's trade-in's. Kept beside the car, so synced stock has it too.
+  const checks = (await hasModule("history")) && (
+    <>
+      {car.reg && <HistoryPanel reg={car.reg} history={(await carHistoryStore.get(id))?.history} act={checkHistoryAction.bind(null, "car", id)} />}
+      {sale?.tradeIn && <HistoryPanel title="Trade-in history" reg={sale.tradeIn.reg} history={sale.tradeIn.history} act={checkHistoryAction.bind(null, "sale", id)} />}
+    </>
+  );
   if (synced) {
     // When the stock was last read, as on the Stock list: Edit on the listing site beside it says where the car is changed.
     const { lastOkAt } = await syncStatus();
@@ -133,6 +143,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
       <>
         <PageHeader title={carName(car)} text={lastOkAt ? `Last updated ${fmtAgo(lastOkAt)}` : "Not updated yet"} actions={main} back={{ href: "/stock", label: "Stock" }} />
         {summary}
+        {checks}
         {/* The site shows the feed's text, so a better one is written here and pasted into the listing site (#225). Not for an ad that is gone. */}
         {!sold && !car.takenDownAt && (await hasModule("ai")) && <SyncedDescription description={car.description ?? ""} request={{ task: "carDescription", fields: carFields(car) }} site={listingSite} />}
         {/* DoneDeal has the car; the cost is the dealer's own, so it is still entered here. */}
@@ -160,6 +171,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
       {/* The form first, opening on the price (#40); its long parts fold. Photos after it: they save on their own, apart from Save changes. */}
       <CarForm car={car} at={at} cost={cost} />
       <CarPhotos carId={car.id} photos={car.photos} max={CAR_PHOTOS_MAX} />
+      {checks}
       {prep}
       {history}
       {/* Out of the way, at the end: marking a car sold is nearly always what is wanted, and it keeps the car's page as Sold for a while.

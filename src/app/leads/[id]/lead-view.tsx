@@ -30,6 +30,8 @@ import { ActSelect } from "@/components/admin/ActSelect";
 import { PersonPicker } from "@/components/admin/PersonPicker";
 import { FollowUp } from "./FollowUp";
 import { TheirCar } from "./TheirCar";
+import { HistoryPanel } from "@/components/admin/HistoryPanel";
+import { checkHistoryAction } from "@/app/history-action";
 import { saveTheirCarAction } from "./car-actions";
 import { isCarLabel, theirCar } from "./car";
 import { VisitPanel } from "@/components/admin/VisitPanel";
@@ -263,6 +265,8 @@ export async function LeadView({ id }: { id: string }) {
           </IfModule>
           {/* Selling or trading in: the car read first, with Edit and the plate's Look up, so the dealer knows what it is before calling back. */}
           {hasCar && <TheirCar car={theirCar({ reg: lead.reg, details: read.facts })} selling={lead.type === "sell" || lead.type === "trade-in"} action={saveTheirCarAction.bind(null, lead.id)} />}
+          {/* Their car's history check (#170), once it has a plate: finance owed or a write-off changes the offer. */}
+          {(lead.type === "sell" || lead.type === "trade-in") && lead.reg && (await hasModule("history")) && <HistoryPanel reg={lead.reg} history={lead.history} act={checkHistoryAction.bind(null, "lead", lead.id)} />}
           <Notes notes={lead.notes} action={addNoteAction.bind(null, lead.id)} me={me.name} />
         </div>
 

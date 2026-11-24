@@ -61,7 +61,7 @@ deploy fails its tests while it is false.
 
 ### Outside services
 Each is optional and listed in the dashboard (Settings, Connected services) with the variables still missing: lead email,
-Google reviews, registration lookup (Cartell), Facebook and Instagram, ads, stock alert emails. Lead email is
+Google reviews, registration lookup and history checks (One Auto), Facebook and Instagram, ads, stock alert emails. Lead email is
 the one a real site needs before it takes a lead.
 Stock alert emails also need `UNSUBSCRIBE_SECRET` (a random secret: `node -e "process.stdout.write(require('crypto').randomBytes(32).toString('base64url'))" | npx wrangler secret put UNSUBSCRIBE_SECRET`): each email carries a signed link to the dashboard's `/api/site/unsubscribe` and the `List-Unsubscribe` headers (`src/lib/unsubscribe.ts`, `docs/dealer-admin.md`). The dealer's website needs no unsubscribe page of its own.
 Each subscription has one link that never changes. Changing the secret stops every link already sent, so set it once.

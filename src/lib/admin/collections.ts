@@ -1,4 +1,5 @@
 import "server-only";
+import type { VehicleHistory } from "@/lib/history-rules";
 import demoCars from "@/lib/stock/demo-cars.json";
 import extraCars from "@/lib/stock/demo-cars-extra.json";
 import { defineCollection } from "./docs";
@@ -78,6 +79,7 @@ export type Lead = {
   carSlug?: string;
   carTitle?: string;
   reg?: string; // the registration of the car a person wants to sell or trade in
+  history?: VehicleHistory; // that car's last history check (#170), shown while it is for the same plate
   topic?: string; // a contact form's guided topic (src/lib/leads/contact-topics.ts) and the tap answers, shown as tags
   answers?: Record<string, string>;
   details?: Record<string, string>; // the form's other answers, label to value as read ("Budget up to": "€15,000"), shown as a list (#59)
@@ -507,7 +509,7 @@ export type Sale = {
   customerId?: string;
   depositEur?: number; // taken earlier as a reservation, and part of the price
   coverMonths?: number; // the warranty from the day of sale: the included cover, or longer if extended cover was bought. Absent: the included.
-  tradeIn?: { reg: string; allowanceEur: number }; // the buyer's car taken as a trade-in
+  tradeIn?: { reg: string; allowanceEur: number; history?: VehicleHistory }; // the buyer's car taken as a trade-in, and its last history check
   leadId?: string; // the lead the sale came from, marked won with it
   reviewAskedOn?: string; // the day the buyer was asked for a Google review (src/lib/admin/review-ask.ts), at most once
   returnedOn?: string;

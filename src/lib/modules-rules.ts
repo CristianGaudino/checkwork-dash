@@ -24,6 +24,8 @@ export const MODULES = [
   // The registration lookup (#180), in each place on its own: buyers filling in their car, or only staff adding stock and checking leads.
   { id: "lookupWebsite", label: "Registration lookup on the website", blurb: "Buyers fill in their car from the registration.", pages: [], dashboard: [], needs: ["tradeIn"] },
   { id: "lookupDashboard", label: "Registration lookup in the dashboard", blurb: "Staff fill in a car from its registration.", pages: [], dashboard: [], needs: ["dashboard"] },
+  // A vehicle history check (#170), from the car's page, a trade-in or sell lead and a sale's trade-in. Its id is its billing service's.
+  { id: "history", label: "Vehicle history check", blurb: "Finance owed, write-offs, mileage and imports, from the registration.", pages: [], dashboard: [], needs: ["dashboard"] },
 ] as const satisfies readonly { id: string; label: string; blurb: string; pages: readonly string[]; dashboard: readonly string[]; needs?: readonly string[] }[];
 
 export type ModuleId = (typeof MODULES)[number]["id"];
