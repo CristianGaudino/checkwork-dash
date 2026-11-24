@@ -113,6 +113,16 @@ export async function staffByEmail(email: string): Promise<Person | undefined> {
   return r;
 }
 
+// A changed sign-in address (#142): the person's row keeps its id, so their passkeys and sessions (keyed by id) come with it.
+export async function moveStaffEmail(from: string, to: string): Promise<void> {
+  if (!hasD1()) {
+    const p = mem().staff.find((x) => x.email === from);
+    if (p) p.email = to;
+    return;
+  }
+  await quiet(db().update(staff).set({ email: to }).where(eq(staff.email, from)), "moveStaffEmail");
+}
+
 // One row per person, made the first time they ask for a code. The id is their WebAuthn user handle.
 export async function ensureStaff(email: string, now: number): Promise<Person> {
   const row: Person = { id: Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString("base64url"), email, codeFailures: 0, codeLockedUntil: null, createdAt: at(now) };

@@ -18,7 +18,8 @@ const { membersOf } = await import("@/lib/tenancy/directory");
 const { adminCars, saveCar } = await import("@/lib/admin/stock-admin");
 const { getSettings, leadsStore, ordersStore, reservationsStore, settingsStore } = await import("@/lib/admin/collections");
 const { listActivity } = await import("@/lib/admin/activity");
-const { dealerById, resetMemoryDirectory } = await import("@/lib/tenancy/directory");
+const { dealerById, putMember, resetMemoryDirectory } = await import("@/lib/tenancy/directory");
+const { ensureStaff, staffByEmail } = await import("@/lib/auth/attempts");
 beforeEach(() => resetMemoryDirectory()); // who is on the team, and as what, is the directory's
 
 const form = (o: Record<string, string | string[]>) => Object.entries(o).reduce((f, [k, v]) => ([v].flat().forEach((x) => f.append(k, x)), f), new FormData());
@@ -314,6 +315,22 @@ describe("your account and a person's details (#142)", () => {
     role = "Manager";
     const self = await find("Manager");
     expect((await savePersonAction(self.id, undefined, form({ name: self.name, email: "manager.new@example.com", role: "Manager" })))?.errors?.email).toMatch(/your own sign-in email/);
+  });
+
+  it("a changed email takes the person's sign-in with it (passkeys and sessions keep its id), unless it is shared or taken", async () => {
+    role = "Manager";
+    const sales = await find("Sales");
+    const signIn = await ensureStaff(sales.email.toLowerCase(), Date.now());
+    expect(await savePersonAction(sales.id, undefined, form({ name: sales.name, email: "conor.moved@example.com", role: "Sales", phone: "" }))).toEqual({ saved: true });
+    expect((await staffByEmail("conor.moved@example.com"))?.id).toBe(signIn.id);
+    expect(await staffByEmail(sales.email.toLowerCase())).toBeUndefined();
+    // Someone else already signs in with the address: refused, nothing moves.
+    await ensureStaff("taken@example.com", Date.now());
+    expect((await savePersonAction(sales.id, undefined, form({ name: sales.name, email: "taken@example.com", role: "Sales" })))?.errors?.email).toMatch(/already signs in/);
+    // On another dealer's team too: their sign-in is not this dealer's to move.
+    await putMember("another-dealer", "conor.moved@example.com", "Sales");
+    expect((await savePersonAction(sales.id, undefined, form({ name: sales.name, email: "conor.third@example.com", role: "Sales" })))?.errors?.email).toMatch(/another dealer/);
+    expect((await staffByEmail("conor.moved@example.com"))?.id).toBe(signIn.id);
   });
 
   it("starts a new person with the owner's defaults (a role's senders still skip what it may not get); only an owner sets them", async () => {

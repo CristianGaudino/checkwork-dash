@@ -18,7 +18,8 @@ import { can, currentMember, realCan, realRole, refusal } from "@/lib/permission
 import { ROLES, type Role } from "@/lib/permission-rules";
 import { logActivity } from "@/lib/admin/activity";
 import { currentDealer } from "@/lib/tenancy/current";
-import { DEV_EMAIL, patchDealer } from "@/lib/tenancy/directory";
+import { DEV_EMAIL, dealerIdsOf, patchDealer } from "@/lib/tenancy/directory";
+import { staffByEmail } from "@/lib/auth/attempts";
 import { FACTS_SCHEMA } from "@/lib/tenancy/profile";
 import { requireStaff } from "@/lib/staff";
 import { messagesStore, staffStore } from "@/lib/whatsapp/store";
@@ -221,6 +222,7 @@ async function readNotifications(data: FormData, p: Person, role: Role, phone: s
 // Your account (#142): the signed-in person's own name and phone, and their own notifications. Everyone, for themselves only: who they
 // are comes from the sign-in (currentMember), never from the form. The email is the sign-in address: only an owner or manager changes it.
 const OWN_EMAIL = "Ask another owner or manager to change your own sign-in email";
+const SHARED_EMAIL = "They work at another dealer too, so ask Checkwork to change their sign-in email";
 const NOT_ON_TEAM = "You are not on this dealer's team yet. Ask an owner or manager to add you.";
 async function myself(): Promise<Person | undefined> {
   const me = await currentMember();
@@ -266,6 +268,13 @@ export async function savePersonAction(id: string, _p: SettingsState, data: Form
   if (no) return { errors: { role: no } };
   // Access still signs them in with the old address: moving their own membership would lock them out.
   if (r.data.email !== p.email.toLowerCase() && p.email.toLowerCase() === (await currentMember()).email.toLowerCase()) return { errors: { email: OWN_EMAIL } };
+  // Their sign-in is one identity across every dealer, as with any shared account: a dealer only moves it when they are on this team alone,
+  // and never onto an address someone else signs in with.
+  if (r.data.email !== p.email.toLowerCase()) {
+    const { id: here } = await currentDealer();
+    if ((await dealerIdsOf(p.email)).some((d) => d !== here)) return { errors: { email: SHARED_EMAIL } };
+    if (await staffByEmail(r.data.email)) return { errors: { email: "Someone already signs in with that email" } };
+  }
   const phone = String(data.get("phone") ?? "").trim();
   const n = await readNotifications(data, p, r.data.role, phone);
   const errors = { ...profileErrors(r.data.name, phone, n.quietFrom, n.quietTo), ...taken(all, r.data, p.id) };

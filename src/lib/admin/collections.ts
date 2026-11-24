@@ -4,6 +4,7 @@ import extraCars from "@/lib/stock/demo-cars-extra.json";
 import { defineCollection } from "./docs";
 import { currentDealer } from "@/lib/tenancy/current";
 import { DEV_EMAIL, membersOf, putMember, removeMember } from "@/lib/tenancy/directory";
+import { moveStaffEmail } from "@/lib/auth/attempts";
 import { AD_PLATFORMS, NETWORKS, type AdPlatform, type Network, type PostFormat, type StoryLayout } from "./networks";
 import { demoCost } from "./margins";
 import { DAY, HOUR, MINUTE } from "@/lib/time";
@@ -499,10 +500,15 @@ export async function moveTeamMember(from: string, to: string, role: Role, detai
   const [a, b] = [from, to].map((e) => e.trim().toLowerCase());
   const before = (await membersOf(id)).find((m) => m.email === a);
   await putMember(id, b, role);
+  let moved = false;
   try {
     await removeMember(id, a);
+    // Their sign-in comes too, passkeys and sessions with it (savePersonAction has checked they are at this dealer alone).
+    await moveStaffEmail(a, b);
+    moved = true;
     await details();
   } catch (err) {
+    if (moved) await moveStaffEmail(b, a);
     await removeMember(id, b);
     if (before) await putMember(id, a, before.role);
     throw err;
