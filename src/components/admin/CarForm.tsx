@@ -137,7 +137,7 @@ export function CarForm({ car, at, cost, reg: startReg = "", photosMax }: { car?
                 ) : f.type === "textarea" ? (
                   <textarea name={f.name} defaultValue={value(f.name)} rows={f.name === "features" ? 6 : 5} className={`${adminInput} h-auto py-2`} />
                 ) : (
-                  <input name={f.name} type={f.type} step={f.step} inputMode={f.type === "number" ? "decimal" : undefined} defaultValue={value(f.name)} {...(f.name === "reg" && { autoCapitalize: "characters", spellCheck: false, maxLength: 12 })} onInput={f.name === "priceEur" ? (e) => setOnRequest(e.currentTarget.value.trim() === "0") : undefined} aria-invalid={errors[f.name] ? true : undefined} className={adminInput} />
+                  <input name={f.name} type={f.type} step={f.step} inputMode={f.type !== "number" ? undefined : f.step ? "decimal" : "numeric"} defaultValue={value(f.name)} {...(f.name === "reg" && { autoCapitalize: "characters", spellCheck: false, maxLength: 12 })} onInput={f.name === "priceEur" ? (e) => setOnRequest(e.currentTarget.value.trim() === "0") : undefined} aria-invalid={errors[f.name] ? true : undefined} className={adminInput} />
                 )}
               </Field>
             ))}
@@ -168,7 +168,7 @@ export function CarForm({ car, at, cost, reg: startReg = "", photosMax }: { car?
         <div id="cost" className="scroll-mt-24">
         <Panel title="Cost">
           <Field label="Cost price (€)" hint="What the car cost you. Only people with the margins permission see this." error={errors.costEur} className="sm:max-w-xs">
-            <input name="costEur" type="number" min={0} step={50} inputMode="decimal" defaultValue={cost.eur ?? ""} className={adminInput} />
+            <input name="costEur" type="number" min={0} step={50} inputMode="numeric" defaultValue={cost.eur ?? ""} className={adminInput} />
           </Field>
         </Panel>
         </div>

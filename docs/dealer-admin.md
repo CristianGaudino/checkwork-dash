@@ -207,12 +207,12 @@ with no D1). The actor is the signed-in person (`currentMember`), or a named one
   offers to add it, starting the car form from the reg), and the lead it came from (one on that car, marked won).
 - **A lost lead** asks why, from a fixed list, and Reports shows "Why leads were lost".
 - **Close a lead** (#55): a lead no longer active (No reply needed, Not interested, Duplicate, Wrong number) is closed from More, on the
-  lead and on each To answer now row, with Undo. Status `closed` with `closedReason`, and `statusBefore`, the status it had: not open,
+  lead and in each Leads row's menu (To answer now and the list), with Undo. Status `closed` with `closedReason`, and `statusBefore`, the status it had: not open,
   so it leaves To answer now, the follow-ups and To do. It is still a lead in every count, chart and report (a lead that did not buy, so
   it is in a win rate's leads; the monthly report's "no reply in 24 hours" leaves out one closed as No reply needed), and never a lost
   or won sale (only lost leads have lost reasons). It has its own status tab, and the lead says why and has Reopen, back to the status
   it had (New for a record without one).
-- **Spam** (#56): status `spam`, with `statusBefore`. Staff mark it from More (the lead and To answer now rows), with Undo; it leaves
+- **Spam** (#56): status `spam`, with `statusBefore`. Staff mark it from More (the lead, and each Leads row's menu), with Undo; it leaves
   every to-do, count, chart and report (`counted` in `src/lib/admin/reports.ts`) and the Leads list, except its own Spam tab, which
   lists spam of every kind (a warranty request too, `onLeadsList`), where Not spam puts it back. Leads are checked as they arrive
   (`spamCheck`, `src/lib/leads/spam.ts`), once per lead by the site API (`src/lib/site-api/leads.ts`, the only way in) before its
@@ -222,9 +222,13 @@ with no D1). The actor is the signed-in person (`currentMember`), or a named one
   factory order. A test drive booking, a warranty request or a question about a car bought here is never filed as spam, only as possible spam (`arrivalSpam`). When unsure
   (a pitch word such as SEO services, backlinks or crypto, read in the message only; a link to a site that is not a car, photo or chat
   site or the dealer's own; or a web address in the name) the lead stays new with `maybeSpam`:
-  "Possible spam" on the list and To answer now, with Spam and Not spam. Careful by design: a name in any language, a short or empty
+  "Possible spam" on the list and To answer now, with Spam and Not spam in the row's menu (as buttons on the lead). Careful by design: a name in any language, a short or empty
   message, no phone, or a link to a car or photos never count against a lead.
 - **Test drives** still to happen can move to another time, by the same rules as a new booking.
+- **Leads rows** (#94): a row shows its next action (Call, WhatsApp or Email, the way they asked) and a menu with the rest (the next
+  step, Spam, Not spam, Close). A To answer now row a press takes off the list stays in its place, faded, saying what it became
+  (Contacted, Spam, Closed) with its buttons gone, until the page is left or reloaded (`HeldTasks`); Undo puts it back. The count is the
+  rows still to answer.
 - **A follow-up** (`followUpOn` on a lead): Tomorrow, In 3 days, Next week or a day, on the lead. Cleared when the lead is won or lost.
   Overview counts the ones due (today and overdue); the leads list filters by them. The morning email (Settings, Notifications, off by
   default) sends each salesperson theirs, and the unassigned ones to owners and managers, at 07:00 UTC (`/api/follow-ups/digest`).
@@ -486,7 +490,8 @@ app store and no outside service.
 
 - **Formats** (#177): a post is a Post, Story (9:16 with a ready layout: Just in or Price drop, drawn over the car photo), Reel or video, or Carousel (2 to 10 photos). The composer previews each at phone size. Limits live in `src/lib/admin/networks.ts` (`FORMAT_LIMITS`, `FORMATS_FOR`) and the server checks the same numbers. `PUBLISH_MODE` there says which formats a network's API publishes ("auto": every Facebook and Instagram format, stories included) and which are held ("prepare": all of TikTok, whose posting API keeps an unaudited app's posts private, until TikTok approves the app; the page says so). Publishing stays simulated.
 - **Media library** (`mediaStore`, tab Media): photos (JPEG, PNG, WebP; shrunk to 1,600px on the device) and videos (MP4, MOV, up to 15 MB and 90 seconds on the demo; length read in the browser and checked loosely on the server), optionally tagged to a car. Stored in R2 under `media/` in the `LEAD_PHOTOS` bucket and served by `/media-files`; with no bucket a data URL is kept in memory. Rules in `src/lib/admin/media-rules.ts`. No range requests yet, so add them before real video use.
-- **Calendar**: a week of scheduled and posted posts and started ads (`calendarWeek`); drafts are not on it.
+- **Calendar**: a week of scheduled and posted posts and started ads (`calendarWeek`); drafts are not on it. A post on it opens its page.
+- **Drafts** (#93): a post's page is `/marketing/posts/[id]`. A draft or a scheduled post opens there in the composer, filled in from what was saved, and saving, posting or scheduling updates the same post (`composeAction` with `id`, under the same checks as a new one). A post that went out is shown read-only with its figures. A newsletter draft is edited at `/marketing/newsletters/[id]` (`createNewsletterAction` with `id`); a sent one cannot be. "Write from the newest cars" opens `/marketing/newsletters/new` filled in from the stock, and nothing is saved until the dealer saves it. Post now (from a row too) needs what the post's format needs (`readyToPost`).
 - **Modules**: posts, calendar and media need Social and ads, newsletters need Newsletter and alerts; the page needs one of them.
 - **AI writing** (#179): `writeAction` (`src/lib/ai/actions.ts`) checks the `ai` module, then the monthly cap, builds the facts from the records (the browser sends ids only), writes with the model chosen on Billing, then counts the action under that model. With no `ANTHROPIC_API_KEY` (local `next dev`, tests, E2E) `writeWithAI` is the mock in `src/lib/ai/mock.ts` (deterministic, facts only, dashes stripped, 700 ms pause). With `ANTHROPIC_API_KEY` set as a Worker secret (`npx wrangler secret put ANTHROPIC_API_KEY`) it is real Claude instead (`src/lib/ai/claude.ts`, every prompt in one place), for the demo dealer too, under the same module check, monthly cap, ceiling and `AI_LIMITER` as any dealer. The demo's AI usage is a `real-` record that the demo reset keeps (the seeded lines still reset), so its monthly cap is a real monthly cap, not a daily one. A refusal, a cut-off answer or an error is a failed write, not billed, and the facts and text are never logged. Limits: the monthly AI cap (demo €25), our AI ceiling that a cap can never go past (`AI_CEILING_EUR`, €50 on every site unless the owner's program sets another; €25 on a freshly seeded demo), `AI_LIMITER` of 10 calls a minute per dealer (wrangler.jsonc, namespace 3003, 4003 on dev; Cloudflare counts it per location), short prompts (a message or review is cut to 600 characters; phone numbers and emails are taken out of the facts and the draft, and the dealer's own are put back in the answer) and `max_tokens` 2048. Set a spend limit on the Claude Console workspace too. `AIWriter` / `AITextarea` show the button, adjust chips, Undo and an "AI draft" label, and hide with the module off. Used in the post composer, newsletters, the car description, the lead page (Draft a reply) and review replies.
 

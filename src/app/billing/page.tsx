@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { RowMenu } from "@/components/admin/RowMenu";
 import { ActButton } from "@/components/admin/ActButton";
 import { AlertForm, DetailsForm, LimitsForm } from "@/components/admin/BillingForms";
 import { Badge, DataTable, EmptyState, Facts, PageHeader, Panel, Segmented, adminButtonQuiet, rowButton, tapArea } from "@/components/admin/kit";
@@ -84,9 +85,13 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
                     <span>
                       Tell me when {scopeName(a.scope).toLowerCase()} passes {eur(a.amountEur)}
                     </span>
-                    <ActButton act={removeAlertAction.bind(null, a.scope, a.amountEur)} done="Alert removed" confirm={{ title: "Remove this alert?", text: `You will no longer be told when this passes ${eur(a.amountEur)}.`, yes: "Remove" }} label={`Remove the ${scopeName(a.scope)} alert at ${eur(a.amountEur)}`} className={`${rowButton} ml-auto`}>
-                      Remove
-                    </ActButton>
+                    <span className="ml-auto">
+                      <RowMenu label={`More for the ${scopeName(a.scope)} alert at ${eur(a.amountEur)}`}>
+                        <ActButton act={removeAlertAction.bind(null, a.scope, a.amountEur)} done="Alert removed" confirm={{ title: "Remove this alert?", text: `You will no longer be told when this passes ${eur(a.amountEur)}.`, yes: "Remove" }} label={`Remove the ${scopeName(a.scope)} alert at ${eur(a.amountEur)}`} className={rowButton}>
+                          Remove
+                        </ActButton>
+                      </RowMenu>
+                    </span>
                   </li>
                 ))}
               </ul>

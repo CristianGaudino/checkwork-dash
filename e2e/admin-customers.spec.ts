@@ -5,6 +5,7 @@ test("customers, stock alerts and newsletter each have a table, and an alert can
   expect((await page.getByRole("row").count()) - 1).toBeGreaterThan(5);
   await page.getByRole("link", { name: "Stock alerts" }).click();
   const active = page.getByRole("row").filter({ hasText: "Active" }).first();
+  await active.getByRole("button", { name: /^More for / }).click(); // Stop and Remove are under the row's menu (#95)
   await active.getByRole("button", { name: "Stop" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Stop" }).click();
   await expect(page.getByRole("link", { name: "Stock alerts" })).toHaveAttribute("aria-current", "true");
@@ -14,7 +15,11 @@ test("customers, stock alerts and newsletter each have a table, and an alert can
   await expect(paused.getByRole("button", { name: "Stop" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: /Resume|Turn on/ })).toHaveCount(0);
   await page.getByRole("link", { name: /^Subscribers/ }).click();
-  await expect(page.getByRole("button", { name: "Unsubscribe" }).first()).toBeVisible();
+  await expect(page.getByRole("link", { name: /^Subscribers/ })).toHaveAttribute("aria-current", "true"); // not an alert's row, still showing
+  const subscribed = page.getByRole("row").filter({ has: page.getByRole("button", { name: /^More for / }) }).first(); // only a subscribed one has a menu
+  await subscribed.getByRole("button", { name: /^More for / }).click();
+  await expect(subscribed.getByRole("button", { name: "Unsubscribe" })).toBeVisible();
+  await page.keyboard.press("Escape");
   await expect(page.getByRole("button", { name: /^(Resubscribe|Subscribe|Subscribe again)$/ })).toHaveCount(0);
   await expect(page.getByRole("row").filter({ hasText: "Unsubscribed" }).first().getByRole("button")).toHaveCount(0);
 });

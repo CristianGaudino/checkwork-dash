@@ -9,7 +9,7 @@ async function startPost(page: Page) {
   await page.getByRole("main").locator("li > button[aria-pressed]").nth(1).click();
   await expect(page.getByRole("heading", { name: /Step 2 of 4/ })).toBeFocused();
 }
-const next = (page: Page) => page.getByRole("button", { name: "Next" }).click();
+const next = (page: Page) => page.getByRole("button", { name: "Next", exact: true }).click(); // exact: not "Open Next.js Dev Tools" on `next dev`
 
 test("the composer goes car, where, text, when: it suggests text for the car, shows a preview, and publishing posts it", async ({ page }) => {
   await startPost(page);
@@ -103,14 +103,62 @@ test("an idea starts the composer on its car, and the list filters to ads", asyn
   await expect(page.getByRole("list", { name: "Posts and ads" }).getByRole("listitem").first()).toContainText(" ad");
 });
 
-test("write a newsletter from the newest cars, and sending sends it", async ({ page }) => {
+test("write a newsletter from the newest cars: it opens to check before it is saved, and sending sends it", async ({ page }) => {
   await page.goto("/marketing?tab=newsletters");
-  await page.getByRole("button", { name: "Write from the newest cars" }).click();
+  await page.getByRole("link", { name: "Write from the newest cars" }).click();
+  await expect(page).toHaveURL(/\/marketing\/newsletters\/new$/);
+  await expect(page.getByRole("textbox", { name: "Text", exact: true })).toHaveValue(/New in this week:/);
+  await page.getByRole("button", { name: "Save draft" }).click();
   await expect(page.getByRole("status")).toContainText("Newsletter draft saved");
   await expect(page.getByText("New in this week:").first()).toBeVisible();
-  await page.getByRole("button", { name: /^Send to/ }).first().click();
+  await page.getByRole("button", { name: /^Send / }).first().click();
   await page.getByRole("dialog").getByRole("button", { name: "Send" }).click();
   await expect(page.getByRole("status")).toContainText("Newsletter sent");
+});
+
+test("a newsletter draft opens from its row, and a change saved is kept", async ({ page }) => {
+  const subject = `Spring cars ${Date.now()}`;
+  await page.goto("/marketing?tab=newsletters");
+  await page.getByText("Write your own").click();
+  await page.getByLabel("Subject").fill(subject);
+  await page.getByRole("textbox", { name: "Text", exact: true }).fill("First words.");
+  await page.getByRole("button", { name: "Save draft" }).click();
+  await expect(page.getByRole("status")).toContainText("Newsletter draft saved");
+  await page.getByRole("link", { name: `Edit ${subject}` }).first().click();
+  await expect(page).toHaveURL(/\/marketing\/newsletters\/nl-/);
+  await expect(page.getByLabel("Subject")).toHaveValue(subject);
+  await page.getByRole("textbox", { name: "Text", exact: true }).fill("Changed words.");
+  await page.getByRole("button", { name: "Save draft" }).click();
+  await expect(page.getByRole("status")).toContainText("Newsletter draft saved");
+  await expect(page.getByRole("listitem").filter({ hasText: subject })).toHaveCount(1); // the same draft, not a second one
+  await expect(page.getByRole("listitem").filter({ hasText: subject })).toContainText("Changed words.");
+});
+
+test("a post draft opens from the list on its words, and a change saved is kept on the same post", async ({ page }) => {
+  await startPost(page);
+  await next(page);
+  await expect(page.getByLabel("Text")).not.toHaveValue("");
+  const words = `Come and see it ${Date.now()}`;
+  await page.getByLabel("Text").fill(words);
+  await next(page);
+  await page.getByRole("button", { name: "Save draft" }).click();
+  await expect(page.getByRole("status")).toContainText("Draft saved");
+  // Drafts wait on you; the list shows them when asked, newest first, each row a link to the post.
+  await page.goto("/marketing?status=draft");
+  const row = page.getByRole("list", { name: "Posts and ads" }).getByRole("listitem").filter({ hasText: words });
+  await row.getByRole("link").first().click();
+  await expect(page).toHaveURL(/\/marketing\/posts\/post-/);
+  await expect(page.getByRole("heading", { name: /Step 3 of 4/ })).toBeVisible();
+  await expect(page.getByLabel("Text")).toHaveValue(words);
+  const edited = `${words}, changed`;
+  await page.getByLabel("Text").fill(edited);
+  await next(page);
+  await page.getByRole("button", { name: "Save draft" }).click();
+  await expect(page.getByRole("status")).toContainText("Draft saved");
+  await page.goto("/marketing?status=draft");
+  const list = page.getByRole("list", { name: "Posts and ads" });
+  await expect(list.getByRole("listitem").filter({ hasText: words })).toHaveCount(1);
+  await expect(list.getByRole("listitem").filter({ hasText: edited })).toHaveCount(1);
 });
 
 test("an unknown notice code shows nothing", async ({ page }) => {
@@ -118,10 +166,10 @@ test("an unknown notice code shows nothing", async ({ page }) => {
   await expect(page.getByRole("status")).toHaveCount(0);
 });
 
-test("what waits on you is at the top with Post now in the row; the list below is what went out; a chosen car can be changed", async ({ page }) => {
+test("what waits on you is at the top with its next step in the row; the list below is what went out; a chosen car can be changed", async ({ page }) => {
   await page.goto("/marketing");
   const waiting = page.getByRole("region", { name: "Waiting on you" });
-  await expect(waiting.getByRole("button", { name: /^(Post now|Finish post|Start ad)/ }).first()).toBeVisible(); // the demo seeds drafts and a scheduled post
+  await expect(waiting.getByRole("button", { name: /^(Post now|Finish post|Start ad)/ }).or(waiting.getByRole("link", { name: /^Edit / })).first()).toBeVisible(); // the demo seeds drafts and a scheduled post
   await expect(page.getByRole("list", { name: "Posts and ads" }).getByText("Draft", { exact: true })).toHaveCount(0);
   // Delete is in More, not a red button in every row, and still asks first. Cancel keeps it.
   await expect(waiting.getByRole("button", { name: /^Delete/ })).toHaveCount(0);

@@ -100,10 +100,10 @@ export function TargetsForm({ settings }: { settings: DealerSettings }) {
   return (
     <form {...f.run} className="grid grid-cols-1 gap-4 sm:grid-cols-2" noValidate>
       <Field label="Reply to a new lead within (hours)" hint="Leads waiting longer show on the overview" error={f.errors.leadSlaHours}>
-        <input name="leadSlaHours" type="number" defaultValue={settings.leadSlaHours} className={adminInput} />
+        <input name="leadSlaHours" type="number" inputMode="numeric" defaultValue={settings.leadSlaHours} className={adminInput} />
       </Field>
       <Field label="Test drive slot (minutes)" hint="The same car cannot be booked twice within this time" error={f.errors.driveSlotMinutes}>
-        <input name="driveSlotMinutes" type="number" defaultValue={settings.driveSlotMinutes} className={adminInput} />
+        <input name="driveSlotMinutes" type="number" inputMode="numeric" defaultValue={settings.driveSlotMinutes} className={adminInput} />
       </Field>
       <div className="sm:col-span-2">
         <Save pending={f.pending} saved={f.state?.saved} />

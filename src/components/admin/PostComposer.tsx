@@ -23,6 +23,8 @@ import { BrandIcon } from "@/components/admin/BrandIcon";
 export type ComposerCar = { slug: string; title: string; photos: { src: string; width: number; height: number }[]; text: Record<Network, string>; byFormat: Record<PostFormat, Record<Network, string>>; price: string; was?: string };
 // What the composer needs of a library file.
 export type LibraryFile = Pick<MediaItem, "id" | "kind" | "src" | "name" | "durationSec" | "carSlug">;
+// A saved draft or scheduled post, to edit (its edit page): `when` is its time as datetime-local wants it, in Irish time, when it is scheduled.
+export type ComposerPost = { id: string; network: Network; format: PostFormat; layout?: StoryLayout; photos: string[]; video?: string; text: string; when?: string };
 
 const STEPS = ["Choose a car", "Where to post", "Words and photos", "Check and post"];
 // Now, as datetime-local wants it (this device's time). Only read once "Later" is picked, so never on the server.
@@ -32,16 +34,17 @@ const chip = (on: boolean) => `inline-flex min-h-11 items-center gap-2 rounded-f
 
 // A post (and its ad) in four steps, one per screen on a phone: pick the car from photo cards, pick where it goes, edit the suggested text and
 // photos, then choose when. The preview sits beside the steps on a wide screen and comes in the last step on a phone. Every field stays in
-// one form, so going back keeps what was typed; `action` is a server action and validates every field.
-export function PostComposer({ cars, initialSlug, initialFormat = "post", initialLayout = "just-in", library, action, load }: { cars: CarCard[]; initialSlug: string; initialFormat?: PostFormat; initialLayout?: StoryLayout; library: LibraryFile[]; action: (data: FormData) => void | Promise<void>; load: (slug: string) => Promise<ComposerCar | null> }) {
+// one form, so going back keeps what was typed; `action` is a server action and validates every field. With `post` it opens filled in from
+// that saved post, on its words and photos, and saving updates it.
+export function PostComposer({ cars, initialSlug, initialFormat = "post", initialLayout = "just-in", post, library, action, load }: { cars: CarCard[]; initialSlug: string; initialFormat?: PostFormat; initialLayout?: StoryLayout; post?: ComposerPost; library: LibraryFile[]; action: (data: FormData) => void | Promise<void>; load: (slug: string) => Promise<ComposerCar | null> }) {
   const start = cars.some((c) => c.slug === initialSlug) ? initialSlug : "";
-  const [step, setStep] = useState(start ? 1 : 0);
+  const [step, setStep] = useState(start ? (post ? 2 : 1) : 0);
   const [slug, setSlug] = useState(start);
-  const [network, setNetwork] = useState<Network>("Facebook");
-  const [format, setFormat] = useState<PostFormat>(initialFormat);
-  const [layout, setLayout] = useState<StoryLayout>(initialLayout);
-  const [video, setVideo] = useState("");
-  const [added, setAdded] = useState<string[]>([]); // library photos picked or just uploaded
+  const [network, setNetwork] = useState<Network>(post?.network ?? "Facebook");
+  const [format, setFormat] = useState<PostFormat>(post?.format ?? initialFormat);
+  const [layout, setLayout] = useState<StoryLayout>(post?.layout ?? initialLayout);
+  const [video, setVideo] = useState(post?.video ?? "");
+  const [added, setAdded] = useState<string[]>(post?.photos ?? []); // library photos picked or just uploaded, and a saved post's own (an edited copy among them)
   const [loaded, setLoaded] = useState<ComposerCar | null>(null);
   useEffect(() => {
     if (!slug) return;
@@ -57,11 +60,11 @@ export function PostComposer({ cars, initialSlug, initialFormat = "post", initia
   const storyLine = car ? (layout === "price-drop" && car.was ? `Now ${car.price}, was ${car.was}.` : `${car.price}.`) : "";
   const suggestion = car ? (format === "story" ? [`${LAYOUT_LABELS[layout]}: ${car.title}.`, storyLine].filter(Boolean).join("\n") : car.byFormat[format][network]) : "";
   // The text follows the suggestion until the dealer types; "Use the suggestion" brings it back.
-  const [typed, setTyped] = useState<string | null>(null);
+  const [typed, setTyped] = useState<string | null>(post?.text ?? null);
   const [busy, setBusy] = useState(false); // hide "Use the suggestion" mid-write: remounting the writer would leave its AI text unlabelled
   const [writer, setWriter] = useState(0); // a new key drops the AI writer's draft, so the suggestion is not labelled as AI
   const text = typed ?? suggestion;
-  const [chosen, setChosen] = useState<string[] | null>(null);
+  const [chosen, setChosen] = useState<string[] | null>(post?.photos ?? null);
   // Pictures come from the car's own photos and the dealer's library (the photos of this car first). A reel has no pictures, only its video.
   const ofCar = (m: LibraryFile) => Boolean(slug && m.carSlug && slugId(m.carSlug) === slugId(slug)); // by id: an edit gives the car a new slug
   const mine = library.filter((m) => m.kind === "image").sort((a, b) => Number(ofCar(b)) - Number(ofCar(a)));
@@ -70,7 +73,7 @@ export function PostComposer({ cars, initialSlug, initialFormat = "post", initia
   const photos = !car || !limits.photos[1] ? [] : (chosen ?? [...added, ...car.photos.slice(0, format === "carousel" ? 3 : 1).map((p) => p.src)]).filter((src) => pool.includes(src) || added.includes(src)).slice(0, limits.photos[1]);
   const clip = limits.video && videos.some((v) => v.src === video) ? video : "";
   const mode = PUBLISH_MODE[network][format];
-  const [later, setLater] = useState(false);
+  const [later, setLater] = useState(Boolean(post?.when));
   const [editing, setEditing] = useState<string | null>(null); // the photo open in the crop and rotate editor
   const [ad, setAd] = useState(false);
   const picked = cars.find((c) => c.slug === slug);
@@ -89,6 +92,7 @@ export function PostComposer({ cars, initialSlug, initialFormat = "post", initia
       {/* Until a car is picked there is no preview, so the cars take the full width. */}
       <div className={`flex min-w-0 flex-col gap-5 ${slug ? "" : "lg:col-span-2"}`}>
         <Stepper titles={STEPS} step={step} headingRef={heading} />
+        {post && <input type="hidden" name="id" value={post.id} />}
         <input type="hidden" name="carSlug" value={slug} />
         <input type="hidden" name="network" value={network} />
         <input type="hidden" name="format" value={format} />
@@ -122,6 +126,7 @@ export function PostComposer({ cars, initialSlug, initialFormat = "post", initia
                 setSlug(next);
                 setTyped(null);
                 setChosen(null);
+                setAdded((a) => a.filter((s) => !post?.photos?.includes(s))); // the saved post's photos are of its old car; library ones stay in `mine`
               }
               setStep(1);
             }}
@@ -259,7 +264,8 @@ export function PostComposer({ cars, initialSlug, initialFormat = "post", initia
           </div>
           {later && (
             <Field label="Date and time">
-              <input name="when" type="datetime-local" required min={localNow()} className={`${adminInput} w-60`} />
+              {/* A scheduled post opens with Later on, so this is drawn on the server too: its `min` is a moment older there, and nothing hangs on it. */}
+              <input name="when" type="datetime-local" required min={localNow()} defaultValue={post?.when} suppressHydrationWarning className={`${adminInput} w-60`} />
             </Field>
           )}
           {mode === "prepare" && <p className="text-meta text-text-2">It is saved and goes out once {network} approves us.</p>}
@@ -279,7 +285,7 @@ export function PostComposer({ cars, initialSlug, initialFormat = "post", initia
                 <Select name="platform" label="Ad platform" defaultValue={AD_PLATFORMS[0]} options={AD_PLATFORMS.map((p) => [p, AD_PLATFORM_LABELS[p]] as const)} />
               </Field>
               <Field label="Budget (€)">
-                <input name="budgetEur" type="number" min={POST_LIMITS.budgetMin} max={POST_LIMITS.budgetMax} defaultValue={POST_LIMITS.budgetDefault} className={adminInput} />
+                <input name="budgetEur" type="number" inputMode="numeric" min={POST_LIMITS.budgetMin} max={POST_LIMITS.budgetMax} defaultValue={POST_LIMITS.budgetDefault} className={adminInput} />
               </Field>
             </div>
           )}

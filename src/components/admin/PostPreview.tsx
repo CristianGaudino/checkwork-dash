@@ -1,3 +1,5 @@
+"use client";
+
 import { FORMAT_LABELS, LAYOUT_LABELS, type Network, type PostFormat, type StoryLayout } from "@/lib/admin/networks";
 import { useDealerFacts } from "@/components/DealerFacts";
 import { BrandIcon } from "@/components/admin/BrandIcon";

@@ -8,6 +8,8 @@ import { MEDIA_ACCEPT, MEDIA_LIMITS } from "@/lib/admin/media-rules";
 import type { MediaItem } from "@/lib/admin/collections";
 import { press } from "@/components/ui";
 import { PlusIcon } from "@/components/stock/icons";
+import { Select } from "@/components/Select";
+import { Field } from "./kit";
 import { CropIcon, EditPhoto, type Jpeg, type Shape } from "./PhotoEditor";
 
 // Adds photos and videos from this device to the media library (#177). A photo is shrunk here to a 1,600px JPEG (which also drops its
@@ -119,13 +121,9 @@ export function LibraryUpload({ cars }: { cars: { slug: string; title: string }[
   const [slug, setSlug] = useState("");
   return (
     <div className="flex flex-col gap-3">
-      <label className="flex max-w-sm flex-col gap-1">
-        <span className="text-meta font-semibold">Car, if it belongs to one</span>
-        <select value={slug} onChange={(e) => setSlug(e.target.value)} className="h-11 rounded-control border border-control bg-card px-3 text-body">
-          <option value="">No car</option>
-          {cars.map((c) => <option key={c.slug} value={c.slug}>{c.title}</option>)}
-        </select>
-      </label>
+      <Field label="Car, if it belongs to one" className="max-w-sm">
+        <Select label="Car, if it belongs to one" value={slug} onChange={setSlug} options={[["", "No car"], ...cars.map((c) => [c.slug, c.title] as const)]} />
+      </Field>
       <MediaUpload carSlug={slug} label="Add photos or videos" edit />
     </div>
   );

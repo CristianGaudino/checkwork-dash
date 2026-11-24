@@ -175,8 +175,8 @@ export function Filters({ groups }: { groups: FilterGroup[] }) {
             <fieldset key={g.name} className="flex flex-col">
               <legend className="mb-1 text-meta font-semibold">{g.label}</legend>
               {[["", g.any ?? "Any"] as const, ...g.options].map(([value, label]) => (
-                <label key={value} className="-mx-2 flex min-h-10 cursor-pointer items-center gap-3 rounded-control px-2 text-body hover:bg-surface">
-                  <input type="radio" name={`${id}-${g.name}`} value={value} checked={chosen[g.name] === value} onChange={() => set({ [g.name]: value || undefined })} className="size-4 accent-accent" />
+                <label key={value} className="-mx-2 flex min-h-11 cursor-pointer items-center gap-3 rounded-control px-2 text-body hover:bg-surface">
+                  <input type="radio" name={`${id}-${g.name}`} value={value} checked={chosen[g.name] === value} onChange={() => set({ [g.name]: value || undefined })} className="size-5 shrink-0 accent-accent" />
                   {label}
                 </label>
               ))}

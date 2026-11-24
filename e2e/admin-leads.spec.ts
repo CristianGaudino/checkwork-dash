@@ -36,17 +36,29 @@ test("an unknown lead is a 404, and bad filters are ignored", async ({ page }) =
   await expect.poll(async () => (await page.getByRole("row").count()) - 1).toBeGreaterThan(10); // the table streams in after the page
 });
 
-test("the list opens with what to answer now, and a lead moves on a step from its row, with Undo", async ({ page, context }) => {
-  // A 1280 laptop less a 17px Windows scrollbar. On a phone the row keeps one button (Call); the step is on the lead.
+test("the list opens with what to answer now, and a lead moves on a step from its row, stays there done, with Undo (#94)", async ({ page, context }) => {
+  // A 1280 laptop less a 17px Windows scrollbar. A row shows its next action (Call, Email or WhatsApp) and its menu, with the step in it.
   await page.setViewportSize({ width: 1263, height: 900 });
   await page.goto("/leads");
   // The table fits: the flexible columns give way, never the row's buttons.
   expect(await page.locator("table").evaluate((t) => t.parentElement!.scrollWidth - t.parentElement!.clientWidth)).toBeLessThanOrEqual(0);
   const todo = page.getByRole("region", { name: /^To answer now/ });
-  const first = todo.getByRole("listitem").first();
-  await expect(first.getByRole("link", { name: /^(Call|Email|WhatsApp)/ })).toBeVisible();
-  const href = (await first.locator('a[href^="/leads/lead-"]').first().getAttribute("href"))!;
-  const mark = first.getByRole("button", { name: /^Mark / });
+  await expect(todo.getByRole("listitem").first().getByRole("link", { name: /^(Call|Email|WhatsApp)/ })).toBeVisible();
+  // A row whose step takes it off the list (Mark contacted; an appointment set stays, to be followed up), clear of the first and last rows,
+  // which other specs work at the same time.
+  let href = "";
+  for (const r of (await todo.getByRole("listitem").all()).slice(1, -1)) {
+    await r.getByRole("button", { name: /^More for / }).click();
+    if (await r.getByRole("button", { name: /^Mark contacted/ }).count()) {
+      href = (await r.locator('a[href^="/leads/lead-"]').first().getAttribute("href"))!;
+      break;
+    }
+    await page.keyboard.press("Escape");
+  }
+  expect(href).not.toBe("");
+  const row = todo.getByRole("listitem").filter({ has: page.locator(`a[href="${href}"]`) });
+  const more = row.getByRole("button", { name: /^More for / });
+  const mark = row.getByRole("button", { name: /^Mark contacted/ });
   const to = (await mark.textContent())!.trim().replace(/^Mark /, "");
   // The lead's own page, in a second tab: its pressed status pill is what the store holds.
   const lead = await context.newPage();
@@ -57,33 +69,65 @@ test("the list opens with what to answer now, and a lead moves on a step from it
   await expect(page.getByTestId("toast")).toContainText(new RegExp(to, "i"));
   await lead.reload();
   await expect(status()).toHaveText(new RegExp(`^${to}$`, "i"));
+  // The step takes it off the list: the row stays where it was, saying what it became, its buttons gone.
+  await expect(row.getByText(new RegExp(`^${to}$`, "i"))).toBeVisible();
+  await expect(row.getByRole("button")).toHaveCount(0);
+  // The pressed button went with them: the word keeps the focus, so the next Tab goes on from this row, not the top of the page.
+  await expect(row.locator("[data-held]")).toBeFocused();
   await page.getByTestId("toast").getByRole("button", { name: "Undo" }).click();
   await expect.poll(async () => (await lead.reload(), (await status().textContent())?.trim())).toBe(before);
+  await expect(more).toBeVisible(); // back to normal
 });
 
-test("a lead marked spam from To answer now leaves the panel and the Overview count, and Undo brings it back (#56)", async ({ page, context }) => {
+test("a step pressed on a lead someone moved already is refused, and the row is not held as done (#94)", async ({ page, context }) => {
+  await page.goto("/leads");
+  const todo = page.getByRole("region", { name: /^To answer now/ });
+  // The fourth row, clear of the rows other specs work at the same time.
+  const href = (await todo.getByRole("listitem").nth(3).locator('a[href^="/leads/lead-"]').first().getAttribute("href"))!;
+  const row = todo.getByRole("listitem").filter({ has: page.locator(`a[href="${href}"]`) });
+  await row.getByRole("button", { name: /^More for / }).click();
+  // Meanwhile a colleague marks it lost on its own page.
+  const lead = await context.newPage();
+  await lead.goto(href);
+  const pills = lead.getByRole("group", { name: "Status" });
+  const before = (await pills.getByRole("button", { pressed: true }).textContent())!.trim();
+  await pills.getByRole("button", { name: "Lost", exact: true }).click();
+  await expect(pills.getByRole("button", { name: "Lost", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await row.getByRole("button", { name: /^Mark / }).click();
+  await expect(page.getByTestId("toast")).toContainText("Someone changed this already");
+  // The refresh takes it off the list as lost; it is not held as done, which it is not.
+  await expect(row).toHaveCount(0);
+  // Put it back by its status pill, not the toast's Undo, which may have closed by now under a loaded run.
+  await pills.getByRole("button", { name: before, exact: true }).click();
+  await expect(pills.getByRole("button", { name: before, exact: true })).toHaveAttribute("aria-pressed", "true");
+});
+
+test("a lead marked spam from To answer now stays in place as Spam until reload, leaves the Overview count, and Undo brings it back (#56, #94)", async ({ page, context }) => {
   await page.setViewportSize({ width: 1263, height: 900 });
   await page.goto("/leads");
   const todo = page.getByRole("region", { name: /^To answer now/ });
   // The last row shown, as the other tests work the first.
   const href = (await todo.getByRole("listitem").last().locator('a[href^="/leads/lead-"]').first().getAttribute("href"))!;
   const row = todo.getByRole("listitem").filter({ has: page.locator(`a[href="${href}"]`) });
-  // The Overview's count of leads to answer (its Reply to leads button), in a second tab, so the toast's Undo stays on the first. Other
-  // specs move leads meanwhile, so the count is only checked to drop.
+  // A second tab, so the toast's Undo stays on the first.
   const other = await context.newPage();
-  const toAnswer = async () => (await other.goto("/?mine=0"), Number(/(\d+) leads? to answer/.exec((await other.getByRole("navigation", { name: "Quick actions" }).getByRole("link", { name: /^Reply to leads/ }).textContent()) ?? "")?.[1] ?? 0));
-  const before = await toAnswer();
 
   await row.getByRole("button", { name: /^More for / }).click();
   await row.getByRole("button", { name: /^Spam: / }).click();
   await expect(page.getByTestId("toast")).toContainText(": Spam");
-  await expect(row).toHaveCount(0);
-  await expect.poll(toAnswer).toBeLessThan(before);
+  // It stays where it was, saying Spam, with no buttons, until the page is loaded again.
+  await expect(row.getByText("Spam", { exact: true })).toBeVisible();
+  await expect(row.getByRole("button")).toHaveCount(0);
+  // Gone from the Overview's to-dos (all of them, on To do's own page). A count is no check: other specs add leads at the same time.
+  await expect.poll(async () => (await other.goto("/to-do?mine=0"), other.locator(`main a[href="${href}"]`).count())).toBe(0);
+  await other.goto("/leads");
+  await expect(other.getByRole("region", { name: /^To answer now/ }).locator(`a[href="${href}"]`)).toHaveCount(0);
   // The lead says so. (That no count or report has it is reports.test.ts's and the others'.)
   await other.goto(href);
   await expect(other.getByText("Marked as spam. Left out of every list and report.")).toBeVisible();
 
   await page.getByTestId("toast").getByRole("button", { name: "Undo" }).click();
+  await expect(row.getByRole("button", { name: /^More for / })).toBeVisible(); // live again, in place
   await expect.poll(async () => (await page.reload(), row.count())).toBe(1);
 });
 

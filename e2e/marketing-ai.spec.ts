@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { choose } from "./combo";
 
 // Marketing formats, the media library, the calendar and the AI writer (#177, #179). The AI is the demo's mock (no key, no cost) and publishing is
 // simulated, so everything here runs without leaving the dashboard. The unit tests hold the rules (src/lib/ai, src/lib/admin/media-rules.test.ts).
@@ -7,7 +8,7 @@ async function startPost(page: Page, url = "/marketing/new") {
   await page.getByRole("main").locator("li > button[aria-pressed]").nth(2).click();
   await expect(page.getByRole("heading", { name: /Step 2 of 4/ })).toBeFocused();
 }
-const next = (page: Page) => page.getByRole("button", { name: "Next" }).click();
+const next = (page: Page) => page.getByRole("button", { name: "Next", exact: true }).click(); // exact: not "Open Next.js Dev Tools" on `next dev`
 const text = (page: Page) => page.getByRole("textbox", { name: "Text", exact: true });
 // A 1 by 1 PNG: the browser reads it, shrinks it to a JPEG and sends it.
 const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
@@ -87,7 +88,7 @@ test("a TikTok post is held until TikTok approves us, and says so", async ({ pag
 
 test("upload a photo to the media library, tag it to a car, and use it in a carousel; the server refuses a file that is not a photo", async ({ page }) => {
   await page.goto("/marketing?tab=media");
-  await page.getByLabel("Car, if it belongs to one").selectOption({ index: 1 });
+  await choose(page.getByRole("combobox", { name: "Car, if it belongs to one" }), 1);
   const name = `e2e-yard-${Date.now()}.png`;
   await page.getByLabel("Add photos or videos").setInputFiles({ name, mimeType: "image/png", buffer: PNG });
   await expect(page.getByText("Added to your library")).toBeVisible();
@@ -173,7 +174,7 @@ test("with the AI module off there is no AI anywhere; with Social off there are 
   await expect(page).toHaveURL(/marketing/);
   await expect(page.getByRole("link", { name: "New post" })).toHaveCount(0);
   await expect(page.getByRole("link", { name: /^Calendar/ })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Write from the newest cars" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Write from the newest cars" })).toBeVisible();
   await page.goto("/marketing/new");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Not in your plan");
 

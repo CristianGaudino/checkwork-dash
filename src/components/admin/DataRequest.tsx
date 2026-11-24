@@ -53,7 +53,7 @@ export function DataRequest() {
                   <p className="max-w-measure text-meta text-text-2">Purchases, deposits, orders and claims stay for the books, without their name.</p>
                   <input type="hidden" name="q" value={state.q} />
                   <label className="flex min-h-11 items-center gap-3 text-body">
-                    <input type="checkbox" name="checked" checked={checked} onChange={(e) => setCheckedFor(e.target.checked ? state.q : undefined)} className="size-5 accent-accent" />
+                    <input type="checkbox" name="checked" checked={checked} onChange={(e) => setCheckedFor(e.target.checked ? state.q : undefined)} className="size-5 shrink-0 accent-accent" />
                     I have checked this is the person asking
                   </label>
                   <SubmitButton disabled={!checked} className={`${dangerButton} self-start disabled:opacity-50`}>

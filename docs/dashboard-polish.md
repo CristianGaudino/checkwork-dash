@@ -77,12 +77,12 @@ these levels, from the kit (`src/components/admin/kit.tsx`). No outline-only but
 |---|---|---|---|
 | Primary | `adminButton` | Filled indigo, white text | The main thing to do in a panel or screen area. At most one per area. |
 | Secondary | `adminButtonQuiet` | Tonal: a soft indigo fill (`accent-soft`), indigo text, no border | Other actions beside the primary: Cancel, Save draft, Call and Email on a lead. |
-| Row, strong | `rowButtonStrong` | Tonal, row size | The most used action in a row or task: Call, Confirm, Record sale. One per row. |
-| Tertiary | `rowButton` | Text only, indigo, a soft fill on hover | The rest of a row's actions, See all, More, menu items (neutral text inside a menu). |
+| Row, strong | `rowButtonStrong` | Tonal, row size | A row's or task's next step: Confirm, Record sale, Call on a follow-up. One per row. |
+| Tertiary | `rowButton` | Text only, indigo, a soft fill on hover | See all, the row menu's icon, menu items (neutral text inside a menu). |
 | Destructive | `dangerButton`, `rowDanger` | Red tonal fill, or red text in a row | Delete, Remove, Revoke, Clear. Never filled solid red, never the primary. |
 | Choice | `choicePill` | Neutral chip; the chosen one filled ink | One of a few (a status, who has it, a follow-up day). A choice, not an action. |
 
-- **Icons** sit before the words where they help recognition (Call, WhatsApp, Email, Edit, Post, Confirm). The words stay: never an icon alone.
+- **Icons** sit before the words where they help recognition (Call, WhatsApp, Email, Edit, Post, Confirm). The words stay: never an icon alone, but for a row's menu (`RowMenu`), three dots with an accessible name, 44px to press.
 - **Contrast:** indigo text on `accent-soft` is 5:1 or more in light and dark, and 4.5:1 on hover. Red on `bad-soft` is the status tone pair.
 - **Focus:** the global 2px indigo ring (`:focus-visible`) on every level. **Size:** 44px tall on a phone; a compact table may shrink row buttons.
 - **AI writing** (`AIWriter`): Write with AI is a secondary button with the sparkle in a filled indigo dot, so it reads as its own thing. Then

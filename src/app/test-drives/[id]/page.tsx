@@ -7,7 +7,7 @@ import { DriveStatusBadge } from "@/components/admin/badges";
 import { DriveSteps } from "@/components/admin/DriveSteps";
 import { Badge, Facts, PageHeader, Panel, choicePill } from "@/components/admin/kit";
 import { drivesStore, getSettings } from "@/lib/admin/collections";
-import { DRIVE_NEXT, isOpenDrive, slotData } from "@/lib/admin/drives";
+import { isOpenDrive, slotData } from "@/lib/admin/drives";
 import { dublinDay, fmtDateTime, fmtDay, fmtTime } from "@/lib/admin/format";
 import { adminCars } from "@/lib/admin/stock-admin";
 import { askedCar } from "@/lib/leads/journey";
@@ -57,7 +57,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             <ContactButtons phone={d.phone} email={d.email || undefined} />
           </Panel>
           <Panel title="Status" action={<DriveStatusBadge status={d.status} />}>
-            {DRIVE_NEXT[d.status] ? <DriveSteps drive={d} ahead={dublinDay(d.startsAt) > dublinDay()} page /> : <p className="text-body text-text-2">Nothing more to do.</p>}
+            {/* The steps due now, or Rebook once it is over. A confirmed drive still to come has none: Cancel only. */}
+            <DriveSteps drive={d} page />
           </Panel>
           <Panel title="Taking them out">
             <div className="flex flex-wrap gap-2">

@@ -79,6 +79,14 @@ export const MenuIcon = (p: Props) => (
     <path d="M4 7h16M4 12h16M4 17h16" />
   </Icon>
 );
+// A row's menu (RowMenu): three dots across, filled so they read at 16px.
+export const MoreIcon = (p: Props) => (
+  <Icon {...p}>
+    <circle cx="5.5" cy="12" r="1.5" fill="currentColor" stroke="none" />
+    <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none" />
+    <circle cx="18.5" cy="12" r="1.5" fill="currentColor" stroke="none" />
+  </Icon>
+);
 
 export const ArrowRightIcon = (p: Props) => (
   <Icon {...p}>

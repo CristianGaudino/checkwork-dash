@@ -3,6 +3,7 @@
 import { useKeptForm } from "@/components/admin/useKeptForm";
 import { useState } from "react";
 import { Select } from "@/components/Select";
+import { CameraIcon } from "@/components/stock/icons";
 import { Field, adminButton, adminButtonQuiet, adminInput, choicePill } from "@/components/admin/kit";
 import { sendFeedbackAction, sendHelpAction, type HelpState } from "@/app/help/actions";
 import { MESSAGE_MAX, type HelpType } from "@/lib/admin/help-rules";
@@ -11,12 +12,13 @@ import { MESSAGE_MAX, type HelpType } from "@/lib/admin/help-rules";
 export function HelpForm({ types, first, from }: { types: HelpType[]; first: HelpType; from: string }) {
   const [state, run, pending] = useKeptForm<HelpState>(sendHelpAction, undefined);
   const [type, setType] = useState<string>(first);
+  const [shot, setShot] = useState(""); // the chosen screenshot's file name
   const errors = state?.errors ?? {};
   return (
-    <form {...run} className="flex max-w-2xl flex-col gap-4" noValidate>
+    <form {...run} onReset={() => setShot("")} className="flex max-w-2xl flex-col gap-4" noValidate>
       <input type="hidden" name="from" value={from} />
       <Field label="What is it about?" error={errors.type}>
-        <Select name="type" label="What is it about?" value={type} onChange={setType} options={types.map((t) => [t, t] as const)} />
+        <Select name="type" label="What is it about?" value={type} onChange={(v) => { if (v !== type) setShot(""); setType(v); }} options={types.map((t) => [t, t] as const)} />
       </Field>
       {type === "Something isn't working" && (
         <Field label="What were you doing, and what happened?" error={errors.steps}>
@@ -28,7 +30,15 @@ export function HelpForm({ types, first, from }: { types: HelpType[]; first: Hel
       </Field>
       {type === "Something isn't working" && (
         <Field label="Screenshot (optional)" hint="Only add one if it shows no customer details" error={errors.screenshot}>
-          <input name="screenshot" type="file" accept="image/jpeg,image/png,image/webp" className="text-body" />
+          {/* The house file button (as on Media and a car's photos), not the browser's grey one; the Field's label opens the picker. */}
+          <span className="flex min-w-0 flex-wrap items-center gap-3">
+            <span className={`${adminButtonQuiet} w-fit cursor-pointer has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent`}>
+              <CameraIcon className="size-4 shrink-0" />
+              {shot ? "Choose another" : "Choose a picture"}
+              <input name="screenshot" type="file" accept="image/jpeg,image/png,image/webp" aria-label="Screenshot" onChange={(e) => setShot(e.target.files?.[0]?.name ?? "")} className="sr-only" />
+            </span>
+            {shot && <span className="min-w-0 truncate text-meta text-text-2">{shot}</span>}
+          </span>
         </Field>
       )}
       <div className="flex items-center gap-4">

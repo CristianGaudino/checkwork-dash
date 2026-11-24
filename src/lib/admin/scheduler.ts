@@ -12,7 +12,7 @@ import { PUBLISH_MODE } from "./networks";
 // again, and gives a failing post a pause before the next try.
 // shortcut: the claim is read then written, not atomic, so two calls in the same instant can still both send. Use a D1 conditional update
 // when a live publisher is connected.
-const CLAIM_MS = 5 * MINUTE;
+export const CLAIM_MS = 5 * MINUTE;
 export async function sendDuePosts(now = Date.now()): Promise<number> {
   let sent = 0;
   for (const p of await postsStore.list()) {

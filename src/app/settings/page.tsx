@@ -3,6 +3,7 @@ import { AddTeamForm, BusinessForm, RoleForm, LeadEmailsForm, MarketingForm, Not
 import { Badge, DataTable, PageHeader, Panel, dangerButton, rowDanger, tapArea } from "@/components/admin/kit";
 import { TabRow } from "@/components/admin/TabRow";
 import { ActButton } from "@/components/admin/ActButton";
+import { RowMenu } from "@/components/admin/RowMenu";
 import { getSettings } from "@/lib/admin/collections";
 import { INTEGRATIONS, type IntegrationId, integrationText, modeOf } from "@/lib/integrations";
 import { removeTeamAction, resetDemoAction } from "./actions";
@@ -62,16 +63,18 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
   const voice = mods.has("social") || mods.has("newsletter");
   // A manager changes everyone but an owner.
   const mayChange = (t: { role: Role }) => team && (owner || t.role !== "Owner");
-  // A person's role: the picker and Remove on one line for those this person may change, else the role. Remove is never on their own row:
+  // A person's role: the picker, and Remove under the row's menu (#95), for those this person may change, else the role. Remove is never on their own row:
   // removing yourself would lock you out.
   const role = (t: (typeof s.team)[number]) =>
     mayChange(t) ? (
       <div className="flex items-start gap-1">
         <RoleForm member={t} owner={owner} />
         {s.team.length > 1 && t.email.toLowerCase() !== me.email.toLowerCase() && (
-          <ActButton act={removeTeamAction.bind(null, t.id)} confirm={{ title: `Remove ${t.name} from the team?`, text: "Their leads and test drives go back to nobody. They can be added again later.", yes: "Remove" }} className={rowDanger}>
-            Remove
-          </ActButton>
+          <RowMenu label={`More for ${t.name}`}>
+            <ActButton act={removeTeamAction.bind(null, t.id)} confirm={{ title: `Remove ${t.name} from the team?`, text: "Their leads and test drives go back to nobody. They can be added again later.", yes: "Remove" }} className={rowDanger}>
+              Remove
+            </ActButton>
+          </RowMenu>
         )}
       </div>
     ) : (

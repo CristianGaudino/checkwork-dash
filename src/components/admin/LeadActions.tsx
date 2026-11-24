@@ -63,15 +63,21 @@ export function LeadMenu({ lead, spam = true }: { lead: Pick<Lead, "id" | "name"
   if (!isOpenLead(lead) || (!spam && !canClose(lead))) return null;
   return (
     <RowMenu label={`More for ${lead.name}`}>
-      {canClose(lead) &&
-        CLOSE_REASONS.map((r) => (
-          <ChoiceAct key={r} action={setStatusAction.bind(null, lead.id)} set={{ status: "closed", reason: r, from: lead.status }} back={{ status: lead.status, from: "closed", ...(lead.followUpOn && { on: lead.followUpOn }) }} active={false} done={`${lead.name}: Closed, ${r.toLowerCase()}`} label={`Close: ${r}, ${lead.name}`} className={rowButton}>
-            Close: {r}
-          </ChoiceAct>
-        ))}
+      <CloseChoices lead={lead} />
       {spam && <SpamButton lead={lead} to="yes" />}
     </RowMenu>
   );
+}
+
+// Close, with a reason (#55), one press each with Undo (back to the status and follow-up day). Nothing where it cannot be closed. Its label
+// ("Close: …") is what HeldTasks reads to show the row as Closed.
+export function CloseChoices({ lead }: { lead: Pick<Lead, "id" | "name" | "status" | "type" | "followUpOn"> }) {
+  if (!canClose(lead)) return null;
+  return CLOSE_REASONS.map((r) => (
+    <ChoiceAct key={r} action={setStatusAction.bind(null, lead.id)} set={{ status: "closed", reason: r, from: lead.status }} back={{ status: lead.status, from: "closed", ...(lead.followUpOn && { on: lead.followUpOn }) }} active={false} done={`${lead.name}: Closed, ${r.toLowerCase()}`} label={`Close: ${r}, ${lead.name}`} className={rowButton}>
+      Close: {r}
+    </ChoiceAct>
+  ));
 }
 
 // Spam and Not spam (#56), one press each with Undo. "yes" marks it spam; "no" puts a spam lead back or clears Possible spam.

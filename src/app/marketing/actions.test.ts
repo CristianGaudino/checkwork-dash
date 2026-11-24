@@ -142,16 +142,57 @@ describe("publishing, ads and newsletters", () => {
     expect(await composerCarAction("nope")).toBeNull();
   });
 
-  it("writes a newsletter from the stock or by hand, sends a draft once, and deletes", async () => {
-    expect(await notice(() => createNewsletterAction(form({ intent: "write" })))).toBe("letter-created");
+  it("saves a newsletter draft, edits it, sends it once, and deletes", async () => {
     expect(await notice(() => createNewsletterAction(form({ intent: "save", subject: "", body: "x" })))).toBe("invalid");
     expect(await notice(() => createNewsletterAction(form({ intent: "save", subject: "Hi", body: "News" })))).toBe("letter-created");
-    const [first] = await newslettersStore.list();
+    const first = (await newslettersStore.list()).find((n) => n.subject === "Hi" && n.status === "draft")!;
+    expect(await notice(() => createNewsletterAction(form({ intent: "save", id: first.id, subject: "Hello", body: "More news" })))).toBe("letter-created");
+    expect(await newslettersStore.get(first.id)).toMatchObject({ subject: "Hello", body: "More news", status: "draft", createdAt: first.createdAt });
+    expect(await notice(() => createNewsletterAction(form({ intent: "save", id: first.id, subject: "", body: "x" })))).toBe("invalid"); // the same checks as a new one
+    expect(await notice(() => createNewsletterAction(form({ intent: "save", id: "nope", subject: "Hi", body: "x" })))).toBe("invalid");
     expect(await notice(() => sendNewsletterAction(first.id))).toBe("letter-sent");
     expect((await newslettersStore.get(first.id))!.status).toBe("sent");
     expect(await notice(() => sendNewsletterAction(first.id))).toBe("invalid"); // never twice
+    expect(await notice(() => createNewsletterAction(form({ intent: "save", id: first.id, subject: "Hi", body: "x" })))).toBe("invalid"); // a sent one is never changed
     expect(await notice(() => deleteNewsletterAction(first.id))).toBe("deleted");
     expect(await newslettersStore.get(first.id)).toBeUndefined();
+  });
+
+  it("edits a draft in place with the same checks, schedules it from there, and never changes a post that went out", async () => {
+    const [car, other] = (await adminCars()).filter(forSale);
+    await notice(() => composeAction(form({ carSlug: car.slug, network: "Facebook", text: "Hello", intent: "draft", timing: "now", photos: [car.photos[0].src] })));
+    const [draft] = await postsStore.list();
+    const edit = { id: draft.id, carSlug: car.slug, network: "Facebook", timing: "now" };
+    expect(await notice(() => composeAction(form({ ...edit, text: "Changed", intent: "draft", photos: [car.photos[0].src, other.photos[0].src] })))).toBe("post-draft");
+    expect(await postsStore.list()).toHaveLength(1); // the same post, not a second one
+    expect(await postsStore.get(draft.id)).toMatchObject({ text: "Changed", photos: [car.photos[0].src], status: "draft", createdAt: draft.createdAt }); // another car's photo is still refused
+    expect(await notice(() => composeAction(form({ ...edit, text: " ", intent: "draft" })))).toBe("invalid");
+    expect(await notice(() => composeAction(form({ ...edit, text: "Later", intent: "publish", timing: "later", when: "2031-01-01T10:00" })))).toBe("post-scheduled");
+    expect((await postsStore.get(draft.id))!.status).toBe("scheduled");
+    expect(await notice(() => composeAction(form({ ...edit, text: "Now", intent: "publish" })))).toBe("post-published");
+    expect(await notice(() => composeAction(form({ ...edit, text: "Again", intent: "draft" })))).toBe("invalid");
+    expect((await postsStore.get(draft.id))!.text).toBe("Now");
+    expect(await notice(() => composeAction(form({ ...edit, id: "nope", text: "x", intent: "draft" })))).toBe("invalid");
+  });
+
+  it("drops the old car's photos when an edit moves the post to another car, and leaves a post being sent alone", async () => {
+    const [car, other] = (await adminCars()).filter(forSale);
+    await notice(() => composeAction(form({ carSlug: car.slug, network: "Facebook", text: "Hello", intent: "draft", timing: "now", photos: [car.photos[0].src] })));
+    const [draft] = await postsStore.list();
+    expect(await notice(() => composeAction(form({ id: draft.id, carSlug: other.slug, network: "Facebook", timing: "now", text: "Other", intent: "draft", photos: [car.photos[0].src] })))).toBe("post-draft");
+    expect(await postsStore.get(draft.id)).toMatchObject({ carSlug: other.slug, text: "Other" });
+    expect((await postsStore.get(draft.id))!.photos).toBeUndefined();
+    await postsStore.put({ ...(await postsStore.get(draft.id))!, claimedAt: Date.now() }); // the scheduler is sending it
+    expect(await notice(() => composeAction(form({ id: draft.id, carSlug: other.slug, network: "Facebook", timing: "now", text: "Late", intent: "draft" })))).toBe("invalid");
+    expect((await postsStore.get(draft.id))!.text).toBe("Other");
+  });
+
+  it("posts from the list only what has what its format needs", async () => {
+    const car = (await adminCars()).filter(forSale)[0];
+    await notice(() => composeAction(form({ carSlug: car.slug, network: "Facebook", format: "carousel", text: "Hello", intent: "draft", timing: "now", photos: [car.photos[0].src] })));
+    const [draft] = await postsStore.list();
+    expect(await notice(() => publishPostAction(draft.id))).toBe("invalid"); // a carousel needs two photos
+    expect((await postsStore.get(draft.id))!.status).toBe("draft");
   });
 
   it("refuses a post for a car no longer for sale", async () => {

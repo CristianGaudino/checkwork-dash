@@ -5,7 +5,7 @@ import { DAY } from "@/lib/time";
 import type { Ad, DealerSettings, Network, SocialPost } from "./collections";
 import { addDays, dublinDay } from "./format";
 import { slugId } from "./stock-admin-pure";
-import { PUBLISH_MODE, type PostFormat } from "./networks";
+import { FORMAT_LIMITS, PUBLISH_MODE, type PostFormat } from "./networks";
 import type { CarFacts } from "@/lib/ai/tasks";
 
 // The writers for posts and newsletters. Plain templates over the car's own facts and the dealer's voice settings: the same car and
@@ -47,6 +47,14 @@ export function postText(c: CarFacts, network: Network, voice: Voice, format: Po
   if (format === "story") return [head, c.price].filter(Boolean).join("\n");
   const parts = network === "TikTok" ? [head, line, tags] : [head, line, voice.signOff.trim(), link, network === "Instagram" ? tags : ""];
   return parts.filter(Boolean).join("\n");
+}
+
+// Whether a post has what its format needs to go out: a reel its video, a story a photo or a video, the rest their least number of photos.
+// A draft may be unfinished; posting it, now or later, needs this.
+export function readyToPost(p: Pick<SocialPost, "format" | "photos" | "video">): boolean {
+  const format = p.format ?? "post";
+  const photos = p.photos?.length ?? 0;
+  return format === "reel" ? Boolean(p.video) : format === "story" ? photos + (p.video ? 1 : 0) > 0 : photos >= FORMAT_LIMITS[format].photos[0];
 }
 
 // The calendar's week (#177): the Monday to Sunday that holds `day` (an Irish YYYY-MM-DD), and what falls on each day. A post is on the day
