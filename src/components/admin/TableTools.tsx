@@ -4,7 +4,6 @@ import { Select } from "@/components/Select";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useId, useOptimistic, useRef, useState, useTransition } from "react";
-import { useDensity } from "@/components/admin/density";
 import { CloseIcon, SearchIcon, SlidersIcon } from "@/components/stock/icons";
 import { fmtNum } from "@/lib/admin/format";
 import { PER_PAGE, PER_PAGE_DEFAULT } from "@/lib/admin/paging";
@@ -107,21 +106,6 @@ export function SortHeader({ k, label, active, dir, align }: { k: string; label:
       <span aria-hidden className={`text-[0.75rem] ${active ? "" : "opacity-0"}`}>{active && dir === "desc" ? "▼" : "▲"}</span>
       <span className="sr-only">{active ? `, sorted ${dir === "asc" ? "ascending" : "descending"}` : ", sort"}</span>
     </Link>
-  );
-}
-
-// The tables' row density, for this person on every table (kept in a cookie by the frame). The pages stay as they are.
-export function DensityToggle() {
-  const { compact, setCompact } = useDensity();
-  return (
-    <button type="button" aria-pressed={compact} onClick={() => setCompact(!compact)} className={`inline-flex h-11 shrink-0 items-center gap-2 rounded-control px-3 text-meta font-medium transition-colors ${compact ? "bg-text text-ink" : "bg-hairline text-text hover:bg-accent-soft hover:text-accent-text"} ${press}`}>
-      <span aria-hidden className="flex flex-col gap-1">
-        {[0, 1, 2].map((i) => (
-          <span key={i} className="block h-[2px] w-3.5 rounded-full bg-current" />
-        ))}
-      </span>
-      Compact
-    </button>
   );
 }
 

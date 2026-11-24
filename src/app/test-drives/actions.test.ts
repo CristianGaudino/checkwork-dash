@@ -55,8 +55,9 @@ describe("a booking taken at the desk", () => {
   it("books a free time, refuses the same car within the slot, and keeps who takes them out only if they are on the team", async () => {
     const team = (await getSettings()).team;
     const first = await addDriveAction(undefined, form(await base({ date: open(25), assignedTo: team[1].name })));
-    expect(first).toMatchObject({ done: expect.stringContaining("Booked Desk booker"), day: open(25) });
+    expect(first?.done).toContain("Booked Desk booker");
     const made = (await drivesStore.list()).find((d) => d.name === "Desk booker" && dublinDay(d.startsAt) === open(25))!;
+    expect(first?.id).toBe(made.id); // the form opens the booking made
     expect(made).toMatchObject({ status: "confirmed", assignedTo: team[1].name });
     expect((await addDriveAction(undefined, form(await base({ date: open(25), time: "11:30" }))))?.errors?.time).toMatch(/already booked around then/);
     await addDriveAction(undefined, form(await base({ date: open(30), name: "Outsider pick", assignedTo: "Somebody Else" })));

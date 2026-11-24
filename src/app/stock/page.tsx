@@ -249,8 +249,8 @@ async function StockTable({ sp, matching, sales, view, q, synced, social, canUnd
       sort: (c) => `${c.make} ${c.model} ${c.variant ?? ""}`,
       cell: (c) => (
         <div className="flex min-w-0 items-center gap-3">
-          {/* The photo goes in compact rows: there the row is the size of a line. Smaller on a phone under 400px, so the name still fits. */}
-          <div className="h-9 w-12 shrink-0 overflow-hidden rounded-control bg-photo-bg min-[25rem]:h-12 min-[25rem]:w-16 group-data-[density=compact]/shell:hidden">
+          {/* Smaller on a phone under 400px, so the name still fits. */}
+          <div className="h-9 w-12 shrink-0 overflow-hidden rounded-control bg-photo-bg min-[25rem]:h-12 min-[25rem]:w-16">
             <CarThumb src={c.photos[0]?.src} />
           </div>
           {/* The name, then the year, variant and registration, then what needs doing about the car (few photos, hidden, in stock too long). */}

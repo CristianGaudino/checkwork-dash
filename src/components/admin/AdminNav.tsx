@@ -23,7 +23,7 @@ const saveOpenGroups = (open: string[]) => {
 
 // The dealer area's navigation (docs/mobile-navigation.md). From 1024px a sidebar: Overview and the everyday places, then the groups, each folding open and shut
 // under its heading. Under 1024px a tab bar at the foot of the screen. The current section is marked in both.
-export function AdminNav({ items, label, openGroups, rail = false }: { items: NavItem[]; label: string; openGroups: string[]; rail?: boolean }) {
+export function AdminNav({ items, label, openGroups }: { items: NavItem[]; label: string; openGroups: string[] }) {
   const path = usePathname();
   // The first item is the area's home, so it matches only itself; the others match their whole branch, and the pages they are `also`.
   const at = (href: string) => (href === items[0]?.href ? path === href : path === href || path.startsWith(href + "/"));
@@ -56,66 +56,34 @@ export function AdminNav({ items, label, openGroups, rail = false }: { items: Na
       {/* Overview and the everyday places stay put; on a short screen (a 1280x800 laptop) only the groups under them scroll. On a very short
           one (under about 460px) the groups keep 6rem and the whole sidebar scrolls instead (AdminShell). contain-size: the groups'
           own height never counts toward the nav's, so the nav fills the space left and only grows past it for that 6rem. */}
-      <nav ref={nav} aria-label={label} className={`hidden flex-1 flex-col lg:flex ${rail ? "items-center px-2" : "px-3"}`}>
-        {rail ? (
-          // The rail: every place as its icon, the groups parted by a line (nothing to fold), each named on hover and to screen readers.
-          <>
-            <div className="flex shrink-0 flex-col items-center gap-0.5">
-              {top.map((it) => (
-                <NavLink key={it.href} item={it} on={current(it)} iconOnly />
-              ))}
-            </div>
-            <div className="flex min-h-24 flex-1 flex-col items-center gap-0.5 self-stretch overflow-y-auto overscroll-contain pb-4 contain-size">
-              {groups.map((g) => (
-                <div key={g.name} className="mt-2 flex flex-col items-center gap-0.5 border-t border-hairline pt-2">
-                  {g.items.map((it) => (
-                    <NavLink key={it.href} item={it} on={current(it)} iconOnly />
-                  ))}
-                </div>
-              ))}
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="flex shrink-0 flex-col gap-0.5">
-              {top.map((it) => (
-                <NavLink key={it.href} item={it} on={current(it)} />
-              ))}
-            </div>
-            {groups.length > 0 && <div aria-hidden className="mx-3 mt-3 shrink-0 border-t border-hairline" />}
-            <div className="flex min-h-24 flex-1 flex-col overflow-y-auto overscroll-contain pb-4 contain-size">
-              {groups.map((g) => (
-                <NavSection key={g.name} group={g} open={open.has(g.name)} holdsCurrent={g.name === here} onToggle={() => toggle(g.name)} current={current} />
-              ))}
-            </div>
-          </>
-        )}
+      <nav ref={nav} aria-label={label} className="hidden flex-1 flex-col px-3 lg:flex">
+        <div className="flex shrink-0 flex-col gap-0.5">
+          {top.map((it) => (
+            <NavLink key={it.href} item={it} on={current(it)} />
+          ))}
+        </div>
+        {groups.length > 0 && <div aria-hidden className="mx-3 mt-3 shrink-0 border-t border-hairline" />}
+        <div className="flex min-h-24 flex-1 flex-col overflow-y-auto overscroll-contain pb-4 contain-size">
+          {groups.map((g) => (
+            <NavSection key={g.name} group={g} open={open.has(g.name)} holdsCurrent={g.name === here} onToggle={() => toggle(g.name)} current={current} />
+          ))}
+        </div>
       </nav>
       <TabBar items={items} label={label} current={current} />
     </>
   );
 }
 
-function NavLink({ item, on, iconOnly = false }: { item: NavItem; on: boolean; iconOnly?: boolean }) {
+function NavLink({ item, on }: { item: NavItem; on: boolean }) {
   const Icon = ICONS[item.icon];
   return (
     <Link
       href={item.href}
       aria-current={on ? "page" : undefined}
-      aria-label={iconOnly ? item.label : undefined}
-      className={`group/link flex min-h-9 items-center gap-3 whitespace-nowrap rounded-control text-meta font-medium transition-colors ${iconOnly ? "size-10 justify-center hover:filter-none" : "px-3"} ${on ? "bg-card text-text ring-1 ring-inset ring-hairline" : "text-text-2 hover:bg-card hover:text-text"} ${press}`}
+      className={`flex min-h-9 items-center gap-3 whitespace-nowrap rounded-control px-3 text-meta font-medium transition-colors ${on ? "bg-card text-text ring-1 ring-inset ring-hairline" : "text-text-2 hover:bg-card hover:text-text"} ${press}`}
     >
-      <Icon className={`${iconOnly ? "size-5" : "size-4.5"} shrink-0 ${on ? "text-accent-text" : ""}`} />
-      {iconOnly ? (
-        // The rail's name for the icon, on hover and on keyboard focus. Fixed at its own place in the link (no top or left), so the rail's
-        // scrolling sides never clip it, then moved off to the right of the icon. The link drops the global hover brightness (globals.css):
-        // a filter would make the link the box `fixed` is placed in, and the rail would clip the name again.
-        <span aria-hidden className="pointer-events-none fixed z-50 hidden translate-x-[calc(50%+1.75rem)] rounded-control bg-text px-2 py-1 text-meta text-ink shadow-panel group-hover/link:block group-focus-visible/link:block">
-          {item.label}
-        </span>
-      ) : (
-        item.label
-      )}
+      <Icon className={`size-4.5 shrink-0 ${on ? "text-accent-text" : ""}`} />
+      {item.label}
     </Link>
   );
 }

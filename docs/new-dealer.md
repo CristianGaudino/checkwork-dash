@@ -82,8 +82,8 @@ secrets.
    }
    ```
 
-   - `logo` and `mark` (a square crest for the folded menu) are paths on this app: put the files in `public/brand/<dealer-id>/` and
-     deploy (the app loads images from its own address only). Without a logo the menu shows the name; without a mark, the initials.
+   - `logo` is paths on this app: put the files in `public/brand/<dealer-id>/` and deploy (the app loads images from its own address
+     only). Without a logo the menu shows the name.
    - `modules`: ids from `src/lib/modules-rules.ts`, comma separated, or `all`. `stock.source` is `checkwork` (kept here) or `donedeal`
      (synced from `stock.listingSite`, `DoneDeal` or `CarsIreland`, with `stock.listingUrl` their page there).
    - `placeId`: their Google place, for their reviews.

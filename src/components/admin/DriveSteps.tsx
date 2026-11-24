@@ -17,8 +17,8 @@ export const rebookHref = (id: string) => `/test-drives/new?rebook=${encodeURICo
 // passed (driveSteps), so a double tap on Confirm never lands on Mark done. A booking that is over gets Rebook.
 // `page`: the booking's own page: every step in view, the first filled and right-most, Cancel at the far left. In a row (#95): only the first step, and
 // everything else (Call, the other steps, Cancel, Rebook) under the row's menu, out of a slipping thumb's way; with no step due, only the
-// menu. `primary` false: the step is a button elsewhere on the page (To do on the Overview), so the row has only its menu.
-export function DriveSteps({ drive, page = false, primary = true }: { drive: Drive; page?: boolean; primary?: boolean }) {
+// menu.
+export function DriveSteps({ drive, page = false }: { drive: Drive; page?: boolean }) {
   const next = driveSteps(drive);
   // Cancel asks first: a second press on Confirm, landing where Cancel then shows, must never cancel.
   const step = ([to, label]: (typeof next)[number], className: string) => (
@@ -48,7 +48,7 @@ export function DriveSteps({ drive, page = false, primary = true }: { drive: Dri
         )}
       </FormActions>
     );
-  const first = primary ? rest[0] : undefined;
+  const first = rest[0];
   const others = rest.filter((s) => s !== first);
   // `contents`: the buttons join the row's own line instead of wrapping as a block of their own.
   return (

@@ -293,7 +293,7 @@ async function Team({ team, settings: s, me, owner, rows, waOn }: { team: Person
                         </RowMenu>
                       ) : (
                         // The menu's room, so every Edit lines up.
-                        <span aria-hidden="true" className="w-11 group-data-[density=compact]/shell:w-8" />
+                        <span aria-hidden="true" className="w-11" />
                       )}
                     </span>
                   )}

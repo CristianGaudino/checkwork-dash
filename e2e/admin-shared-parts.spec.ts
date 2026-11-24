@@ -1,5 +1,5 @@
 import { expect, test, type Locator } from "@playwright/test";
-import { NAV_COOKIE, RAIL_COOKIE, openGroupsCookie } from "../src/lib/admin/nav";
+import { NAV_COOKIE, openGroupsCookie } from "../src/lib/admin/nav";
 import { BASE } from "./open";
 import { sideMenu } from "./admin-menu";
 
@@ -90,7 +90,7 @@ test("on a very short wide window the whole sidebar scrolls: nothing overlaps it
   await context.addCookies([{ name, value, url: BASE }]);
   await page.goto("/");
   const side = sideMenu(page);
-  const foot = page.locator("aside").getByRole("button", { name: "Collapse the menu" });
+  const foot = page.locator("aside").getByRole("link", { name: /View your website/ });
   const [nav, btn] = [(await side.boundingBox())!, (await foot.boundingBox())!];
   expect(nav.y + nav.height).toBeLessThanOrEqual(btn.y + 1); // the groups end above the foot, not over it
   for (const link of await side.getByRole("link").all()) {
@@ -114,23 +114,9 @@ for (const [width, path, label] of [[390, "/leads", "Lead status"], [390, "/sett
   });
 }
 
-test("in the collapsed rail a group's place can be reached: in view at 1280x800, by scrolling at 1280x420", async ({ page, context }) => {
-  await context.addCookies([{ name: RAIL_COOKIE, value: "1", url: BASE }]);
-  for (const height of [800, 420]) {
-    await page.setViewportSize({ width: 1280, height });
-    await page.goto("/");
-    const orders = sideMenu(page).getByRole("link", { name: "Orders", exact: true });
-    await orders.scrollIntoViewIfNeeded();
-    await expect(orders).toBeInViewport({ ratio: 1 });
-    await orders.click();
-    await expect(page).toHaveURL(/\/orders$/);
-  }
-});
-
-// The logo in the frame goes to the Overview, in the sidebar, the collapsed rail and the phone header.
-for (const [where, width, rail] of [["the sidebar", 1280, false], ["the collapsed rail", 1280, true], ["the phone header", 390, false]] as const) {
-  test(`the logo in ${where} goes to the Overview`, async ({ page, context }) => {
-    if (rail) await context.addCookies([{ name: RAIL_COOKIE, value: "1", url: BASE }]);
+// The logo in the frame goes to the Overview, in the sidebar and the phone header.
+for (const [where, width] of [["the sidebar", 1280], ["the phone header", 390]] as const) {
+  test(`the logo in ${where} goes to the Overview`, async ({ page }) => {
     await page.setViewportSize({ width, height: 800 });
     await page.goto("/leads");
     const logo = page.getByRole("link", { name: /, go to the overview$/ });

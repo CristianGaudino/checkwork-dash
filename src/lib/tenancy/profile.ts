@@ -18,10 +18,9 @@ export type DealerProfile = {
   address: { street: string; town: string; county: string; eircode: string };
   hours: Hours; // Monday first, 24 hour HH:MM; a day with no opens is closed
   social: { name: "Facebook" | "Instagram" | "TikTok"; href: string }[];
-  // The wide logo for a light and a dark background, and the square mark for the folded menu: paths on this app (public/brand/), since the
-  // content security policy loads images from here only. Without a logo the menu shows the name; without a mark, the initials.
+  // The wide logo for a light and a dark background: paths on this app (public/brand/), since the content security policy loads images
+  // from here only. Without a logo the menu shows the name.
   logo?: { onLight: string; onDark: string };
-  mark?: string;
   modules: string; // the plan: a comma list of module ids, or "all" (src/lib/modules-rules.ts)
   stock: { source: "checkwork" | "donedeal"; listingSite: ListingSite; listingUrl: string };
   rules: DealerRules;
@@ -55,7 +54,6 @@ export const DEMO_PROFILE: DealerProfile = {
   address: { street: "Long Mile Road", town: "Dublin 12", county: "Co. Dublin", eircode: "D12 AF77" },
   hours: HOURS_OF([["09:30", "18:00"], ["09:30", "18:00"], ["09:30", "18:00"], ["09:30", "18:00"], ["09:30", "18:00"], ["10:00", "16:00"]]),
   logo: { onLight: "/brand/logo-on-light.svg", onDark: "/brand/logo.svg" },
-  mark: "/icon.svg", // the Checkwork check (src/app/icon.svg), so the folded menu shows the brand, not "CM"
   modules: "all",
 };
 export const DEMO_NAME = "Checkwork Motors";
