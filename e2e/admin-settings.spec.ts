@@ -2,10 +2,10 @@ import { expect, test } from "@playwright/test";
 import { as } from "./open";
 
 test("a reply time is checked, saved, and changes what the overview calls late", async ({ page }) => {
-  await page.goto("/settings?section=routing");
-  // Read first, changed in the house dialog. The reply time is Lead routing's, with where new leads are emailed (#142).
-  await page.getByRole("button", { name: "Edit reply time" }).click();
-  const dialog = page.getByRole("dialog", { name: "Reply time" });
+  await page.goto("/settings?section=targets");
+  // Read first, changed in the house dialog. The reply time is in Timings, with the test drive slot (#150).
+  await page.getByRole("button", { name: "Edit timings" }).click();
+  const dialog = page.getByRole("dialog", { name: "Timings" });
   await dialog.locator('input[name="leadSlaHours"]').fill("0");
   await dialog.getByRole("button", { name: "Save" }).click();
   await expect(dialog.getByText("At least 1 hour")).toBeVisible(); // a refused save keeps it open, the error by its field

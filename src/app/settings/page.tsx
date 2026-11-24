@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { AddPersonEdit, BusinessEdit, DefaultsEdit, LeadEmailsEdit, MarketingEdit, NotificationsEdit, PersonEdit, ProfileEdit, ReplyTimeEdit, TargetsEdit, TestEmail } from "@/components/admin/SettingsForms";
+import { AddPersonEdit, BusinessEdit, LeadEmailsEdit, MarketingEdit, NotificationsEdit, PersonEdit, ProfileEdit, TargetsEdit, TestEmail } from "@/components/admin/SettingsForms";
 import { Badge, DataTable, Facts, FormActions, PageHeader, Panel, dangerButton, rowDanger, tapArea } from "@/components/admin/kit";
 import { formatHours } from "@/lib/dealer";
 import { TabRow } from "@/components/admin/TabRow";
@@ -9,7 +9,7 @@ import { RowMenu } from "@/components/admin/RowMenu";
 import { NotifyList } from "@/components/admin/NotifyGrid";
 import { Phones } from "@/components/admin/whatsapp/Phones";
 import { ChevronDownIcon } from "@/components/stock/icons";
-import { getSettings, type DealerSettings } from "@/lib/admin/collections";
+import { getSettings } from "@/lib/admin/collections";
 import { INTEGRATIONS, type IntegrationId, integrationText, modeOf } from "@/lib/integrations";
 import { removeTeamAction, resetDemoAction } from "./actions";
 import { fmtDate, fmtNum } from "@/lib/admin/format";
@@ -21,25 +21,17 @@ import { listing } from "@/lib/stock-source";
 import { currentDealer } from "@/lib/tenancy/current";
 import { NEW_TAB } from "@/components/ui";
 import { currentMember, type Member } from "@/lib/permissions";
-import { ROLES, roleCan, type Role } from "@/lib/permission-rules";
+import { roleCan, type Role } from "@/lib/permission-rules";
 import { enabledModules } from "@/lib/modules";
 import { type ModuleId } from "@/lib/modules-rules";
 import { BrandIcon } from "@/components/admin/BrandIcon";
 import { PushPanel } from "@/components/admin/PushPanel";
 import { pushStore, vapid } from "@/lib/push";
 import { staffIdentity } from "@/lib/staff";
-import { CHANNELS, columnsFor, eventLabel, eventsFor, reachLine, roleDefaults } from "@/lib/notify-rules";
+import { columnsFor, eventLabel, eventsFor, reachLine } from "@/lib/notify-rules";
 import { people, whatsappOn, type Person } from "@/lib/people";
 import { monthUsage } from "@/lib/billing/usage";
 import { viewFor } from "@/lib/whatsapp/store";
-
-// What each role may see, in words, so the owner knows what a role change does.
-const GRANTS: Record<Role, string> = {
-  Owner: "Everything",
-  Manager: "Everything except changing an owner",
-  Sales: "Their own account and the everyday dashboard. Not margins, the full reports, the team, the dealership's settings, activity, data requests or billing",
-  Finance: "Margins and the full reports, and everything Sales sees, without WhatsApp alerts",
-};
 
 export const metadata = { title: "Settings" };
 
@@ -54,9 +46,9 @@ const ACCOUNT = [
 const DEALERSHIP = [
   ["business", "Business", "Your details, opening hours and how your posts sound"],
   ["team", "Team", "Who can sign in, their role and what reaches them"],
-  ["routing", "Lead routing", "Where new leads are emailed, and how fast to reply"],
+  ["routing", "Lead routing", "Where new leads are emailed"],
   ["services", "Connected services", "The outside services your site uses, WhatsApp among them"],
-  ["targets", "Timings", "How long a test drive takes"],
+  ["targets", "Timings", "How fast to reply, and how long a test drive takes"],
   ["demo", "Start again", "Put the dashboard back as it started"],
 ] as const;
 // The module each outside service belongs to; a service without one is the base site's (lead email, the bot check).
@@ -166,22 +158,17 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
 
           {section === "targets" && (
             <Panel title="Timings" action={<TargetsEdit settings={s} />}>
-              <Facts items={[["Test drive slot", `${s.driveSlotMinutes} minutes`]]} />
+              <Facts items={[["Reply to a new lead within", `${s.leadSlaHours} hours`], ["Test drive slot", `${s.driveSlotMinutes} minutes`]]} />
             </Panel>
           )}
 
-          {section === "team" && <Team team={team} settings={s} me={me} owner={owner} rows={rows} waOn={waOn} />}
+          {section === "team" && <Team team={team} me={me} owner={owner} rows={rows} waOn={waOn} />}
 
           {section === "routing" && (
-            <>
-              <Panel title="Lead emails" action={<LeadEmailsEdit settings={s} />}>
-                <Facts items={[["Send new leads to", s.leadEmails.length ? s.leadEmails.join(", ") : profile.leadEmail ? "The site's own address" : "Not set, so new leads cannot be sent yet", "[overflow-wrap:anywhere]"]]} />
-                <TestEmail />
-              </Panel>
-              <Panel title="Reply time" action={<ReplyTimeEdit settings={s} />}>
-                <Facts items={[["Reply to a new lead within", `${s.leadSlaHours} hours`]]} />
-              </Panel>
-            </>
+            <Panel title="Lead emails" action={<LeadEmailsEdit settings={s} />}>
+              <Facts items={[["Send new leads to", s.leadEmails.length ? s.leadEmails.join(", ") : profile.leadEmail ? "The site's own address" : "Not set, so new leads cannot be sent yet", "[overflow-wrap:anywhere]"]]} />
+              <TestEmail />
+            </Panel>
           )}
 
           {section === "services" && <Services synced={synced} listingSite={listingSite} listingUrl={listingUrl} name={name} profileLeadEmail={Boolean(profile.leadEmail)} mods={mods} team={team.length} phones={team.filter((t) => t.phone && t.role !== "Finance").length} billing={roleCan(me.role, "billing")} />}
@@ -250,74 +237,56 @@ async function Notifications({ mine, rows, waOn, waMode }: { mine: Mine; rows: R
   );
 }
 
-// Dealership, Team: each person, how they are reached, and their details in the house dialog; what a new person starts with.
-async function Team({ team, settings: s, me, owner, rows, waOn }: { team: Person[]; settings: DealerSettings; me: Member; owner: boolean; rows: Rows; waOn: boolean }) {
+// Dealership, Team: each person, how they are reached, and their details in the house dialog.
+async function Team({ team, me, owner, rows, waOn }: { team: Person[]; me: Member; owner: boolean; rows: Rows; waOn: boolean }) {
   const devices = await pushStore.list();
   const withDevice = new Set(devices.map((d) => d.email));
   const may = roleCan(me.role, "team");
   // A manager changes everyone but an owner.
   const mayChange = (t: { role: Role }) => may && (owner || t.role !== "Owner");
   const plan = rows.map((r) => r.id);
-  const defaults = s.notifyDefaults;
-  const defaultColumns = CHANNELS.filter((c) => c !== "whatsapp" || waOn);
   return (
-    <>
-      <Panel title="Team" count={team.length} action={may && <AddPersonEdit owner={owner} />}>
-        <DataTable
-          bare
-          rows={team}
-          rowKey={(t) => t.id}
-          columns={[
-            // One column: the name with their role and how they are reached under it, and Edit (the house dialog) and the row's menu
-            // (Remove, #95) at the end. Remove is never on their own row: removing yourself would lock you out.
-            {
-              key: "name",
-              header: "Name",
-              cell: (t) => (
-                <div className="flex items-center justify-between gap-3">
-                  <span className="flex min-w-0 flex-col">
-                    <span className="font-medium">{t.name}</span>
-                    <span className="hidden break-all text-meta text-text-2 sm:block">{t.email}</span>
-                    <span className="text-meta text-text-2">
-                      {t.role} · {reachLine(t.prefs, t.role, { devices: withDevice.has(t.email.toLowerCase()), whatsapp: waOn && Boolean(t.phone) }, plan)}
-                    </span>
+    <Panel title="Team" count={team.length} action={may && <AddPersonEdit owner={owner} />}>
+      <DataTable
+        bare
+        rows={team}
+        rowKey={(t) => t.id}
+        columns={[
+          // One column: the name with their role and how they are reached under it, and Edit (the house dialog) and the row's menu
+          // (Remove, #95) at the end. Remove is never on their own row: removing yourself would lock you out.
+          {
+            key: "name",
+            header: "Name",
+            cell: (t) => (
+              <div className="flex items-center justify-between gap-3">
+                <span className="flex min-w-0 flex-col">
+                  <span className="font-medium">{t.name}</span>
+                  <span className="hidden break-all text-meta text-text-2 sm:block">{t.email}</span>
+                  <span className="text-meta text-text-2">
+                    {t.role} · {reachLine(t.prefs, t.role, { devices: withDevice.has(t.email.toLowerCase()), whatsapp: waOn && Boolean(t.phone) }, plan)}
                   </span>
-                  {mayChange(t) && (
-                    <span className="flex shrink-0 items-center gap-1">
-                      <PersonEdit person={{ id: t.id, name: t.name, email: t.email, role: t.role, phone: t.phone, quietFrom: t.quietFrom, quietTo: t.quietTo, prefs: t.prefs }} rows={rows} whatsapp={waOn} owner={owner} self={t.email.toLowerCase() === me.email.toLowerCase()} />
-                      {team.length > 1 && t.email.toLowerCase() !== me.email.toLowerCase() ? (
-                        <RowMenu label={`More for ${t.name}`}>
-                          <ActButton act={removeTeamAction.bind(null, t.id)} confirm={{ title: `Remove ${t.name} from the team?`, text: "Their leads and test drives go back to nobody. They can be added again later.", yes: "Remove" }} className={rowDanger}>
-                            Remove
-                          </ActButton>
-                        </RowMenu>
-                      ) : (
-                        // The menu's room, so every Edit lines up.
-                        <span aria-hidden="true" className="w-11" />
-                      )}
-                    </span>
-                  )}
-                </div>
-              ),
-            },
-          ]}
-        />
-      </Panel>
-      <Panel title="What a new person gets" text={defaults ? undefined : "What their role usually gets, until an owner chooses"} action={owner && <DefaultsEdit grid={{ rows, columns: defaultColumns, value: defaults ?? roleDefaults("Owner", s.notifications.followUps), role: "Owner" }} />}>
-        {defaults && <NotifyList rows={rows} columns={defaultColumns} value={defaults} role="Owner" />}
-        <p className="text-meta text-text-2">Each person can change their own in Settings, Notifications.</p>
-      </Panel>
-      <Panel title="What each role can see" quiet>
-        <dl className="grid grid-cols-1 gap-x-8 gap-y-3 text-meta sm:grid-cols-2">
-          {ROLES.map((r) => (
-            <div key={r}>
-              <dt className="font-medium">{r}</dt>
-              <dd className="text-text-2">{GRANTS[r]}</dd>
-            </div>
-          ))}
-        </dl>
-      </Panel>
-    </>
+                </span>
+                {mayChange(t) && (
+                  <span className="flex shrink-0 items-center gap-1">
+                    <PersonEdit person={{ id: t.id, name: t.name, email: t.email, role: t.role, phone: t.phone, quietFrom: t.quietFrom, quietTo: t.quietTo, prefs: t.prefs }} rows={rows} whatsapp={waOn} owner={owner} self={t.email.toLowerCase() === me.email.toLowerCase()} />
+                    {team.length > 1 && t.email.toLowerCase() !== me.email.toLowerCase() ? (
+                      <RowMenu label={`More for ${t.name}`}>
+                        <ActButton act={removeTeamAction.bind(null, t.id)} confirm={{ title: `Remove ${t.name} from the team?`, text: "Their leads and test drives go back to nobody. They can be added again later.", yes: "Remove" }} className={rowDanger}>
+                          Remove
+                        </ActButton>
+                      </RowMenu>
+                    ) : (
+                      // The menu's room, so every Edit lines up.
+                      <span aria-hidden="true" className="w-11" />
+                    )}
+                  </span>
+                )}
+              </div>
+            ),
+          },
+        ]}
+      />
+    </Panel>
   );
 }
 
