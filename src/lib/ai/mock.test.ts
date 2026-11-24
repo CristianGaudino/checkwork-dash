@@ -75,6 +75,10 @@ describe("the demo writer", () => {
     expect(mockText("leadReply", { ...lead, kind: "Trade-in valuation", type: "trade-in" })).toContain("valuation");
     expect(mockText("leadReply", { ...lead, kind: "Selling a car", type: "sell" })).toContain("valuation");
     expect(reply).toContain("a call");
+    // The car's price and link go in when the facts hold them (#160), and nothing in their place when they do not.
+    const priced = mockText("leadReply", { ...lead, carDetails: { name: "2019 Ford Focus", price: "€14,500", link: "https://www.demo.checkwork.ie/used-cars/x", forSale: true } });
+    expect(priced).toContain("It is €14,500. You can see it here: https://www.demo.checkwork.ie/used-cars/x");
+    expect(mockText("leadReply", { ...lead, carDetails: { name: "2019 Ford Focus", forSale: false } })).not.toMatch(/€|https:/);
 
     const bad: FactsOf["reviewReply"] = { dealer: "D", firstName: "Sam", rating: 2, text: "Slow." };
     expect(mockText("reviewReply", bad)).toContain("sorry");

@@ -5,6 +5,7 @@ import { CalendarIcon, CheckIcon, MailIcon, PhoneIcon, WhatsAppIcon } from "@/co
 import { NEW_TAB } from "@/components/ui";
 import { CLOSE_REASONS, canClose, leadStatusLabel, statusBack, type Lead, type LeadStatus } from "@/lib/admin/collections";
 import { telHref, waHref } from "@/lib/phone";
+import { mailtoHref, type Reply } from "@/lib/leads/first-reply";
 import { isOpenLead, replyVia } from "@/lib/admin/leads";
 import { setSpamAction, setStatusAction } from "@/app/leads/actions";
 
@@ -20,19 +21,19 @@ export function CallButton({ phone, name, quiet = false }: { phone: string; name
   ) : null;
 }
 
-// The way to answer them (replyVia: how they got in touch), one button.
-export function ReachButton({ lead }: { lead: Pick<Lead, "name" | "phone" | "email" | "answers" | "source" | "whatsappOptIn"> }) {
+// The way to answer them (replyVia: how they got in touch), one button. `reply`: the first reply to fill in, as on the lead (firstReplies).
+export function ReachButton({ lead, reply }: { lead: Pick<Lead, "name" | "phone" | "email" | "answers" | "source" | "whatsappOptIn">; reply?: Reply }) {
   const via = replyVia(lead);
   if (via === "whatsapp")
     return (
-      <a href={waHref(lead.phone)!} {...NEW_TAB} aria-label={`WhatsApp ${lead.name} (opens in a new tab)`} className={rowButtonStrong}>
+      <a href={waHref(lead.phone, reply?.body)!} {...NEW_TAB} aria-label={`WhatsApp ${lead.name} (opens in a new tab)`} className={rowButtonStrong}>
         <WhatsAppIcon className="shrink-0 size-4 text-whatsapp" />
         WhatsApp
       </a>
     );
   if (via === "email")
     return (
-      <a href={`mailto:${lead.email}`} aria-label={`Email ${lead.name}`} className={rowButtonStrong}>
+      <a href={mailtoHref(lead.email, reply)} aria-label={`Email ${lead.name}`} className={rowButtonStrong}>
         <MailIcon className="shrink-0 size-4" />
         Email
       </a>

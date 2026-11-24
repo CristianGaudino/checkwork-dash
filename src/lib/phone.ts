@@ -9,7 +9,8 @@ export const telHref = (phone: string) => {
   const d = intlDigits(phone);
   return d ? `tel:+${d}` : null;
 };
-export const waHref = (phone: string) => {
+// `text`: a message filled in, which they can still edit before sending.
+export const waHref = (phone: string, text?: string) => {
   const d = intlDigits(phone);
-  return d ? `https://wa.me/${d}` : null;
+  return d ? `https://wa.me/${d}${text ? `?text=${encodeURIComponent(text)}` : ""}` : null;
 };

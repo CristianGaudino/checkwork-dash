@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Task, WhoseSwitch, rowButton, rowButtonStrong, type TaskUrgency } from "@/components/admin/kit";
 import { AlertIcon, CalendarIcon, CarIcon, InboxIcon, PercentIcon, PhoneIcon, ReceiptIcon, StarIcon, SyncIcon, TruckIcon, WrenchIcon } from "@/components/stock/icons";
 import { CallButton, ReachButton } from "@/components/admin/LeadActions";
+import { firstReplies } from "@/lib/leads/first-reply";
 import { RowMenu } from "@/components/admin/RowMenu";
 import { DriveSteps } from "@/components/admin/DriveSteps";
 import { carCosts } from "@/lib/admin/costs";
@@ -56,6 +57,7 @@ export const WhoseToggle = ({ path, mine }: { path: string; mine: boolean }) => 
 // `mine`: the page's ?mine; For me is on by default for Sales (their report counts their own follow-ups).
 export async function loadToDo(mineParam: string | undefined) {
   const [leads, drives, reviews, all, settings, source, sales, reservations, orders, claims, mods, me, { site: listingSite }, { rules }] = await Promise.all([leadsStore.list(), drivesStore.list(), reviewsStore.list(), adminCars(), getSettings(), stockSource(), salesStore.list(), reservationsStore.list(), ordersStore.list(), claimsStore.list(), enabledModules(), currentMember(), listing(), dealerProfile()]);
+  const reply = await firstReplies();
   const mine = Boolean(me.name) && (mineParam ? mineParam === "1" : me.role === "Sales");
   const synced = source === "donedeal";
   const sync = synced ? await syncStatus() : null;
@@ -77,7 +79,7 @@ export async function loadToDo(mineParam: string | undefined) {
       case "reply":
         return [
           ...o.reply.slice(0, EACH).map(({ lead: l, urgency, flag }) => (
-            <Task key={`reply-${l.id}`} urgency={urgency} icon={<InboxIcon />} title={`Reply to ${l.name}`} detail={[who(l.assignedTo), about(l), `came in ${fmtAgo(l.createdAt)}${flag === "late" ? ", past your reply time" : ""}`].filter(Boolean).join(" · ")} action={<><ReachButton lead={l} /><LeadMenu id={l.id} name={l.name} /></>} />
+            <Task key={`reply-${l.id}`} urgency={urgency} icon={<InboxIcon />} title={`Reply to ${l.name}`} detail={[who(l.assignedTo), about(l), `came in ${fmtAgo(l.createdAt)}${flag === "late" ? ", past your reply time" : ""}`].filter(Boolean).join(" · ")} action={<><ReachButton lead={l} reply={reply(l)} /><LeadMenu id={l.id} name={l.name} /></>} />
           )),
           ...rest(a.key, o.reply.length, "new lead to answer", "new leads to answer", a.href, a.urgency),
         ];
