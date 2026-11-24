@@ -181,10 +181,7 @@ describe("the other settings", () => {
     expect((await getSettings()).driveSlotMinutes).toBe(90);
   });
 
-  it("saves the reply time and the slot together or each on its own", async () => {
-    expect((await saveTargetsAction(undefined, form({ leadSlaHours: "6" })))?.saved).toBe(true);
-    expect((await saveTargetsAction(undefined, form({ driveSlotMinutes: "45" })))?.saved).toBe(true);
-    expect(await getSettings()).toMatchObject({ leadSlaHours: 6, driveSlotMinutes: 45 });
+  it("saves the reply time and the slot together", async () => {
     expect((await saveTargetsAction(undefined, form({ leadSlaHours: "8", driveSlotMinutes: "60" })))?.saved).toBe(true);
     expect(await getSettings()).toMatchObject({ leadSlaHours: 8, driveSlotMinutes: 60 });
   });

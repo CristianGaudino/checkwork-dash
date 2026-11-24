@@ -44,19 +44,19 @@ const fail = (e: z.ZodError): SettingsState => ({ errors: fieldErrors(e) });
 // A save that changes nothing is not recorded in the activity history. Same keys in the same order, as each form always sends them.
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
-// The reply time and the test drive slot (Timings): only the fields sent are changed.
+// The reply time and the test drive slot (Timings), saved together.
 const targets = z.object({
-  leadSlaHours: z.coerce.number().int("Whole hours").min(1, "At least 1 hour").max(168, "At most 168 hours (a week)").optional(),
-  driveSlotMinutes: z.coerce.number().int("Whole minutes").min(15, "At least 15 minutes").max(240, "At most 240 minutes").optional(),
+  leadSlaHours: z.coerce.number().int("Whole hours").min(1, "At least 1 hour").max(168, "At most 168 hours (a week)"),
+  driveSlotMinutes: z.coerce.number().int("Whole minutes").min(15, "At least 15 minutes").max(240, "At most 240 minutes"),
 });
 export async function saveTargetsAction(_p: SettingsState, data: FormData): Promise<SettingsState> {
   await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
-  const no = await refused(data.has("leadSlaHours") ? "leadSlaHours" : "driveSlotMinutes");
+  const no = await refused("leadSlaHours");
   if (no) return no;
   const r = targets.safeParse(Object.fromEntries(data));
   if (!r.success) return fail(r.error);
   const was = await getSettings();
-  const { leadSlaHours = was.leadSlaHours, driveSlotMinutes = was.driveSlotMinutes } = r.data;
+  const { leadSlaHours, driveSlotMinutes } = r.data;
   await change((s) => ({ ...s, leadSlaHours, driveSlotMinutes }));
   if (was.leadSlaHours !== leadSlaHours) await logActivity("settings", `Changed the lead reply target from ${was.leadSlaHours} to ${leadSlaHours} hours`);
   if (was.driveSlotMinutes !== driveSlotMinutes) await logActivity("settings", `Changed the test drive slot from ${was.driveSlotMinutes} to ${driveSlotMinutes} minutes`);
