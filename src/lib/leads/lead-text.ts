@@ -23,7 +23,7 @@ export type Facts = Record<string, string>; // label to value, in the form's ord
 const DRIVE = "Test drive";
 
 // The answers a lead keeps besides its words: only those shown nowhere else. The topic and tap answers are its tags (stored as `answers`
-// when there is a topic), the channel is where it came from, the reg has its own panel, sell or trade in is its kind, and a factory order's car is its message.
+// when there is a topic), the channel is where it came from, the reg has its own panel, sell or trade in is its kind, and the car on a new car order (an older website's form, #168) is its message.
 export function detailsOf(type: string, d: Record<string, unknown>): Facts {
   const skip = new Set<string>(["topic", "channel", "reg", "whatsappOptIn", "alertKind", "intent", "driveDate", "driveTime", ...(typeof d.topic === "string" ? ANSWER_KEYS : []), ...(type === "order" ? ["make", "model", "spec", "regPeriod"] : [])]);
   return {

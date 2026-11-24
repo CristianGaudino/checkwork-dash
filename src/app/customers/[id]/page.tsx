@@ -1,9 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ClaimStatusBadge, CoverBadge, DriveStatusBadge, LeadStatusBadge, OrderBadge } from "@/components/admin/badges";
+import { ClaimStatusBadge, CoverBadge, DriveStatusBadge, LeadStatusBadge } from "@/components/admin/badges";
 import { Badge, PageHeader, Panel, Task, TaskList, rowButton } from "@/components/admin/kit";
-import { LEAD_TYPE_LABELS, claimOpen, getSettings, claimsStore, coverEnds, customersStore, drivesStore, leadsStore, orderOpen, ordersStore, reservationsStore, salesStore } from "@/lib/admin/collections";
-import { monthLabel } from "@/lib/admin/reports";
+import { LEAD_TYPE_LABELS, claimOpen, getSettings, claimsStore, coverEnds, customersStore, drivesStore, leadsStore, reservationsStore, salesStore } from "@/lib/admin/collections";
 import { dublinDay, fmtDate, fmtEur, fmtTime } from "@/lib/admin/format";
 import { isOpenDrive } from "@/lib/admin/drives";
 import { answerNow, isOpenLead, openWarrantyRequests } from "@/lib/admin/leads";
@@ -19,8 +18,8 @@ export const metadata = { title: "Customer" };
 // The time, read once a request (a plain Date.now() in the render trips the purity lint), as on Leads.
 const now = () => Date.now();
 
-// One customer. At the top: how to reach them. Below: what they bought (with the warranty on each), then one list of each kind (orders,
-// claims, deposits, leads, test drives), what is still open first, marked by the bar at its left, each a link to it (#169). Aftersales starts
+// One customer. At the top: how to reach them. Below: what they bought (with the warranty on each), then one list of each kind
+// (claims, deposits, leads, test drives), what is still open first, marked by the bar at its left, each a link to it (#169). Aftersales starts
 // here: a claim is opened on one of their purchases.
 const list = "flex flex-col divide-y divide-hairline";
 const item = "flex flex-wrap items-center justify-between gap-x-4 gap-y-2 py-3";
@@ -30,12 +29,11 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   if (!(await hasModule("sales"))) return <NotInPlan id="sales" />; // the customer list is the sales module (src/lib/modules-rules.ts)
   const c = await customersStore.get(id);
   if (!c) notFound();
-  // Claims, orders and test drives are modules of their own: with one off, its records stay but its links go (#173).
-  const [service, newCars, drivesOn] = await Promise.all([hasModule("service"), hasModule("newCars"), hasModule("testDrives")]);
-  // Orders and deposits are our version only: with DoneDeal stock their pages are not there.
+  // Claims and test drives are modules of their own: with one off, its records stay but its links go (#173).
+  const [service, drivesOn] = await Promise.all([hasModule("service"), hasModule("testDrives")]);
+  // Deposits are our version only: with DoneDeal stock their pages are not there.
   const synced = (await stockSource()) === "donedeal";
-  const ordersOn = newCars && !synced;
-  const [sales, reservations, claims, leads, drives, orders, { leadSlaHours }, me] = await Promise.all([salesStore.list(), reservationsStore.list(), claimsStore.list(), leadsStore.list(), drivesStore.list(), ordersStore.list(), getSettings(), currentMember()]);
+  const [sales, reservations, claims, leads, drives, { leadSlaHours }, me] = await Promise.all([salesStore.list(), reservationsStore.list(), claimsStore.list(), leadsStore.list(), drivesStore.list(), getSettings(), currentMember()]);
   const at = now();
   // Whose it is, as on To do: a name, You, or Not taken.
   const who = (name?: string) => (!name ? "Not taken" : name === me.name ? "You" : name);
@@ -44,7 +42,6 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const qs = [c.email, c.phone].map((v) => (v ? parsePersonQuery(v) : null)).filter((q): q is PersonQuery => q !== null);
   const bought = sales.filter((s) => s.customerId === id).sort((a, b) => b.soldOn.localeCompare(a.soldOn));
   const deposits = reservations.filter((r) => r.customerId === id).sort((a, b) => b.paidOn.localeCompare(a.paidOn));
-  const theirOrders = orders.filter((o) => o.customerId === id).sort((a, b) => b.createdAt - a.createdAt);
   const theirClaims = claims.filter((k) => k.customerId === id).sort((a, b) => b.createdAt - a.createdAt);
   const theirLeads = qs.length ? leads.filter((l) => matchesAny(l, qs)).sort((a, b) => b.createdAt - a.createdAt) : [];
   const theirDrives = qs.length ? drives.filter((d) => matchesAny(d, qs)).sort((a, b) => b.startsAt - a.startsAt) : [];
@@ -57,7 +54,6 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const openRequests = new Set(openWarrantyRequests(theirLeads, claims).map((l) => l.id));
   const openLeads = theirLeads.filter((l) => (l.type === "warranty" ? service && openRequests.has(l.id) : isOpenLead(l)));
   const openClaims = service ? theirClaims.filter((k) => claimOpen(k.status)) : [];
-  const openOrders = ordersOn ? theirOrders.filter((o) => orderOpen(o.status)) : [];
   const held = synced ? [] : deposits.filter((r) => r.status === "held");
   const openFirst = <T,>(all: T[], open: T[]) => [...open, ...all.filter((x) => !open.includes(x))];
 
@@ -104,15 +100,6 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
                 </ul>
               )}
           </Panel>
-          {ordersOn && theirOrders.length > 0 && (
-            <Panel title="Factory orders">
-              <TaskList label="Factory orders">
-                {openFirst(theirOrders, openOrders).map((o) => (
-                  <Task key={o.id} href={`/orders/${o.id}`} urgency={openOrders.includes(o) ? "soon" : "info"} title={`${o.regPeriod} ${o.make} ${o.model}`} detail={`Due ${monthLabel(o.expected)}`} action={<OrderBadge status={o.status} />} />
-                ))}
-              </TaskList>
-            </Panel>
-          )}
           {service && theirClaims.length > 0 && (
             <Panel title="Warranty claims">
               <TaskList label="Warranty claims">

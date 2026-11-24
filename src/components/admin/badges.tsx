@@ -1,7 +1,7 @@
 import { Badge, type Tone } from "@/components/admin/kit";
 import type { Car } from "@/lib/stock/types";
 import { carStatus, type CarStatus } from "@/lib/admin/stock-admin-pure";
-import { CLAIM_STATUS_LABELS, DRIVE_STATUS_LABELS, ORDER_STATUS_LABELS, leadStatusLabel, type ClaimStatus, type DriveStatus, type LeadStatus, type LeadType, type OrderStatus } from "@/lib/admin/collections";
+import { CLAIM_STATUS_LABELS, DRIVE_STATUS_LABELS, leadStatusLabel, type ClaimStatus, type DriveStatus, type LeadStatus, type LeadType } from "@/lib/admin/collections";
 
 const LEAD_TONE: Record<LeadStatus, Tone> = { new: "info", contacted: "neutral", appointment: "warn", won: "good", lost: "bad", closed: "neutral", spam: "neutral" };
 const DRIVE_TONE: Record<DriveStatus, Tone> = { requested: "warn", confirmed: "info", completed: "good", "no-show": "bad", cancelled: "neutral" };
@@ -18,5 +18,3 @@ export const CarStatusBadge = ({ car }: { car: Pick<Car, "listing" | "soldAt" | 
   return <Badge tone={CAR_TONE[s]}>{s}</Badge>;
 };
 export const CoverBadge = ({ inCover }: { inCover: boolean }) => <Badge tone={inCover ? "good" : "neutral"}>{inCover ? "In cover" : "Out of cover"}</Badge>;
-const ORDER_TONE: Record<OrderStatus, Tone> = { ordered: "neutral", built: "info", "in-transit": "info", arrived: "warn", "handed-over": "good", cancelled: "neutral" };
-export const OrderBadge = ({ status }: { status: OrderStatus }) => <Badge tone={ORDER_TONE[status]}>{ORDER_STATUS_LABELS[status]}</Badge>;

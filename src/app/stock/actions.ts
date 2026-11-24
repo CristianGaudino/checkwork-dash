@@ -7,7 +7,7 @@ import { logActivity } from "@/lib/admin/activity";
 import { carEditSummary, costText } from "@/lib/admin/activity-text";
 import { z } from "zod";
 import { PREP_KINDS } from "@/lib/admin/prep";
-import { DEPOSIT_METHODS, costsStore, heldFor, leadsStore, ordersStore, postsStore, prepStore, reservationsStore, salesStore, undoSale } from "@/lib/admin/collections";
+import { DEPOSIT_METHODS, costsStore, heldFor, leadsStore, postsStore, prepStore, reservationsStore, salesStore, undoSale } from "@/lib/admin/collections";
 import { addMonths, dublinDay, fmtEur } from "@/lib/admin/format";
 import { newId } from "@/lib/admin/ids";
 import { blank, euros, fieldErrors, isoDay, type FormState } from "@/lib/admin/validation";
@@ -391,9 +391,6 @@ export async function recordSaleAction(carId: string, _prev: FormState, data: Fo
     !isSold(car) &&
     (!(await readOnly()) || Boolean(car.takenDownAt)) &&
     Boolean(await updateCar(car.id, (cur) => (isSold(cur) ? null : { ...cur, soldAt: d.soldOn, reserved: undefined, ...(cur.takenDownAt && { takenDownAt: undefined, listing: undefined }) })));
-  // A factory order that arrived as this car is handed over with its sale.
-  const order = (await ordersStore.list()).find((o) => o.carId === car.id && o.status === "arrived");
-  if (order) await ordersStore.put({ ...order, status: "handed-over" });
   await logActivity("stock", `${was ? "Changed the sale to" : "Recorded the sale for"} ${fmtEur(d.priceEur)}${markSold ? " and marked it sold" : ""}`, carRef(car));
   // The review ask is on a new sale only (Change the sale has no tick). Best effort: the sale is saved whatever happens to the message.
   if (!was && data.get("askReview") === "on") await askForReview(car.id).catch(() => null);

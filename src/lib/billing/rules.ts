@@ -36,8 +36,6 @@ export const AI_FAIR_USE = 500;
 // shortcut: one dealership only; the price per extra dealership comes back with multi-dealership (#16).
 const WEBSITE_ONLY: ModuleId[] = ["tradeIn", "finance", "carFinder", "commercial", "lookupWebsite"];
 export const ADD_ON_EUR: Partial<Record<ModuleId, number>> = { social: 99 };
-// New cars go with #168; until then they are in the dashboard plan and this is unused.
-export const NEW_CAR_BRANDS = { included: 2, eur: 29, setupEur: 100 } as const;
 const ADD_ON_SETUP_EUR: Partial<Record<ModuleId, number>> = { social: 150 };
 // The dashboard plan: every other module (reviews is in both: shown on the website, answered from the dashboard).
 const DASHBOARD = MODULE_IDS.filter((m) => !WEBSITE_ONLY.includes(m) && !ADD_ON_EUR[m]);

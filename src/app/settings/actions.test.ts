@@ -16,7 +16,7 @@ const { addTeamAction, removeTeamAction, resetDemoAction, saveBusinessAction, sa
 const { staffStore } = await import("@/lib/whatsapp/store");
 const { membersOf } = await import("@/lib/tenancy/directory");
 const { adminCars, saveCar } = await import("@/lib/admin/stock-admin");
-const { getSettings, leadsStore, ordersStore, reservationsStore, settingsStore } = await import("@/lib/admin/collections");
+const { getSettings, leadsStore, reservationsStore, settingsStore } = await import("@/lib/admin/collections");
 const { listActivity } = await import("@/lib/admin/activity");
 const { dealerById, putMember, resetMemoryDirectory } = await import("@/lib/tenancy/directory");
 const { ensureStaff, staffByEmail } = await import("@/lib/auth/attempts");
@@ -267,7 +267,6 @@ describe("your account and a person's details (#142)", () => {
     await staffStore.reset();
     await leadsStore.reset();
     await reservationsStore.reset();
-    await ordersStore.reset();
   });
   const find = async (r: string) => (await getSettings()).team.find((t) => t.role === r)!;
 
@@ -279,8 +278,8 @@ describe("your account and a person's details (#142)", () => {
     expect((await getSettings()).team.find((t) => t.id === me.id)).toMatchObject({ name: "Conor D", email: me.email }); // never the email
     expect((await staffStore.get(me.id))?.phone).toBe("+353 85 111 2222");
     expect((await leadsStore.get(lead.id))?.assignedTo).toBe("Conor D");
-    // Their deposits and orders too, so a sale from a held car and the orders filter name someone on the team.
-    for (const x of [...(await reservationsStore.list()), ...(await ordersStore.list())]) expect(x.salesperson).not.toBe(me.name);
+    // Their deposits too, so a sale from a held car names someone on the team.
+    for (const x of await reservationsStore.list()) expect(x.salesperson).not.toBe(me.name);
     expect((await saveProfileAction(undefined, form({ name: "Aoife Brennan", phone: "" })))?.errors?.name).toMatch(/already on the team/);
     expect((await saveProfileAction(undefined, form({ name: "Conor D", phone: "abc" })))?.errors?.phone).toBeTruthy();
   });

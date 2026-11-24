@@ -159,7 +159,7 @@ code path reaches another dealer's (#3, #4, #6; `src/lib/tenancy/`).
   alerts and reads push (every request, as push always went) and email (the dealer's old morning switch, `notifications.followUps`) from the
   role until the person saves; someone with no record gets their role's. An owner's old choice for a new person (`notifyDefaults`, before
   #150) may still be stored in the settings record; nothing reads it.
-- **The bell is in the app only** (`src/lib/admin/notifications.ts`). A new website request, test drive booking, warranty or order request,
+- **The bell is in the app only** (`src/lib/admin/notifications.ts`). A new website request, test drive booking or warranty request,
   a DoneDeal ad taken down, a sync outage (once, as it starts), a lead given to you by someone else, a buyer's WhatsApp reply, a usage
   limit or spend alert (owners and managers), and Checkwork getting your help request. Each has a heading, what happened ("Test drive
   request", "Monthly limit reached"), and a line under it, what it is about: for a lead the contact form's topic and answers as the leads
@@ -219,7 +219,7 @@ with no D1). The actor is the signed-in person (`currentMember`), or a named one
 - **A sale** (`salesStore`, one per car): the price it sold for, the day, who sold it and the buyer, a customer on file or a new one made
   on the form. In our version Mark sold opens the form and marks the car sold on the sale's day. In the DoneDeal version the dealer
   answers for a car whose ad came down, and the Sold view on Stock (Record sale) asks for a sold car with none. Margins use the sale price
-  for a sold car. After six years the daily job removes the buyer from sales, deposits, warranty claims and factory orders (a claim or order
+  for a sold car. After six years the daily job removes the buyer from sales, deposits, warranty claims and older factory orders (a claim or order
   also loses its lead, notes and fault text, as an erasure does) (`src/lib/admin/sales-purge.ts`,
   `{"job":"anonymise-sales"}`); the figures stay. /privacy says so.
 - **A deposit** (`reservationsStore`, our version only): Reserve on a car for sale takes the amount, how it was paid, the day, the buyer
@@ -252,8 +252,7 @@ with no D1). The actor is the signed-in person (`currentMember`), or a named one
   (`spamCheck`, `src/lib/leads/spam.ts`), once per lead by the site API (`src/lib/site-api/leads.ts`, the only way in) before its
   fallback lead email: rules only, no outside service, nothing logged. Clear spam is only what no person types into a contact form:
   forum or web page link markup. Words and links are only ever a hint, because real buyers sign off with job titles, mention crypto,
-  link another dealer or give their company site as their name. Clear spam is filed as spam, with no email, booking, customer, bell notice or WhatsApp alert, and is never linked to a sale or a
-  factory order. A test drive booking, a warranty request or a question about a car bought here is never filed as spam, only as possible spam (`arrivalSpam`). When unsure
+  link another dealer or give their company site as their name. Clear spam is filed as spam, with no email, booking, customer, bell notice or WhatsApp alert, and is never linked to a sale. A test drive booking, a warranty request or a question about a car bought here is never filed as spam, only as possible spam (`arrivalSpam`). When unsure
   (a pitch word such as SEO services, backlinks or crypto, read in the message only; a link to a site that is not a car, photo or chat
   site or the dealer's own; or a web address in the name) the lead stays new with `maybeSpam`:
   "Possible spam" on the list and To answer now, with Spam and Not spam in the row's menu (as buttons on the lead). Careful by design: a name in any language, a short or empty
@@ -290,7 +289,7 @@ erases or sends them any more.
 
 
 - **A customer's page** (`/customers/[id]`): how to reach them, what they bought with the warranty on each (in cover or not),
-  their factory orders, warranty claims and deposits, and the leads and test drives that carry their email or phone. One list of each,
+  their warranty claims and deposits, and the leads and test drives that carry their email or phone. One list of each,
   what is still open first, marked by the bar at its left (red to do now, amber otherwise), never a second list of what is open (#169).
 - **Warranty claims** (`claimsStore`, `/aftersales`, Warranty claims in the menu): opened on a purchase, from the customer's page or from a warranty lead
   (the buyer is found by the lead's email or phone). In cover or not is worked out from the sale's day and cover, never typed. Open,
@@ -302,18 +301,16 @@ erases or sends them any more.
 - **Personal data:** claims are in data requests; erasure keeps the claim and its cost without the buyer, the fault or the notes. The
   six-year purge removes the buyer from old claims, as from sales and deposits.
 
-## Factory orders (our version only)
+## No new cars (#168)
 
-- **Orders** (`ordersStore`, in the menu only for stock kept here): a new car ordered from the maker for a customer, with its spec, price,
-  deposit, the registration period it is for (271 is January to June 2027, `src/lib/leads/reg-periods.ts`) and the month it is due. No
-  maker's system is connected: the dealer moves it from Ordered to Built, On its way and Arrived as the maker says.
-- **Arrived** adds the car to stock, hidden (it is sold) and reserved for the buyer with their deposit. Hand over opens Mark sold on it,
-  which takes the deposit and the buyer, and marks the order Handed over. Overview counts cars arrived and waiting.
-- **Cancel** (owners and managers): the deposit refunded or kept. A car that already arrived stays in stock, hidden, for the dealer to
-  decide.
-- **From the website:** /new-cars/order (linked from New cars) takes the make, model, spec and period as an order request (lead type
-  `order`). The lead's "Place the order" starts the form, and marks the lead won. With DoneDeal stock the page is not there.
-- **Personal data:** orders are in data requests and the six-year purge, like sales: the figures stay without the buyer.
+Checkwork is for independent used-car dealers: franchise dealers use the maker's systems. The dashboard has no new cars module, no
+Orders pages and no factory orders.
+
+- **A new car order a website still sends** (lead type `order` at `/api/site/v1/leads`) is taken and filed as a car enquiry, its
+  message the car asked for ("Kia Sportage, 271 reg") then their words (`src/lib/admin/real-leads.ts`), so nothing a buyer sends is
+  lost. Order requests stored before are car enquiries too (migration `drizzle/0005_order_leads_to_enquiries.sql`).
+- **Older order rows stay** (`ordersStore`, nothing writes it and the demo seeds none): they are personal data like a sale, so data
+  requests still find and erase them and the six-year purge removes their buyer. The collection can go once the last is past six years.
 
 ## Reports and prep costs
 
@@ -525,7 +522,7 @@ app store and no outside service.
   against the RFC's own example). Three of the bell's notices also go to the phone, to the same people the bell shows them to:
   | What happened | Title | Text | Opens |
   |---|---|---|---|
-  | A new website request (any lead in Leads, an order request too) | Its kind ("Car enquiry", "Message") | Its topic and answers, and the car | The lead |
+  | A new website request (any lead in Leads) | Its kind ("Car enquiry", "Message") | Its topic and answers, and the car | The lead |
   | A test drive request | Test drive request | The car, and the day and time asked for | The booking |
   | A lead given to you by someone else | "Ciara Walsh gave you a lead" | Its kind, topic and car | The lead |
   | A test drive given to you by someone else | "Ciara Walsh gave you a test drive" | The car | The booking |

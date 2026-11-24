@@ -81,10 +81,9 @@ export function replyVia(l: Pick<Lead, "source" | "phone" | "email" | "answers" 
   return dial ? "call" : undefined;
 }
 
-// The lead page's one filled button: the request's own job when the dealer can do it here (place the order, open the claim, book the drive
+// The lead page's one filled button: the request's own job when the dealer can do it here (open the claim, book the drive
 // they asked for), else the reply. `can` says which of those this dealer and this lead allow.
-export function leadMain(type: LeadType, can: { drive: boolean; order: boolean; claim: boolean }): "reply" | "drive" | "order" | "claim" {
-  if (type === "order" && can.order) return "order";
+export function leadMain(type: LeadType, can: { drive: boolean; claim: boolean }): "reply" | "drive" | "claim" {
   if (type === "warranty" && can.claim) return "claim";
   if (type === "test-drive" && can.drive) return "drive";
   return "reply";

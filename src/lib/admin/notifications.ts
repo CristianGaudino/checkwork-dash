@@ -14,7 +14,7 @@ import { currentDealer } from "@/lib/tenancy/current";
 // is about (`detail`, under it: the request's topic and the car, the service near its limit), and links to it.
 // Never a customer's name or details, only the kind of request and the car, so they are not personal data (nothing to erase, nothing to
 // purge for privacy). `for` is a team member's name when it is theirs alone (a lead given to them); otherwise everyone sees it.
-export const NOTICE_KINDS = ["lead", "drive", "warranty", "order", "taken-down", "sync", "assigned", "usage", "whatsapp", "help"] as const;
+export const NOTICE_KINDS = ["lead", "drive", "warranty", "taken-down", "sync", "assigned", "usage", "whatsapp", "help"] as const;
 export type NoticeKind = (typeof NOTICE_KINDS)[number];
 export type Notice = { id: string; at: number; kind: NoticeKind; text: string; detail?: string; href: string; for?: string };
 // What one person has read: a record each (by their key), so two people reading at once never write the same record.
@@ -38,14 +38,14 @@ export const readsOf = async (r: Reader) => new Set((await readsStore.get(key(r)
 
 // The kinds that also go to the phone (#11, src/lib/push), with the bell's own words: its heading as the title, "<dealer>: <detail>" as the
 // text. Never the customer, as in the bell: a lock screen is not private.
-export const PUSH_KINDS: ReadonlySet<NoticeKind> = new Set(["lead", "order", "drive", "assigned"]);
+export const PUSH_KINDS: ReadonlySet<NoticeKind> = new Set(["lead", "drive", "assigned"]);
 
 // Best effort: a notification is never worth failing the thing that caused it, so callers need not catch. Old ones go as new ones come.
 // A push goes to the same people as the bell: the one it is `for`, or everyone. It says the dealer and opens through /dealers/open, so
 // someone at several dealers lands in the one it came from. Sent after the answer (after()), so a slow push service never holds up a form.
 // `event`: what it is in a person's Notifications (a lead's own kind, src/lib/whatsapp/rules.ts eventOfLead), so a push goes only to those
 // who keep it on; without one, the bell's kind says.
-const KIND_EVENT: Partial<Record<NoticeKind, NotifyEvent>> = { lead: "enquiry", order: "enquiry", drive: "test-drive", assigned: "assigned" };
+const KIND_EVENT: Partial<Record<NoticeKind, NotifyEvent>> = { lead: "enquiry", drive: "test-drive", assigned: "assigned" };
 export async function notify(n: Omit<Notice, "id" | "at">, at = Date.now(), event?: NotifyEvent): Promise<void> {
   try {
     await noticesStore.put({ id: newId("note"), at, ...n });
@@ -99,7 +99,7 @@ export function noticeOfLead(lead: Pick<Lead, "id"> & LeadFacts, drive?: { id?: 
     const detail = [leadAbout(lead), when].filter(Boolean).join(" · ") || undefined;
     return { kind: "drive", text, detail, href: drive.id ? `/test-drives/${drive.id}` : "/test-drives" };
   }
-  const kind: NoticeKind = lead.type === "warranty" ? "warranty" : lead.type === "order" ? "order" : "lead";
+  const kind: NoticeKind = lead.type === "warranty" ? "warranty" : "lead";
   return { kind, text, detail: leadAbout(lead), href: kind === "warranty" ? `/aftersales/requests/${lead.id}` : `/leads/${lead.id}` };
 }
 

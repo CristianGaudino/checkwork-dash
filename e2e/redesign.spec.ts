@@ -10,7 +10,7 @@ test.describe("the drop-down", () => {
 
   test("closes on a second press, on a press elsewhere, and a press on its label does not reopen it", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 1400 }); // room for the list to open below the field, clear of its label
-    await page.goto("/orders/new");
+    await page.goto("/stock/4710006/sale");
     const box = page.getByRole("combobox", { name: /^Buyer/ });
     const list = page.getByRole("listbox");
     await box.click();
@@ -18,7 +18,7 @@ test.describe("the drop-down", () => {
     await box.click();
     await expect(list).toHaveCount(0);
     await box.click();
-    await page.getByRole("heading", { name: "Place an order" }).click();
+    await page.getByRole("heading", { level: 1 }).click();
     await expect(list).toHaveCount(0);
     await box.click();
     await page.getByText("Buyer", { exact: true }).first().click(); // the field's own label

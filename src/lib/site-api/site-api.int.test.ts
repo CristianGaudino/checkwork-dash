@@ -80,6 +80,13 @@ describe("POST /api/site/v1/leads", () => {
     expect((await runAsDealer(B, () => leadsStore.list())).some((x) => x.name === NAME)).toBe(false);
   });
 
+  it("takes a new car order from an older website and files it as a car enquiry, the car in its words (#168)", async () => {
+    const res = await send(keyA, body(lead({ type: "order", sourcePath: "/new-cars/order", message: "White please", details: { make: "Kia", model: "Sportage", regPeriod: "271" } })));
+    expect(res.status).toBe(201);
+    const { id } = await res.json();
+    expect(await runAsDealer(A, () => leadsStore.get(`real-${id}`))).toMatchObject({ type: "enquiry", status: "new", message: "Kia Sportage, 271 reg\n\nWhite please" });
+  });
+
   it("answers a retry of the same clientRef with 200 and the same id, and stores it once", async () => {
     const l = lead();
     const first = await send(keyA, body(l));

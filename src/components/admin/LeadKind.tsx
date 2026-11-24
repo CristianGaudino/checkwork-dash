@@ -1,10 +1,10 @@
 import { LEAD_TYPE_LABELS, type LeadType } from "@/lib/admin/collections";
 import { TOPICS, topicBits, type Answers } from "@/lib/leads/contact-topics";
-import { CalendarIcon, CarIcon, InboxIcon, PercentIcon, SearchIcon, ShieldCheckIcon, SwapIcon, TruckIcon, WrenchIcon } from "@/components/stock/icons";
+import { CalendarIcon, CarIcon, InboxIcon, PercentIcon, SearchIcon, ShieldCheckIcon, SwapIcon, WrenchIcon } from "@/components/stock/icons";
 
 // What kind of request a lead is, in a word and an icon: the first thing read after the name. A general message from the guided contact
 // form says its topic ("Buying", "Service") instead of "Message", which says less.
-const ICONS = { enquiry: CarIcon, "test-drive": CalendarIcon, finance: PercentIcon, "trade-in": SwapIcon, sell: SwapIcon, "find-a-car": SearchIcon, order: TruckIcon, warranty: ShieldCheckIcon, service: WrenchIcon, general: InboxIcon } as const;
+const ICONS = { enquiry: CarIcon, "test-drive": CalendarIcon, finance: PercentIcon, "trade-in": SwapIcon, sell: SwapIcon, "find-a-car": SearchIcon, warranty: ShieldCheckIcon, service: WrenchIcon, general: InboxIcon } as const;
 const TOPIC_TYPE: Record<string, LeadType> = { buying: "enquiry", selling: "sell", finance: "finance", service: "service", bought: "warranty" };
 
 export function leadKind(type: LeadType, topic?: string): { label: string; icon: LeadType } {

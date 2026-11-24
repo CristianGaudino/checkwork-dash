@@ -5,7 +5,7 @@ import { ActButton } from "@/components/admin/ActButton";
 import { can } from "@/lib/permissions";
 import { notFound } from "next/navigation";
 import { hasModule } from "@/lib/modules";
-import { ALERT_KINDS, ALERT_KIND_LABELS, alertsStore, claimOpen, claimsStore, customersStore, orderOpen, ordersStore, reservationsStore, salesStore, type Customer, type StockAlert } from "@/lib/admin/collections";
+import { ALERT_KINDS, ALERT_KIND_LABELS, alertsStore, claimOpen, claimsStore, customersStore, reservationsStore, salesStore, type Customer, type StockAlert } from "@/lib/admin/collections";
 import { stockSource } from "@/lib/stock-source";
 import { fmtAgo, fmtDate, fmtNum } from "@/lib/admin/format";
 import { pauseAlertAction, removeAlertAction } from "./actions";
@@ -26,17 +26,15 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
   if (!tabs.length) notFound();
   const tab = tabs.find(([k]) => k === sp.tab)?.[0] ?? tabs[0][0];
   const q = (sp.q ?? "").trim().toLowerCase().slice(0, 60);
-  const [customers, alerts, sold, deposits, claims, orders, service, newCars] = await Promise.all([customersStore.list(), alertsStore.list(), salesStore.list(), reservationsStore.list(), claimsStore.list(), ordersStore.list(), hasModule("service"), hasModule("newCars")]);
-  const synced = (await stockSource()) === "donedeal"; // orders and deposits are our version only
-  const ordersOn = newCars && !synced;
-  // What each customer bought last, and what is still open for them (a deposit held, a claim, a factory order), at a glance in the row.
+  const [customers, alerts, sold, deposits, claims, service] = await Promise.all([customersStore.list(), alertsStore.list(), salesStore.list(), reservationsStore.list(), claimsStore.list(), hasModule("service")]);
+  const synced = (await stockSource()) === "donedeal"; // deposits are our version only
+  // What each customer bought last, and what is still open for them (a deposit held, a claim), at a glance in the row.
   const lastBought = new Map<string, { car: string; on: string }>();
   for (const s of sold) if (s.customerId && !s.returnedOn && (lastBought.get(s.customerId)?.on ?? "") < s.soldOn) lastBought.set(s.customerId, { car: s.carTitle, on: s.soldOn });
   const open = new Map<string, string[]>();
   const add = (id: string | undefined, what: string) => id && open.set(id, [...new Set([...(open.get(id) ?? []), what])]);
   if (!synced) for (const r of deposits) if (r.status === "held") add(r.customerId, "Deposit held");
   if (service) for (const k of claims) if (claimOpen(k.status)) add(k.customerId, "Warranty claim");
-  if (ordersOn) for (const o of orders) if (orderOpen(o.status)) add(o.customerId, "Car on order");
   const sources = [...new Set(customers.map((c) => c.source))].sort();
 
   const customerColumns: Column<Customer>[] = [

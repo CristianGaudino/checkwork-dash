@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { Task, WhoseSwitch, rowButton, rowButtonStrong, type TaskUrgency } from "@/components/admin/kit";
-import { AlertIcon, CalendarIcon, CarIcon, InboxIcon, PercentIcon, PhoneIcon, ReceiptIcon, StarIcon, SyncIcon, TruckIcon, WrenchIcon } from "@/components/stock/icons";
+import { AlertIcon, CalendarIcon, CarIcon, InboxIcon, PercentIcon, PhoneIcon, ReceiptIcon, StarIcon, SyncIcon, WrenchIcon } from "@/components/stock/icons";
 import { CallButton, ReachButton } from "@/components/admin/LeadActions";
 import { firstReplies } from "@/lib/leads/first-replies";
 import { RowMenu } from "@/components/admin/RowMenu";
 import { DriveSteps } from "@/components/admin/DriveSteps";
 import { carCosts } from "@/lib/admin/costs";
-import { claimsStore, drivesStore, getSettings, leadsStore, ordersStore, reservationsStore, reviewsStore, salesStore, type Lead } from "@/lib/admin/collections";
+import { claimsStore, drivesStore, getSettings, leadsStore, reservationsStore, reviewsStore, salesStore, type Lead } from "@/lib/admin/collections";
 import { can, currentMember } from "@/lib/permissions";
 import { dublinDay, fmtAgo, fmtDateTime, fmtDay, plural } from "@/lib/admin/format";
 import { overview } from "@/lib/admin/overview";
@@ -24,7 +24,7 @@ import type { ModuleId } from "@/lib/modules-rules";
 
 // How many of one kind of to-do are listed one by one; the rest are one row that opens the whole list.
 const EACH = 3;
-const MODULE_OF: Record<string, ModuleId> = { drives: "testDrives", "sold-drives": "testDrives", reviews: "reviews", deposits: "sales", orders: "newCars", costs: "margins", warranty: "service" };
+const MODULE_OF: Record<string, ModuleId> = { drives: "testDrives", "sold-drives": "testDrives", reviews: "reviews", deposits: "sales", costs: "margins", warranty: "service" };
 // The to-dos that stay one row each: what they count (`noun`), the button's word and the icon.
 const GROUPED: Record<string, { noun: string; verb: string; icon: React.ReactNode }> = {
   warranty: { noun: "request", verb: "Open", icon: <WrenchIcon /> },
@@ -32,7 +32,6 @@ const GROUPED: Record<string, { noun: string; verb: string; icon: React.ReactNod
   sync: { noun: "problem", verb: "Check", icon: <SyncIcon /> },
   "sold-drives": { noun: "booking", verb: "Open", icon: <CalendarIcon /> },
   deposits: { noun: "reservation", verb: "Open", icon: <ReceiptIcon /> },
-  orders: { noun: "car", verb: "Open", icon: <TruckIcon /> },
   "taken-down": { noun: "car", verb: "Check", icon: <CarIcon /> },
   old: { noun: "car", verb: "Open", icon: <CarIcon /> },
   costs: { noun: "car", verb: "Add costs", icon: <PercentIcon /> },
@@ -56,17 +55,17 @@ export const WhoseToggle = ({ path, mine }: { path: string; mine: boolean }) => 
 
 // `mine`: the page's ?mine; For me is on by default for Sales (their report counts their own follow-ups).
 export async function loadToDo(mineParam: string | undefined) {
-  const [leads, drives, reviews, all, settings, source, sales, reservations, orders, claims, mods, me, { site: listingSite }, { rules }] = await Promise.all([leadsStore.list(), drivesStore.list(), reviewsStore.list(), adminCars(), getSettings(), stockSource(), salesStore.list(), reservationsStore.list(), ordersStore.list(), claimsStore.list(), enabledModules(), currentMember(), listing(), dealerProfile()]);
+  const [leads, drives, reviews, all, settings, source, sales, reservations, claims, mods, me, { site: listingSite }, { rules }] = await Promise.all([leadsStore.list(), drivesStore.list(), reviewsStore.list(), adminCars(), getSettings(), stockSource(), salesStore.list(), reservationsStore.list(), claimsStore.list(), enabledModules(), currentMember(), listing(), dealerProfile()]);
   const reply = await firstReplies();
   const mine = Boolean(me.name) && (mineParam ? mineParam === "1" : me.role === "Sales");
   const synced = source === "donedeal";
   const sync = synced ? await syncStatus() : null;
   // Only for staff with the margins permission: the costs are not read without it.
   const costs = (await can("margins")) ? new Set((await carCosts()).keys()) : undefined;
-  const o = overview({ leads: leads.filter(isSalesLead), drives, reviews, rules, listingSite, cars: all, costs, sales: new Set(sales.map((s) => s.id)), reservations, orders, warrantyRequests: openWarrantyRequests(leads, claims).length, syncProblem: Boolean(sync?.problem), slaHours: settings.leadSlaHours, mine: mine ? me.name : undefined, drops: await can("settings") });
+  const o = overview({ leads: leads.filter(isSalesLead), drives, reviews, rules, listingSite, cars: all, costs, sales: new Set(sales.map((s) => s.id)), reservations, warrantyRequests: openWarrantyRequests(leads, claims).length, syncProblem: Boolean(sync?.problem), slaHours: settings.leadSlaHours, mine: mine ? me.name : undefined, drops: await can("settings") });
   // What a module that is off would show goes with it (#173): its buttons, figures and to-dos.
-  // Orders and deposits are our version only: with DoneDeal stock their pages are not there, so their to-dos go too.
-  const attention = o.attention.filter((a) => (!MODULE_OF[a.key] || mods.has(MODULE_OF[a.key])) && !(synced && (a.key === "orders" || a.key === "deposits")));
+  // Deposits are our version only: with DoneDeal stock their page is not there, so their to-dos go too.
+  const attention = o.attention.filter((a) => (!MODULE_OF[a.key] || mods.has(MODULE_OF[a.key])) && !(synced && a.key === "deposits"));
   const today = dublinDay();
   // Whose it is, first in the row's detail: a name, You, or Not taken for a new lead or request nobody has yet.
   const who = (name?: string) => (!name ? "Not taken" : name === me.name ? "You" : name);

@@ -77,7 +77,7 @@ describe("the plans", () => {
   it("keeps the add-ons when the plan changes, and drops only those the new plan cannot hold, saying which", () => {
     const plan = (id: string) => PLANS.find((p) => p.id === id)!;
     const dash = switchPlan([...BOTH, "social"], plan("dashboard"));
-    expect([...dash.modules].sort()).toEqual([...DASHBOARD, "newCars", "social"].sort());
+    expect([...dash.modules].sort()).toEqual([...DASHBOARD, "social"].sort());
     expect(dash.dropped).toEqual([]);
     expect(switchPlan([...BOTH, "social"], plan("website"))).toEqual({ modules: new Set(WEBSITE), dropped: ["social"] });
   });
