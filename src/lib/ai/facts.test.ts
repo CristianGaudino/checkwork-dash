@@ -14,6 +14,29 @@ describe("buildFacts for a lead reply", () => {
     expect(f.carDetails).toMatchObject({ name: expect.any(String), forSale: expect.any(Boolean), link: expect.stringContaining(lead.carSlug!) });
     expect(JSON.stringify(f)).not.toContain(lead.email); // the customer's contacts still never go in
   });
+  it("gives the price and link of a car for sale, and neither for a sold one (#160)", async () => {
+    const { adminCars } = await import("@/lib/admin/stock-admin");
+    const stock = await adminCars();
+    const [live, sold] = [stock.find((c) => !c.soldAt && !c.listing && c.priceEur > 0 && c.condition !== "new" && c.condition !== "commercial")!, stock.find((c) => c.soldAt)!];
+    const lead = (await leadsStore.list())[0]!;
+    const facts = async (c: typeof live) => {
+      await leadsStore.put({ ...lead, id: "lead-price", carSlug: c.slug, carTitle: c.model });
+      return ((await buildFacts({ task: "leadReply", leadId: "lead-price" }, "D", "https://www.demo.checkwork.ie"))!.facts as import("./tasks").FactsOf["leadReply"]).carDetails!;
+    };
+    expect(await facts(live)).toMatchObject({ price: expect.stringMatching(/^€[\d,]+/), link: `https://www.demo.checkwork.ie/used-cars/${live.slug}` });
+    const gone = await facts(sold);
+    expect(gone.forSale).toBe(false);
+    expect(gone.price).toBeUndefined();
+    expect(gone.was).toBeUndefined();
+    expect(gone.link).toBeUndefined();
+    const { saveCar } = await import("@/lib/admin/stock-admin");
+    await saveCar({ ...live, reserved: true }); // a deposit on it
+    const held = await facts(live);
+    await saveCar(live);
+    expect(held).toMatchObject({ reserved: true, forSale: false });
+    expect(held.price).toBeUndefined();
+    expect(held.link).toBeUndefined();
+  });
   it("gives the buyer's words as the message and the form's answers apart, as it reads an old lead too (#59)", async () => {
     const lead = (await leadsStore.list())[0]!;
     await leadsStore.put({ ...lead, id: "lead-answers", source: "Website", message: "Finance: PCP. Deposit: 3000\n\nCall me on 087 123 4567 please", details: undefined, topic: undefined, answers: undefined });

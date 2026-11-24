@@ -36,6 +36,7 @@ import { isCarLabel, theirCar } from "./car";
 import { VisitPanel } from "@/components/admin/VisitPanel";
 import { askedCar } from "@/lib/leads/journey";
 import { ContactButtons } from "@/components/admin/ContactButtons";
+import { firstReplies } from "@/lib/leads/first-replies";
 import { LeadKind, LeadTags, leadChips } from "@/components/admin/LeadKind";
 import { LeadMenu, SpamButton } from "@/components/admin/LeadActions";
 import { readLead } from "@/lib/leads/lead-text";
@@ -139,7 +140,7 @@ export async function LeadView({ id }: { id: string }) {
           </section>
           <section aria-labelledby="next" className="flex min-w-0 flex-col gap-4 max-lg:order-first max-lg:border-b max-lg:border-hairline max-lg:pb-5 lg:border-l lg:border-hairline lg:pl-6">
             <h2 id="next" className="text-section font-semibold">Next step</h2>
-            <ContactButtons phone={lead.phone} email={lead.email} main={main === "reply" ? replyVia(lead) : undefined} whatsapp={lead.whatsappOptIn !== false} />
+            <ContactButtons phone={lead.phone} email={lead.email} main={main === "reply" ? replyVia(lead) : undefined} whatsapp={lead.whatsappOptIn !== false} reply={(await firstReplies())(lead)} />
             {/* Booking a drive from the lead carries their car, name and number into the form. */}
             {lead.type !== "warranty" && isOpenLead(lead) && (
               <IfModule id="testDrives">
