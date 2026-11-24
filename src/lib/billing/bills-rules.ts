@@ -50,10 +50,12 @@ export type Bill = {
   usage: BillUsage[];
 };
 export type BillLine = { label: string; detail?: string; eur: number };
+// Kinds no longer billed that a stored bill may still list: the website's lookup (#182).
+const OLD_KINDS: Record<string, string> = { website: "on the website" };
 export function itemise(b: Bill) {
   const plan: BillLine[] = b.modules;
   const billed = (u: BillUsage) => u.count - (u.included ?? 0);
-  const usage: BillLine[] = b.usage.filter((u) => billed(u) > 0).map((u) => ({ label: `${SERVICE_LABELS[u.service]}: ${(KINDS[u.service] as Record<string, string>)[u.kind] ?? u.kind}`, detail: `${billed(u)} x ${eur(u.unitEur)}`, eur: round2(billed(u) * u.unitEur) }));
+  const usage: BillLine[] = b.usage.filter((u) => billed(u) > 0).map((u) => ({ label: `${SERVICE_LABELS[u.service]}: ${(KINDS[u.service] as Record<string, string>)[u.kind] ?? OLD_KINDS[u.kind] ?? u.kind}`, detail: `${billed(u)} x ${eur(u.unitEur)}`, eur: round2(billed(u) * u.unitEur) }));
   const planEur = round2(plan.reduce((n, l) => n + l.eur, 0));
   const usageEur = round2(usage.reduce((n, l) => n + l.eur, 0));
   const net = round2(planEur + usageEur);

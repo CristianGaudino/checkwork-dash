@@ -42,6 +42,9 @@ describe("itemise", () => {
     expect(t.usage[0].detail).toBe("10 x €0.05");
     expect(itemise({ ...bill, modules: [...bill.modules, { label: "First month free", eur: -278 }] }).planEur).toBe(0);
   });
+  it("still labels a stored line for the website's lookup, which is no longer billed (#182)", () => {
+    expect(itemise({ ...bill, usage: [{ service: "lookup", kind: "website", count: 3, unitEur: 0.3 }] }).usage[0].label).toBe("Registration lookup: on the website");
+  });
   it("bills only the uses past what the plan includes, and never AI writing", () => {
     const usage = usageLines([{ service: "lookup", kind: "dashboard", count: 30 }, { service: "whatsapp", kind: "reply", count: 10 }, { service: "ai", kind: "opus", count: 50 }], { lookup: 25 });
     expect(usage.some((u) => u.service === "ai")).toBe(false);

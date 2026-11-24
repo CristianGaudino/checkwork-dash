@@ -12,8 +12,8 @@ export const SERVICE_LABELS: Record<Service, string> = { lookup: "Registration l
 export type Scope = Exclude<Service, "ai">; // what is billed per use, and so has a limit
 export const PAID: Scope[] = ["lookup", "history", "whatsapp"];
 
-// What each use is, and its price. A lookup is in the dashboard (the website has none, #182; a bill from before that lists one "website"
-// still reads). An AI action (a draft or an adjust) is counted by the model that wrote it, Premium (Claude Opus) or Standard (Claude
+// What each use is, and its price. A lookup is in the dashboard (the website has none, #182: a stored bill's "website" line keeps its
+// label through itemise, and the demo's rebuilt bills have none). An AI action (a draft or an adjust) is counted by the model that wrote it, Premium (Claude Opus) or Standard (Claude
 // Sonnet) (BillingSettings.aiModel); the dealer never sees which model or provider it is. A WhatsApp message is an alert or confirmation, a reply inside the 24 hours after a buyer writes, or a marketing message.
 export const KINDS = {
   lookup: { dashboard: "In the dashboard" },
