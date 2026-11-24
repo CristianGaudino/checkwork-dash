@@ -244,3 +244,83 @@ test.describe("the bot check on the closed server", () => {
     await expect(page.getByRole("button", { name: "Email me a code" })).toBeDisabled();
   });
 });
+
+// The team (docs/sign-in.md, section 1, build step 6), on the closed server: someone removed, or signed out on all devices by a manager, is
+// signed out at their next click. One manager sign-in for both, since every email counts in the address's caps (3 in 15 minutes).
+test.describe("the team on the closed server", () => {
+  test.skip(!!process.env.E2E_BASE_URL, "needs the run's own closed server");
+  test.use({ serviceWorkers: "block" });
+
+  const codes = async (api: APIRequestContext, to: string) =>
+    ((await (await api.get(`${CLOSED}/sign-in/outbox?to=${encodeURIComponent(to)}`)).json()) as { subject: string; text: string }[]).filter((m) => m.subject === "Your Checkwork sign-in code");
+  // Signs `email` in by code on `page`, and leaves it on the overview.
+  const signIn = async (page: import("@playwright/test").Page, email: string) => {
+    await stub(page);
+    const before = (await codes(page.request, email)).length;
+    await page.goto(`${CLOSED}/sign-in`);
+    await page.getByLabel("Email").fill(email);
+    await page.getByRole("button", { name: "Email me a code" }).click();
+    await expect(page).toHaveURL(/\/sign-in\/code/);
+    await expect.poll(async () => (await codes(page.request, email)).length).toBeGreaterThan(before);
+    const code = /Your code is (\d{3}) (\d{3})/.exec((await codes(page.request, email)).at(-1)!.text)!.slice(1).join("");
+    await page.getByLabel("Code").fill(code);
+    await page.getByRole("button", { name: "Sign in" }).click();
+    await expect(page).toHaveURL(`${CLOSED}/`);
+  };
+  // A click to another page, as the menu's links do (a client-side navigation).
+  const go = (page: import("@playwright/test").Page, path: string) => page.evaluate((p) => (window as unknown as { next: { router: { push: (h: string) => void } } }).next.router.push(p), path);
+
+  test("a person removed, or signed out on all devices, is signed out at their next click", async ({ page, browser }) => {
+    const stamp = Date.now() % 1_000_000;
+    const people = { leaver: { name: `Leaver ${stamp}`, email: `leaver${stamp}@example.com` }, lost: { name: `Lost Phone ${stamp}`, email: `lost${stamp}@example.com` } };
+    await signIn(page, "ciara@example.com"); // a manager
+    await page.goto(`${CLOSED}/settings?section=team`);
+    for (const p of Object.values(people)) {
+      await page.getByRole("button", { name: "Add someone" }).click();
+      const add = page.getByRole("dialog", { name: "Add someone" });
+      await add.locator('input[name="name"]').fill(p.name);
+      await add.locator('input[name="email"]').fill(p.email);
+      await add.getByRole("button", { name: "Add", exact: true }).click();
+      await expect(page.getByRole("cell", { name: p.name })).toBeVisible();
+    }
+    const tabs = await Promise.all(Object.values(people).map(async (p) => {
+      const ctx = await browser.newContext({ serviceWorkers: "block" });
+      const tab = await ctx.newPage();
+      await signIn(tab, p.email);
+      return tab;
+    }));
+    const [leaver, lost] = tabs;
+
+    // Signed out on all devices: still on the team, and their next click goes to sign in.
+    let row = page.getByRole("row").filter({ hasText: people.lost.name });
+    await row.getByRole("button", { name: `More for ${people.lost.name}` }).click();
+    await row.getByRole("button", { name: "Sign out on all devices" }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Sign out" }).click();
+    await expect(page.getByText(`${people.lost.name} is signed out on all devices`)).toBeVisible();
+    await expect(row).toBeVisible();
+    await go(lost, "/leads");
+    await expect(lost).toHaveURL(`${CLOSED}/sign-in?next=%2Fleads`);
+
+    // Removed: the same, and not "No access".
+    row = page.getByRole("row").filter({ hasText: people.leaver.name });
+    await row.getByRole("button", { name: `More for ${people.leaver.name}` }).click();
+    await row.getByRole("button", { name: "Remove" }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Remove" }).click();
+    await expect(page.getByText(people.leaver.name)).toHaveCount(0);
+    await go(leaver, "/leads");
+    await expect(leaver).toHaveURL(`${CLOSED}/sign-in?next=%2Fleads`);
+
+    // The manager who did it is still signed in.
+    await page.goto(`${CLOSED}/leads`);
+    await expect(page).toHaveURL(`${CLOSED}/leads`);
+    for (const t of tabs) await t.context().close();
+  });
+
+  test("the main server (SIGN_IN unset) has no Sign out on all devices in Team", async ({ page }) => {
+    await page.goto("/settings?section=team");
+    const row = page.getByRole("row").filter({ hasText: "Conor Doyle" });
+    await row.getByRole("button", { name: "More for Conor Doyle" }).click();
+    await expect(row.getByRole("button", { name: "Remove" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Sign out on all devices" })).toHaveCount(0);
+  });
+});

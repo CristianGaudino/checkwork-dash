@@ -28,6 +28,14 @@ them is the invitation: there is no other way in. When someone is added in Setti
 The invitation carries no token. It is a plain link to the sign-in page, so an old invitation in a mailbox can never sign anyone in.
 A dealer's first owner, added by our script, gets the same words from us.
 
+Built in step 6 (`src/lib/auth/invite.ts`, sent by `addTeamAction` once the person is on the team, so only by an owner or a manager):
+- Not sent while `SIGN_IN` is `access` (Access decides who gets in then), and never from a demo dealer, which sends nothing outside.
+- Counted in the address's email caps like every email we send (an `invite` row in `sign_in_attempts`, no code and no token, section 5):
+  over them nothing is sent. Removing and adding someone again does not reset the count.
+- A failed or capped invitation never undoes the add; the log line is `{"signIn":"invite","outcome":...}` only.
+- The script's invitation to a first owner is not automatic: `scripts/add-dealer.mjs` cannot reach the Worker's mail, so until step 9 we
+  send those words ourselves.
+
 ### First sign-in
 
 1. **Sign in** (`/sign-in`). Title "Sign in to Checkwork". A button "Sign in with a passkey", then "or", an Email field and a button
@@ -508,7 +516,7 @@ POSTs too. Only the Origin check tells them apart.
 | Limit | Where | Value |
 |---|---|---|
 | Sign-in requests per IP | New `SIGN_IN_LIMITER` rate limit binding (namespace 4005 dev, 3005 production), keyed by an HMAC of the IP | 30 a minute: every sign-in step, and every challenge row written for someone signed out |
-| Emails per address | D1: the `link` and `confirm-code` rows with that email (every email we send writes exactly one) | 3 in 15 minutes, 6 an hour. Over either, nothing is sent and nothing is ended |
+| Emails per address | D1: the `link`, `confirm-code` and `invite` rows with that email (every email we send writes exactly one) | 3 in 15 minutes, 6 an hour. Over either, nothing is sent and nothing is ended |
 | Tries per code | D1, on the code's row | 5, then the code is dead |
 | Wrong codes per email | D1: the `tries` on the email's code rows from the last 24 hours, less one for each that was used, whichever code they were made on | 15, then the email is **locked** for 24 hours (`staff.code_locked_until`) |
 | Wrong codes in a row | D1, `staff.code_failures`, back to 0 at any sign-in | 100, then codes are off for that person until they sign in by link or passkey |
@@ -559,8 +567,9 @@ and the email run after the answer (section 3). A code typed for an unknown emai
 
 **Logs:** one function, `logSignIn({ step, outcome })`, builds the line from fixed words by name, as `logSite` does in `src/lib/log.ts`:
 `{"signIn":"code","outcome":"wrong-code"}`. Never an email, IP, code, token, cookie, credential id or user agent. Steps: `passkey`,
-`register`, `confirm`, `email`, `code`, `link`, `session`, `sign-out`. Outcomes are fixed codes (`ok`, `wrong-code`, `expired`, `used`,
-`rate`, `locked`, `bad-origin`, `bad-signature`, `bad-data`, `counter`, `unknown-credential`, `no-dealer`). Errors from D1 are rethrown
+`register`, `confirm`, `email`, `code`, `link`, `session`, `sign-out`, `invite`, `team`. Outcomes are fixed codes (`ok`, `wrong-code`,
+`expired`, `used`, `rate`, `locked`, `bad-origin`, `bad-signature`, `bad-data`, `counter`, `unknown-credential`, `no-dealer`, `send-failed`,
+`failed`). Errors from D1 are rethrown
 without their values (the `quiet` rule in `src/lib/tenancy/directory.ts`).
 
 **Activity log:** the activity log is per dealer and records changes, so it gets the changes: "Added a passkey (iPhone)", "Removed a
@@ -714,10 +723,21 @@ Each step is one PR, ready for review, with the house checks (`docs`-only steps 
 | 3 | **Sessions and the switch.** `src/lib/auth/session.ts`; `SIGN_IN` modes in `staffIdentity()` and `src/proxy.ts`; `sameOrigin`; the `/sign-out` route; the redirect to sign-in with `next`; the dealer cookie to `__Host-` | Each mode against each of: no cookie, a good one, an idle one, an expired one, an ended one, a mismatched Access email in `both`; an unset and an unknown `SIGN_IN` act as `access`; the open shortcut still refused with a directory bound; the cookie's attributes; a dead cookie redirects a page and 404s an action; `next` refuses `//`, `\`, another site and a client-sent `x-cw-path`; `/sign-out` refuses a missing and a foreign Origin and sends `Clear-Site-Data` |
 | 4 | **Email code and link.** The request, code and link screens; the stricter CSP on `/sign-in/*`; HMACs; the limits and lockout; the emails; the attempt cookie; an outbox in memory for the E2E run (only with `E2E_FAKE_BACKENDS=1` and no directory bound, like the in-memory directory) | Same answer, cookie and work in front of the answer for known, unknown, locked and limited emails; 5 tries on an unknown email's page; tries spent before comparing, under two posts at once; a code HMAC from one row refused on another; expiry; the caps; 15 wrong across three codes locks for a day; 100 in a row turns codes off and a sign-in resets it; a locked email still gets a working link, counted in the caps, and nothing past them; an over-limit request ends no earlier link; a matching code after the 15th wrong try is refused; the link does not spend the code; `/sign-in/link` sends `frame-ancestors 'none'` and no `cloudflareinsights`, and never redirects, signed in or not; the link page clears the fragment and shows the masked email; sign-in actions refuse a missing Origin; the log lines hold no email (a test watches `console`) |
 | 5 | **Passkeys in the app.** "Sign in with a passkey" with autofill (renewal and abort); "Sign in faster next time"; Settings, Your sign-in (passkeys, devices, sign out everywhere, the passkey review prompt); "Confirm it's you"; the signal calls; the email when a passkey is added | E2E with Playwright's CDP virtual authenticator (`WebAuthn.enable`, then `WebAuthn.addVirtualAuthenticator` with `protocol: "ctap2"`, `transport: "internal"`, `hasResidentKey`, `hasUserVerification`, `isUserVerified`, `automaticPresenceSimulation`): add a passkey after an email sign-in, sign out, sign in with it, remove it; adding one after 10 minutes asks for confirmation. A manual check on a real iPhone (the browser and the home screen app) and Android phone, which also records fixtures for `src/lib/auth/webauthn-fixtures.json` from an iPhone, an Android phone, Windows Hello (RS256) and a security key (Ed25519 and `credProtect`) |
-| 6 | **The team.** The invitation email; removal ends sessions (and passkeys when at no dealer), only for `role === null` and only after `details()` succeeds; "Sign out on all devices" with the owner and manager rule; sign out everywhere turns notifications off; activity entries | `src/lib/admin/team.test.ts` grows: a role change ends no session; a removal whose `details()` throws keeps sessions, passkeys and the staff row; a manager cannot sign out an owner. E2E: someone removed is signed out at their next click |
+| 6 | **The team.** Built. The invitation email; removal ends sessions (and passkeys when at no dealer), only for `role === null` and only after `details()` succeeds; "Sign out on all devices" with the owner and manager rule; sign out everywhere turns notifications off; activity entries | `src/lib/admin/team.test.ts` grows: a role change ends no session; a removal whose `details()` throws keeps sessions, passkeys and the staff row; a manager cannot sign out an owner. E2E: someone removed is signed out at their next click |
 | 7 | **Dev cut-over** (section 7, steps 2 to 5): `SIGN_IN` to `both`, then `own` | The E2E suite and the week of checks |
 | 8 | **Production cut-over** (steps 6 to 8) | The same, on production, by us |
 | 9 | **Access removed** (step 9): code, vars and docs | The whole suite with `access.ts` gone |
+
+Built so far: steps 1 to 4 and 6. Step 5 (passkeys in the app: the passkey button and autofill, "Sign in faster next time", Settings, Your
+sign-in, "Confirm it's you", the passkey-added email and its activity lines) is not built yet; step 2's verifier has no page using it.
+Step 6 as built: removal in `changeTeamMember` (`endRemoved` in `src/lib/auth/session.ts`, after the details, removal only, a failure logged
+and the removal kept); "Sign out on all devices" in Settings, Team's row menu (`signOutPersonAction`, hidden and a 404 while `SIGN_IN` is
+`access`); and `signOutEverywhere` (`src/lib/auth/everywhere.ts`), used by it and by `/sign-out` with `everywhere=1`, which ends the
+sessions first and then, at each dealer the person is at, removes their push devices and writes the activity line ("Signed out
+everywhere", or "Signed Conor Byrne out on all devices"; at the person's other dealers the actor is "Another dealer", so one dealer's
+people are not named to another). Removal runs in every mode: under `access` the sign-in tables hold nobody, so it finds nothing to end.
+Tests: `src/lib/admin/team.test.ts`, `src/lib/auth/team.int.test.ts`, `src/app/settings/team-sign-in.test.ts`,
+`src/app/sign-out/route.test.ts`, and `e2e/sign-in.spec.ts` ("the team on the closed server").
 
 The E2E run today is open (`NEXT_PUBLIC_ADMIN_OPEN=1`, the one person `DEV_EMAIL`). Sign-in tests need a server that is closed: a third
 `webServer` of the same build in `playwright.config.ts`, on the next free port, with a server-only `E2E_SIGN_IN=1` that turns the open

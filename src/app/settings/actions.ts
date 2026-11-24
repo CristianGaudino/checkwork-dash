@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { notFound } from "next/navigation";
 import { z } from "zod";
 import { sendToDealer } from "@/lib/leads/mail";
 import { SETTINGS_DEFAULT, changeTeamMember, getSettings, leadsStore, moveTeamMember, reservationsStore, salesStore, settingsStore, type DealerSettings, type TeamMember, drivesStore } from "@/lib/admin/collections";
@@ -20,6 +21,9 @@ import { logActivity } from "@/lib/admin/activity";
 import { currentDealer } from "@/lib/tenancy/current";
 import { DEV_EMAIL, dealerIdsOf, patchDealer } from "@/lib/tenancy/directory";
 import { staffByEmail } from "@/lib/auth/attempts";
+import { signOutEverywhere } from "@/lib/auth/everywhere";
+import { signInMode } from "@/lib/auth/gate";
+import { sendInvitation } from "@/lib/auth/invite";
 import { FACTS_SCHEMA } from "@/lib/tenancy/profile";
 import { requireStaff } from "@/lib/staff";
 import { messagesStore, staffStore } from "@/lib/whatsapp/store";
@@ -160,6 +164,8 @@ export async function addTeamAction(_p: SettingsState, data: FormData): Promise<
     await staffStore.put({ id, name: r.data.name, phone: "", alerts: alertsOf(prefs), quietFrom: "", quietTo: "", push: prefs.push, email: prefs.email });
   });
   await logActivity("settings", `Added ${r.data.name} to the team as ${r.data.role}`, { kind: "team", id, label: r.data.name });
+  // Adding them is the invitation (docs/sign-in.md, section 1): one email, no token. It never undoes the add (src/lib/auth/invite.ts).
+  await sendInvitation({ email: r.data.email, by: (await currentMember()).name || "Someone", dealer: await currentDealer() });
   return { saved: true };
 }
 
@@ -303,6 +309,23 @@ export async function removeTeamAction(id: string) {
   await staffStore.remove(id); // their phone and notifications go too: no more buyers' alerts to someone who left
   await removePushOf(gone.email); // and their notifications on their phones
   await logActivity("settings", `Removed ${gone.name} from the team`, { kind: "team", id, label: gone.name });
+}
+
+// Sign out on all devices (docs/sign-in.md, section 1), for someone who cannot sign in to do it themselves (a lost phone): the rule for
+// changing them, an owner for anyone and a manager for anyone but an owner (mayTouch). Every session of theirs ends, at every dealer they
+// are at (a session is a person), with their notifications on every device and a line in each dealer's activity history. They stay on the
+// team and can sign in again. Not there while SIGN_IN is `access`: Access signs people in then, and there are no sessions of ours.
+export async function signOutPersonAction(id: string) {
+  await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
+  if (signInMode() === "access") notFound();
+  const p = (await getSettings()).team.find((t) => t.id === id);
+  if (!p) return { error: "That person is no longer on the team" };
+  const no = await mayTouch(p.role);
+  if (no) return { error: no };
+  const by = (await currentMember()).name || "Someone";
+  const here = (await currentDealer()).id;
+  // At another dealer they work at, this dealer's people are not named there: only that it came from another dealer.
+  await signOutEverywhere(p.email, (name, dealerId) => ({ summary: `Signed ${name} out on all devices`, actor: dealerId === here ? by : "Another dealer" }));
 }
 
 export async function resetDemoAction() {

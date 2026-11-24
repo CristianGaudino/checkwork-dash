@@ -1,8 +1,8 @@
 import "server-only";
 import { cache } from "react";
 import { cookies } from "next/headers";
-import { and, desc, eq, lte, notInArray } from "drizzle-orm";
-import { sessions, staff } from "@/lib/db/directory-schema";
+import { and, desc, eq, inArray, lte, notInArray } from "drizzle-orm";
+import { members, passkeys, sessions, signInAttempts, staff } from "@/lib/db/directory-schema";
 import { directoryDb, hashSiteKey as sha256Hex, hasD1, memoryDirectory, quietDirectory as quiet } from "@/lib/tenancy/directory";
 import { SESSION_COOKIE, SESSION_VALUE as VALUE } from "./gate";
 import { SESSION_IDLE_MS } from "./purge";
@@ -85,6 +85,36 @@ export async function endSession(value: string): Promise<void> {
 
 // Sign out everywhere: every session of the person, at every dealer (a session is a person, not a dealer).
 export const endSessionsOf = (staffId: string) => dropSessions(eq(sessions.staffId, staffId), (x) => x.staffId === staffId);
+
+// Removed from a team (docs/sign-in.md, section 1; changeTeamMember calls it once the removal stands): every session of the person ends, at
+// every dealer. At no dealer any more (a paused one still counts, as in the nightly purge), their passkeys, pending attempts and staff row
+// go too, in one transaction that checks the memberships again, so someone added back meanwhile keeps all of it.
+export async function endRemoved(email: string): Promise<void> {
+  const e = email.trim().toLowerCase();
+  if (!hasD1()) {
+    const m = memoryDirectory();
+    const p = m.staff.find((x) => x.email === e);
+    if (!p) return;
+    m.sessions = m.sessions.filter((s) => s.staffId !== p.id);
+    if (m.members.some((x) => x.email === e)) return;
+    m.passkeys = m.passkeys.filter((k) => k.staffId !== p.id);
+    m.signInAttempts = m.signInAttempts.filter((a) => a.staffId !== p.id);
+    m.staff = m.staff.filter((x) => x !== p);
+    return;
+  }
+  const d = directoryDb();
+  const them = d.select({ id: staff.id }).from(staff).where(eq(staff.email, e));
+  const gone = d.select({ id: staff.id }).from(staff).where(and(eq(staff.email, e), notInArray(staff.email, d.select({ email: members.email }).from(members).where(eq(members.email, e)))));
+  await quiet(
+    d.batch([
+      d.delete(sessions).where(inArray(sessions.staffId, them)),
+      d.delete(passkeys).where(inArray(passkeys.staffId, gone)),
+      d.delete(signInAttempts).where(inArray(signInAttempts.staffId, gone)),
+      d.delete(staff).where(inArray(staff.id, gone)),
+    ]),
+    "endRemoved",
+  );
+}
 
 async function dropSessions(where: ReturnType<typeof eq>, match: (s: Row) => boolean): Promise<void> {
   if (!hasD1()) {

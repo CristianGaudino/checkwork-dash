@@ -107,8 +107,8 @@ export const signInAttempts = sqliteTable(
   "sign_in_attempts",
   {
     id: text().primaryKey(),
-    kind: text().$type<"passkey-sign-in" | "passkey-register" | "passkey-confirm" | "code" | "confirm-code" | "link">().notNull(),
-    email: text(), // code, link and confirm-code rows for a known email only
+    kind: text().$type<"passkey-sign-in" | "passkey-register" | "passkey-confirm" | "code" | "confirm-code" | "link" | "invite">().notNull(),
+    email: text(), // code, link, confirm-code and invite rows for a known email only (an invite row is only a count: no code, no token)
     staffId: text("staff_id").references(() => staff.id), // registration and confirmation
     challenge: text(), // passkeys, base64url
     codeHmac: text("code_hmac"),

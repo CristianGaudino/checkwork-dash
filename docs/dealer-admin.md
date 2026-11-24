@@ -54,6 +54,13 @@ permissions, each checked on the server in every page and action that needs it (
   push only with a device turned on, WhatsApp only with a phone and WhatsApp connected). A new person starts with their role's defaults
   (`roleDefaults` in `src/lib/notify-rules.ts`), kept as theirs (#150). A manager cannot add, change or remove an owner, or
   make anyone one. A team with an owner always keeps one, and the last person cannot be removed.
+- **Our own sign-in and the team** (#10, `docs/sign-in.md` section 1). Once `SIGN_IN` is `both` or `own` (none of this happens under
+  Access alone): adding someone sends them the invitation, one email with a plain link to the sign-in page and no token, never from a
+  demo dealer and within the address's email caps (`src/lib/auth/invite.ts`). Each row's menu has **Sign out on all devices**, with the
+  same rule as changing them (a manager not for an owner): every session of theirs ends at every dealer, their notifications go on every
+  device, and each of their dealers' activity history says so (`signOutPersonAction`, `src/lib/auth/everywhere.ts`). Removing someone, in
+  every mode, ends their sessions at every dealer once the removal has been saved, and deletes their passkeys and sign-in record if they
+  are at no dealer now (`changeTeamMember`, `endRemoved`); a role change ends nothing.
 - **A new name** follows the person to their leads, bookings, sales, bell notices and WhatsApp conversation; the activity history keeps
   the name each change was made under. **A new email** moves their membership in the directory at this dealer (`moveTeamMember`: the new
   address first, the old put back if anything fails), and their push devices and bell reads with it. Their memberships at other dealers
