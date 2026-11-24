@@ -64,13 +64,18 @@ export async function runSync({ force = false, now = Date.now() } = {}): Promise
   const prev = await syncStatus();
   const { site } = await listing();
   const feed: FeedResult = await fetchListings().catch(() => ({ ok: false, reason: "failed" }) as const);
-  if (!feed.ok) return failed(prev, problems(site)[feed.reason], false, now, site, feed.reason === "refused");
+  // While the key stays gone after its cars were removed, the removal's reason stays what Stock and the email say.
+  const problemOf = (reason: keyof ReturnType<typeof problems>, s: SyncStatus) => (reason === "not-connected" && s.removed && s.problem ? s.problem : problems(site)[reason]);
+  if (!feed.ok) return failed(prev, problemOf(feed.reason, prev), false, now, site, feed.reason === "refused");
   const today = dublinDay(now); // the Irish day, as the rest of the dashboard dates a sale
   const current = await adminCars();
   const plan = planSync(current, feed.listings, today, { force, site });
   if (plan.held) return failed(prev, `${plan.held} The site kept its stock. Check ${site}, then refresh stock.`, true, now, site);
   // The key removed while this ran (src/lib/owner-api/keys.ts removes its cars): applying the plan now would put them all back.
-  if ((await modeOf("donedeal")) === "off") return failed(await syncStatus(), problems(site)["not-connected"], false, now, site);
+  if ((await modeOf("donedeal")) === "off") {
+    const latest = await syncStatus();
+    return failed(latest, problemOf("not-connected", latest), false, now, site);
+  }
   // Car by car: one that cannot be saved (an ad whose address clashes with another car's) is skipped and counted, never stops the rest.
   // shortcut: a cron run and Sync now at the same moment both apply the plan; the stock ends the same but the history shows each change
   // twice. Fine while syncs take seconds; add a lock if it shows up.

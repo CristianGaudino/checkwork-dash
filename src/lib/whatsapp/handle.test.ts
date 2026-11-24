@@ -122,6 +122,14 @@ describe("Drop the price", () => {
     await tap("Aoife", "a1", "drop");
     expect(db.saved).toEqual([expect.objectContaining({ priceEur: 9500 })]);
   });
+  it("never takes a departed namesake's linked phone as linked", async () => {
+    db.phone = ""; // the Aoife on the team has no phone
+    db.staff = [{ id: "gone", name: "Aoife", phone: "+353 83 000 9999", alerts: [], quietFrom: "", quietTo: "" }];
+    alert("a1", ["drop"], { ref: "c1" });
+    await tap("Aoife", "a1", "drop");
+    expect(db.saved).toEqual([]);
+    expect(said()).toContain("Add your mobile phone in Settings, Profile to act from here.");
+  });
   it("leaves a car already reduced alone: one suggested drop per car", async () => {
     db.car = { id: "c1", priceEur: 9500, wasPriceEur: 10000, listedAt: "2026-01-01" };
     alert("a1", ["drop"], { ref: "c1" });

@@ -160,7 +160,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sto
         </Notice>
       )}
       {saleFor && sp.review === "failed" && <Notice tone="warn">The review request did not go.</Notice>}
-      {saleFor && sp.review === "none" && <Notice tone="neutral">No review request went: no way to reach them.</Notice>}
+      {saleFor && sp.review === "none" && <Notice tone="neutral">No review request went.</Notice>}
       {sp.deleted && <Notice tone="neutral">Car deleted.</Notice>}
       {reservedNow && <Notice>Deposit taken. {carName(reservedNow)} shows as Reserved on the website.</Notice>}
       {undoneNow && <Notice tone="neutral">Sale undone for {carName(undoneNow)}. The record is kept.</Notice>}

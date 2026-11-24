@@ -81,15 +81,16 @@ async function copies(msg: Msg): Promise<Msg[]> {
 }
 const markDone = async (all: Msg[]) => void (await Promise.all(all.map((m) => messagesStore.put({ ...m, done: true }))));
 
-async function linked(name: string) {
-  return (await staffStore.list()).some((p) => p.name === name && p.phone);
-}
-// A team member's role, by their name in the conversation, or null when they are no longer on the team. A departed namesake's record
-// never counts: only records of people still on the team.
-async function roleOf(name: string) {
+// The staff records under a name in the conversation, of people still on the team, with their role: a departed namesake's never counts.
+async function onTeam(name: string) {
   const [staff, { team }] = await Promise.all([staffStore.list(), getSettings()]);
-  return staff.filter((p) => p.name === name).map((p) => team.find((t) => t.id === p.id)?.role).find(Boolean) ?? null;
+  return staff.flatMap((p) => {
+    const role = p.name === name && team.find((t) => t.id === p.id)?.role;
+    return role ? [{ ...p, role }] : [];
+  });
 }
+const linked = async (name: string) => (await onTeam(name)).some((p) => p.phone);
+const roleOf = async (name: string) => (await onTeam(name))[0]?.role ?? null;
 
 export async function tap(me: string, msgId: string, button: ButtonId): Promise<void> {
   const msg = await messagesStore.get(msgId);

@@ -13,7 +13,7 @@ vi.mock("@/lib/integrations", async (orig) => {
   const real = await orig<typeof import("@/lib/integrations")>();
   return { ...real, modeOf: async (id: Parameters<typeof real.modeOf>[0]) => (id === "donedeal" ? mode : real.modeOf(id)) };
 });
-const sent: { to: string[]; subject: string }[] = [];
+const sent: { to: string[]; subject: string; text: string }[] = [];
 // A car whose save fails (as an address clash with another car would in D1). `race`: a change someone makes to that car in the dashboard
 // after the sync planned and just before its write lands (#15).
 const race: { id?: string; change?: (c: Car) => Car } = {};
@@ -32,7 +32,7 @@ vi.mock("@/lib/admin/stock-admin", async (orig) => {
     },
   };
 });
-vi.mock("@/lib/leads/mail", () => ({ sendTo: async (to: string[], m: { subject: string }) => void sent.push({ to, subject: m.subject }) }));
+vi.mock("@/lib/leads/mail", () => ({ sendTo: async (to: string[], m: { subject: string; text: string }) => void sent.push({ to, subject: m.subject, text: m.text }) }));
 // The stored photos a removed car takes with it (R2 on the Worker; tests have no bucket).
 const dropped: string[] = [];
 vi.mock("@/lib/admin/car-photos", async (orig) => ({ ...(await orig<typeof import("@/lib/admin/car-photos")>()), dropCarPhotos: async (p: { src: string }[]) => void dropped.push(...p.map((x) => x.src)) }));
@@ -229,6 +229,9 @@ describe("a refused DoneDeal key (#158)", () => {
     await asTest(() => runSync({ now: 1_000 }));
     await asTest(() => runSync({ now: 1_000 + HOUR }));
     expect(sent.map((m) => m.subject)).toEqual(["Test Motors: the DoneDeal cars were removed"]);
+    expect(sent[0].text).toMatch(/^DoneDeal cars were removed: the DoneDeal key was removed\./); // the reason kept, not "not connected"
+    expect(sent[0].text.match(/Contact Checkwork/g)).toHaveLength(1);
+    expect(await asTest(syncStatus)).toMatchObject({ problem: "DoneDeal cars were removed: the DoneDeal key was removed." });
     mode = "simulated";
   });
 
@@ -242,7 +245,7 @@ describe("a refused DoneDeal key (#158)", () => {
     const s = await asTest(() => runSync({ now: 1_000 }));
     mode = "simulated";
     expect(await ids()).toEqual([]);
-    expect(s).toMatchObject({ removed: true, problem: "DoneDeal is not connected. Contact Checkwork to connect it." });
+    expect(s).toMatchObject({ removed: true, problem: "DoneDeal cars were removed: the DoneDeal key was removed." });
   });
 
   it("an outage keeps the stock", async () => {
