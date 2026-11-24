@@ -38,7 +38,7 @@ describe("the first reply to a lead", () => {
     expect(firstReply({ ...base, car: { ...car, priceEur: 0 } }).body).not.toContain("€");
     expect(firstReply({ ...base, siteUrl: "" }).body).not.toContain("https:");
     expect(firstReply({ ...base, car: { ...car, listing: "hidden" } }).body).not.toContain("https:");
-    expect(firstReply({ ...base, car: { ...car, condition: "new" } }).body).not.toContain("https:"); // new cars are off the plan
+    expect(firstReply({ ...base, car: { ...car, condition: "commercial" } }).body).not.toContain("https:"); // a van with no commercial section
   });
 
   it("greets them as there with no usable first name, and signs as the dealer with no staff name", () => {
