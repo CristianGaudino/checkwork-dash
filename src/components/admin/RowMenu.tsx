@@ -26,7 +26,7 @@ export function RowMenu({ label, children }: { label: string; children: React.Re
   return (
     <>
       {/* An icon, square at the row's button height; its hit area stays 44px in compact rows (32px tall) too. */}
-      <button ref={button} type="button" popoverTarget={id} onClick={place} aria-label={label} title="More" className={`${rowButton} relative w-11 shrink-0 px-0 group-data-[density=compact]/shell:w-8 after:absolute after:left-1/2 after:top-1/2 after:size-11 after:-translate-x-1/2 after:-translate-y-1/2`}>
+      <button ref={button} type="button" popoverTarget={id} onClick={place} aria-label={label} title="More" className={`${rowButton} relative w-11 shrink-0 px-0 after:absolute after:left-1/2 after:top-1/2 after:size-11 after:-translate-x-1/2 after:-translate-y-1/2`}>
         <MoreIcon className="size-5" />
       </button>
       {/* An item closes the menu when chosen: a link navigates, a button runs (and asks first, in its own dialog, if it must). */}

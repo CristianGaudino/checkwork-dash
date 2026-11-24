@@ -44,10 +44,8 @@ section 7). The rules in `docs/dashboard-polish.md` still hold: quiet chrome, on
 - **The whole width of the screen,** no cap: the page beside a 16rem sidebar.
 - **The sidebar stays put** down the left, the height of the screen above the demo bar. The dealership's name on top and View the public site
   at the foot are always in view; the menu between them scrolls on its own if it ever has to, and keeps the page you are on in view.
-- **It folds to a rail of icons** and back (the arrow at its foot), kept per person in a cookie. The rail shows every place, the groups parted
-  by a line; each icon is named on hover and to screen readers. The dealership shows as its initials, and the bell stays.
 - **The tables** (`kit.tsx`, `TableTools.tsx`): headers sort the whole list (before it is paged), the search runs as you type with a clear
-  button, each table has the filters that fit it, all in the URL. Compact, on the tables only, tightens their rows for the person.
+  button, each table has the filters that fit it, all in the URL. Rows have one height (#151).
 - **The groups fold** (Sales, Customers, Growth, Dealership) under their headings, Overview above them. Sales is open until closed; the group
   holding the page you are on opens when you arrive; a folded group holding it shows a dot. What you leave open is kept in a cookie, so the
   server draws the menu that way (no jump after the page loads). Every item names its group, so a role that cannot see a group's first
@@ -79,7 +77,7 @@ misalignment, uneven spacing, controls that do not line up, text that wraps badl
 - Task rows (Overview, To do, Leads, Stock, Marketing) and the other lists with row buttons (Test drives, Customers, Billing): the
   buttons sit at the row's right edge; on a phone they take their own line under the words, still on the right (#126).
 - Everyone | For me (Overview, To do, Leads, Test drives): a small pill switch (WhoseSwitch), the chosen half a raised thumb that
-  slides across. The view tabs (Today, Week, List; periods) stay Segmented.
+  slides across. The view tabs (Today, List; periods) stay Segmented.
 - Home: the finance band's two buttons are full width on a phone, like the hero's.
 - Stock list: Filters is a box the same height as the sort select beside it.
 - Car page: Compare and Price alert sit side by side, like Call us and WhatsApp.

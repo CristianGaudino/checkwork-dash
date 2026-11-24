@@ -1,14 +1,12 @@
 import { dealerProfile } from "@/lib/tenancy/current";
-import type { Hours } from "@/lib/tenancy/profile";
 import Link from "next/link";
 import { DriveStatusBadge } from "@/components/admin/badges";
 import { DriveSteps } from "@/components/admin/DriveSteps";
 import { Badge, DataTable, EmptyState, PageHeader, Panel, Segmented, TableFooter, WhoseSwitch, TableToolbar, adminButton, pageOf, sortRows, type Column, type FilterGroup } from "@/components/admin/kit";
-import { ChevronLeftIcon, ChevronRightIcon, PlusIcon } from "@/components/stock/icons";
-import { card } from "@/components/ui";
-import { DRIVE_STATUSES, DRIVE_STATUS_LABELS, drivesStore, getSettings, type DriveStatus, type TestDrive } from "@/lib/admin/collections";
+import { PlusIcon } from "@/components/stock/icons";
+import { DRIVE_STATUSES, DRIVE_STATUS_LABELS, drivesStore, getSettings, type TestDrive } from "@/lib/admin/collections";
 import { filterDrives, isOpenDrive, waitingDrives } from "@/lib/admin/drives";
-import { addDays, dublinDay, fmtDate, fmtDay, fmtTime, isIsoDay } from "@/lib/admin/format";
+import { addDays, dublinDay, fmtDate, fmtDay, fmtTime } from "@/lib/admin/format";
 import { adminCars } from "@/lib/admin/stock-admin";
 import { slugId } from "@/lib/admin/stock-admin-pure";
 import { driveTimes } from "@/lib/leads/constants";
@@ -17,18 +15,14 @@ import { currentMember } from "@/lib/permissions";
 
 export const metadata = { title: "Test drives" };
 
-// The Monday of a day's week.
-const mondayOf = (iso: string) => addDays(iso, -((new Date(`${iso}T12:00:00Z`).getUTCDay() + 6) % 7));
 // Who takes a booking out, as To do and the Overview say it.
 const whoHas = (d: TestDrive, me: string) => (d.assignedTo === me ? "You" : (d.assignedTo ?? "Not taken"));
-// A booking's colour in the week: its status's urgency, the same as its badge.
-const EDGE: Record<DriveStatus, string> = { requested: "border-l-warn", confirmed: "border-l-info", completed: "border-l-ok", "no-show": "border-l-bad", cancelled: "border-l-hairline opacity-60" };
-const VIEWS = ["today", "week", "list"] as const;
+const VIEWS = ["today", "list"] as const;
 type View = (typeof VIEWS)[number];
-type Params = { view?: string; day?: string; mine?: string; q?: string; status?: string; with?: string; when?: string; car?: string; sort?: string; dir?: string; page?: string; per?: string };
+type Params = { view?: string; mine?: string; q?: string; status?: string; with?: string; when?: string; car?: string; sort?: string; dir?: string; page?: string; per?: string };
 
-// The diary. Today: the day's bookings in order, and the requests still to confirm. Week: a calendar of seven days (on a phone, a strip of
-// days and the one chosen). List: every booking in a table, searched and filtered. For me keeps the bookings given to whoever is
+// The diary. Today: the day's bookings in order, the requests still to confirm and the next few days. List: every booking in a table,
+// searched and filtered. For me keeps the bookings given to whoever is
 // looking and the ones nobody has taken yet, as on To do and Leads. A booking opens on its own page, where it is moved or given to someone.
 export default async function Page({ searchParams }: { searchParams: Promise<Params> }) {
   const sp = await searchParams;
@@ -38,9 +32,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
   const gone = new Set(cars.filter((c) => !forSale(c)).map((c) => c.id)); // by id; a booking still open on a car no longer for sale needs a call
   const drives = mine ? all.filter((d) => !d.assignedTo || d.assignedTo === me.name) : all;
   const today = dublinDay();
-  const day = sp.day && isIsoDay(sp.day) ? sp.day : today;
   const link = (over: Partial<Params>) => {
-    const q = new URLSearchParams(Object.entries({ view: view === "today" ? undefined : view, mine: mine ? "1" : undefined, day: sp.day && isIsoDay(sp.day) ? sp.day : undefined, ...over }).filter((e): e is [string, string] => Boolean(e[1])));
+    const q = new URLSearchParams(Object.entries({ view: view === "today" ? undefined : view, mine: mine ? "1" : undefined, ...over }).filter((e): e is [string, string] => Boolean(e[1])));
     return `/test-drives${q.size ? `?${q}` : ""}`;
   };
   const onDay = (iso: string) => drives.filter((d) => dublinDay(d.startsAt) === iso).sort((a, b) => a.startsAt - b.startsAt);
@@ -68,9 +61,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
         <Segmented
           label="View"
           items={[
-            { label: "Today", href: link({ view: undefined, day: undefined, q: undefined }), active: view === "today" },
-            { label: "Week", href: link({ view: "week" }), active: view === "week" },
-            { label: "List", href: link({ view: "list", day: undefined }), active: view === "list" },
+            { label: "Today", href: link({ view: undefined, q: undefined }), active: view === "today" },
+            { label: "List", href: link({ view: "list" }), active: view === "list" },
           ]}
         />
         <WhoseSwitch label="Whose test drives" everyone={link({ mine: undefined, page: undefined })} forMe={link({ mine: "1", page: undefined })} mine={mine} />
@@ -85,10 +77,10 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
           {later.length > 0 && (
             <Panel title="Still to confirm" count={later.length}>
               <Agenda drives={later.slice(0, 8)} gone={gone} me={me.name} status="requested" withDay />
-              {later.length > 8 && <Link href={link({ view: "list", status: "requested", when: "ahead", day: undefined })} className="w-fit text-meta font-medium underline">See all {later.length}</Link>}
+              {later.length > 8 && <Link href={link({ view: "list", status: "requested", when: "ahead" })} className="w-fit text-meta font-medium underline">See all {later.length}</Link>}
             </Panel>
           )}
-          <Panel title="Next few days" action={<Link href={link({ view: "week" })} className="text-meta font-medium underline">See the week</Link>}>
+          <Panel title="Next few days" action={<Link href={link({ view: "list", when: "ahead" })} className="text-meta font-medium underline">See all</Link>}>
             {ahead.length === 0 ? (
               <p className="text-body text-text-2">Nothing confirmed for the next six days.</p>
             ) : (
@@ -102,8 +94,6 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
           </Panel>
         </>
       )}
-
-      {view === "week" && <Week day={day} today={today} onDay={onDay} gone={gone} me={me.name} link={link} hours={hours} />}
 
       {view === "list" && <List drives={drives} sp={sp} team={team.map((t) => t.name)} gone={gone} me={me.name} />}
     </>
@@ -149,93 +139,6 @@ function Agenda({ drives, gone, me, empty = "Nothing booked.", withDay = false, 
         </li>
       ))}
     </ul>
-  );
-}
-
-// Seven days from Monday. From 1024px a column a day; on a phone a strip of the seven days, each with its count, and the chosen day below.
-function Week({ day, today, onDay, gone, me, link, hours }: { day: string; today: string; onDay: (iso: string) => TestDrive[]; gone: Set<string>; me: string; link: (over: Partial<Params>) => string; hours: Hours }) {
-  const monday = mondayOf(day);
-  const days = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
-  const sunday = days[6];
-  const same = monday.slice(5, 7) === sunday.slice(5, 7);
-  const range = same ? `${fmtDay(monday, "day")} to ${fmtDay(sunday, "dayMonth")}` : `${fmtDay(monday, "dayMonth")} to ${fmtDay(sunday, "dayMonth")}`;
-  // On a phone the months are short, so the range keeps to one line beside the arrows: "28 Dec to 3 Jan".
-  const short = (iso: string) => `${fmtDay(iso, "day")} ${fmtDay(iso, "month")}`;
-  const rangeShort = same ? `${fmtDay(monday, "day")} to ${short(sunday)}` : `${short(monday)} to ${short(sunday)}`;
-  const arrow = "inline-flex size-11 items-center justify-center rounded-control bg-hairline text-text transition-colors hover:bg-accent-soft hover:text-accent-text";
-  return (
-    <>
-      <div className="flex items-center gap-2">
-        <Link href={link({ day: addDays(monday, -7) })} aria-label="Week before" className={arrow}>
-          <ChevronLeftIcon className="shrink-0 size-4" />
-        </Link>
-        <Link href={link({ day: addDays(monday, 7) })} aria-label="Week after" className={arrow}>
-          <ChevronRightIcon className="shrink-0 size-4" />
-        </Link>
-        <h2 className="min-w-0 text-heading font-semibold sm:ml-2">
-          <span className="sm:hidden">{rangeShort}</span>
-          <span className="max-sm:hidden">{range}</span>
-        </h2>
-        {mondayOf(today) !== monday && (
-          <Link href={link({ day: undefined })} className="ml-auto shrink-0 whitespace-nowrap text-meta font-medium underline">
-            This week
-          </Link>
-        )}
-      </div>
-
-      {/* A phone: the days as a strip, then the chosen one. */}
-      <div className="flex flex-col gap-4 lg:hidden">
-        <nav aria-label="Day" className="grid grid-cols-7 gap-1.5">
-          {days.map((d) => {
-            const n = onDay(d).filter((x) => x.status !== "cancelled").length;
-            const on = d === day;
-            return (
-              <Link key={d} href={link({ day: d })} aria-current={on ? "date" : undefined} className={`flex min-h-16 flex-col items-center justify-center rounded-control border text-meta ${on ? "border-accent bg-accent text-on-accent" : `border-hairline bg-card ${d === today ? "text-accent-text" : ""}`}`}>
-                <span>{fmtDay(d, "weekday")}</span>
-                <span className="text-body font-semibold tabular-nums">{fmtDay(d, "day")}</span>
-                <span className={`text-[0.6875rem] tabular-nums ${on ? "" : "text-text-2"}`}>{n || ""}</span>
-              </Link>
-            );
-          })}
-        </nav>
-        <Panel title={fmtDay(day)}>
-          <Agenda drives={onDay(day)} gone={gone} me={me} empty={driveTimes(day, hours).length ? "Nothing booked." : "Closed."} />
-        </Panel>
-      </div>
-
-      {/* From 1024px: a column a day. */}
-      <div className="hidden grid-cols-7 gap-2 lg:grid">
-        {days.map((d) => {
-          const list = onDay(d);
-          return (
-            <section key={d} aria-label={fmtDay(d)} className={`${card} flex min-h-48 min-w-0 flex-col gap-1.5 p-2 ${d === today ? "ring-2 ring-inset ring-accent" : ""}`}>
-              <h3 className={`flex items-baseline gap-1.5 px-1 pb-1 text-meta ${d === today ? "font-semibold text-accent-text" : "text-text-2"}`}>
-                {fmtDay(d, "weekday")}
-                <span className="text-body font-semibold tabular-nums text-text">{fmtDay(d, "day")}</span>
-              </h3>
-              {list.length === 0 && <p className="px-1 text-meta text-text-2">{driveTimes(d, hours).length ? "" : "Closed"}</p>}
-              {list.map((x) => (
-                <Link key={x.id} href={`/test-drives/${x.id}`} className={`flex min-w-0 flex-col rounded-control border-l-4 bg-surface px-2 py-1.5 text-meta hover:bg-row-alt ${EDGE[x.status]}`}>
-                  <span className="font-semibold tabular-nums">{fmtTime(x.startsAt)}</span>
-                  <span className={`truncate font-medium ${x.status === "cancelled" ? "line-through" : ""}`}>{x.name}</span>
-                  <span title={x.carTitle} className="truncate text-text-2">{x.carTitle}</span>
-                  <span className="truncate text-text-2">{whoHas(x, me)}</span>
-                  {isOpenDrive(x) && gone.has(slugId(x.carSlug)) && <Badge tone="warn">No longer for sale</Badge>}
-                </Link>
-              ))}
-            </section>
-          );
-        })}
-      </div>
-      <p className="hidden flex-wrap gap-x-4 gap-y-1 text-meta text-text-2 lg:flex">
-        {DRIVE_STATUSES.map((s) => (
-          <span key={s} className="inline-flex items-center gap-1.5">
-            <span aria-hidden className={`h-3 w-1 rounded-full border-l-4 ${EDGE[s]}`} />
-            {DRIVE_STATUS_LABELS[s]}
-          </span>
-        ))}
-      </p>
-    </>
   );
 }
 

@@ -13,7 +13,7 @@ import { fmtDate, fmtEur } from "@/lib/admin/format";
 import { PencilIcon, PlusIcon } from "@/components/stock/icons";
 
 // The row menu icon's width, so the total's amount lines up with the amounts above it.
-const MENU_SPACE = "w-11 shrink-0 group-data-[density=compact]/shell:w-8";
+const MENU_SPACE = "w-11 shrink-0";
 
 // Prep costs on a car, read as a list of spend does in a banking app: what (and the note), when, how much, and the total under them. Add
 // opens the house dialog; each line's menu changes or removes it. Margins permission only (the page and the server both check).

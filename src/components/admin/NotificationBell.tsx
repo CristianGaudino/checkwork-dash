@@ -67,7 +67,7 @@ export function NotificationBell() {
           <h2 className="text-body font-semibold">Notifications</h2>
           <span className="flex items-center gap-1">
             {unread > 0 && (
-              <button type="button" onClick={() => read()} className={`${rowButton} group-data-[density=compact]/shell:h-11!`}>
+              <button type="button" onClick={() => read()} className={rowButton}>
                 Mark all as read
               </button>
             )}

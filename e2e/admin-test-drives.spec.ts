@@ -66,15 +66,6 @@ test("the list filters, For me keeps the bookings given to me or nobody yet, and
   await expect(page.getByRole("combobox", { name: "Taking them out" })).toHaveValue("You");
 });
 
-test("the week shows seven days, and a phone gets a strip of days", async ({ page }) => {
-  await page.setViewportSize({ width: 1280, height: 900 });
-  await page.goto("/test-drives?view=week");
-  await expect(page.getByRole("heading", { level: 2, name: / to / })).toBeVisible();
-  await expect(page.locator("section[aria-label]").filter({ has: page.getByRole("heading", { level: 3 }) })).toHaveCount(7);
-  await page.setViewportSize({ width: 390, height: 844 });
-  await expect(page.getByRole("navigation", { name: "Day" }).getByRole("link")).toHaveCount(7);
-});
-
 test("a booking is made in steps, and the same car's time is then taken", async ({ page }) => {
   // A different day each run, so a retry against the same server never meets the booking of the first try.
   const day = openDay(Date.now());
@@ -94,7 +85,7 @@ test("a booking is made in steps, and the same car's time is then taken", async 
   await page.getByLabel("Phone").fill("+353 83 000 1234");
   await page.getByRole("button", { name: "Book test drive" }).click();
   await expect(page.getByText("Booked Test booker for")).toBeVisible();
-  await expect(page).toHaveURL(new RegExp(`view=week&day=${day}`));
+  await expect(page).toHaveURL(/\/test-drives\/drive-/); // the booking opens on its own page
   await book();
   await expect(page.getByRole("button", { name: "11:00" })).toBeDisabled(); // that car is out then
   await expect(page.getByRole("button", { name: "12:00" })).toBeEnabled();

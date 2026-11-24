@@ -10,7 +10,7 @@ import { AdminShell } from "@/components/admin/AdminShell";
 import { DealerGate } from "@/components/admin/DealerChooser";
 import { DashboardBeacon } from "@/components/admin/DashboardBeacon";
 import { ServiceWorker } from "@/components/admin/ServiceWorker";
-import { DEALER_NAV, DENSITY_COOKIE, NAV_COOKIE, RAIL_COOKIE, menuItems, parseOpenGroups } from "@/lib/admin/nav";
+import { DEALER_NAV, NAV_COOKIE, menuItems, parseOpenGroups } from "@/lib/admin/nav";
 import { THEME_SCRIPT } from "@/lib/demo";
 import { DealerFactsProvider } from "@/components/DealerFacts";
 import { factsOf } from "@/lib/tenancy/profile";
@@ -105,7 +105,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         </Suspense>
         <DealerFactsProvider value={factsOf(dealer.name, dealer.profile, modulesValue(modules))}>
           <DemoBar demo={dealer.demo} donedeal={source === "donedeal"} />
-          <AdminShell title={dealer.name} profile={dealer.profile} subtitle="Dealer dashboard" nav={nav} navLabel="Dealer dashboard" openGroups={parseOpenGroups(jar.get(NAV_COOKIE)?.value)} rail={jar.get(RAIL_COOKIE)?.value === "1"} compact={jar.get(DENSITY_COOKIE)?.value === "compact"}>
+          <AdminShell title={dealer.name} profile={dealer.profile} subtitle="Dealer dashboard" nav={nav} navLabel="Dealer dashboard" openGroups={parseOpenGroups(jar.get(NAV_COOKIE)?.value)}>
             <DashboardBeacon />
             <ServiceWorker />
             {modules.has("dashboard") ? children : <DashboardNotFound />}

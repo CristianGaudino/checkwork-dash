@@ -78,7 +78,7 @@ What differs between dealers beyond their records is in their profile (#5): one 
 (`runAsDealer`). Nothing about a dealer is a build setting.
 
 - **Facts:** website (`siteUrl`, for "View your website" and car links), phone, email, address, opening hours (also the test drive
-  slots), social links, and the logo (`logo.onLight`, `logo.onDark`) and square mark (`mark`) as paths on this app (`public/brand/`,
+  slots), social links, and the logo (`logo.onLight`, `logo.onDark`) as paths on this app (`public/brand/`,
   since images load from here only). The name is the directory's `name` column. Owners and managers change the name, website, phone,
   email, address and hours in Settings, Your business (`saveBusinessAction`, in the activity history); it merges into the profile, never
   over what is ours.

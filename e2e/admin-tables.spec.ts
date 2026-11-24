@@ -36,7 +36,7 @@ test("the search runs as you type, the cross clears it, and a header sorts the w
   expect(((await rows.nth(1).getByRole("link").first().textContent()) ?? "").localeCompare(first ?? "")).toBeGreaterThan(0);
 });
 
-test("a filter narrows the list and stays in the link; Compact tightens the rows of every table", async ({ page }) => {
+test("a filter narrows the list and stays in the link", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto("/leads");
   // Every filter behind one button; a choice applies at once and shows as a chip that takes it off.
@@ -49,15 +49,6 @@ test("a filter narrows the list and stays in the link; Compact tightens the rows
   await expect(chip).toBeVisible();
   await chip.click();
   await expect(page).not.toHaveURL(/with=/);
-  // Compact: the rows of this table and the next, kept for the person.
-  const rowHeight = async () => (await page.getByRole("table").getByRole("row").nth(1).boundingBox())!.height;
-  const roomy = await rowHeight();
-  await page.getByRole("button", { name: "Compact" }).click();
-  await expect(page.getByRole("button", { name: "Compact" })).toHaveAttribute("aria-pressed", "true");
-  await expect.poll(rowHeight).toBeLessThan(roomy);
-  await page.goto("/customers");
-  await expect(page.getByRole("button", { name: "Compact" })).toHaveAttribute("aria-pressed", "true");
-  await page.getByRole("button", { name: "Compact" }).click(); // back, for the tests after
 });
 
 test("every table pages at its foot, with its rows a page and its CSV of the list as filtered", async ({ page }) => {

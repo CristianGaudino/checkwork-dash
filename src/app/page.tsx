@@ -1,13 +1,12 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { Skeleton, TileBone } from "@/components/admin/Skeleton";
-import { ActionTile, ActionTiles, Columns, EmptyState, PageHeader, Panel, PanelLink, StatCard, StatGrid, TaskList, adminButtonQuiet } from "@/components/admin/kit";
+import { ActionTile, ActionTiles, Columns, EmptyState, PageHeader, Panel, PanelLink, StatCard, StatGrid, TaskList } from "@/components/admin/kit";
 import { CalendarIcon, CarIcon, CheckIcon, InboxIcon, ShareIcon } from "@/components/stock/icons";
 import { can } from "@/lib/permissions";
 import { addDays, dublinDay, fmtDay, fmtNum, fmtTime, plural } from "@/lib/admin/format";
 import { forSale, isSold } from "@/lib/stock/types";
 import { WhoseToggle, loadToDo } from "@/components/admin/ToDo";
-import { DriveSteps } from "@/components/admin/DriveSteps";
 import { VisitsTile } from "@/components/admin/VisitsTile";
 import { visitSources } from "@/lib/admin/visit-sources-load";
 import { activeNow } from "@/lib/site-api/presence";
@@ -35,9 +34,6 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
   const boss = await can("team");
 
   const shown = tasks.slice(0, TOP);
-  // A request in To do's first PHONE rows (shown on every screen) keeps its Confirm there; here it gets Call.
-  // Rows after PHONE are hidden on a phone, so their drives keep Confirm here too.
-  const confirmInToDo = new Set(tasks.slice(0, PHONE).map((t) => t.key));
   // The main jobs; the first is filled. Synced stock is added on the listing site, so then there is no Add a car.
   const jobs = [
     !synced && { href: "/stock/new", icon: <CarIcon />, label: "Add a car", text: "Photos, price and details" },
@@ -64,11 +60,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
             {drivesOn && (
               <Panel title="Test drives" action={<PanelLink href="/test-drives">View more</PanelLink>}>
                 {o.nextDrives.length === 0 ? (
-                  // One line, not a tall empty block beside the busiest panel.
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <p className="text-body text-text-2">None booked this week</p>
-                    <Link href="/test-drives/new" className={adminButtonQuiet}>Book a test drive</Link>
-                  </div>
+                  // One line, not a tall empty block beside the busiest panel. Booking one is the tile above.
+                  <p className="text-body text-text-2">None booked this week</p>
                 ) : (
                   <ul className="-mx-1 flex flex-col divide-y divide-hairline">
                     {o.nextDrives.map((d) => {
@@ -85,9 +78,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
                             <span className={`truncate font-medium ${passed ? "text-text-2" : ""}`}>{d.name}</span>
                             <span className="truncate text-meta text-text-2">{[passed && "Passed", d.carTitle, staff].filter(Boolean).join(" · ")}</span>
                           </span>
+                          {/* A plain list: the drive's own page is where it is confirmed, moved or given to someone. */}
                           <Link href={`/test-drives/${d.id}`} aria-label={`${d.name}, ${when ? `${when} ` : ""}${fmtTime(d.startsAt)}`} className="absolute inset-0" />
-                          {/* The next step and the menu (#95); a request already in To do keeps its Confirm there, so here it has only the menu. */}
-                          <span className="relative z-10 flex shrink-0 gap-2"><DriveSteps drive={d} primary={!confirmInToDo.has(`drive-${d.id}`)} /></span>
                         </li>
                       );
                     })}

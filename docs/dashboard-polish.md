@@ -84,7 +84,7 @@ these levels, from the kit (`src/components/admin/kit.tsx`). No outline-only but
 
 - **Icons** sit before the words where they help recognition (Call, WhatsApp, Email, Edit, Post, Confirm). The words stay: never an icon alone, but for a row's menu (`RowMenu`), three dots with an accessible name, 44px to press.
 - **Contrast:** indigo text on `accent-soft` is 5:1 or more in light and dark, and 4.5:1 on hover. Red on `bad-soft` is the status tone pair.
-- **Focus:** the global 2px indigo ring (`:focus-visible`) on every level. **Size:** 44px tall on a phone; a compact table may shrink row buttons.
+- **Focus:** the global 2px indigo ring (`:focus-visible`) on every level. **Size:** 44px tall on a phone.
 - **AI writing** (`AIWriter`): Write with AI is a secondary button with the sparkle in a filled indigo dot, so it reads as its own thing. Then
   the "AI draft" tag and Undo on the same line, and the changes (Shorter, Friendlier) as a quieter group of small neutral chips under a
   "Change it" label, tied to the box by an indigo rule.

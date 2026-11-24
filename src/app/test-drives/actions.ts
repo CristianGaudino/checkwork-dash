@@ -23,8 +23,8 @@ import { requireModule } from "@/lib/modules";
 import { requireStaff } from "@/lib/staff";
 import { STALE_STATUS, changedSince } from "@/lib/admin/stale";
 
-// `day`: the booked day, so the page can open the diary on it.
-export type DriveFormState = { errors?: Record<string, string>; done?: string; day?: string } | undefined;
+// `id`: the booking made, so the page can open it.
+export type DriveFormState = { errors?: Record<string, string>; done?: string; id?: string } | undefined;
 
 // `from`: the status the button showed; a press from a page loaded before someone else moved the drive is refused, never undoing it.
 export async function setDriveStatusAction(id: string, status: string, from?: string) {
@@ -136,5 +136,5 @@ export async function addDriveAction(_prev: DriveFormState, data: FormData): Pro
     revalidatePath("/leads");
   }
   revalidatePath("/test-drives");
-  return { done: `Booked ${b.name} for ${carName(car)}.`, day: b.date };
+  return { done: `Booked ${b.name} for ${carName(car)}.`, id };
 }

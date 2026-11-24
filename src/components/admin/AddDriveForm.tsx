@@ -30,19 +30,19 @@ const stepOf = (e: Record<string, string>) => (e.carSlug ? 0 : e.date || e.time 
 
 // A booking taken by phone or at the desk, in three steps: the car from photo cards, a free time from the picker (the car's other bookings
 // and past times cannot be picked), then the customer and who takes them out. Every field stays in one form. The server checks it all
-// again and refuses a clash; once booked, the diary opens on that day. `person`: the name and number filled in, from a lead
+// again and refuses a clash; once booked, the booking opens. `person`: the name and number filled in, from a lead
 // (with its id, so booking moves the lead on) or a past booking (Rebook).
 export function BookDriveForm({ cars, team, me, slots, initialCar, person }: { cars: CarCard[]; team: string[]; me: string; slots: Slots; initialCar: string; person?: { leadId?: string; name: string; phone: string; email: string } }) {
   const router = useRouter();
   const start = cars.some((c) => c.slug === initialCar) ? initialCar : "";
   const [step, setStep] = useState(start ? 1 : 0);
-  // A refused booking goes back to the step with the problem; a booking made opens the diary on its day.
+  // A refused booking goes back to the step with the problem; a booking made opens on its own page.
   const [state, action, pending] = useKeptForm<DriveFormState>(async (prev, data) => {
     const r = await addDriveAction(prev, data);
     if (r?.errors) setStep(stepOf(r.errors));
     if (r?.done) {
       showToast(r.done);
-      router.push(`/test-drives?view=week&day=${r.day}`);
+      router.push(`/test-drives/${r.id}`);
     }
     return r;
   }, undefined);

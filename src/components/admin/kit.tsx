@@ -2,7 +2,7 @@ import Link from "next/link";
 import { useId } from "react";
 import { NEW_TAB, card, press } from "@/components/ui";
 import { Tween } from "@/components/Tween";
-import { AppliedFilters, DensityToggle, Filters, LiveSearch, SortHeader, type FilterGroup } from "./TableTools";
+import { AppliedFilters, Filters, LiveSearch, SortHeader, type FilterGroup } from "./TableTools";
 import { PER_PAGE_DEFAULT, perPage } from "@/lib/admin/paging";
 import { fmtNum } from "@/lib/admin/format";
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/stock/icons";
@@ -190,7 +190,7 @@ const colClass = (c: Column<unknown>) => `${c.hide ? HIDE[c.hide] : ""} ${c.nowr
 // A table wider than its card scrolls sideways inside it at every width, so no column or button is ever cut off.
 // `bare` drops the table's own card, for use inside a Panel. `linkRows`: each row is one link, the one with `after:absolute after:inset-0`
 // in its first cell, so the whole row is clickable.
-// `sort`: the list's sort now, so the sortable headers show it. Rows are 48px, 36px when the person chose compact tables (DensityToggle).
+// `sort`: the list's sort now, so the sortable headers show it. Rows are 48px.
 export function DataTable<T>({ columns, rows, rowKey, empty, bare = false, linkRows = false, label, sort }: { columns: Column<T>[]; rows: T[]; rowKey: (row: T) => string; empty?: React.ReactNode; bare?: boolean; linkRows?: boolean; label?: string; sort?: Sort }) {
   const frame = bare ? "" : card;
   if (rows.length === 0) return <div className={frame}>{empty ?? <EmptyState title="Nothing here yet" />}</div>;
@@ -219,7 +219,7 @@ export function DataTable<T>({ columns, rows, rowKey, empty, bare = false, linkR
           {rows.map((r) => (
             <tr key={rowKey(r)} className={`even:bg-row-alt ${linkRows ? "relative transition-colors hover:bg-surface" : ""}`}>
               {columns.map((c) => (
-                <td key={c.key} className={`h-12 px-4 py-2 align-middle group-data-[density=compact]/shell:h-9 group-data-[density=compact]/shell:py-1 ${c.align === "right" ? "text-right tabular-nums" : ""} ${c.className ?? ""} ${colClass(c as Column<unknown>)}`}>
+                <td key={c.key} className={`h-12 px-4 py-2 align-middle ${c.align === "right" ? "text-right tabular-nums" : ""} ${c.className ?? ""} ${colClass(c as Column<unknown>)}`}>
                   {c.cell(r)}
                 </td>
               ))}
@@ -254,8 +254,8 @@ export function SummaryTabs({ items, label = "Filter" }: { items: SummaryTab[]; 
   );
 }
 
-// Above a table: its search and one Filters button (every filter it has, in a panel), the density switch at the end of the row, and under
-// them the filters that are on, as chips to take off. On a phone the search and Filters share a row and the density switch is left out.
+// Above a table: its search and one Filters button (every filter it has, in a panel), and under them the filters that are on, as chips to
+// take off. On a phone the search and Filters share a row.
 // `action`: one more control in the row, after the filters (the stock list's Select on a phone).
 export function TableToolbar({ search, filters, action }: { search?: { placeholder: string; label: string }; filters?: FilterGroup[]; action?: React.ReactNode }) {
   return (
@@ -264,9 +264,6 @@ export function TableToolbar({ search, filters, action }: { search?: { placehold
         {search && <LiveSearch placeholder={search.placeholder} label={search.label} />}
         {filters && filters.length > 0 && <Filters groups={filters} />}
         {action}
-        <div className="ml-auto hidden sm:block">
-          <DensityToggle />
-        </div>
       </div>
       {filters && <AppliedFilters groups={filters} />}
     </div>
@@ -284,7 +281,7 @@ export function paginate<T>(rows: T[], asked: string | undefined, size = PER_PAG
 export const pageOf = <T,>(rows: T[], sp: { page?: string; per?: string }) => paginate(rows, sp.page, perPage(sp.per));
 
 // Buttons in a row or a list: always a word, sometimes an icon before it. The levels are in docs/dashboard-polish.md (Buttons).
-const rowBase = `inline-flex h-11 group-data-[density=compact]/shell:h-8 items-center justify-center gap-1.5 whitespace-nowrap rounded-control px-3 text-meta font-medium transition-colors ${press}`;
+const rowBase = `inline-flex h-11 items-center justify-center gap-1.5 whitespace-nowrap rounded-control px-3 text-meta font-medium transition-colors ${press}`;
 // Tertiary: text only, for the rest of a row's actions, See all, More.
 export const rowButton = `${rowBase} text-accent-text hover:bg-accent-soft`;
 // The row's most used action (Call, Confirm, Record sale): tonal, one per row.
