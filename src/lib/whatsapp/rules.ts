@@ -31,7 +31,7 @@ export const BUTTON_LABELS: Record<ButtonId, string> = {
 // stock rule (their profile), filled in by eventText.
 export const EVENTS: Record<EventId, { module: ModuleId; label: string; does: string; kind: "alert" | "marketing"; buttons: ButtonId[] }> = {
   enquiry: { module: "dashboard", label: "New enquiry", does: "Every new enquiry reaches your phone with the car. Tap a quick reply and the buyer is answered.", kind: "alert", buttons: ["available", "saturday", "call", "handled"] },
-  "slow-stock": { module: "dashboard", label: "A car {days} days in stock", does: "A car that has sat for {days} days, with a suggested price drop you can apply with one tap.", kind: "alert", buttons: ["drop"] },
+  "slow-stock": { module: "dashboard", label: "A car {days} days in stock", does: "A car that has sat for {days} days. Owners and managers also get a suggested price drop to apply with one tap.", kind: "alert", buttons: ["drop"] },
   "trade-in": { module: "tradeIn", label: "Trade-in or sell request", does: "The car, the registration and the photos. Reply with a price and the buyer gets your offer.", kind: "alert", buttons: ["price", "photos", "decline"] },
   "test-drive": { module: "testDrives", label: "Test drive booking", does: "A new booking to confirm, or a new time to suggest.", kind: "alert", buttons: ["confirm", "other"] },
   service: { module: "service", label: "Service booking", does: "A service booking or a claim. Confirm a slot from your phone.", kind: "alert", buttons: ["slot"] },
