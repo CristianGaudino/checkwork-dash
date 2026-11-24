@@ -344,7 +344,9 @@ A dealer whose stock is on DoneDeal (`stock.source` "donedeal" in their profile,
 source of truth:
 cars are added, changed and sold on DoneDeal only. The dashboard never edits them; it holds only the dealer's own figures (cost).
 - **The sync** (`src/lib/donedeal/sync.ts`, rules in `plan.ts`): every 15 minutes the Worker's cron calls `/api/donedeal/sync` with the
-  `CRON_KEY` secret; Refresh stock on Stock runs the same. New ads are added and changed ones updated. A car DoneDeal no longer
+  `CRON_KEY` secret, for every dealer whose stock comes from a listing site, with or without the dashboard module (a website-only dealer
+  has no dashboard pages, but still has the sync); Refresh stock on Stock runs the same. The dealer's website reads the synced stock from
+  here (`GET /api/site/v1/stock`, `docs/site-api.md`), so only this app calls the listing site's API. New ads are added and changed ones updated. A car DoneDeal no longer
   lists is hidden (its link is not found), because DoneDeal does not say why an ad came down: Stock and Overview ask the dealer whether it
   sold (the sale form, which marks it sold so its page shows Sold for a while) or did not (it stays hidden). If the ad goes up again the car
   comes back. Each change is in the activity history as "DoneDeal sync".

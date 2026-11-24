@@ -134,11 +134,12 @@ rate limit as the leads POST; the body is capped at 256 bytes. Code: `src/lib/si
 
 ## `GET /api/site/v1/stock`
 
-Same key. For a dealer whose stock is kept here (`stock.source` `checkwork` in their profile): `{ "cars": Car[] }`, the cars on their
-website (live, plus sold cars inside their sold window, `onPublicSite`), with the public fields only (`PUBLIC_FIELDS` in
+Same key. For every dealer, whether their stock is kept here (`stock.source` `checkwork`) or synced from a listing site (`donedeal`:
+DoneDeal or CarsIreland): `{ "cars": Car[] }`, the cars on their website (live, plus sold cars inside their sold window, `onPublicSite`;
+a synced car whose ad came down is hidden by the sync, so it is left out), with the public fields only (`PUBLIC_FIELDS` in
 `src/lib/site-api/stock.ts`: never cost, prep, margins, notes, a deposit's buyer, or whether a car is hidden or a draft). `Cache-Control:
 private, max-age=60` and `Vary: Authorization`: the address is the same for every dealer, so no shared cache may keep it. A synced
-dealer (DoneDeal or CarsIreland) gets 404: their website reads the listing site. 401 and 429 as above.
+dealer's website reads its stock here too, so only this app calls the listing site's API (one connection per dealer). 401 and 429 as above.
 
 Each car's `photos` are links the website can put straight in an `<img>` (next section). A photo it could not open is left out.
 
@@ -163,13 +164,14 @@ An `<img>` cannot send the site key, so the stock answer gives every photo as a 
 - **The demo's own photos** (static files): `/stock/<car id>/<n>.webp`, given as they are. Only the demo dealer has these, and the demo
   website serves its own copies (`public/stock/`), so they need nothing from this app.
 - **With no bucket** (next dev, the E2E run) a photo added in the dashboard is a `data:` URL, given as it is.
+- **A synced car's photos** are the listing site's own `https://` links, given as they are (they need no signing).
 
 The host is the deploy's own (`APP_URL`). The photo route answers the photo only when all of these hold, and otherwise the same bare 404:
 
 - the signature is right for that dealer and that key: one dealer's link never opens another dealer's photo, and a changed dealer, key or
   signature opens nothing;
 - the key is a car photo's (`CAR_PHOTO_KEY`), read under that dealer's prefix only, and the dealer is active;
-- the car is on the dealer's website now (`onPublicSite`, stock kept here) and the photo is still on the car (one row of the dealer's D1).
+- the car is on the dealer's website now (`onPublicSite`) and the photo is still on the car (one row of the dealer's D1).
 
 After the signature check, and before any D1 read, the Workers cache (`caches.default`, keyed by the checked dealer, key and signature, so extra query parameters cannot skip it) answers for up to 10
 minutes. So hiding a car, making it a draft, removing a photo or pausing the dealer stops its links within 10 minutes, without changing

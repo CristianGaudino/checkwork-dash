@@ -4,7 +4,6 @@ import { adminCar } from "@/lib/admin/stock-admin";
 import { CAR_PHOTO_KEY, CAR_PHOTO_PREFIX } from "@/lib/admin/car-photos";
 import { logSite } from "@/lib/log";
 import { appUrl } from "@/lib/site";
-import { stockSource } from "@/lib/stock-source";
 import { onPublicSite, type Car, type Photo } from "@/lib/stock/types";
 import { dealerBucket, dealerProfile, runAsDealerRow } from "@/lib/tenancy/current";
 import { dealerById } from "@/lib/tenancy/directory";
@@ -17,22 +16,22 @@ const hmacKey = (secret: string) => crypto.subtle.importKey("raw", enc.encode(se
 const message = (dealerId: string, key: string) => enc.encode(`${dealerId}\n${key}`);
 const DEALER_ID = /^[a-z0-9-]+$/;
 
-// Which of the current dealer's cars are on their website (onPublicSite, their sold window), or null for a dealer whose stock is synced
-// from a listing site (their website reads that site). The stock answer and the photo route both ask this.
-export async function onWebsite(): Promise<((c: Car) => boolean) | null> {
-  if ((await stockSource()) !== "checkwork") return null;
+// Which of the current dealer's cars are on their website (onPublicSite, their sold window), for stock kept here and synced stock alike: the
+// sync hides a car whose ad came down. The stock answer and the photo route both ask this.
+export async function onWebsite(): Promise<(c: Car) => boolean> {
   const { soldVisibleDays } = (await dealerProfile()).rules;
   return (c) => onPublicSite(c, soldVisibleDays);
 }
 
 // What the stock answer gives a website for each photo, or null to leave it out: a stored photo as a signed link; the demo's static files
-// (/stock/..., its website has its own copies) and a data: URL (no bucket: next dev, E2E) as they are. One key import per answer.
+// (/stock/..., its website has its own copies), a data: URL (no bucket: next dev, E2E) and a synced car's photo on the listing site (https)
+// as they are. One key import per answer.
 export async function websitePhotos(dealerId: string): Promise<(p: Photo) => Promise<Photo | null>> {
   const base = appUrl();
   const secret = process.env.SITE_PHOTO_SECRET;
   const key = secret ? await hmacKey(secret) : null;
   return async (p) => {
-    if (p.src.startsWith("/stock/") || p.src.startsWith("data:")) return p;
+    if (p.src.startsWith("/stock/") || p.src.startsWith("data:") || p.src.startsWith("https://")) return p;
     const k = p.src.slice(CAR_PHOTO_PREFIX.length);
     if (!key || !p.src.startsWith(CAR_PHOTO_PREFIX) || !CAR_PHOTO_KEY.test(k)) return null;
     const sig = Buffer.from(await crypto.subtle.sign("HMAC", key, message(dealerId, k))).toString("base64url");
@@ -65,7 +64,7 @@ export async function sitePhoto(url: string, dealerId: string, key: string, sig:
     if (!dealer || dealer.status !== "active") return notFound();
     const object = await runAsDealerRow(dealer, async () => {
       const [rule, car] = await Promise.all([onWebsite(), adminCar(key.split("/")[1])]);
-      if (!rule || !car || !rule(car) || !car.photos.some((p) => p.src === CAR_PHOTO_PREFIX + key)) return null;
+      if (!car || !rule(car) || !car.photos.some((p) => p.src === CAR_PHOTO_PREFIX + key)) return null;
       return (await dealerBucket())?.get(key) ?? null;
     });
     if (!object) return notFound();
