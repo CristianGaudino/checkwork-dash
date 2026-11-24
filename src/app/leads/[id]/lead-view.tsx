@@ -24,7 +24,7 @@ import { addNoteAction, assignLeadAction, setFollowUpAction, setLostReasonAction
 import { dublinDay, fmtDateTime, fmtDay, fmtTime } from "@/lib/admin/format";
 import { followUpDue, isOpenLead, leadMain, possibleSpam, replyVia } from "@/lib/admin/leads";
 import { siteCarUrl } from "@/lib/stock/format";
-import { dealerProfile } from "@/lib/tenancy/current";
+import { currentDealer } from "@/lib/tenancy/current";
 import { Notes } from "@/components/admin/Notes";
 import { ActSelect } from "@/components/admin/ActSelect";
 import { PersonPicker } from "@/components/admin/PersonPicker";
@@ -35,7 +35,7 @@ import { isCarLabel, theirCar } from "./car";
 import { VisitPanel } from "@/components/admin/VisitPanel";
 import { askedCar } from "@/lib/leads/journey";
 import { ContactButtons } from "@/components/admin/ContactButtons";
-import { firstReplies } from "@/lib/leads/first-replies";
+import { firstReply, replyFrom } from "@/lib/leads/first-reply";
 import { LeadKind, LeadTags, leadChips } from "@/components/admin/LeadKind";
 import { LeadMenu, SpamButton } from "@/components/admin/LeadActions";
 import { readLead } from "@/lib/leads/lead-text";
@@ -44,7 +44,7 @@ import { readLead } from "@/lib/leads/lead-text";
 // has it, the reply draft and the notes. Shown at its own address under Leads, or, for a warranty request, under Aftersales (where it is
 // listed), so the menu marks the right place. The pages around it choose which.
 export async function LeadView({ id }: { id: string }) {
-  const [lead, settings, drives, { siteUrl, rules }, me] = await Promise.all([leadsStore.get(id), getSettings(), drivesStore.list(), dealerProfile(), currentMember()]);
+  const [lead, settings, drives, { name: dealer, profile: { siteUrl, rules } }, me] = await Promise.all([leadsStore.get(id), getSettings(), drivesStore.list(), currentDealer(), currentMember()]);
   if (!lead) notFound();
   // The car the lead asked about has sold since (here, or on DoneDeal): the salesperson offers something like it.
   const stock = lead.carSlug || lead.journey ? await adminCars() : [];
@@ -139,7 +139,7 @@ export async function LeadView({ id }: { id: string }) {
           </section>
           <section aria-labelledby="next" className="flex min-w-0 flex-col gap-4 max-lg:order-first max-lg:border-b max-lg:border-hairline max-lg:pb-5 lg:border-l lg:border-hairline lg:pl-6">
             <h2 id="next" className="text-section font-semibold">Next step</h2>
-            <ContactButtons phone={lead.phone} email={lead.email} main={main === "reply" ? replyVia(lead) : undefined} whatsapp={lead.whatsappOptIn !== false} reply={(await firstReplies())(lead)} />
+            <ContactButtons phone={lead.phone} email={lead.email} main={main === "reply" ? replyVia(lead) : undefined} whatsapp={lead.whatsappOptIn !== false} reply={lead.status === "new" ? firstReply({ name: lead.name, from: replyFrom(me), dealer, title: lead.carTitle, car, siteUrl, modules }) : undefined} />
             {/* Booking a drive from the lead carries their car, name and number into the form. */}
             {lead.type !== "warranty" && isOpenLead(lead) && (
               <IfModule id="testDrives">

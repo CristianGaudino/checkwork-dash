@@ -198,6 +198,21 @@ describe("recording a sale", () => {
     role = "Sales";
   });
 
+  it("saves the sale when the review ask fails, logs the car only and tells staff", async () => {
+    stockCookie = "checkwork";
+    const recorded = new Set((await salesStore.list()).flatMap((x) => [x.id, x.carId]));
+    const car = (await adminCars()).find((c) => !c.soldAt && !c.listing && !c.reserved && !recorded.has(c.id))!;
+    const customer = (await customersStore.list()).find((c) => c.email)!;
+    const ask = await import("@/lib/admin/review-ask");
+    vi.spyOn(ask, "askForReview").mockRejectedValueOnce(new Error("No lead email went out"));
+    const err = vi.spyOn(console, "error").mockImplementation(() => {});
+    await expect(recordSaleAction(car.id, undefined, form({ priceEur: "9000", soldOn: today, customerId: customer.id, askReview: "on" }))).rejects.toThrow(`redirect:/stock?view=sold&sale=${car.id}&review=failed`);
+    expect(await salesStore.get(car.id)).toBeDefined();
+    expect(err).toHaveBeenCalledWith(JSON.stringify({ carId: car.id, outcome: "review-ask-failed" }));
+    expect(err.mock.calls.join()).not.toContain(customer.email);
+    err.mockRestore();
+  });
+
   it("refuses a missing buyer, a bad price and a day to come, and saves nothing", async () => {
     const recorded = new Set((await salesStore.list()).map((x) => x.id));
     const car = (await adminCars()).find((c) => !c.soldAt && !recorded.has(c.id))!;

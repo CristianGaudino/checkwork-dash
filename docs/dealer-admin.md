@@ -235,10 +235,12 @@ with no D1). The actor is the signed-in person (`currentMember`), or a named one
 - **More on a sale:** the warranty (12 months included, or 24 or 36 with extended cover), a trade-in (its reg and allowance; Stock then
   offers to add it, starting the car form from the reg), and the lead it came from (one on that car, marked won).
 - **Ask for a review** (#22, `src/lib/admin/review-ask.ts`): Mark sold and Record sale (not Change the sale) have "Ask them for a Google
-  review", shown only when the profile has a `placeId` (a demo dealer without one uses a made-up place, `DEMO_PLACE_ID`), and on by default for a buyer with an email or a lead that opted in to WhatsApp.
+  review", shown only when the profile has a `placeId` (a demo dealer without one uses a made-up place, `DEMO_PLACE_ID`), and on by default for a buyer with an email, or a lead that opted in to WhatsApp while a WhatsApp message would really go (`reviewByWhatsApp`, the channel `sendWhatsApp` picks).
   Once the sale is saved the buyer gets one message with Google's write-a-review link: WhatsApp if opted in (counted, by email past the
-  cap), else email. Once per sale (`reviewAskedOn`), never for a sale undone, never to a buyer who stopped WhatsApp on any lead, and a demo
-  dealer sends nothing outside. The car's page and the customer show the day it was asked; Activity records it against the car.
+  cap, the email sent before their conversation says so), else email. The email ends with a way out ("reply and say so") and its replies go to the dealer's
+  first lead email. Once per sale (`reviewAskedOn`), never for a sale undone, never to a buyer who stopped WhatsApp on any lead, and a demo
+  dealer sends nothing outside. A failed ask never stops the sale: it logs the car's id and `review-ask-failed` (never the buyer) and Stock
+  says "The review request did not go". The car's page and the customer show the day it was asked; Activity records it against the car.
 - **A lost lead** asks why, from a fixed list, and Reports shows "Why leads were lost".
 - **Close a lead** (#55): a lead no longer active (No reply needed, Not interested, Duplicate, Wrong number) is closed from More, on the
   lead and in each Leads row's menu (To answer now and the list), with Undo. Status `closed` with `closedReason`, and `statusBefore`, the status it had: not open,

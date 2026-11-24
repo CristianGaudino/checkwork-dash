@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { firstReply, mailtoHref } from "./first-reply";
+import { firstReply, mailtoHref, replyFrom } from "./first-reply";
 import { waHref } from "@/lib/phone";
 
 const SITE = "https://www.demo.checkwork.ie";
@@ -53,5 +53,14 @@ describe("the first reply to a lead", () => {
     expect(mailtoHref("mary@example.com")).toBe("mailto:mary@example.com");
     expect(new URL(waHref("087 123 4567", r.body)!).searchParams.get("text")).toBe(r.body);
     expect(waHref("087 123 4567")).toBe("https://wa.me/353871234567");
+  });
+});
+
+describe("who signs the first reply", () => {
+  it("is the staff member's name, never their email or a demo role", () => {
+    expect(replyFrom({ name: "Sean Walsh", email: "sean@byrne.ie", role: "sales" })).toBe("Sean Walsh");
+    expect(replyFrom({ name: "sean@byrne.ie", email: "sean@byrne.ie", role: "sales" })).toBe(""); // not in the team
+    expect(replyFrom({ name: "owner", email: "", role: "owner" })).toBe("");
+    expect(firstReply({ ...base, from: replyFrom({ name: "sean@byrne.ie", email: "sean@byrne.ie", role: null }) }).body).toContain("This is Checkwork Motors.");
   });
 });

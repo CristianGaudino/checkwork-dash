@@ -23,3 +23,8 @@ export type SignInOutcome = "ok" | "bad-origin" | "wrong-code" | "expired" | "ra
 export function logSignIn({ step, outcome }: { step: SignInStep; outcome: SignInOutcome }): void {
   console.log(JSON.stringify({ signIn: step, outcome }));
 }
+
+// A review ask that failed after a sale (src/app/stock/actions.ts): the car's id and a fixed word, never the buyer.
+export function logReviewAsk({ carId, outcome }: { carId: string; outcome: "review-ask-failed" }): void {
+  console.error(JSON.stringify({ carId, outcome }));
+}

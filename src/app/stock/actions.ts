@@ -13,6 +13,7 @@ import { newId } from "@/lib/admin/ids";
 import { blank, euros, fieldErrors, isoDay, type FormState } from "@/lib/admin/validation";
 import { buyerFields, buyerOf } from "@/lib/admin/buyer";
 import { askForReview } from "@/lib/admin/review-ask";
+import { logReviewAsk } from "@/lib/log";
 import { COVER_CHOICES, COVER_MONTHS } from "@/lib/admin/deposits";
 import { carTitleOf } from "@/lib/admin/seed-data";
 import { BAD_COST, parseCost } from "@/lib/admin/margins";
@@ -392,9 +393,10 @@ export async function recordSaleAction(carId: string, _prev: FormState, data: Fo
     (!(await readOnly()) || Boolean(car.takenDownAt)) &&
     Boolean(await updateCar(car.id, (cur) => (isSold(cur) ? null : { ...cur, soldAt: d.soldOn, reserved: undefined, ...(cur.takenDownAt && { takenDownAt: undefined, listing: undefined }) })));
   await logActivity("stock", `${was ? "Changed the sale to" : "Recorded the sale for"} ${fmtEur(d.priceEur)}${markSold ? " and marked it sold" : ""}`, carRef(car));
-  // The review ask is on a new sale only (Change the sale has no tick). Best effort: the sale is saved whatever happens to the message.
-  if (!was && data.get("askReview") === "on") await askForReview(car.id).catch(() => null);
-  redirect(`/stock?view=sold&sale=${car.id}`);
+  // The review ask is on a new sale only (Change the sale has no tick). Best effort: the sale is saved whatever happens to the message, and
+  // a failure is logged (the car's id only) and told to staff on the next page.
+  const asked = !was && data.get("askReview") === "on" ? await askForReview(car.id).then(() => true, () => (logReviewAsk({ carId: car.id, outcome: "review-ask-failed" }), false)) : true;
+  redirect(`/stock?view=sold&sale=${car.id}${asked ? "" : "&review=failed"}`);
 }
 
 // A deposit: the car is reserved, on the website as Reserved, until the day agreed. Anyone on the team. Our version only.
