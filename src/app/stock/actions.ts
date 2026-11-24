@@ -30,6 +30,8 @@ import { requireStaff } from "@/lib/staff";
 import { requireModule } from "@/lib/modules";
 import { alertNewIn, alertStaff } from "@/lib/whatsapp/alerts";
 import { STALE_CAR, STALE_STATUS, changedSince } from "@/lib/admin/stale";
+import { suggestedDrop } from "@/lib/admin/overview";
+import { dealerProfile } from "@/lib/tenancy/current";
 import type { CostState } from "@/app/aftersales/actions";
 
 const carRef = (c: Car) => ({ kind: "car" as const, id: c.id, label: carTitleOf(c) });
@@ -209,6 +211,40 @@ export async function bulkStockAction(data: FormData): Promise<BulkResult> {
   }
   revalidatePath("/stock");
   return { changed, skipped: ids.length - changed };
+}
+
+// The price drop suggested on old stock (suggestedDrop, as the WhatsApp alert offers), applied from Stock or the car's page, with Undo.
+// Owners and managers only (the settings permission), our version only. `from`: the price the button showed; a price changed since is
+// refused, so the drop is never taken twice.
+const DROP_REFUSED = "Only owners and managers can apply a suggested price.";
+export async function dropPriceAction(id: string, from: number) {
+  await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
+  if (await readOnly()) return { error: `Change the price on ${(await listing()).site}.` };
+  if (!(await can("settings"))) return { error: DROP_REFUSED };
+  const { rules } = await dealerProfile();
+  let before: Car | undefined;
+  const next = await updateCar(id, (cur) => {
+    before = cur;
+    const drop = cur.priceEur === from ? suggestedDrop(cur, rules) : null;
+    return drop && { ...cur, ...drop };
+  });
+  if (!before || !next) return { error: STALE_STATUS };
+  await logActivity("stock", carEditSummary(before, next), carRef(next));
+  revalidatePath("/stock");
+}
+// Undo: the price and earlier price as they were, while the car still has the dropped price. Only ever back up, never below it.
+export async function undoDropAction(id: string, priceEur: number, wasPriceEur: number, dropped: number) {
+  await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
+  if ((await readOnly()) || !(await can("settings"))) return { error: DROP_REFUSED };
+  if (![priceEur, wasPriceEur, dropped].every((n) => Number.isInteger(n) && n >= 0) || priceEur <= dropped) return { error: STALE_STATUS };
+  let before: Car | undefined;
+  const next = await updateCar(id, (cur) => {
+    before = cur;
+    return cur.priceEur === dropped && !isSold(cur) ? { ...cur, priceEur, wasPriceEur: wasPriceEur || undefined } : null;
+  });
+  if (!before || !next) return { error: STALE_STATUS };
+  await logActivity("stock", carEditSummary(before, next), carRef(next));
+  revalidatePath("/stock");
 }
 
 // A car's photos (#21), our version only. The browser has already shrunk each one to a JPEG (CarPhotos); the bytes are checked again here.

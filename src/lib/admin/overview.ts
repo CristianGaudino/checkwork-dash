@@ -1,8 +1,8 @@
 import type { AdminReview, Lead, Order, Reservation, TestDrive } from "./collections";
 import { DAY } from "@/lib/time";
-import { forSale, isSold, type Car } from "@/lib/stock/types";
+import { forSale, isSold, onRequest, type Car } from "@/lib/stock/types";
 import { isOpenDrive } from "./drives";
-import { slugId } from "./stock-admin-pure";
+import { droppedPrice, slugId } from "./stock-admin-pure";
 import { dublinDay } from "./format";
 import { counted } from "./reports";
 import { forPerson, leadsToAnswer } from "./follow-ups";
@@ -10,19 +10,24 @@ import type { DealerRules } from "@/lib/tenancy/profile";
 
 // Old stock: for sale `oldDays` or more, the dealer's rule (their profile's oldStockDays).
 export const isOldStock = (c: Car, now: number, oldDays: number) => forSale(c) && c.listedAt !== undefined && now - Date.parse(`${c.listedAt}T00:00:00Z`) >= oldDays * DAY;
+// The price drop suggested on old stock: the dealer's slowDropEur off the price, as the WhatsApp slow-stock alert offers. The new price and
+// the earlier one (droppedPrice), or null: not old stock (so never sold, reserved or off the website), on request, or it would reach €0.
+export const suggestedDrop = (c: Car, rules: Pick<DealerRules, "oldStockDays" | "slowDropEur">, now = Date.now()) =>
+  isOldStock(c, now, rules.oldStockDays) && !onRequest(c) ? droppedPrice(c, rules.slowDropEur, "eur") : null;
 
 // The numbers on the dealer's overview, worked out from the records. Pure, so the rules are tested.
 // How soon it needs doing, which is what its colour says: now (red, filled), soon (amber), or worth knowing (grey). Most urgent first.
 export type Urgency = "now" | "soon" | "info";
-export type Attention = { key: string; label: string; count: number; href: string; urgency: Urgency };
+export type Attention = { key: string; label: string; count: number; href: string; urgency: Urgency; detail?: string };
 const RANK: Record<Urgency, number> = { now: 0, soon: 1, info: 2 };
 
 // `cars`: the whole stock, sold too. `costs`: the car ids with a cost, only for staff with the margins permission. `syncProblem`: the
 // DoneDeal sync is failing (only for stock from DoneDeal).
 // `sales`: the car ids with a sale recorded. `reservations`: the deposits, for the ones past their date. `rules` and `listingSite`: the
 // dealer's, from their profile. `mine`: a person's name, for To do's For me: the leads and test drives given to them or to nobody yet
-// (forPerson; their own follow-ups only, as in their report). The rest (stock, reviews) is nobody's, so it stays.
-export function overview(input: { leads: Lead[]; drives: TestDrive[]; reviews: AdminReview[]; rules: DealerRules; listingSite: string; cars?: Car[]; costs?: Set<string>; sales?: Set<string>; reservations?: Reservation[]; orders?: Order[]; warrantyRequests?: number; syncProblem?: boolean; now?: number; slaHours?: number; mine?: string }) {
+// (forPerson; their own follow-ups only, as in their report). The rest (stock, reviews) is nobody's, so it stays. `drops`: say how many old
+// cars have a suggested price drop, only for owners and managers.
+export function overview(input: { leads: Lead[]; drives: TestDrive[]; reviews: AdminReview[]; rules: DealerRules; listingSite: string; cars?: Car[]; costs?: Set<string>; sales?: Set<string>; reservations?: Reservation[]; orders?: Order[]; warrantyRequests?: number; syncProblem?: boolean; now?: number; slaHours?: number; mine?: string; drops?: boolean }) {
   const now = input.now ?? Date.now();
   const slaHours = input.slaHours ?? 24;
   const { leads, drives, reviews, rules, listingSite } = input;
@@ -44,7 +49,8 @@ export function overview(input: { leads: Lead[]; drives: TestDrive[]; reviews: A
   const unrecorded = input.sales ? cars.filter((c) => isSold(c) && !input.sales!.has(c.id)).sort((a, b) => a.soldAt!.localeCompare(b.soldAt!)) : []; // oldest first, as on Stock
   // Reservations past their date; with just one, its task opens it.
   const overdue = (input.reservations ?? []).filter((r) => r.status === "held" && r.until < today);
-  const attention = ([
+  const drops = input.drops ? cars.filter((c) => suggestedDrop(c, rules, now)).length : 0;
+  const attention: Attention[] = ([
     // Each kind of lead is now (red) when any one of its leads is (leadsToAnswer).
     { key: "follow", label: "Follow-ups due", count: due.length, href: `/leads?need=due${withMe}`, urgency: due.some((t) => t.urgency === "now") ? "now" : "soon" },
     // Where Reply to leads goes: Leads' To answer now, the same leads.
@@ -58,7 +64,7 @@ export function overview(input: { leads: Lead[]; drives: TestDrive[]; reviews: A
     { key: "deposits", label: "Reservations past their date", count: overdue.length, href: overdue.length === 1 ? `/stock/${overdue[0].carId}/reserve` : "/stock?view=reserved", urgency: "now" },
     { key: "orders", label: "Ordered cars arrived, to hand over", count: (input.orders ?? []).filter((o) => o.status === "arrived").length, href: "/orders?view=arrived", urgency: "soon" },
     { key: "taken-down", label: `${listingSite} ads taken down: did they sell?`, count: cars.filter((c) => c.takenDownAt).length, href: "/stock?view=hidden", urgency: "soon" },
-    { key: "old", label: `Cars for sale ${rules.oldStockDays} days or more`, count: cars.filter(old).length, href: "/stock?view=old", urgency: "info" },
+    { key: "old", label: `Cars for sale ${rules.oldStockDays} days or more`, count: cars.filter(old).length, href: "/stock?view=old", urgency: "info", ...(drops > 0 && { detail: `${drops} with a suggested price` }) },
     { key: "sales", label: "Sold cars with no sale recorded", count: unrecorded.length, href: "/stock", urgency: "soon" }, // Stock's To do opens each sale to record in turn
     { key: "costs", label: "Cars for sale with no cost price", count: input.costs ? cars.filter((c) => !isSold(c) && !input.costs!.has(c.id)).length : 0, href: "/margins", urgency: "info" },
   ] satisfies Attention[])

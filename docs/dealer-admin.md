@@ -195,6 +195,12 @@ with no D1). The actor is the signed-in person (`currentMember`), or a named one
   (owners and managers). One confirm for the lot; each car is recorded in Activity as if changed on its own. Sold cars keep their
   price, and a car with a deposit held is neither sold nor deleted until its reservation is ended. Marked sold this way, each car keeps
   its Record sale button.
+- **A suggested price on old stock** (#172): each car for sale at or past the dealer's `oldStockDays` gets a suggested new price, its
+  price less `slowDropEur` (`suggestedDrop` in `src/lib/admin/overview.ts`, the same rule the WhatsApp slow-stock alert uses). Never
+  on a car on request, reserved, sold or hidden, and never down to €0. Owners and managers only (the settings permission, as for
+  deleting a car): the old stock view's rows and the car's page show it, and Overview's To do says how many old cars have one. In our
+  version "Drop to €X" applies it, with Undo and in Activity (`dropPriceAction`, `undoDropAction`, which refuse other roles and a price
+  changed since the page). For synced stock the row's button is Edit on DoneDeal: the price changes there.
 - **Photos** (#21): on the car's page, add several at once, choose the main one, remove one. The browser shrinks each to a 1,600px
   JPEG (dropping its location data) and the server checks the bytes. On the Worker they are stored in R2 under `dealers/<dealer>/cars/{id}/`
   in the `LEAD_PHOTOS` bucket and served by `/car-photos`, which serves that

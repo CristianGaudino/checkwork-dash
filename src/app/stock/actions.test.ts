@@ -15,11 +15,13 @@ vi.mock("next/headers", () => ({
   cookies: async () => ({ get: (n: string) => (n === "checkwork-demo-stock" ? { value: stockCookie } : n === "checkwork-demo-role" ? { value: role } : undefined) }),
   headers: async () => ({ get: () => null }),
 }));
-const { addCarPhotoAction, carPhotoAction, removePrepAction, savePrepAction, bulkStockAction, deleteCarAction, endReservationAction, recordSaleAction, reserveAction, saveCarAction, saveCostAction, setListingAction, toggleSoldAction, undoSaleAction, withdrawnAction } = await import("./actions");
+const { addCarPhotoAction, carPhotoAction, dropPriceAction, undoDropAction, removePrepAction, savePrepAction, bulkStockAction, deleteCarAction, endReservationAction, recordSaleAction, reserveAction, saveCarAction, saveCostAction, setListingAction, toggleSoldAction, undoSaleAction, withdrawnAction } = await import("./actions");
 const { claimsStore, costsStore, customersStore, leadsStore, prepStore, reservationsStore, salesStore } = await import("@/lib/admin/collections");
 const { carCosts } = await import("@/lib/admin/costs");
 const { BAD_COST } = await import("@/lib/admin/margins");
 const { adminCar, adminCars, saveCar } = await import("@/lib/admin/stock-admin");
+const { suggestedDrop } = await import("@/lib/admin/overview");
+const { DEMO_PROFILE } = await import("@/lib/tenancy/profile");
 
 describe("stock synced from DoneDeal", () => {
   beforeEach(() => {
@@ -340,6 +342,44 @@ describe("several cars at once", () => {
     expect(await bulkStockAction(form(["../x"], "sold"))).toEqual({ error: expect.any(String) });
     expect(await bulkStockAction(form(["4710001"], "paint"))).toEqual({ error: expect.any(String) });
     expect(await bulkStockAction(form([], "sold"))).toEqual({ error: expect.any(String) });
+  });
+});
+
+describe("the suggested price drop on old stock", () => {
+  // A car for sale made old stock here, so the test never depends on the seed's dates.
+  const oldCar = async () => {
+    const deposits = new Set((await reservationsStore.list()).map((r) => r.carId));
+    const c = (await adminCars()).find((c) => !c.soldAt && !c.reserved && !c.listing && c.priceEur > 1000 && !deposits.has(c.id))!;
+    await saveCar({ ...c, listedAt: "2026-01-01" });
+    expect(suggestedDrop((await adminCar(c.id))!, DEMO_PROFILE.rules)).toBeTruthy();
+    return (await adminCar(c.id))!;
+  };
+
+  it("is applied by owners and managers only, from the price the button showed, and undone back to the price it was", async () => {
+    stockCookie = "checkwork";
+    role = "Sales";
+    const car = await oldCar();
+    const to = suggestedDrop(car, DEMO_PROFILE.rules)!.priceEur;
+    expect(await dropPriceAction(car.id, car.priceEur)).toEqual({ error: expect.stringMatching(/owners and managers/) });
+    expect((await adminCar(car.id))!.priceEur).toBe(car.priceEur); // Sales: refused on the server
+    role = "Manager";
+    expect(await dropPriceAction(car.id, car.priceEur + 1)).toEqual({ error: expect.any(String) }); // the price changed since the page
+    expect(await dropPriceAction(car.id, car.priceEur)).toBeUndefined();
+    expect((await adminCar(car.id))!).toMatchObject({ priceEur: to, wasPriceEur: Math.max(car.wasPriceEur ?? 0, car.priceEur) });
+    expect(await dropPriceAction(car.id, car.priceEur)).toEqual({ error: expect.any(String) }); // never taken twice
+    role = "Sales";
+    expect(await undoDropAction(car.id, car.priceEur, car.wasPriceEur ?? 0, to)).toEqual({ error: expect.any(String) });
+    role = "Owner";
+    expect(await undoDropAction(car.id, car.priceEur, car.wasPriceEur ?? 0, to)).toBeUndefined();
+    expect((await adminCar(car.id))!).toMatchObject({ priceEur: car.priceEur, wasPriceEur: car.wasPriceEur });
+  });
+
+  it("is never applied to synced stock: the price changes on DoneDeal", async () => {
+    stockCookie = "donedeal";
+    role = "Owner";
+    const car = await oldCar();
+    expect(await dropPriceAction(car.id, car.priceEur)).toEqual({ error: expect.stringMatching(/DoneDeal/) });
+    expect((await adminCar(car.id))!.priceEur).toBe(car.priceEur);
   });
 });
 

@@ -7,7 +7,7 @@ import { z } from "zod";
 export type Hours = { day: string; opens?: string; closes?: string }[];
 export type DealerRules = {
   oldStockDays: number; // a car for sale this long is old stock: the stock list's view, the overview, the reports and the slow-stock alert
-  slowDropEur: number; // the price drop the slow-stock alert suggests, and its Drop the price button applies
+  slowDropEur: number; // the price drop suggested on old stock (Stock, the slow-stock alert), applied by Drop to on Stock or the alert's button
   soldVisibleDays: number; // days a sold car stays on the dealer's website after its sale
 };
 export type ListingSite = "DoneDeal" | "CarsIreland";
