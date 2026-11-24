@@ -15,23 +15,32 @@ test("the owner sees the plan, sets a limit and an alert, and opens a bill", asy
   await expect(page.getByText("Estimate").first()).toBeVisible();
 
   await page.getByRole("link", { name: "Limits", exact: true }).click();
+  // Read first; Edit opens the limits in the house dialog (#141).
+  const limits = page.getByRole("dialog", { name: "Monthly limits" });
+  const edit = async () => (await page.getByRole("button", { name: "Edit monthly limits" }).click(), limits);
   // WhatsApp: the other specs' alerts are inside the allowance, so a limit here never stops them on the same server.
-  await page.getByLabel("WhatsApp limit (€ a month)").fill("12.50");
-  await page.getByRole("button", { name: "Save limits" }).click();
-  await expect(page.getByRole("status").filter({ hasText: "Saved" })).toBeVisible();
+  await (await edit()).getByLabel("WhatsApp limit (€ a month)").fill("12.50");
+  await limits.getByRole("button", { name: "Save" }).click();
+  await expect(limits).toBeHidden();
+  await expect(page.getByTestId("toast")).toContainText("Limits saved");
   await page.reload();
-  await expect(page.getByLabel("WhatsApp limit (€ a month)")).toHaveValue("12.5");
+  await expect((await edit()).getByLabel("WhatsApp limit (€ a month)")).toHaveValue("12.5");
   // Never above ours: EUR 15 of lookups by default.
-  await page.getByLabel("Registration lookup limit (€ a month)").fill("16");
-  await page.getByRole("button", { name: "Save limits" }).click();
-  await expect(page.getByText("Our limit for your account is €15")).toBeVisible();
-  await page.getByLabel("Registration lookup limit (€ a month)").fill("");
-  await page.getByLabel("All usage limit (€ a month)").fill("151");
-  await page.getByRole("button", { name: "Save limits" }).click();
-  await expect(page.getByText("Our limit for your account is €150")).toBeVisible();
+  await limits.getByLabel("Registration lookup limit (€ a month)").fill("16");
+  await limits.getByRole("button", { name: "Save" }).click();
+  await expect(limits.getByText("Our limit for your account is €15")).toBeVisible();
+  await limits.getByLabel("Registration lookup limit (€ a month)").fill("");
+  await limits.getByLabel("All usage limit (€ a month)").fill("151");
+  await limits.getByRole("button", { name: "Save" }).click();
+  await expect(limits.getByText("Our limit for your account is €150")).toBeVisible();
+  page.once("dialog", (d) => d.accept()); // the changes not saved: leave them
+  await limits.getByRole("button", { name: "Cancel" }).click();
+  await expect(limits).toBeHidden();
 
-  await page.getByLabel("passes (€)").fill("33");
-  await page.getByRole("button", { name: "Add alert" }).click();
+  await page.getByRole("button", { name: "Add an alert" }).click();
+  const alert = page.getByRole("dialog", { name: "Add an alert" });
+  await alert.getByLabel("passes (€)").fill("33");
+  await alert.getByRole("button", { name: "Add alert" }).click();
   await expect(page.getByText("passes €33")).toBeVisible();
 
   await page.goto("/billing?section=bills");
@@ -73,4 +82,31 @@ test("a help request is sent and shows in the list with its page", async ({ page
   const item = page.getByRole("listitem").filter({ hasText: text });
   await expect(item).toContainText("Received");
   await expect(item).toContainText("From Stock");
+});
+
+// Help's how-to (#143): one topic per job, closed until opened, a #link opens its topic, and each role sees only its own.
+test("help topics open on their own and from a link, and only the role's own are there", async ({ page, context }) => {
+  await page.goto("/help#whatsapp-alerts");
+  const alerts = page.locator("details#whatsapp-alerts");
+  await expect(alerts).toHaveAttribute("open", "");
+  await expect(alerts.getByText(/^A car \d+ days in stock:/)).toBeVisible(); // the dealer's days, not "{days}"
+  const lead = page.locator("details#answer-lead");
+  await expect(lead.getByText("Set the status to Contacted so the team knows.")).toBeHidden();
+  await lead.getByText("Answer a new lead").click();
+  await expect(lead.getByText("Set the status to Contacted so the team knows.")).toBeVisible();
+  await expect(page.getByText("Your plan and bills")).toBeVisible();
+
+  await as(context, "Sales");
+  await page.goto("/help");
+  await expect(page.getByText("Get new leads on WhatsApp")).toBeVisible();
+  for (const t of ["See what each car makes", "Add someone to your team", "Your plan and bills"]) await expect(page.getByText(t)).toHaveCount(0);
+
+  await as(context, "Finance");
+  await page.goto("/help");
+  await expect(page.getByText("See what each car makes")).toBeVisible();
+  await expect(page.getByText("Get new leads on WhatsApp")).toBeVisible(); // Finance gets WhatsApp alerts too
+  for (const t of ["Answer a new lead", "Your plan and bills"]) await expect(page.getByText(t)).toHaveCount(0);
+
+  await page.goto("/help#%zz"); // a broken #link is ignored, not an error page
+  await expect(page.getByText("See what each car makes")).toBeVisible();
 });

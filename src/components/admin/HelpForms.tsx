@@ -4,7 +4,7 @@ import { useKeptForm } from "@/components/admin/useKeptForm";
 import { useState } from "react";
 import { Select } from "@/components/Select";
 import { CameraIcon } from "@/components/stock/icons";
-import { Field, adminButton, adminButtonQuiet, adminInput, choicePill } from "@/components/admin/kit";
+import { Field, FormActions, adminButton, adminButtonQuiet, adminInput, choicePill } from "@/components/admin/kit";
 import { sendFeedbackAction, sendHelpAction, type HelpState } from "@/app/help/actions";
 import { MESSAGE_MAX, type HelpType } from "@/lib/admin/help-rules";
 
@@ -41,16 +41,16 @@ export function HelpForm({ types, first, from }: { types: HelpType[]; first: Hel
           </span>
         </Field>
       )}
-      <div className="flex items-center gap-4">
-        <button type="submit" disabled={pending} className={adminButton}>
-          {pending ? "Sending" : "Send"}
-        </button>
+      <FormActions>
         {state?.saved && !pending && (
-          <p role="status" className="text-meta text-ok">
+          <p role="status" className="mr-auto text-meta text-ok">
             Sent. We will reply here.
           </p>
         )}
-      </div>
+        <button type="submit" disabled={pending} className={adminButton}>
+          {pending ? "Sending" : "Send"}
+        </button>
+      </FormActions>
     </form>
   );
 }
@@ -72,15 +72,16 @@ export function FeedbackForm() {
       <Field label="Anything to add? (optional)">
         <input name="note" maxLength={500} className={adminInput} />
       </Field>
-      <div className="flex gap-3">
-        {/* Quiet: the message form's Send is the page's one filled button. */}
-        <button type="submit" disabled={!score} className={adminButtonQuiet}>
+      <FormActions>
+        {/* Quiet: the message form's Send is the page's one filled button. First in the form, so Enter in the note sends rather than
+            skips; drawn right-most, as the main one is. */}
+        <button type="submit" disabled={!score} className={`${adminButtonQuiet} order-last`}>
           Send
         </button>
         <button type="submit" name="skip" value="1" className={adminButtonQuiet}>
           Not now
         </button>
-      </div>
+      </FormActions>
     </form>
   );
 }

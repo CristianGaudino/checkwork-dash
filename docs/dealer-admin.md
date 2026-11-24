@@ -224,7 +224,7 @@ with no D1). The actor is the signed-in person (`currentMember`), or a named one
   site or the dealer's own; or a web address in the name) the lead stays new with `maybeSpam`:
   "Possible spam" on the list and To answer now, with Spam and Not spam in the row's menu (as buttons on the lead). Careful by design: a name in any language, a short or empty
   message, no phone, or a link to a car or photos never count against a lead.
-- **Test drives** still to happen can move to another time, by the same rules as a new booking.
+- **Test drives** still to happen can move to another time (Change time on the booking, in the house dialog), by the same rules as a new booking.
 - **Leads rows** (#94): a row shows its next action (Call, WhatsApp or Email, the way they asked) and a menu with the rest (the next
   step, Spam, Not spam, Close). A To answer now row a press takes off the list stays in its place, faded, saying what it became
   (Contacted, Spam, Closed) with its buttons gone, until the page is left or reloaded (`HeldTasks`); Undo puts it back. The count is the
@@ -279,7 +279,8 @@ visitors sign up). Each list, its actions and its export answer only with its mo
   finance see sales, profit (sale price less cost and prep), days to sell, each salesperson, which lead sources win, stock by age and prep
   spend by kind. A salesperson sees their own Reports: cars sold, leads, leads won and follow-ups due. Counts only, no money, nobody else.
 - **Prep costs** (`prepStore`, kinds in `src/lib/admin/prep.ts`): lines on a car's dashboard page (Valet, Tyres, NCT, Service, Repairs,
-  Bodywork, Transport, Other), folded away until used. Margins permission only. A car's whole cost is its cost price plus its prep
+  Bodywork, Transport, Other), each a row (what and its note, the day it was added, how much) over the total. Add opens the house dialog;
+  a row's menu changes or removes it. Margins permission only. A car's whole cost is its cost price plus its prep
   (`src/lib/admin/costs.ts`), and every margin uses it.
 
 ## Data requests and exports
@@ -322,9 +323,10 @@ cars are added, changed and sold on DoneDeal only. The dashboard never edits the
   lists is hidden (its link is not found), because DoneDeal does not say why an ad came down: Stock and Overview ask the dealer whether it
   sold (the sale form, which marks it sold so its page shows Sold for a while) or did not (it stays hidden). If the ad goes up again the car
   comes back. Each change is in the activity history as "DoneDeal sync".
-- **Improve this description** (#225, with the AI module): a car opens on its dashboard page, where AI rewrites the feed's description
-  from the car's facts (an AI action like any draft: the monthly cap and usage) and "Copy for DoneDeal" copies it to paste into the ad.
-  The site's text changes only when the ad does, at the next sync.
+- **The Description panel (Edit, then Write with AI)** (#225, #138, with the AI module): a car opens on its dashboard page, which shows the feed's description
+  (read first, scrolling when long). Edit opens the house dialog, where AI rewrites it from the car's facts (an AI action like any draft:
+  the monthly cap and usage). Done keeps the new text on the page only, with a notice that DoneDeal and the website still have the old one
+  and "Copy for DoneDeal" to paste it into the ad. Nothing is stored: the site's text changes only when the ad does, at the next sync.
 - **It never empties the site:** an answer with no cars, or with more than half the cars for sale gone, is held and changes nothing.
   Owners and managers can Apply anyway.
 - **When it fails** the site keeps the stock from the last good sync, Stock, Overview and Settings say so, and after an hour the owners and
@@ -391,7 +393,9 @@ term, the writing quality and the billing details, with no euro. On a year paid 
 payment provider chosen at clone time and are emailed when issued. Billing details (company, VAT number, address, email) are the
 Owner's, stored in settings as `billingDetails`. "Ask us to add" sends a Help request of type "Add to my plan"; it switches nothing on.
 
-`/help` is for every team member: our phone, email and WhatsApp, a message form (Question, Something isn't working with steps
+`/help` is for every team member: our phone, email and WhatsApp, how-to topics (#143: one job per row that opens in place, grouped
+as the menu is, each shown only to the roles it is for and with its module, `src/lib/help/topics.ts`; `/help#<topic>` opens one; WhatsApp's
+how it works and its alerts are here under Your account and team, the WhatsApp page keeps the phones and the live demo), a message form (Question, Something isn't working with steps
 and an optional screenshot, Request a change, Feedback or an idea, Billing and Add to my plan for the Owner and Manager), their own requests
 with our status and reply, and a quarterly one-question feedback. The "Need help?" link in the menu foot passes `?from=<page>`, which is
 saved with the request (a dashboard path only, `safeFrom`). Requests are the `help-requests` collection (`src/lib/admin/help.ts`). On
