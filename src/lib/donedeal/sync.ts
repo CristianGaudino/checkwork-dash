@@ -25,6 +25,8 @@ export const syncActor = (site: string) => `${site} sync`;
 // Where the sync runs: a dealer whose stock comes from a listing site, and a demo dealer (which shows both versions; its feed changes nothing).
 export const syncRunsHere = async () => (await currentDealer()).demo || (await stockSource()) === "donedeal";
 export const ALERT_AFTER = HOUR;
+// A refused key counts once it is still refused this long after the first refusal, so two quick presses of Refresh stock never remove cars.
+export const REFUSED_FOR = 10 * MINUTE;
 
 export type SyncStatus = {
   id: "status";
@@ -116,11 +118,11 @@ export async function removeSyncedCars(why: string, actor: string): Promise<numb
 async function failed(prev: SyncStatus, problem: string, held: boolean, now: number, site: string, refused = false): Promise<SyncStatus> {
   // An outage starts at its first failed run (a site that has never synced too), and gets one email an hour in, none after it.
   const failingSince = prev.problem && prev.failingSince !== undefined ? prev.failingSince : now;
-  // A refused key counts on the second run in a row (15 minutes on, or Sync now), so one stray 401 or 403 never empties the site. That run
-  // removes the cars; later runs find none, so its bell notice and email come once. Any other run in between starts the count again.
-  const confirmed = refused && (prev.refusedSince !== undefined || Boolean(prev.removed));
-  const firstRefusal = refused && !confirmed;
-  if (firstRefusal) problem = `${site} refused the key. If it still does at the next check, its cars come off the dashboard and the website.`;
+  // A refused key counts when a run REFUSED_FOR or more after the first refusal is refused too, with no other run between, so one stray 401
+  // or 403 never empties the site. That run removes the cars; later runs find none, so its bell notice and email come once.
+  const confirmed = refused && (Boolean(prev.removed) || (prev.refusedSince !== undefined && now - prev.refusedSince >= REFUSED_FOR));
+  const firstRefusal = refused && prev.refusedSince === undefined && !prev.removed; // the bell, once
+  if (refused && !confirmed) problem = `${site} refused the key. If it still does at the next check, its cars come off the dashboard and the website.`;
   const removed = confirmed ? await removeSyncedCars(`${site} refused the key`, syncActor(site)) : 0;
   const status: SyncStatus = { ...prev, lastRunAt: now, problem, held, failingSince, refusedSince: refused ? (prev.refusedSince ?? now) : undefined, ...((removed || prev.removed) && { removed: true }) };
   // In the bell once an outage starts, not every 15 minutes it lasts.

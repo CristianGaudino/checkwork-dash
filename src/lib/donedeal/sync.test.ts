@@ -34,7 +34,7 @@ vi.mock("@/lib/admin/car-photos", async (orig) => ({ ...(await orig<typeof impor
 const { runSync, syncStatus, resetSyncStatus, syncActor } = await import("./sync");
 const { adminCars } = await import("@/lib/admin/stock-admin");
 const { listActivity } = await import("@/lib/admin/activity");
-const { HOUR } = await import("@/lib/time");
+const { HOUR, MINUTE } = await import("@/lib/time");
 const { forSale: isForSale } = await import("@/lib/stock/types");
 const { runAsDealer } = await import("@/lib/tenancy/current");
 const { patchDealer } = await import("@/lib/tenancy/directory");
@@ -176,22 +176,33 @@ describe("a refused DoneDeal key (#158)", () => {
     feed = async () => ({ ok: false, reason: "refused" });
     await asTest(() => runSync({ now: 1_000 }));
     feed = async () => ({ ok: true, listings: (await adminCars()).filter(isForSale) });
-    await asTest(() => runSync({ now: 2_000 }));
+    await asTest(() => runSync({ now: 1_000 + 5 * MINUTE }));
     feed = async () => ({ ok: false, reason: "refused" });
-    await asTest(() => runSync({ now: 3_000 }));
+    await asTest(() => runSync({ now: 1_000 + 15 * MINUTE }));
     expect(await ids()).toEqual(["900001", "900002"]);
     feed = async () => ({ ok: false, reason: "failed" }); // an outage in between starts the count again too
-    await asTest(() => runSync({ now: 4_000 }));
+    await asTest(() => runSync({ now: 1_000 + 20 * MINUTE }));
     feed = async () => ({ ok: false, reason: "refused" });
-    await asTest(() => runSync({ now: 5_000 }));
+    await asTest(() => runSync({ now: 1_000 + 30 * MINUTE }));
     expect(await ids()).toEqual(["900001", "900002"]);
     expect(dropped).toEqual([]);
+  });
+
+  it("a refusal counts only 10 minutes or more after the first: two quick refreshes keep the cars", async () => {
+    feed = async () => ({ ok: false, reason: "refused" });
+    await asTest(() => runSync({ now: 1_000 }));
+    const s = await asTest(() => runSync({ now: 1_000 + MINUTE }));
+    expect(s.problem).toMatch(/^DoneDeal refused the key\. If it still does/);
+    expect(await ids()).toEqual(["900001", "900002"]);
+    await asTest(() => runSync({ now: 1_000 + 10 * MINUTE }));
+    expect(await ids()).toEqual([]);
+    expect(sent).toHaveLength(1);
   });
 
   it("refused twice in a row removes the synced cars and their stored photos, keeps the sale, says why and tells the owners once", async () => {
     feed = async () => ({ ok: false, reason: "refused" });
     await asTest(() => runSync({ now: 1_000 }));
-    const s = await asTest(() => runSync({ now: 2_000 }));
+    const s = await asTest(() => runSync({ now: 1_000 + 15 * MINUTE }));
     expect(s).toMatchObject({ problem: "DoneDeal refused the key, so its cars were removed.", removed: true });
     expect(await asTest(adminCars)).toEqual([]);
     expect(dropped).toEqual([photo]);
