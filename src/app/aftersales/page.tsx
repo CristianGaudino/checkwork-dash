@@ -2,29 +2,12 @@ import Link from "next/link";
 import { readLead } from "@/lib/leads/lead-text";
 import { ClaimStatusBadge, CoverBadge } from "@/components/admin/badges";
 import { DataTable, EmptyState, PageHeader, SummaryTabs, TableFooter, TableToolbar, adminButton, pageOf, rowButtonStrong, sortRows, type Column } from "@/components/admin/kit";
-import { ChoiceAct } from "@/components/admin/ActButton";
 import { PlusIcon } from "@/components/stock/icons";
-import { CLAIM_STATUSES, CLAIM_STATUS_LABELS, claimOpen, claimsStore, customersStore, leadsStore, type Claim, type ClaimStatus } from "@/lib/admin/collections";
+import { CLAIM_STATUSES, claimOpen, claimsStore, customersStore, leadsStore, type Claim } from "@/lib/admin/collections";
 import { openWarrantyRequests } from "@/lib/admin/leads";
 import { fmtAgo, fmtDate } from "@/lib/admin/format";
-import { setClaimStatusAction } from "./actions";
 
 export const metadata = { title: "Warranty claims" };
-
-// The usual next step for an open claim, as a button in its row (with Undo in its toast). Declined, and anything off the usual path, is
-// on the claim's own page.
-const NEXT: Partial<Record<ClaimStatus, [ClaimStatus, string]>> = { open: ["booked", "Book it in"], booked: ["approved", "Approve"], approved: ["repaired", "Mark repaired"], repaired: ["closed", "Close"] };
-function NextStep({ c }: { c: Claim }) {
-  const next = NEXT[c.status];
-  if (!next) return null;
-  return (
-    <span className="relative z-10">
-      <ChoiceAct action={setClaimStatusAction.bind(null, c.id)} set={{ status: next[0], from: c.status }} back={{ status: c.status, from: next[0] }} active={false} done={`${c.carTitle}: ${CLAIM_STATUS_LABELS[next[0]]}`} label={`${next[1]}: ${c.carTitle}`} className={rowButtonStrong}>
-        {next[1]}
-      </ChoiceAct>
-    </span>
-  );
-}
 
 // Warranty requests from the website, then the claims, open first. Each row opens its record; a claim's customer name is read from their
 // record, so an erased customer shows none. A request becomes a claim with Open a claim on it.
@@ -61,8 +44,6 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
     { key: "cover", header: "Cover", hide: "md", sort: (c) => (c.inCover ? 0 : 1), cell: (c) => <CoverBadge inCover={c.inCover} /> },
     { key: "status", header: "Status", hide: "sm", sort: (c) => CLAIM_STATUSES.indexOf(c.status), cell: (c) => <ClaimStatusBadge status={c.status} /> },
     { key: "opened", header: "Opened", hide: "md", nowrap: true, sort: (c) => c.openedOn, cell: (c) => fmtDate(`${c.openedOn}T12:00:00Z`) },
-    // The job that moves it on, in the row, so a claim is booked in or closed without opening it.
-    ...(view === "closed" ? [] : [{ key: "next", header: "Next step", align: "right" as const, nowrap: true, className: "w-px", cell: (c: Claim) => <NextStep c={c} /> }]),
   ];
   const matching = view === "requests" ? [] : claims.filter((c) => VIEWS[view].test(c) && (!sp.cover || String(c.inCover) === sp.cover) && (!q || `${c.carTitle} ${c.fault} ${(c.customerId && names.get(c.customerId)) || ""}`.toLowerCase().includes(q)));
   const { rows: sorted, sort } = sortRows(matching, columns, sp, { key: "opened", dir: "desc" });

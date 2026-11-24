@@ -275,10 +275,12 @@ erases or sends them any more.
 
 
 - **A customer's page** (`/customers/[id]`): how to reach them, what they bought with the warranty on each (in cover or not),
-  their deposits and warranty claims, and the leads and test drives that carry their email or phone.
+  their factory orders, warranty claims and deposits, and the leads and test drives that carry their email or phone. One list of each,
+  what is still open first, marked by the bar at its left (red to do now, amber otherwise), never a second list of what is open (#169).
 - **Warranty claims** (`claimsStore`, `/aftersales`, Warranty claims in the menu): opened on a purchase, from the customer's page or from a warranty lead
   (the buyer is found by the lead's email or phone). In cover or not is worked out from the sale's day and cover, never typed. Open,
-  Booked in, Approved, Declined, Repaired, Closed, with notes. What the repair cost the dealer is for the margins roles, and counts in the
+  Booked in, Approved, Declined, Repaired, Closed, with notes. The status is set in one place, the drop-down on the claim's page
+  (#169): it reaches Declined and goes back a stage, which a row's next step could not, so the list has no Next step button. What the repair cost the dealer is for the margins roles, and counts in the
   car's cost (`src/lib/admin/costs.ts`), so margins and the reports' profit include it.
 - **From the website:** the Warranty page has a claim form (a general message from /warranty), and a message from /service is filed as
   Service. The dashboard tells them apart by the page (`src/lib/admin/real-leads.ts`); the email to the dealer is the general one.
@@ -331,7 +333,8 @@ erases or sends them any more.
   `GOOGLE_BUSINESS_REFRESH_TOKEN` (the Business Profile API, signed in once as the profile's owner or a manager).
 - **In the dashboard** a reply goes to Google first, through the Business Profile API (`postReviewReply` in `publishers.ts`, simulated on
   the demo), and is kept only once Google has it. There is no flag: Google offers no way to take one. The list itself comes from the
-  Business Profile once it is connected; on the demo it is the seeded reviews.
+  Business Profile once it is connected; on the demo it is the seeded reviews. A low rating (3 stars or fewer) waiting for a reply
+  sorts first, and the "3 stars or fewer" tab lists them; its stars are its only mark (#169).
 - **Questions** (`/faq`) answers only from what the site already says (warranty, finance wording, selling, hours), so it promises nothing new.
 
 ## Listing site stock (DoneDeal or CarsIreland)

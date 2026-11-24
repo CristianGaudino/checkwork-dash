@@ -1,4 +1,4 @@
-import { Badge, EmptyState, Meter, Notice, PageHeader, Panel, SummaryTabs, TableFooter, pageOf } from "@/components/admin/kit";
+import { EmptyState, Meter, Notice, PageHeader, Panel, SummaryTabs, TableFooter, pageOf } from "@/components/admin/kit";
 import { Stars } from "@/components/admin/Stars";
 import { reviewsStore, type AdminReview } from "@/lib/admin/collections";
 import { fmtDate, plural } from "@/lib/admin/format";
@@ -84,7 +84,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ f
 
 // Each review with its Reply under it, on the right: pressing it opens the reply in the house dialog, with Write with AI, and Post reply
 // sends it to Google.
-// A review of 3 stars or fewer with no reply is marked: it is the one to answer first.
+// A low rating needs no mark of its own: its stars say it, the sort puts it first and the 3 stars or fewer tab finds it (#169).
 function ReviewList({ rows, label, filter }: { rows: AdminReview[]; label: string; filter: ReviewFilter }) {
   return (
     <ul aria-label={label} className="-mx-5 flex flex-col divide-y divide-hairline">
@@ -94,7 +94,6 @@ function ReviewList({ rows, label, filter }: { rows: AdminReview[]; label: strin
             <span data-author className="font-medium">{r.author}</span>
             <Stars rating={r.rating} />
             <span className="text-meta text-text-2">{fmtDate(r.createdAt)}</span>
-            {!r.reply && r.rating <= 3 && <Badge tone="warn">Low rating</Badge>}
           </div>
           <p className="max-w-measure whitespace-pre-line text-body">{r.text}</p>
           {r.reply && (

@@ -20,9 +20,10 @@ test("a claim opens from a customer's purchase, in cover, and moves to Booked in
   await expect(page.getByTestId("toast")).toContainText("Claim: Booked in");
   await page.goto("/aftersales?view=open");
   await expect(page.getByRole("row").filter({ hasText: "Booked in" }).first()).toBeVisible();
-  // The customer's page lists the claim, open, under Open for them (not twice).
+  // The customer's page lists the claim once, in its one list, the open ones first (#169).
   await page.goto("/customers/cust-300");
-  await expect(page.getByRole("list", { name: "Open for them" })).toContainText("Engine light on since Monday");
+  const claims = page.getByRole("list", { name: "Warranty claims" });
+  await expect(claims.getByRole("listitem").first()).toContainText("Engine light on since Monday");
 });
 
 test("a lost lead asks why", async ({ page }) => {
@@ -34,20 +35,4 @@ test("a lost lead asks why", async ({ page }) => {
   await why.click();
   await page.getByRole("option", { name: "Price" }).click();
   await expect(why).toHaveValue("Price");
-});
-
-test("an open claim is booked in from its row in the list", async ({ page }) => {
-  await page.setViewportSize({ width: 1280, height: 800 });
-  const fault = `Row step test ${Date.now()}`;
-  await page.goto("/customers/cust-300");
-  await page.getByRole("region", { name: "Purchases" }).getByRole("link", { name: "Open a claim" }).first().click();
-  await page.getByLabel("The fault").fill(fault);
-  await page.getByRole("button", { name: "Open the claim" }).click();
-  await expect(page).toHaveURL(/\/aftersales\/claim-/);
-
-  await page.goto(`/aftersales?view=open&q=${encodeURIComponent(fault)}`);
-  const row = page.getByRole("row").filter({ hasText: fault });
-  await row.getByRole("button", { name: "Book it in" }).click();
-  await expect(row.getByRole("button", { name: "Approve" })).toBeVisible();
-  await expect(row).toContainText("Booked in");
 });
