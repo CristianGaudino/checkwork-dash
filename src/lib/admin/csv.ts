@@ -14,8 +14,8 @@ export function toCsv<T>(rows: T[], columns: CsvColumn<T>[]): string {
   return [columns.map(([h]) => cell(h)), ...rows.map((r) => columns.map(([, f]) => cell(f(r))))].map((line) => line.join(",")).join("\r\n") + "\r\n";
 }
 
-// The response for a CSV download: a dated file name, never cached, never indexed.
-export function csvResponse(name: string, csv: string): Response {
-  const day = dublinDay();
-  return new Response(`﻿${csv}`, { headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="${name}-${day}.csv"`, "Cache-Control": "private, no-store", "X-Robots-Tag": "noindex" } });
+// The response for a CSV download: a file name dated today unless the name has its own period, never cached, never indexed.
+export function csvResponse(name: string, csv: string, dated = true): Response {
+  const file = dated ? `${name}-${dublinDay()}` : name;
+  return new Response(`﻿${csv}`, { headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="${file}.csv"`, "Cache-Control": "private, no-store", "X-Robots-Tag": "noindex" } });
 }
