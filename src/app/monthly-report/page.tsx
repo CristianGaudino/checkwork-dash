@@ -150,7 +150,7 @@ async function Report({ month, prevMonth, now, name, whole, hasMargins }: { mont
           {topTypes.length ? <BarList items={topTypes.map(([t, n]) => ({ label: LEAD_TYPE_LABELS[t as LeadType] ?? t, value: n }))} /> : <p className="text-meta text-text-2">No leads this month.</p>}
         </Panel>
         <Panel title="By day of the week">
-          <BarList items={DAYS.map((d, i) => ({ label: d, value: s.leads.byWeekday[i] }))} />
+          {s.leads.total ? <BarList items={DAYS.map((d, i) => ({ label: d, value: s.leads.byWeekday[i] }))} /> : <p className="text-meta text-text-2">No leads this month.</p>}
         </Panel>
       </div>
 
@@ -164,7 +164,7 @@ async function Report({ month, prevMonth, now, name, whole, hasMargins }: { mont
             <p className="text-meta text-text-2">
               {fmtNum(a.totals.pageviews)} pages viewed in all. {compare(a.totals.pageviews, a.previous.pageviews)}.
             </p>
-            <DataTable bare rows={a.topCars.slice(0, 5)} rowKey={(c) => c.slug} columns={[{ key: "t", header: "Car", cell: (c) => <span className="font-medium">{c.title}</span> }, { key: "v", header: "Views", align: "right", cell: (c) => fmtNum(c.views) }]} />
+            <DataTable bare rows={a.topCars.slice(0, 5)} rowKey={(c) => c.slug} empty={<p className="text-meta text-text-2">No cars viewed this month.</p>} columns={[{ key: "t", header: "Car", cell: (c) => <span className="font-medium">{c.title}</span> }, { key: "v", header: "Views", align: "right", cell: (c) => fmtNum(c.views) }]} />
           </Panel>
         </>
       )}

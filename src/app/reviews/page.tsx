@@ -82,7 +82,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ f
   );
 }
 
-// Each review with its Reply under it, on the right: pressing it opens the reply in the house dialog, with Write with AI, and Post reply
+// Each review with its Reply at the end of the author line: pressing it opens the reply in the house dialog, with Write with AI, and Post reply
 // sends it to Google.
 // A low rating needs no mark of its own: its stars say it, the sort puts it first and the 3 stars or fewer tab finds it (#169).
 function ReviewList({ rows, label, filter }: { rows: AdminReview[]; label: string; filter: ReviewFilter }) {
@@ -94,6 +94,7 @@ function ReviewList({ rows, label, filter }: { rows: AdminReview[]; label: strin
             <span data-author className="font-medium">{r.author}</span>
             <Stars rating={r.rating} />
             <span className="text-meta text-text-2">{fmtDate(r.createdAt)}</span>
+            <ReplyForm action={replyAction.bind(null, r.id)} id={r.id} author={r.author} review={r.text} reply={r.reply} filter={filter} />
           </div>
           <p className="max-w-measure whitespace-pre-line text-body">{r.text}</p>
           {r.reply && (
@@ -102,7 +103,6 @@ function ReviewList({ rows, label, filter }: { rows: AdminReview[]; label: strin
               {r.reply}
             </p>
           )}
-          <ReplyForm action={replyAction.bind(null, r.id)} id={r.id} author={r.author} review={r.text} reply={r.reply} filter={filter} />
         </li>
       ))}
     </ul>

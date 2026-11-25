@@ -18,8 +18,11 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
   return (
     <main className="flex flex-1 flex-col items-center px-4 py-12 sm:py-20">
       <div className={`${card} flex w-full max-w-sm flex-col gap-5 p-6`}>
-        <Brand />
-        <h1 className="text-display font-bold">Sign in to Checkwork</h1>
+        {/* self-start: the logo keeps its own width, not the card's. */}
+        <div className="self-start">
+          <Brand />
+        </div>
+        <h1 className="text-display font-bold">Sign in</h1>
         <EmailForm next={next} />
       </div>
     </main>

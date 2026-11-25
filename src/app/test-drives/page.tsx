@@ -2,7 +2,7 @@ import { dealerProfile } from "@/lib/tenancy/current";
 import Link from "next/link";
 import { DriveStatusBadge } from "@/components/admin/badges";
 import { DriveSteps } from "@/components/admin/DriveSteps";
-import { Badge, DataTable, EmptyState, PageHeader, Panel, Segmented, TableFooter, WhoseSwitch, TableToolbar, adminButton, pageOf, sortRows, type Column, type FilterGroup } from "@/components/admin/kit";
+import { Badge, DataTable, EmptyState, PageHeader, Panel, PanelLink, Segmented, TableFooter, WhoseSwitch, TableToolbar, adminButton, pageOf, sortRows, type Column, type FilterGroup } from "@/components/admin/kit";
 import { PlusIcon } from "@/components/stock/icons";
 import { DRIVE_STATUSES, DRIVE_STATUS_LABELS, drivesStore, getSettings, type TestDrive } from "@/lib/admin/collections";
 import { filterDrives, isOpenDrive, waitingDrives } from "@/lib/admin/drives";
@@ -70,17 +70,17 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
 
       {view === "today" && (
         <>
-          <Panel title={`Today, ${fmtDay(today)}`} count={onDay(today).length || undefined}>
+          <Panel title="Today" text={fmtDay(today)} count={onDay(today).length || undefined}>
             <Agenda drives={onDay(today)} gone={gone} me={me.name} empty={driveTimes(today, hours).length ? "Nothing booked today." : "We're closed today."} />
           </Panel>
           {/* Today's are listed above with their buttons; this is the rest, so no booking shows twice. */}
           {later.length > 0 && (
             <Panel title="Still to confirm" count={later.length}>
               <Agenda drives={later.slice(0, 8)} gone={gone} me={me.name} status="requested" withDay />
-              {later.length > 8 && <Link href={link({ view: "list", status: "requested", when: "ahead" })} className="w-fit text-meta font-medium underline">See all {later.length}</Link>}
+              {later.length > 8 && <PanelLink href={link({ view: "list", status: "requested", when: "ahead" })}>See all {later.length}</PanelLink>}
             </Panel>
           )}
-          <Panel title="Next few days" action={<Link href={link({ view: "list", when: "ahead" })} className="text-meta font-medium underline">See all</Link>}>
+          <Panel title="Next few days" action={<PanelLink href={link({ view: "list", when: "ahead" })}>See all</PanelLink>}>
             {ahead.length === 0 ? (
               <p className="text-body text-text-2">Nothing confirmed for the next six days.</p>
             ) : (
