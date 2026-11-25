@@ -52,7 +52,7 @@ export function SaleForm({ carId, defaults, today, team, me, customers, leads, s
         <Select name="coverMonths" defaultValue={String(defaults.coverMonths ?? COVER_MONTHS)} options={COVER_CHOICES.map((m) => [String(m), m === COVER_MONTHS ? `${m} months, included` : `${m} months, extended`] as const)} />
       </Field>
       <Field label="Trade-in registration (optional)" error={e.tradeReg}>
-        <input name="tradeReg" defaultValue={defaults.tradeIn?.reg} autoCapitalize="characters" className={adminInput} autoComplete="off" />
+        <input name="tradeReg" maxLength={12} defaultValue={defaults.tradeIn?.reg} autoCapitalize="characters" className={adminInput} autoComplete="off" />
       </Field>
       <Field label="Trade-in allowance (€)" error={e.tradeEur}>
         <input name="tradeEur" inputMode="numeric" defaultValue={defaults.tradeIn?.allowanceEur} className={adminInput} />

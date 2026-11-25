@@ -2,7 +2,7 @@ import { DEMO_PROFILE, type Hours } from "@/lib/tenancy/profile";
 import { z } from "zod";
 import { FINANCE } from "@/lib/finance/finance.config";
 import { PRICE_STOPS } from "@/lib/stock/types";
-import { BAD_DRIVE_DAY, BAD_DRIVE_TIME, BAD_KM, driveDays, driveTimes, phoneError, BAD_REG, CONTACT_ERROR, EMPLOYMENT, KM_PATTERN, LIMITS, REG_PATTERN, SOURCING_BODIES, SOURCING_CAR_ERROR } from "./constants";
+import { BAD_DRIVE_DAY, BAD_DRIVE_TIME, BAD_KM, driveDays, driveTimes, phoneError, BAD_REG, CONTACT_ERROR, EMPLOYMENT, KM_PATTERN, LIMITS, REG_PATTERN, SOURCING_BODIES, SOURCING_CAR_ERROR, tooLong } from "./constants";
 import { DAY } from "../time";
 import { dublinMs } from "@/lib/admin/format";
 import { CHOICES, TOPIC_IDS } from "./contact-topics";
@@ -12,7 +12,6 @@ import { CHANNELS, CHANNEL_LABELS } from "@/lib/visit-rules";
 
 // One line only: a line break in a name or car text could pass for a new field (a fake "Phone:" line) in the dealer's plain-text email.
 export const oneLine = (s: z.ZodString) => s.regex(/^[^\r\n\u2028\u2029]*$/, "Keep this to one line.");
-const tooLong = (n: number) => `Use ${n} characters or fewer.`;
 // An empty or blank field counts as not given.
 const given = <T extends z.ZodType>(s: T) => z.preprocess((v) => (typeof v === "string" && v.trim() === "" ? undefined : v), s);
 

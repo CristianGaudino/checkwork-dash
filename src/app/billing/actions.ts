@@ -9,6 +9,7 @@ import { MODULES, type ModuleId } from "@/lib/modules-rules";
 import { enabledModules } from "@/lib/modules";
 import { can, currentMember } from "@/lib/permissions";
 import { fieldErrors } from "@/lib/admin/validation";
+import { tooLong } from "@/lib/leads/constants";
 import { billingSettings, saveBilling, monthUsage } from "@/lib/billing/usage";
 import { eur, parseLimits, billedServices } from "@/lib/billing/bills-rules";
 import { SERVICE_LABELS, type Scope } from "@/lib/billing/rules";
@@ -38,10 +39,10 @@ export async function saveLimitsAction(_p: BillingState, data: FormData): Promis
 
 // Billing details are the Owner's to change: they say who the bills are made out to.
 const details = z.object({
-  company: z.string().trim().min(1, "Enter the company name").max(100),
-  vatNumber: z.string().trim().max(20, "At most 20 characters"),
-  address: z.string().trim().min(1, "Enter the billing address").max(200),
-  email: z.email("Enter a valid email").max(120),
+  company: z.string().trim().min(1, "Enter the company name").max(100, tooLong(100)),
+  vatNumber: z.string().trim().max(20, tooLong(20)),
+  address: z.string().trim().min(1, "Enter the billing address").max(200, tooLong(200)),
+  email: z.email("Enter a valid email").max(120, tooLong(120)),
 });
 export async function saveDetailsAction(_p: BillingState, data: FormData): Promise<BillingState> {
   await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)

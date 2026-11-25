@@ -21,6 +21,7 @@ import { can } from "@/lib/permissions";
 import { addCar, adminCar, adminCarAt, adminCars, freeCarId, removeCar, updateCar } from "@/lib/admin/stock-admin";
 import { droppedPrice, listedOn } from "@/lib/admin/stock-admin-pure";
 import { isAsked } from "@/lib/leads/journey";
+import { tooLong } from "@/lib/leads/constants";
 import { CAR_PHOTOS_MAX, CAR_PHOTO_MAX_BYTES, dropCarPhotos, storeCarPhoto } from "@/lib/admin/car-photos";
 import { sniffImage } from "@/lib/leads/photos";
 import { stockSource } from "@/lib/stock-source";
@@ -347,7 +348,7 @@ const sale = z.object({
   priceEur: euros(10_000_000),
   soldOn: isoDay("Choose the day it sold"),
   coverMonths: z.preprocess(blank, z.coerce.number().refine((n) => (COVER_CHOICES as readonly number[]).includes(n), "Choose the cover").optional()),
-  tradeReg: z.preprocess(blank, z.string().trim().toUpperCase().max(12).optional()),
+  tradeReg: z.preprocess(blank, z.string().trim().toUpperCase().max(12, tooLong(12)).optional()),
   tradeEur: z.preprocess(blank, euros(1_000_000).optional()),
   leadId: z.string().max(60).optional(),
   nctDue: z.preprocess(blank, isoDay("Choose the day the NCT is due").optional()),
@@ -470,7 +471,7 @@ const undoing = z.object({
   kind: z.enum(["cancelled", "returned"], { message: "Choose what happened" }),
   returnedOn: isoDay("Choose the day"),
   refundEur: z.preprocess(blank, euros(10_000_000, 0).optional()),
-  reason: z.string().trim().max(300).optional(),
+  reason: z.string().trim().max(300, tooLong(300)).optional(),
 });
 export async function undoSaleAction(carId: string, _prev: FormState, data: FormData): Promise<FormState> {
   await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
@@ -495,7 +496,7 @@ export async function undoSaleAction(carId: string, _prev: FormState, data: Form
 const prepLine = z.object({
   kind: z.enum(PREP_KINDS, { message: "Choose what it was for" }),
   eur: euros(100_000),
-  note: z.string().trim().max(80).optional(),
+  note: z.string().trim().max(80, tooLong(80)).optional(),
 });
 export type PrepFormState = { errors?: Record<string, string>; saved?: number } | undefined;
 // `at` null adds a line; otherwise it changes that line (its kind, amount and note), which keeps its `at`.

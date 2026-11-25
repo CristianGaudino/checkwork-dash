@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { tooLong } from "@/lib/leads/constants";
 
 // What differs between dealers beyond their records: their facts, their plan (the modules on), where their stock comes from, their business
 // rules and the few service settings that are not secrets. Kept in the directory, one JSON value per dealer (dealers.profile), read with the
@@ -84,13 +85,13 @@ export function parseProfile(raw: string | null | undefined, base: DealerProfile
 // What an owner or manager changes in Settings, Your business. The website must be an https address; a time is HH:MM.
 const time = z.union([z.literal(""), z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "A time like 09:30")]);
 export const FACTS_SCHEMA = z.object({
-  name: z.string().trim().min(1, "Give the business name").max(80),
-  siteUrl: z.union([z.literal(""), z.url({ protocol: /^https$/, error: "A full address starting https://" }).max(200)]).transform((u) => u.replace(/\/+$/, "")),
-  phone: z.string().trim().max(30),
-  email: z.union([z.literal(""), z.email("Enter a valid email address").max(120)]),
-  street: z.string().trim().max(80),
-  town: z.string().trim().max(60),
-  county: z.string().trim().max(60),
-  eircode: z.string().trim().max(10),
+  name: z.string().trim().min(1, "Give the business name").max(80, tooLong(80)),
+  siteUrl: z.union([z.literal(""), z.url({ protocol: /^https$/, error: "A full address starting https://" }).max(200, tooLong(200))]).transform((u) => u.replace(/\/+$/, "")),
+  phone: z.string().trim().max(30, tooLong(30)),
+  email: z.union([z.literal(""), z.email("Enter a valid email address").max(120, tooLong(120))]),
+  street: z.string().trim().max(80, tooLong(80)),
+  town: z.string().trim().max(60, tooLong(60)),
+  county: z.string().trim().max(60, tooLong(60)),
+  eircode: z.string().trim().max(10, tooLong(10)),
   hours: z.array(z.object({ opens: time, closes: time })).length(7),
 });

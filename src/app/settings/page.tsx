@@ -264,8 +264,8 @@ async function Team({ team, me, owner, rows, waOn }: { team: Person[]; me: Membe
             cell: (t) => (
               <div className="flex items-center justify-between gap-3">
                 <span className="flex min-w-0 flex-col">
-                  <span className="font-medium">{t.name}</span>
-                  <span className="hidden break-all text-meta text-text-2 sm:block">{t.email}</span>
+                  <span className="font-medium [overflow-wrap:anywhere]">{t.name}</span>
+                  <span className="hidden text-meta [overflow-wrap:anywhere] text-text-2 sm:block">{t.email}</span>
                   <span className="text-meta text-text-2">
                     {t.role} · {reachLine(t.prefs, t.role, { devices: withDevice.has(t.email.toLowerCase()), whatsapp: waOn && Boolean(t.phone) }, plan)}
                   </span>

@@ -10,6 +10,7 @@ import { newId } from "@/lib/admin/ids";
 import { appendNote } from "@/lib/admin/notes";
 import { BAD_COST, parseCost } from "@/lib/admin/margins";
 import { fieldErrors, isoDay, type FormState } from "@/lib/admin/validation";
+import { tooLong } from "@/lib/leads/constants";
 import { can } from "@/lib/permissions";
 import { requireModule } from "@/lib/modules";
 import { requireStaff } from "@/lib/staff";
@@ -25,7 +26,7 @@ const paths = (id: string) => {
 
 const opening = z.object({
   saleId: z.string().min(1, "Choose the car they bought").max(60),
-  fault: z.string().trim().min(1, "Say what the fault is").max(1000),
+  fault: z.string().trim().min(1, "Say what the fault is").max(1000, tooLong(1000)),
   openedOn: isoDay("Choose the day"),
   leadId: z.string().max(60).optional(),
 });

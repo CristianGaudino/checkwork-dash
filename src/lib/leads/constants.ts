@@ -13,6 +13,8 @@ export const LEAD_RETENTION_MONTHS = 12;
 // A sale record names its buyer: kept this many years (Irish business records), then the buyer is removed (src/lib/admin/sales-purge.ts).
 export const SALE_KEEP_YEARS = 6;
 export const LIMITS = { name: 100, phone: 30, email: 200, message: 1000 } as const;
+// The message for a box past its limit, on the server and in the forms.
+export const tooLong = (n: number) => `Use ${n} characters or fewer.`;
 const BAD_PHONE = "Enter a phone number we can call, like 087 123 4567.";
 const BAD_IRISH_PHONE = "Irish numbers have 7 to 9 digits after +353, like 87 123 4567.";
 

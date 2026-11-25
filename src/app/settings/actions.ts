@@ -25,6 +25,7 @@ import { signOutEverywhere } from "@/lib/auth/everywhere";
 import { signInMode } from "@/lib/auth/gate";
 import { sendInvitation } from "@/lib/auth/invite";
 import { FACTS_SCHEMA } from "@/lib/tenancy/profile";
+import { LIMITS, tooLong } from "@/lib/leads/constants";
 import { requireStaff } from "@/lib/staff";
 import { messagesStore, staffStore } from "@/lib/whatsapp/store";
 import { pushStore, removePushOf } from "@/lib/push";
@@ -67,7 +68,7 @@ export async function saveTargetsAction(_p: SettingsState, data: FormData): Prom
   return { saved: true };
 }
 
-const marketing = z.object({ voice: z.string().trim().max(200), hashtags: z.string().trim().max(120), signOff: z.string().trim().max(160) });
+const marketing = z.object({ voice: z.string().trim().max(200, tooLong(200)), hashtags: z.string().trim().max(120, tooLong(120)), signOff: z.string().trim().max(160, tooLong(160)) });
 export async function saveMarketingAction(_p: SettingsState, data: FormData): Promise<SettingsState> {
   await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
   const no = await refused("voice");
@@ -146,7 +147,7 @@ async function mayTouch(...roles: (Role | undefined)[]): Promise<string | null> 
   return roles.includes("Owner") && ((await currentMember()).role !== "Owner" || (await realRole()) !== "Owner") ? OWNERS_ONLY : null;
 }
 
-const member = z.object({ name: z.string().trim().min(1, NAME_REQUIRED).max(60), email: z.string().trim().toLowerCase().email(EMAIL_INVALID).max(120), role: z.enum(ROLES) });
+const member = z.object({ name: z.string().trim().min(1, NAME_REQUIRED).max(LIMITS.name, tooLong(LIMITS.name)), email: z.string().trim().toLowerCase().email(EMAIL_INVALID).max(120, tooLong(120)), role: z.enum(ROLES) });
 export async function addTeamAction(_p: SettingsState, data: FormData): Promise<SettingsState> {
   await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
   const r = member.safeParse(Object.fromEntries(data));

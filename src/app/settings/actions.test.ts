@@ -74,6 +74,11 @@ describe("team settings", () => {
     expect(Object.keys(r?.errors ?? {}).sort()).toEqual(["email", "name"]);
   });
 
+  it("takes a name of up to 100 characters, and says so plainly past that (#195)", async () => {
+    expect((await addTeamAction(undefined, form({ name: "x".repeat(101), email: "long@example.com", role: "Sales" })))?.errors?.name).toBe("Use 100 characters or fewer.");
+    expect((await addTeamAction(undefined, form({ name: "x".repeat(100), email: "long@example.com", role: "Sales" })))?.saved).toBe(true);
+  });
+
   it("refuses the same email twice", async () => {
     expect((await addTeamAction(undefined, form({ name: "Someone new", email: "Conor@Example.com", role: "Sales" })))?.errors?.email).toMatch(/already on the team/);
   });
@@ -187,7 +192,7 @@ describe("the other settings", () => {
   });
 
   it("keeps the marketing voice within its lengths", async () => {
-    expect((await saveMarketingAction(undefined, form({ voice: "x".repeat(201), hashtags: "", signOff: "" })))?.errors).toBeDefined();
+    expect((await saveMarketingAction(undefined, form({ voice: "x".repeat(201), hashtags: "", signOff: "" })))?.errors?.voice).toBe("Use 200 characters or fewer.");
     expect((await saveMarketingAction(undefined, form({ voice: "Friendly", hashtags: "#cars", signOff: "See you soon" })))?.saved).toBe(true);
     expect((await getSettings()).marketing).toEqual({ voice: "Friendly", hashtags: "#cars", signOff: "See you soon" });
   });
