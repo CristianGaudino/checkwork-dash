@@ -11,4 +11,17 @@ describe("phone links", () => {
     expect(telHref("")).toBeNull();
     expect(waHref("12345")).toBeNull();
   });
+  it("drops a (0) after the country code, so Call and WhatsApp reach the right number", () => {
+    for (const typed of ["+353 (0)87 765 4321", "+353 (0) 87 765 4321", "00353(0)877654321"]) expect(telHref(typed)).toBe("tel:+353877654321");
+    expect(waHref("+353 (0)87 765 4321")).toBe("https://wa.me/353877654321");
+    expect(telHref("(01) 906 0045")).toBe("tel:+35319060045"); // an area code in brackets is kept
+  });
+  it("offers WhatsApp for an Irish mobile or a number from abroad, never an Irish landline", () => {
+    for (const mobile of ["083 123 4567", "089 123 4567", "+353 85 123 4567"]) expect(waHref(mobile)).not.toBeNull();
+    for (const landline of ["(021) 496 1234", "0402 12345", "+353 1 906 0045", "081 123 4567"]) {
+      expect(waHref(landline)).toBeNull();
+      expect(telHref(landline)).not.toBeNull();
+    }
+    expect(waHref("+1 415 555 0100")).toBe("https://wa.me/14155550100");
+  });
 });
