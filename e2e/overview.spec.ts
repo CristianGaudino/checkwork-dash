@@ -30,12 +30,17 @@ test("a new lead is called or answered from its row in To do", async ({ page }) 
   await expect(page).toHaveURL(/\/leads\/[^/]+$/);
 });
 
-// One count (#38): To do and its See all say the same number, and the Reply to leads button the same as Leads' To answer now.
+// One count (#38): To do and the To do page its See all opens say the same number, and the Reply to leads button the same as Leads'
+// To answer now.
 const count = (text: string | null, re: RegExp) => Number(re.exec(text ?? "")?.[1] ?? 0); // none: "All answered";
+// To do's See all (Test drives has one too).
+const seeAll = (page: Page) => page.locator('a[href^="/to-do"]', { hasText: "See all" });
 async function counts(page: Page) {
   await page.goto("/");
-  const headline = count(await page.getByRole("link", { name: /^See all \d+$/ }).textContent(), /^See all (\d+)$/);
   const toDo = count(await page.getByRole("heading", { level: 2, name: /^To do/ }).textContent(), /^To do(\d+)/);
+  await page.goto((await seeAll(page).getAttribute("href"))!); // hidden from 640px when To do shows every row
+  const headline = count(await page.getByText(/^\d+ to-dos?$/).textContent(), /^(\d+) to-dos?$/);
+  await page.goto("/");
   const tile = page.getByRole("navigation", { name: "Quick actions" }).getByRole("link", { name: /^Reply to leads/ });
   const leads = count(await tile.textContent(), /(\d+) leads? to answer/);
   await tile.click();
@@ -54,7 +59,7 @@ test("the overview counts what needs doing once, and To do shows the top rows th
   await page.goto("/");
   const todo = page.getByRole("list", { name: "To do" });
   await expect(todo.getByRole("listitem")).toHaveCount(8);
-  await page.getByRole("link", { name: /^See all \d+$/ }).click();
+  await seeAll(page).click();
   await expect(page).toHaveURL(/\/to-do\?mine=0$/); // its own page: the Overview never grows
   expect(await todo.getByRole("listitem").count()).toBeGreaterThan(8);
 });

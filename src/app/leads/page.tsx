@@ -1,7 +1,7 @@
 import { sourceText } from "@/lib/visit-rules";
 import Link from "next/link";
 import { LeadStatusBadge } from "@/components/admin/badges";
-import { Avatar, Badge, DataTable, EmptyState, PageHeader, Panel, SummaryTabs, TableFooter, TableToolbar, Task, WhoseSwitch, pageOf, sortRows, type Column, type FilterGroup } from "@/components/admin/kit";
+import { Avatar, Badge, DataTable, EmptyState, PageHeader, Panel, PanelLink, SummaryTabs, TableFooter, TableToolbar, Task, WhoseSwitch, pageOf, sortRows, type Column, type FilterGroup } from "@/components/admin/kit";
 import { Suspense } from "react";
 import { Skeleton, TableBones } from "@/components/admin/Skeleton";
 import { CloseChoices, NextStatusButton, ReachButton, SpamButton } from "@/components/admin/LeadActions";
@@ -11,7 +11,7 @@ import { HeldTasks, RowActions } from "@/components/admin/HeldTasks";
 import { CalendarIcon, InboxIcon } from "@/components/stock/icons";
 import { can, currentMember } from "@/lib/permissions";
 import { LEAD_SOURCES, LEAD_STATUSES, LEAD_STATUS_LABELS, LEAD_TYPE_LABELS, getSettings, leadsStore, type Lead } from "@/lib/admin/collections";
-import { dublinDay, fmtAgo, fmtDate } from "@/lib/admin/format";
+import { dublinDay, fmtAgo, fmtDate, fmtDay } from "@/lib/admin/format";
 import { SALES_LEAD_TYPES, filterLeads, followUpDue, forPerson, isOpenLead, onLeadsList, leadFlag, leadsToAnswer, parseLeadFilter, possibleSpam, statusCounts, urgentFirst, type LeadTask } from "@/lib/admin/leads";
 import { TOPICS, leadTags } from "@/lib/leads/contact-topics";
 import { LeadKind, LeadTags, leadChips } from "@/components/admin/LeadKind";
@@ -79,7 +79,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
   const filtered = Boolean(f.status || f.type || f.topic || f.due || f.late || f.source || (sp.page && sp.page !== "1"));
   const mine = sp.mine === "1" && Boolean(me.name) && !f.with; // Who has it wins: its pill hides Everyone | For me
   const why = ({ lead: l, kind, flag }: LeadTask) =>
-    kind === "follow" ? (l.followUpOn! < today ? `Follow-up was due ${fmtDate(`${l.followUpOn}T12:00:00Z`)}` : "Follow up today") : flag === "late" ? `Came in ${fmtAgo(l.createdAt)}, past your reply time` : flag === "urgent" ? `In a hurry: ${leadTags(l.topic!, l.answers ?? {}).join(", ")}` : `New, came in ${fmtAgo(l.createdAt)}`;
+    kind === "follow" ? (l.followUpOn! < today ? `Follow-up was due ${fmtDay(l.followUpOn!, "dayMonth")}` : "Follow up today") : flag === "late" ? `Came in ${fmtAgo(l.createdAt)}, past your reply time` : flag === "urgent" ? `In a hurry: ${leadTags(l.topic!, l.answers ?? {}).join(", ")}` : `New, came in ${fmtAgo(l.createdAt)}`;
   const every = leadsToAnswer(f.with ? filterLeads(all, { q: "", with: f.with }) : all, at, today, leadSlaHours);
   const todo = (mine ? forPerson(every, me.name) : every).map((t) => ({ ...t, why: why(t) }));
   const SHOWN = 8;
@@ -151,10 +151,10 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
             }))}
           />
           {todo.length > SHOWN && (
-            <p className="flex flex-wrap gap-x-4 text-meta text-text-2">
-              {todo.length - SHOWN} more waiting.
-              {replies > 0 && <Link href={`/leads?status=new${withWho}`} className="font-medium text-text underline">New leads ({replies})</Link>}
-              {follows > 0 && <Link href={`/leads?need=due${withWho || (mine ? `&with=${encodeURIComponent(me.name)}` : "")}`} className="font-medium text-text underline">Follow-ups due ({follows})</Link>}
+            <p className="flex flex-wrap items-center gap-x-4 text-meta text-text-2">
+              {todo.length - SHOWN} more waiting
+              {replies > 0 && <PanelLink href={`/leads?status=new${withWho}`}>New leads {replies}</PanelLink>}
+              {follows > 0 && <PanelLink href={`/leads?need=due${withWho || (mine ? `&with=${encodeURIComponent(me.name)}` : "")}`}>Follow-ups due {follows}</PanelLink>}
             </p>
           )}
         </Panel>
@@ -182,7 +182,7 @@ async function LeadsTable({ sp, all, f, today, leadSlaHours, at, me }: { sp: Par
       // from and the car. The form's tags stay on the lead's page, so a row is a few lines, not a stack of chips.
       cell: (l) => (
         <span className="flex min-w-0 flex-col gap-1">
-          <Link href={`/leads/${l.id}`} className="font-bold text-text [overflow-wrap:anywhere] after:absolute after:inset-0">
+          <Link href={`/leads/${l.id}`} className="font-medium text-text [overflow-wrap:anywhere] after:absolute after:inset-0">
             {l.name}
           </Link>
           <KindSource l={l} className="sm:hidden" />

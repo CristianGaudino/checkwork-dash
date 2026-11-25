@@ -58,7 +58,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
         aside={
           <>
             {drivesOn && (
-              <Panel title="Test drives" action={<PanelLink href="/test-drives">View more</PanelLink>}>
+              <Panel title="Test drives" action={<PanelLink href="/test-drives">See all</PanelLink>}>
                 {o.nextDrives.length === 0 ? (
                   // One line, not a tall empty block beside the busiest panel. Booking one is the tile above.
                   <p className="text-body text-text-2">None booked this week</p>
@@ -113,9 +113,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
             </div>
           )}
           {tasks.length > PHONE && (
-            <Link href={`/to-do?mine=${mine ? 1 : 0}`} className={`w-fit text-meta font-medium underline ${tasks.length > TOP ? "" : "sm:hidden"}`}>
-              See all {count}
-            </Link>
+            <div className={`w-fit ${tasks.length > TOP ? "" : "sm:hidden"}`}>
+              <PanelLink href={`/to-do?mine=${mine ? 1 : 0}`}>See all</PanelLink>
+            </div>
           )}
         </Panel>
       </Columns>
