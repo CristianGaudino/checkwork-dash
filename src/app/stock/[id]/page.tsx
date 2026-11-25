@@ -15,7 +15,7 @@ import { dealerProfile } from "@/lib/tenancy/current";
 import { CheckIcon, PencilIcon, ReceiptIcon, TagIcon, TrashIcon } from "@/components/stock/icons";
 import { costsStore, heldFor, prepStore, reservationsStore, salesStore } from "@/lib/admin/collections";
 import { RETURN_WINDOW_DAYS, withinReturnWindow } from "@/lib/admin/deposits";
-import { dublinDay, fmtAgo, fmtDate, fmtEur, fmtNum, plural } from "@/lib/admin/format";
+import { dublinDay, fmtAgoOn, fmtDate, fmtEur, fmtNum, plural } from "@/lib/admin/format";
 import { reminderFacts } from "@/lib/admin/reminders";
 import { PrepPanel } from "@/components/admin/PrepPanel";
 import { CarPhotos } from "@/components/admin/CarPhotos";
@@ -149,7 +149,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
     const { lastOkAt } = await syncStatus();
     return (
       <>
-        <PageHeader title={carName(car)} text={lastOkAt ? `Last updated ${fmtAgo(lastOkAt)}` : "Not updated yet"} actions={main} back={{ href: "/stock", label: "Stock" }} />
+        <PageHeader title={carName(car)} text={lastOkAt ? `Last updated ${fmtAgoOn(lastOkAt)}` : "Not updated yet"} actions={main} back={{ href: "/stock", label: "Stock" }} />
         {summary}
         {checks}
         {/* The site shows the feed's text, so a better one is written here and pasted into the listing site (#225). Not for an ad that is gone. */}

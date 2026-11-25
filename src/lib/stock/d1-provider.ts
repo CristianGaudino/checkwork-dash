@@ -14,13 +14,21 @@ const TTL_MS = 30_000;
 // while it loads share one read of the table.
 const snapshots = new Map<string, { at: number; engine: Promise<StockProvider> }>();
 
+// A car saved as new in the minutes between drizzle/0006 and this code going live reads as used, as the migration made the rest (#188).
+export function readCar(data: unknown): Car {
+  const car = data as Car;
+  if ((car.condition as string) !== "new") return car;
+  const { condition: _, ...used } = car;
+  return used;
+}
+
 async function engine(): Promise<StockProvider> {
   const { id, profile } = await currentDealer();
   const snapshot = snapshots.get(id);
   if (snapshot && Date.now() - snapshot.at < TTL_MS) return snapshot.engine;
   const load = getDb()
     .then((db) => db.select({ data: cars.data }).from(cars))
-    .then((rows) => createStockEngine(rows.map((r) => r.data as Car), { soldDays: profile.rules.soldVisibleDays }));
+    .then((rows) => createStockEngine(rows.map((r) => readCar(r.data)), { soldDays: profile.rules.soldVisibleDays }));
   const mine = { at: Date.now(), engine: load };
   snapshots.set(id, mine);
   load.catch(() => void (snapshots.get(id) === mine && snapshots.delete(id))); // a failed read is not kept: the next request tries again

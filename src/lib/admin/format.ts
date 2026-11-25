@@ -73,11 +73,14 @@ export const monthChoices = (from: string, count: number) =>
 export const fmtPct = (n: number) => `${n.toFixed(1)}%`; // always one decimal, so 20.0% and 20.1% line up
 
 const rtf = new Intl.RelativeTimeFormat("en-IE", { numeric: "auto" });
-// "2 hours ago", "yesterday": for a list where the order of events matters more than the exact time. Past a week, the date: "on 25 Nov
-// 2021", so "Came in …" still reads right, never "1,825 days ago".
+// "2 hours ago", "yesterday": for a list where the order of events matters more than the exact time. Past a week, the day ("12 November",
+// "25 November 2021" in another year), never "1,825 days ago". In a sentence use fmtAgoOn.
+const pastAWeek = (t: number | string, now: number) => Math.round(Math.abs(new Date(t).getTime() - now) / 86_400_000) > 7;
 export function fmtAgo(t: number | string, now = Date.now()) {
   const s = Math.round((new Date(t).getTime() - now) / 1000);
-  if (Math.round(Math.abs(s) / 86400) > 7) return `on ${fmtDate(t)}`;
+  if (pastAWeek(t, now)) return fmtDay(dublinDay(new Date(t).getTime()), "dayMonth", now);
   for (const [unit, secs] of [["day", 86400], ["hour", 3600], ["minute", 60]] as const) if (Math.abs(s) >= secs) return rtf.format(Math.round(s / secs), unit);
   return "just now";
 }
+// fmtAgo in a sentence: "Came in 2 hours ago", "Came in on 12 November".
+export const fmtAgoOn = (t: number | string, now = Date.now()) => `${pastAWeek(t, now) ? "on " : ""}${fmtAgo(t, now)}`;

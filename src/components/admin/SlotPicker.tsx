@@ -51,7 +51,7 @@ export function SlotPicker({ days, taken, windowMin, now, date, time, onChange, 
               >
                 <span className={on ? "" : "text-text-2"}>{fmtDay(d, "weekday")}</span>
                 <span className="text-body font-semibold tabular-nums">{fmtDay(d, "day")}</span>
-                <span className={`text-[0.6875rem] ${on ? "" : "text-text-2"}`}>{fmtDay(d, "month")}</span>
+                <span className={`text-[0.6875rem] ${on ? "" : "text-text-2"}`}>{fmtDay(d, "month", Date.parse(d))}</span>
               </button>
             );
           })}

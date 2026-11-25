@@ -1,5 +1,6 @@
 import { LEAD_SOURCES, LEAD_STATUSES, LEAD_TYPES, type Claim, type Lead, type LeadStatus, type LeadType } from "./collections";
 import { TOPIC_IDS, type TopicId } from "@/lib/leads/contact-topics";
+import { LIMITS } from "@/lib/leads/constants";
 import { answerNow, followUpDue, pastReplyTarget } from "./follow-ups";
 import { intlDigits, waHref } from "@/lib/phone";
 export { answerNow, followUpDue, forPerson, isHotLead, isOpenLead, leadFlag, leadsToAnswer, possibleSpam, type LeadTask } from "./follow-ups";
@@ -24,7 +25,7 @@ export type LeadFilter = { status?: LeadStatus; type?: LeadType; topic?: string;
 export function parseLeadFilter(sp: { status?: string; type?: string; topic?: string; q?: string; due?: string; late?: string; need?: string; with?: string; source?: string }): LeadFilter {
   const due = sp.due === "1" || sp.need === "due";
   return {
-    with: sp.with?.slice(0, 80) || undefined,
+    with: sp.with?.slice(0, LIMITS.name) || undefined, // a team name is up to LIMITS.name long
     source: (LEAD_SOURCES as readonly string[]).includes(sp.source ?? "") ? (sp.source as LeadFilter["source"]) : undefined,
     due: due || undefined,
     late: (!due && (sp.late === "1" || sp.need === "late")) || undefined,

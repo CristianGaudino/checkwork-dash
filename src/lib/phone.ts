@@ -10,7 +10,7 @@ export const telHref = (phone: string) => {
   return d ? `tel:+${d}` : null;
 };
 // WhatsApp only for an Irish mobile (083 to 089) or a number from abroad: never an Irish landline (owner, #190).
-export const onWhatsApp = (digits: string) => !digits.startsWith("353") || /^3538[3-9]/.test(digits);
+const onWhatsApp = (digits: string) => !digits.startsWith("353") || /^3538[3-9]/.test(digits);
 // `text`: a message filled in, which they can still edit before sending. Null when the number cannot be on WhatsApp.
 export const waHref = (phone: string, text?: string) => {
   const d = intlDigits(phone);

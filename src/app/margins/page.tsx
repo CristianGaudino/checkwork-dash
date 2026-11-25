@@ -88,7 +88,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ q
       <PageHeader title="Margins" text="Asking or sale price, less cost, prep and warranty repairs, before VAT" />
       {/* The two figures an owner asks for first (what the stock should make, what the sales made), then what the stock is worth and cost. */}
       <StatGrid>
-        <StatCard label="Expected margin on stock" value={fmtEur(stockMargin.eur)} hint={stockPrice ? `${fmtPct(stockMargin.pct)}, if each sells at its price` : noCost.length ? "No cost prices yet" : "No cars in stock"} tone={!stockPrice ? undefined : stockMargin.eur >= 0 ? "good" : "bad"} href="/margins?state=stock" />
+        <StatCard label="Expected margin on stock" value={fmtEur(stockMargin.eur)} hint={stockPrice ? `${fmtPct(stockMargin.pct)}, if each sells at its price` : noCost.length ? "No cost prices yet" : rows.some((r) => !isSold(r.car)) ? "No asking prices yet" : "No cars in stock"} tone={!stockPrice ? undefined : stockMargin.eur >= 0 ? "good" : "bad"} href="/margins?state=stock" />
         <StatCard label="Margin on sold cars" value={fmtEur(soldMargin)} hint={`${plural(sold.length, "car")} sold`} tone={soldMargin < 0 ? "bad" : undefined} href="/margins?state=sold" />
         <StatCard label="Stock value" value={fmtEur(stockPrice)} hint="At the advertised prices" />
         <StatCard label="Stock cost" value={fmtEur(stockCost)} hint={stockHint} />

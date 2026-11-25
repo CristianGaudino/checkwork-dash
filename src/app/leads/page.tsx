@@ -11,7 +11,7 @@ import { HeldTasks, RowActions } from "@/components/admin/HeldTasks";
 import { CalendarIcon, InboxIcon } from "@/components/stock/icons";
 import { can, currentMember } from "@/lib/permissions";
 import { LEAD_SOURCES, LEAD_STATUSES, LEAD_STATUS_LABELS, LEAD_TYPE_LABELS, getSettings, leadsStore, type Lead } from "@/lib/admin/collections";
-import { dublinDay, fmtAgo, fmtDate, fmtDay } from "@/lib/admin/format";
+import { dublinDay, fmtAgo, fmtAgoOn, fmtDate, fmtDay } from "@/lib/admin/format";
 import { SALES_LEAD_TYPES, filterLeads, followUpDue, forPerson, isOpenLead, onLeadsList, leadFlag, leadsToAnswer, parseLeadFilter, possibleSpam, statusCounts, urgentFirst, type LeadTask } from "@/lib/admin/leads";
 import { TOPICS, leadTags } from "@/lib/leads/contact-topics";
 import { LeadKind, LeadTags, leadChips } from "@/components/admin/LeadKind";
@@ -79,7 +79,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
   const filtered = Boolean(f.status || f.type || f.topic || f.due || f.late || f.source || (sp.page && sp.page !== "1"));
   const mine = sp.mine === "1" && Boolean(me.name) && !f.with; // Who has it wins: its pill hides Everyone | For me
   const why = ({ lead: l, kind, flag }: LeadTask) =>
-    kind === "follow" ? (l.followUpOn! < today ? `Follow-up was due ${fmtDay(l.followUpOn!, "dayMonth")}` : "Follow up today") : flag === "late" ? `Came in ${fmtAgo(l.createdAt)}, past your reply time` : flag === "urgent" ? `In a hurry: ${leadTags(l.topic!, l.answers ?? {}).join(", ")}` : `New, came in ${fmtAgo(l.createdAt)}`;
+    kind === "follow" ? (l.followUpOn! < today ? `Follow-up was due ${fmtDay(l.followUpOn!, "dayMonth")}` : "Follow up today") : flag === "late" ? `Came in ${fmtAgoOn(l.createdAt)}, past your reply time` : flag === "urgent" ? `In a hurry: ${leadTags(l.topic!, l.answers ?? {}).join(", ")}` : `New, came in ${fmtAgoOn(l.createdAt)}`;
   const every = leadsToAnswer(f.with ? filterLeads(all, { q: "", with: f.with }) : all, at, today, leadSlaHours);
   const todo = (mine ? forPerson(every, me.name) : every).map((t) => ({ ...t, why: why(t) }));
   const SHOWN = 8;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addMonths, daysSince, isIsoDay, isIsoMonth, fmtAgo, fmtDateTime, fmtDay, fmtEur, fmtPct, fmtTime, monthChoices, plural, threeLetter } from "./format";
+import { addMonths, daysSince, isIsoDay, isIsoMonth, fmtAgo, fmtAgoOn, fmtDateTime, fmtDay, fmtEur, fmtPct, fmtTime, monthChoices, plural, threeLetter } from "./format";
 
 describe("admin format", () => {
   const now = new Date("2026-11-10T12:00:00Z").getTime();
@@ -11,8 +11,13 @@ describe("admin format", () => {
   it("says days up to a week, then the date", () => {
     expect(fmtAgo(now - 6 * 86400_000, now)).toBe("6 days ago");
     expect(fmtAgo(now - 7 * 86400_000, now)).toBe("7 days ago");
-    expect(fmtAgo(now - 8 * 86400_000, now)).toBe("on 2 Nov 2026");
-    expect(fmtAgo(Date.parse("2021-11-25T12:00:00Z"), now)).toBe("on 25 Nov 2021");
+    expect(fmtAgo(now - 8 * 86400_000, now)).toBe("2 November");
+    expect(fmtAgo(Date.parse("2021-11-25T12:00:00Z"), now)).toBe("25 November 2021");
+  });
+  it("puts on before the day in a sentence, not before a time ago", () => {
+    expect(fmtAgoOn(now - 6 * 86400_000, now)).toBe("6 days ago");
+    expect(fmtAgoOn(now - 8 * 86400_000, now)).toBe("on 2 November");
+    expect(fmtAgoOn(Date.parse("2021-11-25T12:00:00Z"), now)).toBe("on 25 November 2021");
   });
   it("writes euros without cents and a percentage with one decimal at most", () => {
     expect(fmtEur(12500)).toBe("€12,500");

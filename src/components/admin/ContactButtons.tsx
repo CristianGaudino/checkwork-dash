@@ -12,8 +12,7 @@ import { mailtoHref, type Reply } from "@/lib/leads/first-reply";
 export function ContactButtons({ phone, email, main, whatsapp = true, reply }: { phone?: string; email?: string; main?: ReplyVia; whatsapp?: boolean; reply?: Reply }) {
   const tel = phone ? telHref(phone) : undefined;
   const wa = phone && whatsapp ? waHref(phone, reply?.body) : undefined;
-  const filled = main === "whatsapp" && !wa ? "call" : main; // a landline cannot be on WhatsApp (waHref): Call is the way to answer
-  const look = (via: ReplyVia) => (via === filled ? adminButton : adminButtonQuiet);
+  const look = (via: ReplyVia) => (via === main ? adminButton : adminButtonQuiet);
   return (
     <div className="flex flex-wrap gap-2 max-sm:*:grow *:px-3">
       {tel && (

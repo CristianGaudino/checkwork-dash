@@ -9,7 +9,7 @@ import { carCosts } from "@/lib/admin/costs";
 import { marginOf } from "@/lib/admin/margins";
 import { adminCars } from "@/lib/admin/stock-admin";
 import { can } from "@/lib/permissions";
-import { daysSince, fmtAgo, fmtDate, fmtEur, fmtNum } from "@/lib/admin/format";
+import { daysSince, fmtAgoOn, fmtDate, fmtEur, fmtNum } from "@/lib/admin/format";
 import { carName, siteCarUrl, priceLabel } from "@/lib/stock/format";
 import { FUEL_LABELS, FUELS, GEARBOXES, GEARBOX_LABELS, forSale, isReduced, isSold, type Car, onPublicSite } from "@/lib/stock/types";
 import { stockSource } from "@/lib/stock-source";
@@ -101,7 +101,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sto
     <>
       <PageHeader
         title="Stock"
-        text={sync ? (sync.lastOkAt ? `Last updated ${fmtAgo(sync.lastOkAt)}` : "Not updated yet") : "Press a car to change its price, photos or details"}
+        text={sync ? (sync.lastOkAt ? `Last updated ${fmtAgoOn(sync.lastOkAt)}` : "Not updated yet") : "Press a car to change its price, photos or details"}
         actions={
           <>
             {synced ? (

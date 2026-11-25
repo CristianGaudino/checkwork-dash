@@ -8,7 +8,7 @@ import { DriveSteps } from "@/components/admin/DriveSteps";
 import { carCosts } from "@/lib/admin/costs";
 import { claimsStore, drivesStore, getSettings, leadsStore, reservationsStore, reviewsStore, salesStore, type Lead } from "@/lib/admin/collections";
 import { can, currentMember } from "@/lib/permissions";
-import { dublinDay, fmtAgo, fmtDateTime, fmtDay, plural } from "@/lib/admin/format";
+import { dublinDay, fmtAgoOn, fmtDateTime, fmtDay, plural } from "@/lib/admin/format";
 import { overview } from "@/lib/admin/overview";
 import { adminCars } from "@/lib/admin/stock-admin";
 import { syncStatus } from "@/lib/donedeal/sync";
@@ -81,7 +81,7 @@ export async function loadToDo(mineParam: string | undefined) {
       case "reply":
         return [
           ...o.reply.slice(0, EACH).map(({ lead: l, urgency, flag }) => (
-            <Task key={`reply-${l.id}`} urgency={urgency} icon={<InboxIcon />} title={`Reply to ${l.name}`} detail={[who(l.assignedTo), about(l), `Came in ${fmtAgo(l.createdAt)}${flag === "late" ? ", past your reply time" : ""}`].filter(Boolean).join(" · ")} action={<><ReachButton lead={l} reply={reply(l)} /><LeadMenu id={l.id} name={l.name} /></>} />
+            <Task key={`reply-${l.id}`} urgency={urgency} icon={<InboxIcon />} title={`Reply to ${l.name}`} detail={[who(l.assignedTo), about(l), `Came in ${fmtAgoOn(l.createdAt)}${flag === "late" ? ", past your reply time" : ""}`].filter(Boolean).join(" · ")} action={<><ReachButton lead={l} reply={reply(l)} /><LeadMenu id={l.id} name={l.name} /></>} />
           )),
           ...rest(a.key, o.reply.length, "new lead to answer", "new leads to answer", a.href, a.urgency),
         ];
