@@ -8,7 +8,7 @@ import { Dialog, DialogCancel } from "@/components/admin/Dialog";
 import { SubmitButton } from "@/components/admin/SubmitButton";
 import { FormActions, adminButton, rowButton, rowButtonStrong } from "@/components/admin/kit";
 
-// Reply (or Edit reply) under a review opens the reply in the house dialog (#141), with the review above the box to answer it. A reply is
+// Reply (or Edit reply) at the end of a review's author line opens the reply in the house dialog (#141), with the review above the box to answer it. A reply is
 // public on Google, so it asks first with the text shown; an empty box with no reply to remove says so. Once Google has it, the dialog closes
 // and the page says so.
 export function ReplyForm({ action, id, author, review, reply, filter }: { action: (data: FormData) => Promise<void>; id: string; author: string; review: string; reply?: string; filter: string }) {
@@ -32,11 +32,10 @@ export function ReplyForm({ action, id, author, review, reply, filter }: { actio
   };
   return (
     <>
-      <div className="flex justify-end">
-        <button type="button" onClick={() => (setError(""), setOpen(true))} aria-label={`${reply ? "Edit reply" : "Reply"} to ${author}`} className={reply ? rowButton : rowButtonStrong}>
-          {reply ? "Edit reply" : "Reply"}
-        </button>
-      </div>
+      {/* ml-auto: at the right end of the review's author line. */}
+      <button type="button" onClick={() => (setError(""), setOpen(true))} aria-label={`${reply ? "Edit reply" : "Reply"} to ${author}`} className={`ml-auto ${reply ? rowButton : rowButtonStrong}`}>
+        {reply ? "Edit reply" : "Reply"}
+      </button>
       <Dialog open={open} onClose={() => setOpen(false)} title={reply ? "Edit your reply" : `Reply to ${author}`}>
         <form ref={form} action={action} onSubmit={onSubmit} className="flex flex-col gap-4">
           <blockquote className="max-h-40 overflow-y-auto whitespace-pre-line rounded-control border-l-4 border-hairline bg-row-alt px-4 py-3 text-body">{review}</blockquote>

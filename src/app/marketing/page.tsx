@@ -1,4 +1,4 @@
-import { Badge, EmptyState, Notice, PageHeader, Panel, StatCard, StatGrid, SummaryTabs, TableFooter, TableToolbar, Task, TaskList, pageOf, adminButton, adminButtonQuiet, rowButton, rowButtonStrong, rowDanger, type FilterGroup, type Tone } from "@/components/admin/kit";
+import { Badge, EmptyState, Notice, PageHeader, Panel, SummaryTabs, TableFooter, TableToolbar, Task, TaskList, pageOf, adminButton, adminButtonQuiet, rowButton, rowButtonStrong, rowDanger, type FilterGroup, type Tone } from "@/components/admin/kit";
 import { PencilIcon, PlusIcon, TrashIcon } from "@/components/stock/icons";
 import { DAY } from "@/lib/time";
 import { ActButton } from "@/components/admin/ActButton";
@@ -114,7 +114,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
       <SummaryTabs
         label="Marketing"
         items={[
-          { label: "Posts and ads", count: fmtNum(posts.length + ads.length), hint: `${posts.filter((p) => p.status === "posted" && !prepared(p)).length} posted, ${ads.filter((a) => a.status === "running").length} ads running`, href: "/marketing?tab=posts", active: tab === "posts" },
+          { label: "Posts and ads", count: fmtNum(posts.length + ads.length), hint: `${posts.filter((p) => p.status === "posted" && !prepared(p)).length} posted, ${plural(ads.filter((a) => a.status === "running").length, "ad")} running`, href: "/marketing?tab=posts", active: tab === "posts" },
           { label: "Calendar", count: fmtNum(posts.filter((p) => p.status === "scheduled").length), hint: "scheduled", href: "/marketing?tab=calendar", active: tab === "calendar" },
           { label: "Media", count: fmtNum(library.length), hint: "photos and videos", href: "/marketing?tab=media", active: tab === "media" },
         ]}
@@ -178,19 +178,21 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
             </div>
           )}
 
-          {/* How the posts did, after what needs doing: the few numbers a dealer asks about. Four tiles on a laptop; on a phone one line,
-              so the list is not pushed a screen down. */}
+          {/* How the posts did, after what needs doing: the few numbers a dealer asks about. One plain row of figures on a laptop, not tiles
+              that look like the filters; on a phone one line, so the list is not pushed a screen down. */}
           <p className="text-meta text-text-2 sm:hidden">
             Last 30 days: {fmtNum(recent.length)} posted, {fmtNum(seen)} saw them, {plural(clicks, "click")}, {plural(adLeads, "lead")} from ads
           </p>
-          <div className="max-sm:hidden">
-            <StatGrid>
-              <StatCard label="Posted in the last 30 days" value={fmtNum(recent.length)} />
-              <StatCard label="People who saw them" value={fmtNum(seen)} />
-              <StatCard label="Clicks to your site" value={fmtNum(clicks)} />
-              <StatCard label="Leads from ads" value={fmtNum(adLeads)} hint="From ads started in the last 30 days" />
-            </StatGrid>
-          </div>
+          <Panel plain title="Last 30 days" className="max-sm:hidden">
+            <dl className="flex flex-wrap gap-x-10 gap-y-3">
+              {([[recent.length, "Posted"], [seen, "Saw them"], [clicks, "Clicks to your site"], [adLeads, "Leads from ads"]] as const).map(([n, label]) => (
+                <div key={label} className="flex flex-col">
+                  <dt className="order-2 text-meta text-text-2">{label}</dt>
+                  <dd className="text-heading font-semibold tabular-nums">{fmtNum(n)}</dd>
+                </div>
+              ))}
+            </dl>
+          </Panel>
 
           <TableToolbar filters={filters} />
           {/* What went out and how it did. Drafts and scheduled posts are in Waiting on you, unless the filter asks for them. No title: the
@@ -375,7 +377,7 @@ function Thumb({ src, icon }: { src?: string; icon: React.ReactNode }) {
 // How a post or an ad did: the figures large and the words small, so the eye finds the numbers down the list.
 function Results({ items }: { items: [number, string][] }) {
   return (
-    <dl className="flex shrink-0 gap-4 text-right max-sm:basis-full max-sm:pl-15 max-sm:text-left">
+    <dl className="flex shrink-0 flex-wrap gap-x-4 gap-y-1 text-right max-sm:basis-full max-sm:pl-15 max-sm:text-left">
       {items.map(([n, label]) => (
         <div key={label} className="flex flex-col">
           <dt className="order-2 text-meta text-text-2">{label}</dt>

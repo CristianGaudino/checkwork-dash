@@ -94,7 +94,7 @@ test.describe("SIGN_IN=own on a closed server", () => {
     for (const headers of [{}, DEAD, { "x-cw-path": "/x" }] as Record<string, string>[]) {
       const res = await api.get("/sign-in?next=%2Fleads", { headers, maxRedirects: 0 });
       expect(res.status()).toBe(200);
-      expect(await res.text()).toContain("Sign in to Checkwork");
+      expect(await res.text()).toContain(">Sign in</h1>");
     }
   });
 
@@ -129,7 +129,7 @@ test.describe("SIGN_IN=own on a closed server", () => {
   test("in the browser, opening a page lands on sign in", async ({ page }) => {
     await page.goto(`${CLOSED}/leads?status=new`);
     await expect(page).toHaveURL(`${CLOSED}/sign-in?next=%2Fleads%3Fstatus%3Dnew`);
-    await expect(page.getByRole("heading", { level: 1, name: "Sign in to Checkwork" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Sign in", exact: true })).toBeVisible();
   });
 });
 
