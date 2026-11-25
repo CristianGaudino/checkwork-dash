@@ -68,16 +68,15 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   return (
     <>
       <PageHeader title={c.name} text={`Customer since ${fmtDate(c.createdAt)} · ${c.source}`} back={{ href: "/customers", label: "Customers" }} />
-      <Panel>
-        <section aria-labelledby="reach" className="flex min-w-0 flex-col gap-3">
-          <h2 id="reach" className="text-meta font-medium text-text-2">Contact</h2>
+      <Panel title="Contact">
+        <div className="flex min-w-0 flex-col gap-3">
           <p className="flex flex-col text-body">
-            {c.email && <span className="break-all">{c.email}</span>}
+            {c.email && <span className="[overflow-wrap:anywhere]">{c.email}</span>}
             {c.phone && <span>{c.phone}</span>}
           </p>
           <ContactButtons phone={c.phone || undefined} email={c.email || undefined} />
           <p className="text-meta text-text-2">{c.marketingConsent ? "Agreed to marketing" : "No marketing: do not send offers"}</p>
-        </section>
+        </div>
       </Panel>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
