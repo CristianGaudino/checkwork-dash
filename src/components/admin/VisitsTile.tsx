@@ -19,9 +19,10 @@ export function VisitsTile({ now, before }: { now: ChannelCount[]; before: Pick<
         {sourceTiles(now, before)
           .slice(0, 3)
           .map((t) => (
-            <li key={t.channel} className="flex min-w-0 items-center gap-2">
-              <ChannelIcon channel={t.channel} className="size-4" />
-              <span className="min-w-0 truncate">{t.label}</span>
+            <li key={t.channel} className="flex min-w-0 items-center gap-1.5">
+              <ChannelIcon channel={t.channel} className="size-4 shrink-0" />
+              {/* Wraps rather than cut to "Facebo…" on a narrow phone or with large text. */}
+              <span className="min-w-0 break-words">{t.label}</span>
               <span className="ml-auto tabular-nums text-text-2">{fmtNum(t.visits)}</span>
             </li>
           ))}

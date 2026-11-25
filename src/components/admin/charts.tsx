@@ -1,4 +1,4 @@
-import { Meter } from "@/components/admin/kit";
+import { EmptyState, Meter } from "@/components/admin/kit";
 import { BrandIcon, brandsIn } from "@/components/admin/BrandIcon";
 import { fmtNum } from "@/lib/admin/format";
 
@@ -9,7 +9,9 @@ type Point = { label: string; value: number };
 
 // A filled line over time. The line keeps a constant width however the box is stretched (non-scaling-stroke).
 // `format` writes a value (euros on Reports, a plain count on Analytics), in the caption and the table read aloud.
-export function AreaChart({ data, summary, format = fmtNum }: { data: Point[]; summary: string; format?: (n: number) => string }) {
+// `empty`: what a period with nothing in it says, in place of a flat line.
+export function AreaChart({ data, summary, format = fmtNum, empty = "No sales in this period" }: { data: Point[]; summary: string; format?: (n: number) => string; empty?: string }) {
+  if (!data.some((d) => d.value)) return <EmptyState compact title={empty} />;
   const W = 600;
   const H = 180;
   const max = Math.max(1, ...data.map((d) => d.value));
@@ -41,9 +43,6 @@ export function AreaChart({ data, summary, format = fmtNum }: { data: Point[]; s
       </div>
       <figcaption className="flex flex-wrap justify-between gap-x-4 text-meta text-text-2">
         <span>{data[0]?.label}</span>
-        <span className="order-last basis-full sm:order-none sm:basis-auto">
-          Highest: {peak.label}, {format(peak.value)}
-        </span>
         <span>{data.at(-1)?.label}</span>
       </figcaption>
       {/* A div clips the hidden table: a table ignores a 1px width, and would stretch the page. */}
@@ -71,16 +70,17 @@ export function BarList({ items, of, format = fmtNum }: { items: { label: string
   const marks = items.some((i) => brandsIn(i.label).length > 0);
   return (
     <ul className="flex flex-col gap-3">
-      {items.map((i) => (
+      {items.map((i, index) => (
         <li key={i.label} className="flex flex-col gap-1">
-          <div className="flex items-baseline justify-between gap-3 text-body">
-            <span className="inline-flex min-w-0 items-center gap-1.5">{marks ? <span className="inline-flex min-w-4 shrink-0"><BrandIcon name={i.label} /></span> : null}{i.label}</span>
-            <span className="shrink-0 font-semibold tabular-nums">
+          {/* The figure wraps under the label, on the right, only when both cannot share a line (large text). */}
+          <div className="flex flex-wrap items-center justify-between gap-x-3 text-body">
+            <span className="inline-flex min-w-0 flex-1 basis-[min(6rem,100%)] items-center gap-1.5">{marks ? <span className="inline-flex min-w-4 shrink-0"><BrandIcon name={i.label} /></span> : null}{i.label}</span>
+            <span className="ml-auto max-w-full shrink-0 text-right font-semibold tabular-nums">
               {format(i.value)}
               {i.note && <span className="ml-2 text-meta font-normal text-text-2">{i.note}</span>}
             </span>
           </div>
-          <Meter value={i.value} max={full} />
+          <Meter value={i.value} max={full} lead={index === 0} />
         </li>
       ))}
     </ul>

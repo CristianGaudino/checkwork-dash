@@ -1,5 +1,7 @@
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { figureSize, pageOf, paginate, sortRows, type Column } from "./kit";
+import { Meter, figureSize, initials, pageOf, paginate, sortRows, type Column } from "./kit";
 
 describe("paginate", () => {
   const rows = Array.from({ length: 120 }, (_, i) => i);
@@ -49,5 +51,24 @@ describe("a stat tile's figure size", () => {
     expect(figureSize("WhatsApp")).toBe("text-[min(2rem,15cqi)]"); // at 20cqi it broke as "WhatsAp / p"
     expect(figureSize("€5,864,950")).toBe("text-[min(2rem,15cqi)]");
     expect(figureSize("Bookmarked")).toBe("text-[min(2rem,12cqi)]");
+  });
+});
+
+describe("initials", () => {
+  it("takes the first and last word, so a long Irish name is CP, not CÓ", () => {
+    expect(initials("Caoimhín Ó Súilleabháin-Mac Giolla Phádraig")).toBe("CP");
+    expect(initials("  mary   o'brien ")).toBe("MO");
+    expect(initials("Aoife")).toBe("A");
+    expect(initials("")).toBe("");
+  });
+});
+
+describe("Meter", () => {
+  const fill = (lead?: boolean) => renderToStaticMarkup(createElement(Meter, { value: 3, max: 4, lead }));
+  it("is neutral, and the accent only when it leads", () => {
+    expect(fill()).toContain("bg-chart-muted");
+    expect(fill()).not.toContain("bg-accent");
+    expect(fill(true)).toContain("bg-accent");
+    expect(fill(true)).toContain("width:75%");
   });
 });

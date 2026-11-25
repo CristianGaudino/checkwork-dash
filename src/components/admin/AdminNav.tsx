@@ -120,7 +120,7 @@ function TabBar({ items, label, current }: { items: NavItem[]; label: string; cu
   const more = items.map((it) => ({ ...it, section: it.group ?? "Daily work" })).filter((i) => !TABS.includes(i.href));
   const inMore = more.some(current);
   const { siteUrl } = useDealerFacts();
-  const tab = (on: boolean) => `flex min-h-14 flex-col items-center justify-center gap-0.5 text-[0.75rem] font-medium leading-tight ${on ? "text-accent-text" : "text-text-2"} ${press}`;
+  const tab = (on: boolean) => `flex min-h-14 min-w-0 flex-col items-center justify-center gap-0.5 text-[0.75rem] font-medium leading-tight ${on ? "text-accent-text" : "text-text-2"} ${press}`;
   return (
     <Sheet
       title="More"
@@ -132,18 +132,18 @@ function TabBar({ items, label, current }: { items: NavItem[]; label: string; cu
               const Icon = ICONS[it.icon];
               const on = current(it);
               return (
-                <li key={it.href}>
+                <li key={it.href} className="min-w-0">
                   <Link href={it.href} aria-current={on ? "page" : undefined} className={tab(on)}>
-                    <Icon className="size-6" />
-                    {it.label}
+                    <Icon className="size-6 shrink-0" />
+                    <span className="max-w-full truncate">{it.label}</span>
                   </Link>
                 </li>
               );
             })}
-            <li>
+            <li className="min-w-0">
               <button type="button" aria-haspopup="dialog" aria-current={inMore ? "page" : undefined} onClick={open} className={`w-full ${tab(inMore)}`}>
                 <MenuIcon className="shrink-0 size-6" />
-                More
+                <span className="max-w-full truncate">More</span>
               </button>
             </li>
           </ul>

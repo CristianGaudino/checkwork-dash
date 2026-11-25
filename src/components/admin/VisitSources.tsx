@@ -1,11 +1,10 @@
 import { ChannelIcon } from "@/components/admin/BrandIcon";
-import { StatGrid } from "@/components/admin/kit";
 import { ChevronDownIcon } from "@/components/stock/icons";
 import { fmtNum, plural } from "@/lib/admin/format";
 import { sourceGroups, sourceTiles, type ChannelCount, type SourceFigures, type SourceTile } from "@/lib/admin/visit-sources";
 
 // "Where visits come from" (#35), one tile per channel: its mark, visits and the change on the period before, the leads it brought and
-// leads per 100 visits. The channel with the most leads has an indigo edge and says so in words. The groups (Search, Social, Listing
+// leads per 100 visits. The channel with the most leads says so in words (an indigo edge read as a chosen filter). The groups (Search, Social, Listing
 // sites...) each open into their networks (Analytics, the monthly report).
 // The panel around it names the period ("Last 30 days, compared with the 30 before"), so a tile says only "Up 6%".
 type Props = { now: ChannelCount[]; before: Pick<ChannelCount, "channel" | "visits">[] };
@@ -14,25 +13,30 @@ export function VisitSources({ now, before }: Props) {
   const tiles = sourceTiles(now, before);
   if (!tiles.length) return <p className="text-meta text-text-2">No visits in this period.</p>;
   return (
-    <StatGrid>
-      {sourceGroups(tiles, before).map((g) =>
-        // A group with one network this period is that network's tile: nothing to open.
-        g.channels.length === 1 ? (
-          <Tile key={g.id} f={g.channels[0]} best={g.best} icon={<ChannelIcon channel={g.channels[0].channel} />} />
-        ) : (
-          <details key={g.id} className="group/src flex min-w-0 flex-col open:col-span-full">
-            <summary className="flex-1 cursor-pointer list-none [&::-webkit-details-marker]:hidden">
-              <Tile f={g} best={g.best} icon={<Marks tiles={g.channels} />} more={<OpenLine tiles={g.channels} />} />
-            </summary>
-            <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fit,minmax(11rem,1fr))]">
-              {g.channels.map((t) => <Tile key={t.channel} f={t} best={t.best} icon={<ChannelIcon channel={t.channel} />} />)}
-            </div>
-          </details>
-        ),
-      )}
-    </StatGrid>
+    // Two across, three when the panel has the room (a container query, so large text gets fewer and wider tiles): six never leave one alone.
+    <div className="@container">
+      <div className={GRID}>
+        {sourceGroups(tiles, before).map((g) =>
+          // A group with one network this period is that network's tile: nothing to open.
+          g.channels.length === 1 ? (
+            <Tile key={g.id} f={g.channels[0]} best={g.best} icon={<ChannelIcon channel={g.channels[0].channel} />} />
+          ) : (
+            <details key={g.id} className="group/src flex min-w-0 flex-col open:col-span-full">
+              <summary className="flex-1 cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+                <Tile f={g} best={g.best} icon={<Marks tiles={g.channels} />} more={<OpenLine tiles={g.channels} />} />
+              </summary>
+              <div className={`mt-3 ${GRID}`}>
+                {g.channels.map((t) => <Tile key={t.channel} f={t} best={t.best} icon={<ChannelIcon channel={t.channel} />} />)}
+              </div>
+            </details>
+          ),
+        )}
+      </div>
+    </div>
   );
 }
+
+const GRID = "grid grid-cols-1 gap-3 @3xs:grid-cols-2 @lg:grid-cols-3";
 
 const Marks = ({ tiles }: { tiles: SourceTile[] }) => (
   <span className="flex shrink-0 -space-x-1">
@@ -50,7 +54,7 @@ const OpenLine = ({ tiles }: { tiles: SourceTile[] }) => (
 
 function Tile({ f, best, icon, more }: { f: SourceFigures; best: boolean; icon: React.ReactNode; more?: React.ReactNode }) {
   return (
-    <div data-tile className={`@container flex h-full min-w-0 flex-col gap-1 rounded-card border bg-card p-4 shadow-panel ${best ? "border-accent" : "border-hairline/70"}`}>
+    <div data-tile className="@container flex h-full min-w-0 flex-col gap-1 rounded-card border border-hairline/70 bg-card p-4 shadow-panel">
       <p className="flex min-w-0 items-center gap-2 text-body font-medium">
         {icon}
         <span className="min-w-0 truncate">{f.label}</span>

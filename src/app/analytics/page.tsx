@@ -99,7 +99,7 @@ async function Figures({ range }: { range: Range }) {
       </Panel>
 
       <Panel title="Visitors each day">
-        <AreaChart data={a.days.map((d) => ({ label: threeLetter(shortDate.format(new Date(d.date))), value: d.visitors }))} format={(n) => `${fmtNum(n)} visitors`} summary={`Visitors each day over the last ${range} days, from ${fmtNum(Math.min(...a.days.map((d) => d.visitors)))} to ${fmtNum(Math.max(...a.days.map((d) => d.visitors)))}.`} />
+        <AreaChart data={a.days.map((d) => ({ label: threeLetter(shortDate.format(new Date(d.date))), value: d.visitors }))} format={(n) => `${fmtNum(n)} visitors`} empty="No visitors in this period" summary={`Visitors each day over the last ${range} days, from ${fmtNum(Math.min(...a.days.map((d) => d.visitors)))} to ${fmtNum(Math.max(...a.days.map((d) => d.visitors)))}.`} />
       </Panel>
 
       <Panel title="Most viewed cars">

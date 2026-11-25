@@ -22,7 +22,7 @@ export function AdminShell({ title, profile, subtitle, nav, navLabel, openGroups
               Its name is the logo's text for screen readers and shows on hover, so a long name is never cut short. */}
           <div title={title} className="flex min-w-0 flex-1 flex-col items-start gap-1">
             <Link href="/" aria-label={`${title}, go to the overview`} className="inline-flex max-w-full relative rounded-control outline-offset-2 focus-visible:outline-2 focus-visible:outline-text before:absolute before:-inset-x-1 before:-inset-y-2 before:content-['']">
-              <Logo name={title} logo={profile.logo} className="h-7 w-auto max-w-[10.5rem] object-contain object-left lg:h-8" eager />
+              <Logo name={title} logo={profile.logo} className="h-7 w-auto max-w-[min(10.5rem,100%)] object-contain object-left lg:h-8" eager />
             </Link>
             <p className="text-meta text-text-2 max-lg:sr-only">{subtitle}</p>
           </div>
