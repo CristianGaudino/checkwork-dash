@@ -66,14 +66,12 @@ export function carFeatures({ tier, year, extra = [], condition, history }) {
   let f = TIERS[tier].flat();
   if (year < 2015) f = [...f.filter((x) => !NEWER.includes(x)), "CD Player"];
   f = [...f, ...extra];
-  if (condition === "new") return [...f, "Manufacturer's warranty"];
   return [...f, ...(history ? ["Full Service History"] : []), ...DEALER];
 }
 
 // id, then the photos, then the facts. nct is the month the NCT runs to. sold is days ago.
 const used = (id, group, ids, c) => ({ id: String(id), photos: P(group, ids), history: id % 2 === 0, doors: 5, seats: 5, ...c });
-const fresh = (id, group, ids, c) => ({ id: String(id), photos: P(group, ids), condition: "new", vat: "inc", doors: 5, seats: 5, owners: 0, history: false, ...c });
-const work = (id, group, ids, c) => ({ id: String(id), photos: P(group, ids), condition: "commercial", vat: "ex", fuel: "diesel", gearbox: "manual", owners: 0, ...c });
+const work = (id, group, ids, c) => ({ id: String(id), photos: P(group, ids), condition: "commercial", vat: "ex", fuel: "diesel", gearbox: "manual", ...c });
 
 // Used cars. Two specs rely on this data: the newest (highest id) car has 5 or more photos and no price drop (carousel, car-page), and Mazda
 // (sold 45 days ago) and Audi (sold 9 days ago) have no other car, so they are the expired-only and recently-sold-only makes (landing).
@@ -110,22 +108,22 @@ export const USED = [
   used(4710030, "fit", "OSm KPK TZD", { make: "Honda", model: "Jazz", variant: "1.4 i-VTEC ES", year: 2011, reg: "11-KY-3035", priceEur: 5950, mileageKm: 125700, fuel: "petrol", gearbox: "manual", bodyType: "Hatchback", engineLitres: 1.4, colour: "Grey", owners: 3, nct: "2027-01", maxSpeedMph: 112, zeroTo62Secs: 11.5, tier: "mid" }),
 ];
 
-// New cars: the franchise brands (src/lib/partners.ts). The photos are the newest in the dataset, so the year is this year's.
-export const NEW = [
-  fresh(5000001, "ioniq", "Akw DlM ElB lOs", { make: "Hyundai", model: "IONIQ", variant: "1.6 GDi Hybrid Premium", year: 2026, priceEur: 34995, mileageKm: 12, fuel: "hybrid", gearbox: "automatic", bodyType: "Hatchback", engineLitres: 1.6, colour: "White", maxSpeedMph: 115, zeroTo62Secs: 10.8, tier: "prem" }),
-  fresh(5000002, "chr", "FYW fKT Xro vZc", { make: "Toyota", model: "C-HR", variant: "1.8 Hybrid Luna", year: 2026, priceEur: 36995, mileageKm: 8, fuel: "hybrid", gearbox: "automatic", bodyType: "SUV", engineLitres: 1.8, colour: "White", maxSpeedMph: 105, zeroTo62Secs: 11, tier: "high" }),
-  fresh(5000003, "niro", "dwa GTr ega", { make: "Kia", model: "Niro", variant: "1.6 GDi Hybrid K3", year: 2026, priceEur: 36495, mileageKm: 15, fuel: "hybrid", gearbox: "automatic", bodyType: "SUV", engineLitres: 1.6, colour: "White", maxSpeedMph: 101, zeroTo62Secs: 11.5, tier: "high" }),
-  fresh(5000004, "tiguan", "Jut Wvm cyR rdO", { make: "Volkswagen", model: "Tiguan", variant: "1.5 TSI Life", year: 2026, priceEur: 43450, mileageKm: 10, fuel: "petrol", gearbox: "automatic", bodyType: "SUV", engineLitres: 1.5, colour: "Blue", maxSpeedMph: 126, zeroTo62Secs: 9.1, tier: "high" }),
-  fresh(5000005, "corolla", "UxA RtS SIs cgw", { make: "Toyota", model: "Corolla", variant: "1.8 Hybrid Sol", year: 2026, priceEur: 34495, mileageKm: 11, fuel: "hybrid", gearbox: "automatic", bodyType: "Saloon", engineLitres: 1.8, colour: "Brown", maxSpeedMph: 112, zeroTo62Secs: 10.9, tier: "high" }),
-  fresh(5000006, "golf15", "IMB RZO iqB pKE", { make: "Volkswagen", model: "Golf", variant: "1.0 TSI Life", year: 2026, priceEur: 30995, mileageKm: 9, fuel: "petrol", gearbox: "manual", bodyType: "Hatchback", engineLitres: 1, colour: "Black", maxSpeedMph: 125, zeroTo62Secs: 10.5, tier: "mid" }),
+// More used cars, written with the vans to demo-cars-extra.json.
+export const MORE_USED = [
+  used(5000001, "ioniq", "Akw DlM ElB lOs", { make: "Hyundai", model: "IONIQ", variant: "1.6 GDi Hybrid Premium", year: 2020, reg: "201-D-41872", priceEur: 21950, mileageKm: 74300, fuel: "hybrid", gearbox: "automatic", bodyType: "Hatchback", engineLitres: 1.6, colour: "White", owners: 1, nct: "2027-04", maxSpeedMph: 115, zeroTo62Secs: 10.8, tier: "prem" }),
+  used(5000002, "chr", "FYW fKT Xro vZc", { make: "Toyota", model: "C-HR", variant: "1.8 Hybrid Luna", year: 2019, reg: "191-KK-6214", priceEur: 23450, mileageKm: 88600, fuel: "hybrid", gearbox: "automatic", bodyType: "SUV", engineLitres: 1.8, colour: "White", owners: 2, nct: "2027-02", maxSpeedMph: 105, zeroTo62Secs: 11, tier: "high" }),
+  used(5000003, "niro", "dwa GTr ega", { make: "Kia", model: "Niro", variant: "1.6 GDi Hybrid K3", year: 2019, reg: "192-WH-3307", priceEur: 19950, mileageKm: 96200, fuel: "hybrid", gearbox: "automatic", bodyType: "SUV", engineLitres: 1.6, colour: "White", owners: 2, nct: "2027-07", maxSpeedMph: 101, zeroTo62Secs: 11.5, tier: "high" }),
+  used(5000004, "tiguan", "Jut Wvm cyR rdO", { make: "Volkswagen", model: "Tiguan", variant: "1.5 TSI Life", year: 2021, reg: "211-D-18530", priceEur: 29950, mileageKm: 63800, fuel: "petrol", gearbox: "automatic", bodyType: "SUV", engineLitres: 1.5, colour: "Blue", owners: 1, nct: "2027-03", maxSpeedMph: 126, zeroTo62Secs: 9.1, tier: "high" }),
+  used(5000005, "corolla", "UxA RtS SIs cgw", { make: "Toyota", model: "Corolla", variant: "1.8 Hybrid Sol", year: 2020, reg: "202-C-9126", priceEur: 22950, mileageKm: 81500, fuel: "hybrid", gearbox: "automatic", bodyType: "Saloon", engineLitres: 1.8, colour: "Brown", owners: 1, nct: "2027-09", maxSpeedMph: 112, zeroTo62Secs: 10.9, tier: "high" }),
+  used(5000006, "golf15", "IMB RZO iqB pKE", { make: "Volkswagen", model: "Golf", variant: "1.0 TSI Trendline", year: 2016, reg: "161-MH-7742", priceEur: 12950, mileageKm: 128400, fuel: "petrol", gearbox: "manual", bodyType: "Hatchback", engineLitres: 1, colour: "Black", owners: 3, nct: "2027-05", maxSpeedMph: 125, zeroTo62Secs: 10.5, tier: "mid" }),
 ];
 
-// Vans and a pickup: priced without VAT, which a VAT-registered buyer can reclaim.
+// Used vans and a pickup: priced without VAT, which a VAT-registered buyer can reclaim. Mileage runs at 15 to 25k km a year.
 export const VANS = [
-  work(5100001, "ranger", "fvo QuX PZo LTp", { make: "Ford", model: "Ranger", variant: "2.0 EcoBlue XLT Double Cab", year: 2026, priceEur: 38950, mileageKm: 25, bodyType: "Pickup", engineLitres: 2, colour: "White", doors: 4, seats: 5, maxSpeedMph: 109, zeroTo62Secs: 10.5, gearbox: "automatic", extra: ["Roof Rails"] }),
-  work(5100002, "metris", "AEs Gkv fpW poa", { make: "Mercedes-Benz", model: "Vito", variant: "114 CDI Cargo Standard", year: 2026, priceEur: 28950, mileageKm: 8, bodyType: "Van", engineLitres: 2.1, colour: "White", doors: 4, seats: 2, maxSpeedMph: 109, zeroTo62Secs: 12.8 }),
-  work(5100003, "metris", "JWE Sfx ShW wUf", { make: "Mercedes-Benz", model: "Vito Tourer", variant: "116 CDI Select 8 Seat", year: 2026, priceEur: 41950, mileageKm: 14, bodyType: "Van", engineLitres: 2.1, colour: "Grey", doors: 5, seats: 8, maxSpeedMph: 118, zeroTo62Secs: 11.4, gearbox: "automatic" }),
-  work(5100004, "transit", "aHy Vxx lmw qVv", { make: "Ford", model: "Transit Connect", variant: "1.5 EcoBlue 100 Trend", year: 2026, priceEur: 22450, wasPriceEur: 23950, mileageKm: 20, bodyType: "Van", engineLitres: 1.5, colour: "Grey", doors: 5, seats: 5, maxSpeedMph: 107, zeroTo62Secs: 13.6 }),
-  work(5100005, "nv200", "Wap dek Lae TDe", { make: "Nissan", model: "NV200", variant: "1.5 dCi Acenta", year: 2026, priceEur: 17950, wasPriceEur: 18950, mileageKm: 12, bodyType: "Van", engineLitres: 1.5, colour: "Black", doors: 4, seats: 2, maxSpeedMph: 96, zeroTo62Secs: 15.2 }),
-  work(5100006, "transitw", "NwU PZA sOb", { make: "Ford", model: "Transit Connect", variant: "1.5 EcoBlue 100 Leader", year: 2026, priceEur: 21450, mileageKm: 18, bodyType: "Van", engineLitres: 1.5, colour: "White", doors: 5, seats: 5, maxSpeedMph: 107, zeroTo62Secs: 13.6 }),
+  work(5100001, "ranger", "fvo QuX PZo LTp", { make: "Ford", model: "Ranger", variant: "2.0 EcoBlue XLT Double Cab", year: 2021, priceEur: 31950, mileageKm: 78400, owners: 1, bodyType: "Pickup", engineLitres: 2, colour: "White", doors: 4, seats: 5, maxSpeedMph: 109, zeroTo62Secs: 10.5, gearbox: "automatic", extra: ["Roof Rails"] }),
+  work(5100002, "metris", "AEs Gkv fpW poa", { make: "Mercedes-Benz", model: "Vito", variant: "114 CDI Cargo Standard", year: 2020, priceEur: 21950, mileageKm: 112600, owners: 2, bodyType: "Van", engineLitres: 2.1, colour: "White", doors: 4, seats: 2, maxSpeedMph: 109, zeroTo62Secs: 12.8 }),
+  work(5100003, "metris", "JWE Sfx ShW wUf", { make: "Mercedes-Benz", model: "Vito Tourer", variant: "116 CDI Select 8 Seat", year: 2021, priceEur: 31950, mileageKm: 86300, owners: 1, bodyType: "Van", engineLitres: 2.1, colour: "Grey", doors: 5, seats: 8, maxSpeedMph: 118, zeroTo62Secs: 11.4, gearbox: "automatic" }),
+  work(5100004, "transit", "aHy Vxx lmw qVv", { make: "Ford", model: "Transit Connect", variant: "1.5 EcoBlue 100 Trend", year: 2020, priceEur: 14950, wasPriceEur: 16450, mileageKm: 94200, owners: 1, bodyType: "Van", engineLitres: 1.5, colour: "Grey", doors: 5, seats: 5, maxSpeedMph: 107, zeroTo62Secs: 13.6 }),
+  work(5100005, "nv200", "Wap dek Lae TDe", { make: "Nissan", model: "NV200", variant: "1.5 dCi Acenta", year: 2018, priceEur: 8950, wasPriceEur: 9450, mileageKm: 131800, owners: 3, bodyType: "Van", engineLitres: 1.5, colour: "Black", doors: 4, seats: 2, maxSpeedMph: 96, zeroTo62Secs: 15.2 }),
+  work(5100006, "transitw", "NwU PZA sOb", { make: "Ford", model: "Transit Connect", variant: "1.5 EcoBlue 100 Leader", year: 2019, priceEur: 12950, mileageKm: 118500, owners: 2, bodyType: "Van", engineLitres: 1.5, colour: "White", doors: 5, seats: 5, maxSpeedMph: 107, zeroTo62Secs: 13.6 }),
 ];

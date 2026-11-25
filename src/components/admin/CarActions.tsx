@@ -25,7 +25,7 @@ export function PostToSocial({ car, className }: { car: Car; className: string }
 }
 
 // The car as a customer sees it, in a new tab. A hidden car or a draft has no page on the website.
-// `shown`: the car's kind (new, commercial) is on the site with the dealer's modules (conditionShown).
+// `shown`: the car's kind (commercial) is on the site with the dealer's modules (conditionShown).
 export async function ViewOnSite({ car, shown, className }: { car: Car; shown: boolean; className: string }) {
   const { siteUrl, rules } = await dealerProfile();
   if (!shown || !siteUrl || !onPublicSite(car, rules.soldVisibleDays)) return null; // no link to a page that answers "gone" or not found, nor with no website

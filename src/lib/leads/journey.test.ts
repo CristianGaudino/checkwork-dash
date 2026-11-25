@@ -24,6 +24,11 @@ describe("parseJourney", () => {
     expect(parseJourney(journey({ cars: [], searches: [], tools: {} }))).toBeDefined();
   });
 
+  it("reads an older website's new car search as a used one, and keeps the journey (#188)", () => {
+    expect(parseJourney(journey({ searches: [{ make: "kia", condition: "new" as never }] }))?.searches[0]?.condition).toBeUndefined();
+    expect(parseJourney(journey({ searches: [{ condition: "commercial" }] }))?.searches[0]?.condition).toBe("commercial");
+  });
+
   it("drops a missing, malformed or unknown-version journey", () => {
     expect(parseJourney(undefined)).toBeUndefined();
     expect(parseJourney("a string")).toBeUndefined();

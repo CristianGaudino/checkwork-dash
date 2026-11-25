@@ -336,6 +336,9 @@ Orders pages and no factory orders.
 - **A new car order a website still sends** (lead type `order` at `/api/site/v1/leads`) is taken and filed as a car enquiry, its
   message the car asked for ("Kia Sportage, 271 reg") then their words (`src/lib/admin/real-leads.ts`), so nothing a buyer sends is
   lost. Order requests stored before are car enquiries too (migration `drizzle/0005_order_leads_to_enquiries.sql`).
+- **No new vehicles in stock** (#188): a car is used or commercial (`CONDITIONS`), and a commercial with no previous owner is still
+  used. The car form offers Used and Commercial only and refuses anything else. A car stored as new became used (migration
+  `drizzle/0006_new_cars_to_used.sql`), and an older website's "new" search in a visit note is read as used.
 - **Older order rows stay** (`ordersStore`, nothing writes it and the demo seeds none): they are personal data like a sale, so data
   requests still find and erase them and the six-year purge removes their buyer. The collection can go once the last is past six years.
 

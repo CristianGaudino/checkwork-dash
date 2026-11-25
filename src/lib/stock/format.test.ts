@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { carName, carTitle, countLabel, formatKm, fmtEur, keyFacts, specRows, withoutInvitation } from "./format";
-import { isNew } from "./types";
 import type { Car } from "./types";
 
 const audi: Car = {
@@ -143,15 +142,5 @@ describe("withoutInvitation", () => {
     expect(withoutInvitation(facts)).toBe(facts);
     expect(withoutInvitation("Call in to see it.")).toBe("Call in to see it."); // one paragraph only: never empties the text
     expect(withoutInvitation("One owner.\nCall in to see it.")).toBe("One owner."); // a feed's <p> or <br> becomes one line break
-  });
-});
-
-describe("isNew", () => {
-  it("is a new car, or a van with no previous owner", () => {
-    expect(isNew({ condition: "new" })).toBe(true);
-    expect(isNew({ condition: "commercial", owners: 0 })).toBe(true);
-    expect(isNew({ condition: "commercial", owners: 3 })).toBe(false);
-    expect(isNew({ condition: "commercial" })).toBe(false);
-    expect(isNew({ owners: 0 })).toBe(false); // a used car on delivery mileage is still sold as used
   });
 });
