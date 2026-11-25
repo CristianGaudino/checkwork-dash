@@ -9,12 +9,14 @@ import type { Photo } from "@/lib/stock/types";
 import { ActButton } from "./ActButton";
 import { EditPhoto, type Jpeg } from "./PhotoEditor";
 import { CarThumb } from "./CarThumb";
-import { Panel, adminButtonQuiet, rowButton } from "./kit";
+import { Panel, adminButtonQuiet, rowButton, rowDanger } from "./kit";
+import { RowMenu } from "./RowMenu";
 import { CameraIcon } from "@/components/stock/icons";
 
 // The photos with their buttons, the first marked as the main one. The same for a saved car and one being added. On a phone each photo is
-// a row, small photo then its buttons, which wrap on a narrow phone (two half-width tiles are too narrow); tiles from 640px. Edit opens
-// the photo editor (#125) in the grid's place, framed 4:3 as the website shows a car, and the edited copy takes the photo's place.
+// a row, small photo then its buttons (two half-width tiles are too narrow); tiles from 640px. Make main shows; Edit and Remove are under
+// the photo's menu, so a tile's buttons stay on one line. Edit opens the photo editor (#125) in the grid's place, framed 4:3 as the
+// website shows a car, and the edited copy takes the photo's place.
 const EDIT_NOTE = "4:3, as the website shows it";
 function PhotoGrid({ srcs, makeMain, remove, onEdit }: { srcs: string[]; makeMain: (src: string, i: number) => React.ReactNode; remove: (src: string, i: number) => React.ReactNode; onEdit: (i: number) => void }) {
   return (
@@ -23,16 +25,18 @@ function PhotoGrid({ srcs, makeMain, remove, onEdit }: { srcs: string[]; makeMai
       {srcs.length > 0 && (
         <ul className="grid gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {srcs.map((src, i) => (
-            <li key={src} className="flex items-center gap-3 sm:flex-col sm:items-stretch sm:gap-2">
+            <li key={src} className="flex flex-wrap items-center gap-3 sm:flex-col sm:flex-nowrap sm:items-stretch sm:gap-2">
               <div className="aspect-[4/3] w-20 shrink-0 overflow-hidden rounded-control bg-photo-bg sm:w-auto">
                 <CarThumb src={src} />
               </div>
-              <div className="flex min-w-0 flex-wrap gap-2">
+              <div className="flex grow items-center justify-between gap-2">
                 {i === 0 ? <span className="inline-flex h-11 items-center px-3 text-meta font-medium text-text-2">Main photo</span> : makeMain(src, i)}
-                <button type="button" onClick={() => onEdit(i)} aria-label={`Crop and rotate photo ${i + 1}`} className={rowButton}>
-                  Edit
-                </button>
-                {remove(src, i)}
+                <RowMenu label={`More for photo ${i + 1}`}>
+                  <button type="button" onClick={() => onEdit(i)} aria-label={`Crop and rotate photo ${i + 1}`} className={rowButton}>
+                    Edit
+                  </button>
+                  {remove(src, i)}
+                </RowMenu>
               </div>
             </li>
           ))}
@@ -108,7 +112,7 @@ export function CarPhotos({ carId, photos, max }: { carId: string; photos: Photo
           Make main
         </ActButton>
       )} remove={(src, i) => (
-        <ActButton act={carPhotoAction.bind(null, carId, src, "remove")} confirm={{ title: "Remove this photo?", text: "It comes off the website at once.", yes: "Remove" }} label={`Remove photo ${i + 1}`} className={rowButton}>
+        <ActButton act={carPhotoAction.bind(null, carId, src, "remove")} confirm={{ title: "Remove this photo?", text: "It comes off the website at once.", yes: "Remove" }} label={`Remove photo ${i + 1}`} className={rowDanger}>
           Remove
         </ActButton>
       )} />
@@ -133,7 +137,7 @@ export function CarPhotos({ carId, photos, max }: { carId: string; photos: Photo
 export type PickedPhoto = { blob: Blob; width: number; height: number; url: string };
 const SEND_MAX_BYTES = 15 * 1024 * 1024; // under the server actions' 18 MB body limit (next.config.ts), with room for the form
 
-export function NewCarPhotos({ photos, onChange, max, error, title = "Photos" }: { photos: PickedPhoto[]; onChange: (photos: PickedPhoto[]) => void; max: number; error?: string; title?: string }) {
+export function NewCarPhotos({ photos, onChange, max, error }: { photos: PickedPhoto[]; onChange: (photos: PickedPhoto[]) => void; max: number; error?: string }) {
   const input = useRef<HTMLInputElement>(null);
   const [said, setSaid] = useState("");
   const [pending, start] = useTransition();
@@ -179,7 +183,7 @@ export function NewCarPhotos({ photos, onChange, max, error, title = "Photos" }:
   };
 
   return (
-    <Panel title={title}>
+    <Panel>
       {editing !== null && photos[editing] ? (
         <EditPhoto key={photos[editing].url} src={photos[editing].blob} shapes={["4:3"]} note={EDIT_NOTE} saveLabel="Save photo" onSave={replace} onCancel={() => setEditing(null)} />
       ) : (
@@ -188,7 +192,7 @@ export function NewCarPhotos({ photos, onChange, max, error, title = "Photos" }:
           Make main
         </button>
       )} remove={(_, i) => (
-        <button type="button" onClick={() => remove(i)} aria-label={`Remove photo ${i + 1}`} className={rowButton}>
+        <button type="button" onClick={() => remove(i)} aria-label={`Remove photo ${i + 1}`} className={rowDanger}>
           Remove
         </button>
       )} />
