@@ -4,7 +4,7 @@ import { Select } from "@/components/Select";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useId, useOptimistic, useRef, useState, useTransition } from "react";
-import { CloseIcon, SearchIcon, SlidersIcon } from "@/components/stock/icons";
+import { ChevronDownIcon, CloseIcon, SearchIcon, SlidersIcon } from "@/components/stock/icons";
 import { fmtNum } from "@/lib/admin/format";
 import { PER_PAGE, PER_PAGE_DEFAULT } from "@/lib/admin/paging";
 import { press } from "@/components/ui";
@@ -58,7 +58,7 @@ export function LiveSearch({ placeholder, label }: { placeholder: string; label:
     start(() => router.replace(hrefWith({ q: v.trim() || undefined }), { scroll: false }));
   };
   return (
-    <form role="search" aria-busy={pending} onSubmit={(e) => (e.preventDefault(), run(value))} className="relative w-full sm:max-w-sm">
+    <form role="search" aria-busy={pending} onSubmit={(e) => (e.preventDefault(), run(value))} className="relative min-w-0 flex-1 basis-24 sm:max-w-sm">
       <SearchIcon className="shrink-0 pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2 text-text-2" />
       <input
         ref={input}
@@ -96,14 +96,14 @@ export function LiveSearch({ placeholder, label }: { placeholder: string; label:
   );
 }
 
-// A column header that sorts: once ascending, again descending. The arrow says which way it is sorted now.
+// A column header that sorts: once ascending, again descending. The chevron says which way it is sorted now (up is ascending).
 export function SortHeader({ k, label, active, dir, align }: { k: string; label: string; active: boolean; dir: "asc" | "desc"; align?: "right" }) {
   const hrefWith = useParamHref();
   const next = active && dir === "asc" ? "desc" : "asc";
   return (
     <Link href={hrefWith({ sort: k, dir: next })} scroll={false} replace className={`inline-flex min-h-11 items-center gap-1 ${align === "right" ? "flex-row-reverse" : ""} ${active ? "text-text" : "hover:text-text"}`}>
       {label}
-      <span aria-hidden className={`text-[0.75rem] ${active ? "" : "opacity-0"}`}>{active && dir === "desc" ? "▼" : "▲"}</span>
+      <ChevronDownIcon aria-hidden className={`size-3.5 shrink-0 ${active ? "" : "opacity-0"} ${active && dir === "desc" ? "" : "rotate-180"}`} />
       <span className="sr-only">{active ? `, sorted ${dir === "asc" ? "ascending" : "descending"}` : ", sort"}</span>
     </Link>
   );
@@ -260,7 +260,7 @@ export function TableFooter({ page, pageCount, total, per, exportHref }: { page:
           </span>
         </span>
         {pageCount > 1 && (
-          <nav aria-label="Pages" className="flex items-center gap-1">
+          <nav aria-label="Pages" className="flex flex-wrap items-center gap-1">
             {page > 1 ? (
               <Link href={pageHref(page - 1)} className={step}>
                 Previous
@@ -269,7 +269,7 @@ export function TableFooter({ page, pageCount, total, per, exportHref }: { page:
               <span aria-hidden className={stepOff}>Previous</span>
             )}
             {/* Page numbers from a small tablet up; a phone says where it is between Previous and Next. */}
-            <span className="hidden items-center gap-1 sm:flex">
+            <span className="hidden flex-wrap items-center gap-1 sm:flex">
               {pageList(page, pageCount).map((n, i) =>
                 n === "gap" ? (
                   <span key={`gap-${i}`} aria-hidden className="px-1 text-text-2">
