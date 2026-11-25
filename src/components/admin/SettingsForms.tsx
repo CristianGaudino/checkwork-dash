@@ -13,6 +13,7 @@ import { NotifyGrid, type GridRow } from "@/components/admin/NotifyGrid";
 import { ROLES, type Role } from "@/lib/permission-rules";
 import type { DealerProfile } from "@/lib/tenancy/profile";
 import { BUSY } from "@/components/admin/ActButton";
+import { LIMITS } from "@/lib/leads/constants";
 
 const ROLE_OPTIONS = ROLES.map((r) => [r, r] as const);
 
@@ -74,28 +75,28 @@ function BusinessForm({ name, profile, done }: Business & { done: () => void }) 
     <form {...f.run} className="flex flex-col gap-4" noValidate>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Name" error={f.errors.name}>
-          <input name="name" defaultValue={name} className={adminInput} />
+          <input name="name" maxLength={80} defaultValue={name} className={adminInput} />
         </Field>
         <Field label="Website" hint="The full address, like https://www.yourname.ie" error={f.errors.siteUrl}>
-          <input name="siteUrl" type="url" defaultValue={profile.siteUrl} className={adminInput} />
+          <input name="siteUrl" type="url" maxLength={200} defaultValue={profile.siteUrl} className={adminInput} />
         </Field>
         <Field label="Phone" error={f.errors.phone}>
-          <input name="phone" type="tel" defaultValue={profile.phone} className={adminInput} />
+          <input name="phone" type="tel" maxLength={30} defaultValue={profile.phone} className={adminInput} />
         </Field>
         <Field label="Email" error={f.errors.email}>
-          <input name="email" type="email" defaultValue={profile.email} className={adminInput} />
+          <input name="email" type="email" maxLength={120} defaultValue={profile.email} className={adminInput} />
         </Field>
         <Field label="Street" error={f.errors.street}>
-          <input name="street" defaultValue={profile.address.street} className={adminInput} />
+          <input name="street" maxLength={80} defaultValue={profile.address.street} className={adminInput} />
         </Field>
         <Field label="Town" error={f.errors.town}>
-          <input name="town" defaultValue={profile.address.town} className={adminInput} />
+          <input name="town" maxLength={60} defaultValue={profile.address.town} className={adminInput} />
         </Field>
         <Field label="County" error={f.errors.county}>
-          <input name="county" defaultValue={profile.address.county} className={adminInput} />
+          <input name="county" maxLength={60} defaultValue={profile.address.county} className={adminInput} />
         </Field>
         <Field label="Eircode" error={f.errors.eircode}>
-          <input name="eircode" defaultValue={profile.address.eircode} className={adminInput} />
+          <input name="eircode" maxLength={10} defaultValue={profile.address.eircode} className={adminInput} />
         </Field>
       </div>
       <fieldset className="flex flex-col gap-2">
@@ -167,14 +168,14 @@ function MarketingForm({ settings, done }: { settings: DealerSettings; done: () 
   return (
     <form {...f.run} className="grid grid-cols-1 gap-4" noValidate>
       <Field label="How we sound" hint="Used when posts are written" error={f.errors.voice}>
-        <input name="voice" defaultValue={settings.marketing.voice} className={adminInput} />
+        <input name="voice" maxLength={200} defaultValue={settings.marketing.voice} className={adminInput} />
       </Field>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Hashtags" error={f.errors.hashtags}>
-          <input name="hashtags" defaultValue={settings.marketing.hashtags} className={adminInput} />
+          <input name="hashtags" maxLength={120} defaultValue={settings.marketing.hashtags} className={adminInput} />
         </Field>
         <Field label="Sign-off line" error={f.errors.signOff}>
-          <input name="signOff" defaultValue={settings.marketing.signOff} className={adminInput} />
+          <input name="signOff" maxLength={160} defaultValue={settings.marketing.signOff} className={adminInput} />
         </Field>
       </div>
       <DialogSave pending={f.pending} />
@@ -195,10 +196,10 @@ function AddTeamForm({ owner, done }: { owner: boolean; done: () => void }) {
   return (
     <form {...f.run} className="flex flex-col gap-4" noValidate>
       <Field label="Name" error={f.errors.name}>
-        <input name="name" data-autofocus className={adminInput} autoComplete="off" />
+        <input name="name" data-autofocus maxLength={LIMITS.name} className={adminInput} autoComplete="off" />
       </Field>
       <Field label="Email" error={f.errors.email}>
-        <input name="email" type="email" className={adminInput} autoComplete="off" />
+        <input name="email" type="email" maxLength={120} className={adminInput} autoComplete="off" />
       </Field>
       <Field label="Role" error={f.errors.role}>
         <Select name="role" defaultValue="Sales" options={owner ? ROLE_OPTIONS : ROLE_OPTIONS.filter(([r]) => r !== "Owner")} />
@@ -226,7 +227,7 @@ function ProfileForm({ name, phone, done }: { name: string; phone: string; done:
   return (
     <form {...f.run} className="flex flex-col gap-4" noValidate>
       <Field label="Name" hint="As the team sees it on leads and bookings" error={f.errors.name}>
-        <input name="name" defaultValue={name} className={adminInput} autoComplete="name" />
+        <input name="name" maxLength={LIMITS.name} defaultValue={name} className={adminInput} autoComplete="name" />
       </Field>
       <PhoneField phone={phone} error={f.errors.phone} />
       <DialogSave pending={f.pending} />
@@ -298,10 +299,10 @@ function PersonForm({ person, rows, whatsapp, owner, self, done }: { person: Per
     <form {...f.run} className="flex flex-col gap-5" noValidate>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Name" error={f.errors.name}>
-          <input name="name" defaultValue={person.name} className={adminInput} autoComplete="off" />
+          <input name="name" maxLength={LIMITS.name} defaultValue={person.name} className={adminInput} autoComplete="off" />
         </Field>
         <Field label="Email" hint={self ? "Another owner or manager changes your sign-in email" : "The address they sign in with"} error={f.errors.email}>
-          <input name="email" type="email" defaultValue={person.email} readOnly={self} className={adminInput} autoComplete="off" />
+          <input name="email" type="email" maxLength={120} defaultValue={person.email} readOnly={self} className={adminInput} autoComplete="off" />
         </Field>
         <PhoneField phone={person.phone} error={f.errors.phone} onChange={setPhone} />
         <Field label="Role" error={f.errors.role}>

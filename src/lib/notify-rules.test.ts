@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseModules } from "@/lib/modules-rules";
-import { channelsOf, columnsFor, eventsFor, gets, mayGet, prefsOf, reachLine, readGrid, roleDefaults, type Prefs } from "./notify-rules";
+import { channelsOf, columnsFor, eventsFor, gets, mayGet, prefsOf, profileErrors, reachLine, readGrid, roleDefaults, type Prefs } from "./notify-rules";
 
 const all = parseModules("all");
 
@@ -66,5 +66,12 @@ describe("reachLine", () => {
     expect(reachLine(p, "Sales", { devices: false, whatsapp: true }, events)).toBe("WhatsApp, email");
     expect(reachLine(p, "Finance", { devices: false, whatsapp: true }, events)).toBe("Email");
     expect(reachLine({ push: [], email: [], whatsapp: [] }, "Sales", { devices: true, whatsapp: true }, events)).toBe("The app only");
+  });
+});
+
+describe("profileErrors", () => {
+  it("takes a name of up to 100 characters, as a website lead does (#195)", () => {
+    expect(profileErrors("x".repeat(100), "")).toEqual({});
+    expect(profileErrors("x".repeat(101), "").name).toBe("Use 100 characters or fewer.");
   });
 });

@@ -10,6 +10,7 @@ import { appendNote } from "@/lib/admin/notes";
 import { leadLine, notify } from "@/lib/admin/notifications";
 import { currentMember } from "@/lib/permissions";
 import { requireStaff } from "@/lib/staff";
+import { LIMITS } from "@/lib/leads/constants";
 import { STALE_STATUS, movedSince } from "@/lib/admin/stale";
 
 const ref = (id: string) => ({ kind: "lead" as const, id });
@@ -90,7 +91,7 @@ export async function setLostReasonAction(id: string, data: FormData) {
 // Only someone on the team can have a lead; an empty choice means nobody.
 export async function assignLeadAction(id: string, data: FormData) {
   await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
-  const name = String(data.get("assignedTo") ?? "").slice(0, 80);
+  const name = String(data.get("assignedTo") ?? "").slice(0, LIMITS.name); // a team member's name (#195)
   const lead = await leadsStore.get(id);
   if (!lead) return;
   const { team } = await getSettings();
