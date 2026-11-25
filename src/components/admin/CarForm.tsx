@@ -15,7 +15,7 @@ import { CAR_FIELDS, FIELD_GROUPS } from "@/lib/admin/car-fields";
 import { ChevronDownIcon } from "@/components/stock/icons";
 import { card } from "@/components/ui";
 import { addMonths, dublinDay, fmtDay, isIsoMonth, monthChoices } from "@/lib/admin/format";
-import { PLUG_FUELS, type Car, type Fuel } from "@/lib/stock/types";
+import { PLUG_FUELS, TEXT_LIMITS, type Car, type Fuel } from "@/lib/stock/types";
 import type { WriteRequest } from "@/lib/ai/tasks";
 import type { FormState } from "@/lib/admin/validation";
 
@@ -33,6 +33,9 @@ const carRequest = (form: HTMLFormElement | null | undefined): WriteRequest | nu
   const fields = Object.fromEntries(CAR_FIELDS.map((c) => [c.name, String(new FormData(form).get(c.name) ?? "").trim()]));
   return fields.make && fields.model ? { task: "carDescription", fields } : null;
 };
+
+// The text boxes' lengths, as car-form.ts allows them: the browser stops there, the server still checks.
+const MAX_LENGTH: Record<string, number> = { make: 40, model: 60, variant: TEXT_LIMITS.variant, reg: 12, bodyType: 40, colour: 40, description: TEXT_LIMITS.description };
 
 // The NCT expiry choices: a year back (an expired NCT) to four years on (a new car's first test), plus the car's own month if outside that.
 const monthOptions = (current: string): (readonly [string, string])[] => {
@@ -98,12 +101,14 @@ export function CarForm({ car, at, cost, reg: startReg = "", photosMax }: { car?
   return (
     <form {...action} onInput={touched} className="flex flex-col gap-6" noValidate>
       {/* Adding a car starts from its registration: the lookup fills the basics and details, and every box can still be changed. */}
+      {/* The three steps of adding a car, each a heading above its panels. */}
+      {!car && <h2 className="-mb-2 text-section font-semibold">1. Look up the registration</h2>}
       {!car && (
-        <Panel title="1. Look up the registration">
+        <Panel>
           <p className="max-w-measure text-body text-text-2">It fills in the make, model, year and more. No registration? Fill in the boxes below.</p>
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start">
             <Field label="Registration" error={errors.reg} className="flex-1 sm:max-w-xs">
-              <input name="reg" value={reg} aria-invalid={errors.reg ? true : undefined} onChange={(e) => setReg(e.target.value.toUpperCase())} autoCapitalize="characters" spellCheck={false} maxLength={12} placeholder="191-KY-1234" className={adminInput} />
+              <input name="reg" value={reg} aria-invalid={errors.reg ? true : undefined} onChange={(e) => setReg(e.target.value.toUpperCase())} autoCapitalize="characters" spellCheck={false} maxLength={MAX_LENGTH.reg} placeholder="191-KY-1234" className={adminInput} />
             </Field>
             <RegLookup
               reg={reg}
@@ -114,7 +119,8 @@ export function CarForm({ car, at, cost, reg: startReg = "", photosMax }: { car?
           </div>
         </Panel>
       )}
-      {photosMax !== undefined && <NewCarPhotos title="2. Add photos" photos={photos} onChange={(p) => (setPhotos(p), touched())} max={photosMax} error={errors.photos} />}
+      {photosMax !== undefined && <h2 className="-mb-2 text-section font-semibold">2. Add photos</h2>}
+      {photosMax !== undefined && <NewCarPhotos photos={photos} onChange={(p) => (setPhotos(p), touched())} max={photosMax} error={errors.photos} />}
       {!car && <h2 className="-mb-2 text-section font-semibold">3. Check the details and set the price</h2>}
       <div key={drawn} className="flex flex-col gap-6">
       {(car ? EDIT_GROUPS : FIELD_GROUPS).map((group) => {
@@ -124,11 +130,11 @@ export function CarForm({ car, at, cost, reg: startReg = "", photosMax }: { car?
               // The description has the AI writer under it, so it is not inside the label the other boxes use.
               <div key={f.name} className="flex min-w-0 flex-col gap-1 sm:col-span-2 lg:col-span-3">
                 <span className="text-meta font-semibold">{f.label}</span>
-                <AITextarea name={f.name} label={f.label} task="carDescription" defaultValue={value(f.name)} rows={5} request={(box) => carRequest(box?.form)} />
+                <AITextarea name={f.name} label={f.label} task="carDescription" defaultValue={value(f.name)} rows={5} maxLength={MAX_LENGTH[f.name]} request={(box) => carRequest(box?.form)} />
                 {errors[f.name] && <span className="text-meta text-destructive">{errors[f.name]}</span>}
               </div>
             ) : (
-              <Field key={f.name} label={f.label} hint={f.name === "priceEur" && onRequest ? "A price of 0 shows as Price on request on the website, with no finance estimate." : f.hint} error={errors[f.name]} className={f.wide ? "sm:col-span-2 lg:col-span-3" : ""}>
+              <Field key={f.name} label={f.label} hint={f.name === "priceEur" && onRequest ? "A price of 0 shows as Price on request on the website, with no finance estimate." : f.hint} error={errors[f.name]} className={f.name === "variant" ? "sm:col-span-2 lg:col-span-1" : f.wide ? "sm:col-span-2 lg:col-span-3" : ""}>
                 {f.type === "select" ? (
                   <Select name={f.name} defaultValue={value(f.name)} onChange={(v) => (touched(), f.name === "fuel" && setFuel(v))} options={[["", f.name === "condition" ? "Used" : "Not set"], ...f.options!.filter(([v]) => !(f.name === "condition" && v === "used"))]} />
                 ) : f.type === "month" ? (
@@ -136,7 +142,7 @@ export function CarForm({ car, at, cost, reg: startReg = "", photosMax }: { car?
                 ) : f.type === "textarea" ? (
                   <textarea name={f.name} defaultValue={value(f.name)} rows={f.name === "features" ? 6 : 5} className={`${adminInput} h-auto py-2`} />
                 ) : (
-                  <input name={f.name} type={f.type} step={f.step} inputMode={f.type !== "number" ? undefined : f.step ? "decimal" : "numeric"} defaultValue={value(f.name)} {...(f.name === "reg" && { autoCapitalize: "characters", spellCheck: false, maxLength: 12 })} onInput={f.name === "priceEur" ? (e) => setOnRequest(e.currentTarget.value.trim() === "0") : undefined} aria-invalid={errors[f.name] ? true : undefined} className={adminInput} />
+                  <input name={f.name} type={f.type} step={f.step} inputMode={f.type !== "number" ? undefined : f.step ? "decimal" : "numeric"} defaultValue={value(f.name)} maxLength={MAX_LENGTH[f.name]} {...(f.name === "reg" && { autoCapitalize: "characters", spellCheck: false })} onInput={f.name === "priceEur" ? (e) => setOnRequest(e.currentTarget.value.trim() === "0") : undefined} aria-invalid={errors[f.name] ? true : undefined} className={adminInput} />
                 )}
               </Field>
             ))}

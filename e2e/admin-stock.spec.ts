@@ -6,7 +6,7 @@ import { as } from "./open";
 // deleted at the end whatever happens.
 const MAKE = "Zztest";
 
-// The row buttons (Edit, Mark sold) are a desktop table's; on a phone the row itself opens the car.
+// The row buttons and menu (Mark sold, Edit) are a desktop table's; on a phone the row itself opens the car.
 test.use({ viewport: { width: 1280, height: 800 }, isMobile: false, hasTouch: false });
 
 test.afterEach(async ({ page }) => {
@@ -80,6 +80,7 @@ test("add a car, change its price to a drop, mark it sold, delete it", async ({ 
 
   // Sold: Mark sold records the sale (price, day, salesperson, a new customer), then the car is out of "For sale" and in "Sold".
   await page.goto("/stock?q=" + MAKE);
+  await page.getByRole("row", { name: new RegExp(MAKE) }).getByRole("button", { name: /^More for/ }).click(); // Mark sold is first in the row's menu
   await page.getByRole("link", { name: "Mark sold" }).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Mark sold");
   await page.getByLabel("Sale price (€)").fill("18000");
@@ -171,6 +172,7 @@ test("a deposit reserves a car; ending it puts it back; a sale brought back is u
 
   // Sell it, then the buyer brings it back: the sale is undone, kept on the car's page, and the car is hidden for a look over.
   await page.goto("/stock?q=" + MAKE);
+  await page.getByRole("row", { name: new RegExp(MAKE) }).getByRole("button", { name: /^More for/ }).click();
   await page.getByRole("row", { name: new RegExp(MAKE) }).getByRole("link", { name: "Mark sold" }).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Mark sold");
   await page.getByLabel("Name", { exact: true }).fill("Sam Reid");
@@ -284,17 +286,19 @@ test("a car's photos: add one, remove it", async ({ page }) => {
   await page.locator('#photos input[type="file"]').setInputFiles("public/stock/4710001/1-b1b37b33.webp");
   await expect(page.getByText("Photo added")).toBeVisible();
   await expect(page.locator("#photos").getByText("Main photo")).toBeVisible();
-  // Editing replaces the photo in its place (#125): still one photo, still the main one.
+  // Editing replaces the photo in its place (#125): still one photo, still the main one. Edit and Remove are under the photo's menu.
+  await page.getByRole("button", { name: "More for photo 1" }).click();
   await page.getByRole("button", { name: "Crop and rotate photo 1" }).click();
   await page.getByRole("button", { name: "Rotate", exact: true }).click();
   await page.getByRole("button", { name: "Save photo" }).click();
   await expect(page.getByText("Photo saved")).toBeVisible();
   await expect(page.locator("#photos").getByText("Main photo")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Remove photo 1" })).toHaveCount(1);
-  await expect(page.getByRole("button", { name: "Remove photo 2" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "More for photo 1" })).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "More for photo 2" })).toHaveCount(0);
 
   await page.goto("/stock?q=" + MAKE);
   await page.getByRole("row", { name: new RegExp(MAKE) }).getByRole("link").first().click();
+  await page.getByRole("button", { name: "More for photo 1" }).click();
   await page.getByRole("button", { name: "Remove photo 1" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Remove" }).click();
   await expect(page.locator("#photos").getByText("Main photo")).toHaveCount(0);

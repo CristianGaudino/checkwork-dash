@@ -41,7 +41,7 @@ export function PrepPanel({ carId, lines }: { carId: string; lines: PrepLine[] }
               <li key={l.at} className="flex items-center gap-3 py-2 pl-5 pr-3 even:bg-row-alt">
                 <span className="flex min-w-0 flex-1 flex-col">
                   <span className="font-medium">{l.kind}</span>
-                  <span title={l.note} className="truncate text-meta text-text-2">
+                  <span title={l.note} className="line-clamp-2 text-meta text-text-2 [overflow-wrap:anywhere]">
                     {fmtDate(l.at)}
                     {l.note && ` · ${l.note}`}
                   </span>
