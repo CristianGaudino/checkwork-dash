@@ -46,7 +46,7 @@ export async function setDriveStatusAction(id: string, status: string, from?: st
 export async function assignDriveAction(id: string, data: FormData) {
   await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
   await requireModule("testDrives"); // and only while the dealer has it
-  const name = String(data.get("assignedTo") ?? "").slice(0, DRIVE_LIMITS.name);
+  const name = String(data.get("assignedTo") ?? "").slice(0, LIMITS.name); // a team member's name, up to 100
   const drive = await drivesStore.get(id);
   const { team } = await getSettings();
   if (!drive || (name && !team.some((t) => t.name === name)) || (drive.assignedTo ?? "") === name) return;
@@ -68,7 +68,7 @@ const booking = z.object({
   date: isoDay("Choose a day"),
   time: z.string().regex(/^\d{2}:\d{2}$/, "Choose a time"),
   notes: z.string().trim().max(DRIVE_LIMITS.notes).optional(),
-  assignedTo: z.string().max(DRIVE_LIMITS.name).optional(),
+  assignedTo: z.string().max(LIMITS.name).optional(),
 });
 
 // The rules for a booking's time, for a new one and a moved one (`ignoreId`: the booking being moved does not clash with itself).

@@ -42,7 +42,7 @@ Built in step 6 (`src/lib/auth/invite.ts`, sent by `addTeamAction` once the pers
 
 ### First sign-in
 
-1. **Sign in** (`/sign-in`). Title "Sign in to Checkwork". A button "Sign in with a passkey", then "or", an Email field and a button
+1. **Sign in** (`/sign-in`). Title "Sign in". A button "Sign in with a passkey", then "or", an Email field and a button
    "Email me a code". Nothing else: no sign-up link, no "forgot password" (there are no passwords).
 2. They type their email and tap "Email me a code". A Cloudflare Turnstile check runs behind the button without a puzzle (a challenge only
    when Cloudflare is unsure); the button waits until it has passed (section 3, "The bot check").
