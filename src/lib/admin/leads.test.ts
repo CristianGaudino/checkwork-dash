@@ -56,6 +56,7 @@ describe("the lead's main button", () => {
     expect(replyVia(lead("a", { source: "WhatsApp", phone: PHONE }))).toBe("whatsapp");
     expect(replyVia(lead("a", { phone: PHONE, answers: { contactVia: "whatsapp" } }))).toBe("whatsapp");
     expect(replyVia(lead("a", { source: "WhatsApp", phone: PHONE, whatsappOptIn: false }))).toBe("call"); // WhatsApp stopped on the lead
+    expect(replyVia(lead("a", { source: "WhatsApp", phone: "(021) 496 1234" }))).toBe("call"); // a landline is not on WhatsApp
     expect(replyVia(lead("a", { phone: PHONE, answers: { contactVia: "email" } }))).toBe("email");
     expect(replyVia(lead("a", { source: "WhatsApp", phone: "" }))).toBe("email"); // no number to message
     expect(replyVia(lead("a", { phone: "12", email: "" }))).toBeUndefined();

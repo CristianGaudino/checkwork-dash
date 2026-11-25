@@ -1,7 +1,7 @@
 import { LEAD_SOURCES, LEAD_STATUSES, LEAD_TYPES, type Claim, type Lead, type LeadStatus, type LeadType } from "./collections";
 import { TOPIC_IDS, type TopicId } from "@/lib/leads/contact-topics";
 import { answerNow, followUpDue, pastReplyTarget } from "./follow-ups";
-import { intlDigits } from "@/lib/phone";
+import { intlDigits, waHref } from "@/lib/phone";
 export { answerNow, followUpDue, forPerson, isHotLead, isOpenLead, leadFlag, leadsToAnswer, possibleSpam, type LeadTask } from "./follow-ups";
 
 // A warranty message from the website is aftersales work, not a sale: it is listed in Aftersales as a request, and left out of Leads, its
@@ -76,7 +76,7 @@ export type ReplyVia = "call" | "whatsapp" | "email";
 export function replyVia(l: Pick<Lead, "source" | "phone" | "email" | "answers" | "whatsappOptIn">): ReplyVia | undefined {
   const via = l.answers?.contactVia ?? (l.source === "WhatsApp" ? "whatsapp" : undefined);
   const dial = Boolean(l.phone && intlDigits(l.phone));
-  if (via === "whatsapp" && dial && l.whatsappOptIn !== false) return "whatsapp"; // false: WhatsApp was stopped on the lead
+  if (via === "whatsapp" && l.phone && waHref(l.phone) && l.whatsappOptIn !== false) return "whatsapp"; // false: WhatsApp was stopped on the lead; a landline gets a call
   if (l.email && (via === "email" || !dial)) return "email";
   return dial ? "call" : undefined;
 }
