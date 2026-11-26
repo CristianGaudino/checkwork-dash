@@ -56,13 +56,17 @@ beforeEach(() => {
 
 describe("reviewReach", () => {
   it("is WhatsApp for a buyer who opted in, else email, else nobody", () => {
-    expect(reviewReach({ email: "a@b.ie" }, [{ id: "l", whatsappOptIn: true, phone: "1" }], true)).toEqual({ via: "whatsapp", leadId: "l" });
-    expect(reviewReach({ email: "a@b.ie" }, [{ id: "l", whatsappOptIn: true, phone: "1" }], false)).toEqual({ via: "email" }); // not in the plan
+    expect(reviewReach({ email: "a@b.ie" }, [{ id: "l", whatsappOptIn: true, phone: "087 123 4567" }], true)).toEqual({ via: "whatsapp", leadId: "l" });
+    expect(reviewReach({ email: "a@b.ie" }, [{ id: "l", whatsappOptIn: true, phone: "087 123 4567" }], false)).toEqual({ via: "email" }); // not in the plan
     expect(reviewReach({ email: "a@b.ie" }, [], true)).toEqual({ via: "email" });
-    expect(reviewReach({ email: "" }, [{ id: "l", phone: "1" }], true)).toBeNull();
+    expect(reviewReach({ email: "" }, [{ id: "l", phone: "087 123 4567" }], true)).toBeNull();
+  });
+  it("emails a buyer who ticked WhatsApp but gave a landline (#196)", () => {
+    expect(reviewReach({ email: "a@b.ie" }, [{ id: "l", whatsappOptIn: true, phone: "(021) 496 1234" }], true)).toEqual({ via: "email" });
+    expect(reviewReach({ email: "" }, [{ id: "l", whatsappOptIn: true, phone: "(021) 496 1234" }], true)).toBeNull();
   });
   it("never reaches someone who stopped messages", () => {
-    expect(reviewReach({ email: "a@b.ie" }, [{ id: "l", whatsappOptIn: false, phone: "1" }], true)).toBeNull();
+    expect(reviewReach({ email: "a@b.ie" }, [{ id: "l", whatsappOptIn: false, phone: "087 123 4567" }], true)).toBeNull();
   });
 });
 

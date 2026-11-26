@@ -1,4 +1,5 @@
 import "server-only";
+import { wantsWhatsApp } from "@/lib/phone";
 import { simulating } from "@/lib/integrations";
 import { leadRecipients, sendTo } from "@/lib/leads/mail";
 import { hasModule } from "@/lib/modules";
@@ -50,7 +51,7 @@ export function leadsIndex(leads: Lead[]): (c: Pick<Customer, "email" | "phone">
 export type Reach = { via: "whatsapp"; leadId: string } | { via: "email" } | null;
 export function reviewReach(c: Pick<Customer, "email">, theirLeads: Pick<Lead, "id" | "whatsappOptIn" | "phone">[], whatsapp: boolean): Reach {
   if (theirLeads.some((l) => l.whatsappOptIn === false)) return null;
-  const opted = whatsapp ? theirLeads.find((l) => l.whatsappOptIn && l.phone) : undefined;
+  const opted = whatsapp ? theirLeads.find(wantsWhatsApp) : undefined;
   if (opted) return { via: "whatsapp", leadId: opted.id };
   return c.email ? { via: "email" } : null;
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { telHref, waHref } from "./phone";
+import { telHref, waHref, wantsWhatsApp } from "./phone";
 
 describe("phone links", () => {
   it("dials an Irish number however it was typed", () => {
@@ -23,5 +23,15 @@ describe("phone links", () => {
       expect(telHref(landline)).not.toBeNull();
     }
     expect(waHref("+1 415 555 0100")).toBe("https://wa.me/14155550100");
+  });
+});
+
+describe("wantsWhatsApp", () => {
+  it("is a ticked box with a number that can be on WhatsApp, never a landline (#196)", () => {
+    expect(wantsWhatsApp({ whatsappOptIn: true, phone: "087 123 4567" })).toBe(true);
+    expect(wantsWhatsApp({ whatsappOptIn: true, phone: "+44 7700 900123" })).toBe(true);
+    expect(wantsWhatsApp({ whatsappOptIn: true, phone: "(021) 496 1234" })).toBe(false);
+    expect(wantsWhatsApp({ whatsappOptIn: true, phone: "" })).toBe(false);
+    expect(wantsWhatsApp({ whatsappOptIn: false, phone: "087 123 4567" })).toBe(false);
   });
 });
