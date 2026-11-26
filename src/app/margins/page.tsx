@@ -43,7 +43,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ q
   const byStatus = new Map<string, number>();
   for (const r of stock) byStatus.set(carStatus(r.car), (byStatus.get(carStatus(r.car)) ?? 0) + 1);
   const noCost = rows.filter((r) => r.cost === undefined && !isSold(r.car));
-  const stockHint = [...byStatus].sort((a, b) => b[1] - a[1]).map(([s, n]) => `${fmtNum(n)} ${s.toLowerCase()}`).join(", ") || (noCost.length ? "No cost prices yet" : "No cars in stock");
+  // Why there is no stock figure: no cost prices, or every unsold car priced on request, or no cars at all.
+  const noFigures = noCost.length ? "No cost prices yet" : rows.some((r) => !isSold(r.car)) ? "No asking prices yet" : "No cars in stock";
+  const stockHint = [...byStatus].sort((a, b) => b[1] - a[1]).map(([s, n]) => `${fmtNum(n)} ${s.toLowerCase()}`).join(", ") || noFigures;
 
   const notSet = <span className="text-text-2">Not set</span>;
   const columns: Column<Row>[] = [
@@ -88,7 +90,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ q
       <PageHeader title="Margins" text="Asking or sale price, less cost, prep and warranty repairs, before VAT" />
       {/* The two figures an owner asks for first (what the stock should make, what the sales made), then what the stock is worth and cost. */}
       <StatGrid>
-        <StatCard label="Expected margin on stock" value={fmtEur(stockMargin.eur)} hint={stockPrice ? `${fmtPct(stockMargin.pct)}, if each sells at its price` : noCost.length ? "No cost prices yet" : rows.some((r) => !isSold(r.car)) ? "No asking prices yet" : "No cars in stock"} tone={!stockPrice ? undefined : stockMargin.eur >= 0 ? "good" : "bad"} href="/margins?state=stock" />
+        <StatCard label="Expected margin on stock" value={fmtEur(stockMargin.eur)} hint={stockPrice ? `${fmtPct(stockMargin.pct)}, if each sells at its price` : noFigures} tone={!stockPrice ? undefined : stockMargin.eur >= 0 ? "good" : "bad"} href="/margins?state=stock" />
         <StatCard label="Margin on sold cars" value={fmtEur(soldMargin)} hint={`${plural(sold.length, "car")} sold`} tone={soldMargin < 0 ? "bad" : undefined} href="/margins?state=sold" />
         <StatCard label="Stock value" value={fmtEur(stockPrice)} hint="At the advertised prices" />
         <StatCard label="Stock cost" value={fmtEur(stockCost)} hint={stockHint} />

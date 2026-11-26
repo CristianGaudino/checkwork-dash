@@ -254,7 +254,7 @@ export function PostComposer({ cars, initialSlug, initialFormat = "post", initia
       {/* Step 1 has no buttons (picking a car moves on), so nothing here either. */}
       <div className={`${step > 0 ? "flex" : "hidden"} min-w-0 flex-col gap-5 self-start wide:col-start-1`}>
         <section hidden={step !== 3} className="flex flex-col gap-4">
-          <div role="radiogroup" aria-label="When" className="grid grid-cols-2 gap-3">
+          <div role="radiogroup" aria-label="When" className="grid grid-cols-[repeat(auto-fit,minmax(min(8rem,100%),1fr))] gap-3">
             {([[false, "Post now"], [true, "Schedule post"]] as const).map(([on, label]) => (
               <button key={label} type="button" role="radio" aria-checked={later === on} onClick={() => setLater(on)} className={`${card(later === on)} flex min-h-14 items-center gap-2 whitespace-nowrap px-3 text-body font-medium sm:px-4`}>
                 {on && <CalendarIcon className="size-5 shrink-0" />}
