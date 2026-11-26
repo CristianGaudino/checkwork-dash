@@ -81,23 +81,23 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
   return (
     <>
       <PageHeader title="Settings" />
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[16rem_minmax(0,1fr)] lg:items-start">
-        <TabRow current={section} aria-label="Settings" className="scrollbar-none -mx-4 -my-1 flex gap-1 overflow-x-auto px-4 py-1 sm:-mx-1 sm:px-1 lg:sticky lg:top-24 lg:flex-col lg:overflow-visible">
+      <div className="grid grid-cols-1 gap-6 wide:grid-cols-[16rem_minmax(0,1fr)] lg:items-start">
+        <TabRow current={section} aria-label="Settings" className="scrollbar-none -mx-4 -my-1 flex gap-1 overflow-x-auto px-4 py-1 sm:-mx-1 sm:px-1 wide:sticky wide:top-24 wide:flex-col wide:overflow-visible">
           {[["Your account", ACCOUNT], ["Dealership", dealership]].map(([group, items]) =>
             (items as typeof all).length === 0 ? null : (
-              <div key={group as string} className="contents lg:flex lg:flex-col lg:gap-1 lg:[&+&]:mt-4">
+              <div key={group as string} className="contents wide:flex wide:flex-col wide:gap-1 wide:[&+&]:mt-4">
                 {/* The group's name in the side list; on a phone the tabs run on in one row. */}
-                <p className="hidden px-3 pb-1 text-meta font-semibold text-text-2 lg:block">{group as string}</p>
+                <p className="hidden px-3 pb-1 text-meta font-semibold text-text-2 wide:block">{group as string}</p>
                 {(items as typeof all).map(([k, label, line]) => (
                   <Link
                     key={k}
                     href={k === all[0][0] ? "/settings" : `/settings?section=${k}`}
                     aria-current={k === section ? "page" : undefined}
-                    className={`flex min-h-11 shrink-0 flex-col justify-center rounded-control px-3 lg:py-2.5 ${k === section ? "bg-card text-text ring-1 ring-inset ring-hairline" : "text-text-2 hover:bg-card hover:text-text"}`}
+                    className={`flex min-h-11 shrink-0 flex-col justify-center rounded-control px-3 wide:py-2.5 ${k === section ? "bg-card text-text ring-1 ring-inset ring-hairline" : "text-text-2 hover:bg-card hover:text-text"}`}
                   >
                     <span className="text-meta font-medium">{label}</span>
                     {/* The line on what it changes: in the side list on a laptop; on a phone it is under the tabs, for the open one only. */}
-                    <span aria-hidden="true" className="hidden text-meta text-text-2 lg:block">{line}</span>
+                    <span aria-hidden="true" className="hidden text-meta text-text-2 wide:block">{line}</span>
                   </Link>
                 ))}
               </div>
@@ -105,7 +105,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
           )}
         </TabRow>
         <div className="flex min-w-0 flex-col gap-6">
-          <p className="-mb-2 text-body text-text-2 lg:hidden">{about}</p>
+          <p className="-mb-2 text-body text-text-2 wide:hidden">{about}</p>
 
           {section === "profile" && (
             <Panel title="Profile" action={mine && <ProfileEdit name={mine.name} phone={mine.phone} />}>

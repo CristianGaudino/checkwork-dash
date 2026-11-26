@@ -45,7 +45,7 @@ export default async function Page() {
       <PageHeader title="Billing" text="Your plan, this month's bill and your bills" />
 
       {/* What most people come for first: this month's bill, and what it is made of. Beside it, what to do if it looks wrong. */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
+      <div className="grid grid-cols-1 gap-6 wide:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
         <Panel title="This month's bill">
           <div>
             <p className="font-display text-[2.5rem] font-semibold leading-none tracking-[-0.02em] tabular-nums">{eur(total)}</p>

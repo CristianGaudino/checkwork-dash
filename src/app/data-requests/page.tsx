@@ -17,7 +17,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ e
       {erased !== null && <Notice>Erased {plural(erased, "record")}. Sales stay for the books, without the person.</Notice>}
       {sp.notice === "confirm" && <Notice tone="warn">Nothing was erased. Tick that you have checked it is the person asking.</Notice>}
       {/* The job first; on a laptop how it works sits beside it, on a phone under it. */}
-      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+      <div className="grid grid-cols-1 items-start gap-6 wide:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="flex min-w-0 flex-col gap-6">
           <DataRequest />
         </div>

@@ -23,7 +23,7 @@ function PhotoGrid({ srcs, makeMain, remove, onEdit }: { srcs: string[]; makeMai
     <>
       <p className="text-meta text-text-2">The first photo is the one on the car&apos;s card and at the top of its page.</p>
       {srcs.length > 0 && (
-        <ul className="grid gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        <ul className="grid gap-3 sm:@md/page:grid-cols-2 sm:@xl/page:grid-cols-3 wide:grid-cols-4">
           {srcs.map((src, i) => (
             <li key={src} className="flex flex-wrap items-center gap-3 sm:flex-col sm:flex-nowrap sm:items-stretch sm:gap-2">
               <div className="aspect-[4/3] w-20 shrink-0 overflow-hidden rounded-control bg-photo-bg sm:w-auto">

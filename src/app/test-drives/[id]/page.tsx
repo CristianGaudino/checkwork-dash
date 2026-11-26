@@ -32,7 +32,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   return (
     <>
       <PageHeader title={d.name} text={`${d.carTitle}, ${fmtDateTime(d.startsAt)}`} back={{ href: "/test-drives", label: "Test drives" }} />
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+      <div className="grid grid-cols-1 gap-6 wide:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="flex min-w-0 flex-col gap-6">
           {/* Read first; Change time opens the free times in the house dialog (#141). */}
           <Panel title="The booking" action={open ? <MoveDrive id={d.id} carSlug={d.carSlug} slots={{ ...slotData(drives, hours, d.id), windowMin: settings.driveSlotMinutes }} /> : undefined}>
@@ -50,7 +50,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             <ContactButtons phone={d.phone} email={d.email || undefined} />
           </Panel>
         </div>
-        <div className="flex min-w-0 flex-col gap-6 max-lg:order-first">
+        <div className="flex min-w-0 flex-col gap-6 narrow:order-first">
           <Panel title="Status" action={<DriveStatusBadge status={d.status} />}>
             {/* The steps due now, or Rebook once it is over. A confirmed drive still to come has none: Cancel only. */}
             <DriveSteps drive={d} page />
