@@ -39,8 +39,9 @@ export function AdminShell({ title, profile, subtitle, nav, navLabel, openGroups
           </div>
         )}
       </aside>
-      {/* On a phone the page ends above the tab bar (3.5rem and the home indicator), so its last row is never under it. */}
-      <main className="flex min-w-0 flex-col gap-6 px-4 pb-[calc(5rem+env(safe-area-inset-bottom))] pt-4 sm:px-6 lg:px-10 lg:pb-10 lg:pt-0">{children}</main>
+      {/* On a phone the page ends above the tab bar (3.5rem and the home indicator), so its last row is never under it. `page` is a named
+          container: the `wide` and `narrow` variants (globals.css) ask it for room in rem, so a page's two columns stack with large text. */}
+      <main className="@container/page flex min-w-0 flex-col gap-6 px-4 pb-[calc(5rem+env(safe-area-inset-bottom))] pt-4 sm:px-6 lg:px-10 lg:pb-10 lg:pt-0">{children}</main>
     </div>
   );
 }

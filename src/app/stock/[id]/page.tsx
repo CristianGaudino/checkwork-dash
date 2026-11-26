@@ -134,7 +134,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
         </div>
       </div>
       {/* Two across on a phone, each a 44px button whose label wraps in its half; in a row from 640px. */}
-      {actions.length > 0 && <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap max-sm:[&>*]:h-auto max-sm:[&>*]:min-h-11 max-sm:[&>*]:whitespace-normal max-sm:[&>*]:px-2 max-sm:[&>*]:py-2 max-sm:[&>*]:text-center">{actions}</div>}
+      {actions.length > 0 && <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:[&>*]:max-w-full sm:[&>*]:whitespace-normal max-sm:[&>*]:h-auto max-sm:[&>*]:min-h-11 max-sm:[&>*]:whitespace-normal max-sm:[&>*]:px-2 max-sm:[&>*]:py-2 max-sm:[&>*]:text-center">{actions}</div>}
     </section>
   );
   // The history check (#170): the car's own, and a recorded sale's trade-in's. Kept beside the car, so synced stock has it too.

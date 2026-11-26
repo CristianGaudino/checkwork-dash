@@ -58,8 +58,9 @@ export function Panel({ title, text, count, action, children, className = "", qu
               {text && <p className="text-meta text-text-2">{text}</p>}
             </div>
           )}
-          {/* A 44px box centred on the title line: tap targets reach past it, shorter actions sit on it, the header stays one line tall. */}
-          {action && <div className="-my-2.5 flex min-h-11 min-w-0 max-w-full items-center">{action}</div>}
+          {/* A 44px box centred on the title line: tap targets reach past it, shorter actions sit on it, the header stays one line tall.
+              Its words may wrap (*:whitespace-normal): only when the action alone is wider than the panel, with large text. */}
+          {action && <div className="-my-2.5 flex min-h-11 min-w-0 max-w-full items-center *:whitespace-normal">{action}</div>}
         </div>
       )}
       {children}
@@ -142,10 +143,11 @@ const TONES = { neutral: "bg-hairline text-text", good: "bg-ok-soft text-ok", wa
 // Urgency, filled: for what needs doing now (overdue, past its date), and only that, so a filled badge always means act.
 const STRONG = { warn: "bg-warn text-ink", bad: "bg-bad text-ink" } as const;
 export type Tone = keyof typeof TONES;
-// A short status in words, never a colour alone.
+// A short status in words, never a colour alone. On one line (shrink-0, and nowrap in a table), unless it is wider than the space it is in
+// (large text): then it wraps rather than run off the screen.
 export function Badge({ tone = "neutral", strong = false, children }: { tone?: Tone; strong?: boolean; children: React.ReactNode }) {
   const look = strong && (tone === "warn" || tone === "bad") ? STRONG[tone] : TONES[tone];
-  return <span className={`inline-flex h-6 items-center whitespace-nowrap rounded-full px-2.5 text-meta font-medium ${look}`}>{children}</span>;
+  return <span className={`inline-flex min-h-6 max-w-full shrink-0 items-center rounded-full px-2.5 text-meta font-medium [td_&]:whitespace-nowrap ${look}`}>{children}</span>;
 }
 
 // Nothing to show: what that means and, with `action`, the button for the next step. `icon` sits above the title in a soft circle.
@@ -282,7 +284,7 @@ export function paginate<T>(rows: T[], asked: string | undefined, size = PER_PAG
 export const pageOf = <T,>(rows: T[], sp: { page?: string; per?: string }) => paginate(rows, sp.page, perPage(sp.per));
 
 // Buttons in a row or a list: always a word, sometimes an icon before it. The levels are in docs/dashboard-polish.md (Buttons).
-const rowBase = `inline-flex h-11 items-center justify-center gap-1.5 whitespace-nowrap rounded-control px-3 text-meta font-medium transition-colors ${press}`;
+const rowBase = `inline-flex min-h-11 items-center justify-center gap-1.5 whitespace-nowrap rounded-control px-3 text-meta font-medium transition-colors ${press}`;
 // Tertiary: text only, for the rest of a row's actions, See all, More.
 export const rowButton = `${rowBase} text-accent-text hover:bg-accent-soft`;
 // The row's most used action (Call, Confirm, Record sale): tonal, one per row.

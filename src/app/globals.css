@@ -171,6 +171,25 @@
 
 @custom-variant reduce-transparency (@media (prefers-reduced-transparency: reduce));
 
+/* A page's two columns side by side: from 1024px (lg) and while the page (AdminShell's <main>, the `page` container) has 42rem. The rem
+   grows with the text size, so with large text the columns stack instead of running off the screen; at normal size it is lg exactly.
+   `narrow` is the opposite, for what changes when they stack. */
+@custom-variant wide {
+  @media (width >= 64rem) {
+    @container page (width >= 42rem) {
+      @slot;
+    }
+  }
+}
+@custom-variant narrow {
+  @media (width < 64rem) {
+    @slot;
+  }
+  @container page (width < 42rem) {
+    @slot;
+  }
+}
+
 @layer base {
   /* Thin, rounded scrollbars with no track colour, and room at both ends so the thumb never reaches a rounded corner (drop-down lists,
      dialogs, the filter panel). The page's own scrollbar stays the browser's: it is the one everybody needs to grab. Chrome and Safari take

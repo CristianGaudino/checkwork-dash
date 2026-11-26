@@ -89,7 +89,7 @@ export async function LeadView({ id }: { id: string }) {
       />
       {/* The top answers what a call starts with: what they asked, how to reach them, and what happens next. */}
       <Panel>
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
+        <div className="grid grid-cols-1 gap-6 wide:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
           <section aria-labelledby="asked" className="flex min-w-0 flex-col gap-3">
             <h2 id="asked" className="text-section font-semibold">What they asked</h2>
             {lead.carTitle && (
@@ -139,7 +139,7 @@ export async function LeadView({ id }: { id: string }) {
               {lead.phone && (<><dt className="text-text-2">Phone</dt><dd className="tabular-nums">{lead.phone}</dd></>)}
             </dl>
           </section>
-          <section aria-labelledby="next" className="flex min-w-0 flex-col gap-4 max-lg:order-first max-lg:border-b max-lg:border-hairline max-lg:pb-5 lg:border-l lg:border-hairline lg:pl-6">
+          <section aria-labelledby="next" className="flex min-w-0 flex-col gap-4 narrow:order-first narrow:border-b narrow:border-hairline narrow:pb-5 wide:border-l wide:border-hairline wide:pl-6">
             <h2 id="next" className="text-section font-semibold">Next step</h2>
             <ContactButtons phone={lead.phone} email={lead.email} main={main === "reply" ? replyVia(lead) : undefined} whatsapp={lead.whatsappOptIn !== false} reply={lead.status === "new" ? firstReply({ name: lead.name, from: replyFrom(me), dealer, title: lead.carTitle, car, siteUrl, modules }) : undefined} />
             {/* Booking a drive from the lead carries their car, name and number into the form. */}

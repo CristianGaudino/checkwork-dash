@@ -46,7 +46,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ f
               <span className="text-meta text-text-2">out of 5, from {plural(s.count, "review")}</span>
             </span>
           </p>
-          <ul aria-label="Reviews by stars" className="grid min-w-56 flex-1 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 text-meta max-sm:hidden sm:max-w-sm">
+          <ul aria-label="Reviews by stars" className="grid min-w-[min(14rem,100%)] flex-1 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 text-meta max-sm:hidden sm:max-w-sm">
             {s.distribution.map((d) => (
               <li key={d.stars} className="contents">
                 <span className="text-text-2">{plural(d.stars, "star")}</span>
