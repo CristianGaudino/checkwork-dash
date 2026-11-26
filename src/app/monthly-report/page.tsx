@@ -142,7 +142,7 @@ async function Report({ month, prevMonth, now, name, whole, hasMargins }: { mont
         <StatCard label="First reply, when closed" value={fmtWait(s.replies.medianOutOfHoursMin)} hint="Typical" />
         <StatCard label="No reply in 24 hours" value={fmtNum(s.replies.none)} tone={s.replies.none ? "warn" : undefined} />
       </StatGrid>
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 wide:grid-cols-2 wider:grid-cols-3">
         <Panel title="Where they came from">
           {sources.length ? <BarList items={sources.map(([name, n]) => ({ label: name, value: n }))} /> : <p className="text-meta text-text-2">No leads this month.</p>}
         </Panel>
@@ -194,7 +194,7 @@ async function Report({ month, prevMonth, now, name, whole, hasMargins }: { mont
       )}
 
       {/* Sales and reviews side by side on a wide screen: each is two or three figures, too few to fill the width alone. */}
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 wider:grid-cols-2">
         {hasSales && (
           <section className="flex flex-col gap-4">
             <h2 className="text-heading font-semibold">Sales</h2>

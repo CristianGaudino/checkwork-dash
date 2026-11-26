@@ -123,7 +123,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
       {tab === "posts" && (
         <>
           {(waiting.length > 0 || ideas.length > 0) && (
-            <div className={`grid grid-cols-1 items-start gap-6 ${waiting.length && ideas.length ? "xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]" : ""}`}>
+            <div className={`grid grid-cols-1 items-start gap-6 ${waiting.length && ideas.length ? "wider:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]" : ""}`}>
               {waiting.length > 0 && (
                 <Panel title="Waiting on you" count={waiting.length}>
                   <TaskList label="Waiting on you">
@@ -307,7 +307,7 @@ function Calendar({ posts, ads, week }: { posts: Awaited<ReturnType<typeof posts
         <Link href={link(addDays(days[0], 7))} className={adminButtonQuiet}>Later</Link>
         <p className="text-meta text-text-2">{label(days[0])} to {label(days[6])}</p>
       </div>
-      <ol className="grid grid-cols-1 gap-3 lg:grid-cols-7">
+      <ol className="grid grid-cols-1 gap-3 wide:grid-cols-7">
         {days.map((d) => (
           <li key={d} aria-label={label(d)} className={`flex min-w-0 flex-col gap-2 rounded-card border bg-card p-3 ${d === today ? "border-accent" : "border-hairline"}`}>
             <h3 className="text-meta font-semibold">{label(d)}</h3>

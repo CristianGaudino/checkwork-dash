@@ -157,7 +157,7 @@ async function RealAnalytics({ range }: { range: Range }) {
         {src.unknownLeads > 0 && <p className="text-meta text-text-2">{plural(src.unknownLeads, "website lead")} came with no source known.</p>}
       </Panel>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 wide:grid-cols-2">
         <Panel title="Searches with no cars to show" count={f.noResults.count}>
           {f.noResults.makes.length ? <BarList items={f.noResults.makes} /> : none}
         </Panel>

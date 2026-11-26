@@ -43,7 +43,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ q
   const byStatus = new Map<string, number>();
   for (const r of stock) byStatus.set(carStatus(r.car), (byStatus.get(carStatus(r.car)) ?? 0) + 1);
   const noCost = rows.filter((r) => r.cost === undefined && !isSold(r.car));
-  const stockHint = [...byStatus].sort((a, b) => b[1] - a[1]).map(([s, n]) => `${fmtNum(n)} ${s.toLowerCase()}`).join(", ") || "No cars in stock";
+  const stockHint = [...byStatus].sort((a, b) => b[1] - a[1]).map(([s, n]) => `${fmtNum(n)} ${s.toLowerCase()}`).join(", ") || (noCost.length ? "No cost prices yet" : "No cars in stock");
 
   const notSet = <span className="text-text-2">Not set</span>;
   const columns: Column<Row>[] = [

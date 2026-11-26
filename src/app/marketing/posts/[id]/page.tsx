@@ -34,7 +34,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     return (
       <>
         <PageHeader title={title} text={[post.carTitle, held ? `Waiting for ${post.network}` : `Posted ${fmtDateTime(post.postedAt ?? post.createdAt)}`].filter(Boolean).join(", ")} back={back} />
-        <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
+        <div className="grid grid-cols-1 items-start gap-6 wide:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
           <figure aria-label="Post" className="flex min-w-0 flex-col overflow-hidden rounded-card border border-hairline bg-card">
             <figcaption className="flex items-center gap-1.5 px-4 py-3 text-meta font-medium"><BrandIcon name={post.network} />{title}</figcaption>
             <div className="px-4 pb-4">

@@ -79,7 +79,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         </div>
       </Panel>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 wide:grid-cols-2">
         <div className="flex min-w-0 flex-col gap-6">
           <Panel title="Purchases">
             {bought.length === 0

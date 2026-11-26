@@ -171,12 +171,13 @@
 
 @custom-variant reduce-transparency (@media (prefers-reduced-transparency: reduce));
 
-/* A page's two columns side by side: from 1024px (lg) and while the page (AdminShell's <main>, the `page` container) has 42rem. The rem
-   grows with the text size, so with large text the columns stack instead of running off the screen; at normal size it is lg exactly.
-   `narrow` is the opposite, for what changes when they stack. */
+/* A page's two columns side by side: from 1024px (lg) and while the page (AdminShell's <main>, the `page` container) has 41rem. The rem
+   grows with the text size, so with large text the columns stack instead of running off the screen; at normal size it is lg exactly
+   (41rem leaves room for a 17px desktop scrollbar: <main> is 671px at 1024px). `narrow` is the opposite, for what changes when they stack.
+   `wider` is the same for xl (80rem, the page 56rem: 927px at 1280px with a scrollbar). */
 @custom-variant wide {
   @media (width >= 64rem) {
-    @container page (width >= 42rem) {
+    @container page (width >= 41rem) {
       @slot;
     }
   }
@@ -185,8 +186,15 @@
   @media (width < 64rem) {
     @slot;
   }
-  @container page (width < 42rem) {
+  @container page (width < 41rem) {
     @slot;
+  }
+}
+@custom-variant wider {
+  @media (width >= 80rem) {
+    @container page (width >= 56rem) {
+      @slot;
+    }
   }
 }
 

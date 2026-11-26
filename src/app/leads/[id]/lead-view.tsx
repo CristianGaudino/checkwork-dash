@@ -268,7 +268,7 @@ export async function LeadView({ id }: { id: string }) {
       </Panel>
 
       {/* Below: what they did on the website and their car on the left, the notes on the right. With neither, the notes alone. */}
-      <div className={`grid grid-cols-1 gap-6 ${lead.journey || hasCar ? "lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]" : ""}`}>
+      <div className={`grid grid-cols-1 gap-6 ${lead.journey || hasCar ? "wide:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]" : ""}`}>
         {(lead.journey || hasCar) && (
           <div className="flex min-w-0 flex-col gap-6">
             {/* What they did on the website before they got in touch, when they sent it: first, as it is read before the call. */}

@@ -81,7 +81,7 @@ async function Full({ period }: { period: Period }) {
         <StatCard label="Days to sell" value={r.totals.avgDaysToSell === null ? "None" : fmtNum(r.totals.avgDaysToSell)} hint="On average, from listing to sale" />
       </StatGrid>
 
-      <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 items-start gap-6 wider:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
         <Panel title="Sales by month">
           {r.totals.sold === 0 ? (
             <EmptyState compact title={`No sales in the last ${period} months`} text="Record a sale on a car and it shows here." />
@@ -139,7 +139,7 @@ async function Full({ period }: { period: Period }) {
       </Panel>
 
       <MoreDetail>
-        <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-2">
+        <div className="grid grid-cols-1 items-start gap-6 wider:grid-cols-2">
           <Panel title="Why leads were lost" quiet>
             {r.lost.length ? <BarList items={r.lost.map((x) => ({ label: x.reason, value: x.leads, note: `${Math.round((x.leads / r.lost.reduce((n, y) => n + y.leads, 0)) * 100)}% of lost leads` }))} /> : <p className="text-body text-text-2">No lost leads in this period.</p>}
           </Panel>

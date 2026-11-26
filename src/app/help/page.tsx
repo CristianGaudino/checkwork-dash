@@ -38,7 +38,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ f
       <PageHeader title="Help" />
 
       <Panel title="Talk to us" text={SUPPORT.hours}>
-        <ul className="grid grid-cols-1 gap-3 sm:@xl/page:grid-cols-3">
+        <ul className="grid grid-cols-1 gap-3 sm:@[35rem]/page:grid-cols-3">
           <li>
             <a href={supportTel} className={contact}>
               <PhoneIcon className="size-5 shrink-0 text-text-2" />

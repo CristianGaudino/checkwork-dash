@@ -68,11 +68,11 @@ export function Panel({ title, text, count, action, children, className = "", qu
   );
 }
 
-// A page in two columns from 1280px: the work on the left, wider, and `aside` (what supports it) on the right. Under 1280px one column,
+// A page in two columns from 1280px (`wider`, so large text gets one): the work on the left, wider, and `aside` (what supports it) on the right. Under 1280px one column,
 // the aside after the work.
 export function Columns({ children, aside }: { children: React.ReactNode; aside: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+    <div className="grid grid-cols-1 items-start gap-6 wider:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
       <div className="flex min-w-0 flex-col gap-6">{children}</div>
       <div className="flex min-w-0 flex-col gap-6">{aside}</div>
     </div>

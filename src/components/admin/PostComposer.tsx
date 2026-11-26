@@ -88,9 +88,9 @@ export function PostComposer({ cars, initialSlug, initialFormat = "post", initia
   };
 
   return (
-    <form action={action} className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] lg:grid-rows-[auto_1fr]">
+    <form action={action} className="grid grid-cols-1 gap-6 wide:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] wide:grid-rows-[auto_1fr]">
       {/* Until a car is picked there is no preview, so the cars take the full width. */}
-      <div className={`flex min-w-0 flex-col gap-5 ${slug ? "" : "lg:col-span-2"}`}>
+      <div className={`flex min-w-0 flex-col gap-5 ${slug ? "" : "wide:col-span-2"}`}>
         <Stepper titles={STEPS} step={step} headingRef={heading} />
         {post && <input type="hidden" name="id" value={post.id} />}
         <input type="hidden" name="carSlug" value={slug} />
@@ -244,7 +244,7 @@ export function PostComposer({ cars, initialSlug, initialFormat = "post", initia
 
       {/* Beside the steps from 1024px once a car is chosen, across both rows; on a phone, at the top of the last step, so the post is seen
           before it is sent. */}
-      <figure aria-label="Preview" className={`${step === 3 ? "flex" : "hidden"} ${slug ? "lg:flex" : "lg:hidden"} min-w-0 flex-col self-start overflow-hidden rounded-card border border-hairline bg-card lg:sticky lg:top-24 lg:col-start-2 lg:row-span-2 lg:row-start-1`}>
+      <figure aria-label="Preview" className={`${step === 3 ? "flex" : "hidden"} ${slug ? "wide:flex" : "wide:hidden"} min-w-0 flex-col self-start overflow-hidden rounded-card border border-hairline bg-card wide:sticky wide:top-24 wide:col-start-2 wide:row-span-2 wide:row-start-1`}>
         <figcaption className="flex items-center gap-1.5 px-4 py-3 text-meta font-medium"><BrandIcon name={network} />{network}{format !== "post" && ` ${FORMAT_LABELS[format].toLowerCase()}`}</figcaption>
         <div className="px-4 pb-4">
           <PostPreview network={network} format={format} layout={layout} text={text} photos={photos} video={clip || undefined} title={picked?.title ?? ""} price={car?.price} was={car?.was} />
@@ -252,7 +252,7 @@ export function PostComposer({ cars, initialSlug, initialFormat = "post", initia
       </figure>
 
       {/* Step 1 has no buttons (picking a car moves on), so nothing here either. */}
-      <div className={`${step > 0 ? "flex" : "hidden"} min-w-0 flex-col gap-5 self-start lg:col-start-1`}>
+      <div className={`${step > 0 ? "flex" : "hidden"} min-w-0 flex-col gap-5 self-start wide:col-start-1`}>
         <section hidden={step !== 3} className="flex flex-col gap-4">
           <div role="radiogroup" aria-label="When" className="grid grid-cols-2 gap-3">
             {([[false, "Post now"], [true, "Schedule post"]] as const).map(([on, label]) => (
