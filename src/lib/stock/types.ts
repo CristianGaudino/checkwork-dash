@@ -16,8 +16,8 @@ export type Gearbox = (typeof GEARBOXES)[number];
 export const GEARBOX_LABELS: Record<Gearbox, string> = { manual: "Manual", automatic: "Automatic" };
 // The stops of the price slider (PriceRange). The first and last mean "no limit". Here, so the server schema can read them.
 export const PRICE_STOPS = [0, 2500, 5000, 7500, 10_000, 12_500, 15_000, 17_500, 20_000, 25_000, 30_000, 35_000, 40_000, 50_000, 60_000, 80_000, 100_000];
-// What kind of vehicle it is. Absent means used, which is every car in the seed today (#23, #24 add new and commercial).
-export const CONDITIONS = ["used", "new", "commercial"] as const;
+// What kind of vehicle it is. Absent means used. Only used stock is sold: a commercial with no previous owner is not new (#188).
+export const CONDITIONS = ["used", "commercial"] as const;
 export type Condition = (typeof CONDITIONS)[number];
 // Whether priceEur has VAT in it. "inc": included. "ex": VAT on top, reclaimable by a VAT-registered buyer (vans). Absent: nothing said.
 export const VAT_STATUSES = ["inc", "ex"] as const;
@@ -83,7 +83,7 @@ export interface Car {
 }
 
 export interface StockQuery {
-  condition?: Condition; // absent means used: new cars and vans are asked for by name
+  condition?: Condition; // absent means used: commercials are asked for by name
   q?: string;
   make: string[]; // makeSlug values
   model: string[]; // modelSlug values
@@ -127,8 +127,6 @@ export interface StockResult {
 // `soldDays`, the dealer's soldVisibleDays (their profile's rules, D-02).
 export const onPublicSite = (c: Pick<Car, "listing" | "soldAt">, soldDays: number, now = Date.now()) => !c.listing && (!c.soldAt || Date.parse(c.soldAt) + soldDays * 86_400_000 > now);
 export const isSold = (car: Pick<Car, "soldAt">) => car.soldAt !== undefined;
-// New from the maker: a new car, or a van with no previous owner (vans are sold new and used under one condition).
-export const isNew = (car: Pick<Car, "condition" | "owners">) => car.condition === "new" || (car.condition === "commercial" && car.owners === 0);
 // On the website and for sale: not sold, not a draft, not hidden, not reserved. Where a car must be offered (posts, test drives) and old
 // stock (a price to look at); "not sold" alone is the stock the dealer owns (margins), hidden cars included.
 export const forSale = (car: Pick<Car, "soldAt" | "listing" | "reserved">) => !isSold(car) && !car.listing && !car.reserved;
@@ -154,4 +152,13 @@ export interface StockProvider {
   getByIds(ids: string[]): Promise<(Car | null)[]>; // same order as asked; one round trip for a live provider
   lookup(slug: string): Promise<Lookup>;
   taxonomy(): Promise<Taxonomy>; // over every car, expired included
+}
+
+// A car stored as new (saved in the minutes of a deploy, or during a rollback to older code) reads as used, as drizzle/0006 made the
+// rest (#188). Every read of a stored car goes through this: the stock engine and the dashboard's own reads (stock-admin.ts).
+export function readCar(data: unknown): Car {
+  const car = data as Car;
+  if ((car.condition as string) !== "new") return car;
+  const { condition: _, ...used } = car;
+  return used;
 }

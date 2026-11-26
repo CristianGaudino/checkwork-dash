@@ -68,16 +68,16 @@ function DetailsForm({ details, done }: { details: BillingDetails; done: () => v
   return (
     <form {...f.run} className="grid grid-cols-1 gap-4 sm:grid-cols-2" noValidate>
         <Field label="Company name" error={f.errors.company}>
-          <input name="company" defaultValue={details.company} className={adminInput} />
+          <input name="company" maxLength={100} defaultValue={details.company} className={adminInput} />
         </Field>
         <Field label="VAT number" error={f.errors.vatNumber}>
-          <input name="vatNumber" defaultValue={details.vatNumber} className={adminInput} />
+          <input name="vatNumber" maxLength={20} defaultValue={details.vatNumber} className={adminInput} />
         </Field>
         <Field label="Billing address" error={f.errors.address}>
-          <input name="address" defaultValue={details.address} className={adminInput} />
+          <input name="address" maxLength={200} defaultValue={details.address} className={adminInput} />
         </Field>
         <Field label="Email bills go to" error={f.errors.email}>
-          <input name="email" type="email" defaultValue={details.email} className={adminInput} />
+          <input name="email" type="email" maxLength={120} defaultValue={details.email} className={adminInput} />
         </Field>
       <div className="sm:col-span-2">
         <DialogSave pending={f.pending} />

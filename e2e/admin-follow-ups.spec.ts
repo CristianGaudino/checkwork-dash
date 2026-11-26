@@ -5,7 +5,7 @@ import { BASE } from "./open";
 test("a follow-up set on a lead shows on the lead and in the list's Follow-ups due once due, and can be cleared", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto("/leads/lead-edge-1"); // an open lead no other spec changes
-  const panel = page.getByRole("region", { name: "Follow up" });
+  const panel = page.getByRole("group", { name: "Follow up" });
   const dialog = page.getByRole("dialog");
   // Read first (#134): Schedule follow-up, or the day set with Edit; both open the scheduler in the house dialog.
   await panel.getByRole("button", { name: /^(Schedule follow-up|Edit the follow-up)$/ }).click();

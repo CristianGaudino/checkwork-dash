@@ -5,7 +5,7 @@ import { ExternalIcon, EyeIcon, EyeOffIcon, ShareIcon } from "@/components/stock
 import { ActButton } from "@/components/admin/ActButton";
 import { setListingAction } from "@/app/stock/actions";
 import { NEW_TAB } from "@/components/ui";
-import { daysSince } from "@/lib/admin/format";
+import { daysSince, plural } from "@/lib/admin/format";
 import { FEW_PHOTOS } from "@/lib/admin/stock-views";
 import { carName, siteCarUrl } from "@/lib/stock/format";
 import { forSale, isSold, onPublicSite, type Car } from "@/lib/stock/types";
@@ -25,7 +25,7 @@ export function PostToSocial({ car, className }: { car: Car; className: string }
 }
 
 // The car as a customer sees it, in a new tab. A hidden car or a draft has no page on the website.
-// `shown`: the car's kind (new, commercial) is on the site with the dealer's modules (conditionShown).
+// `shown`: the car's kind (commercial) is on the site with the dealer's modules (conditionShown).
 export async function ViewOnSite({ car, shown, className }: { car: Car; shown: boolean; className: string }) {
   const { siteUrl, rules } = await dealerProfile();
   if (!shown || !siteUrl || !onPublicSite(car, rules.soldVisibleDays)) return null; // no link to a page that answers "gone" or not found, nor with no website
@@ -39,19 +39,22 @@ export async function ViewOnSite({ car, shown, className }: { car: Car; shown: b
   );
 }
 
-// Whole days in stock, in words: "Today", "1 day", "23 days".
+// Whole days in stock, in words: "Today", "1 day", "2,826 days".
 export const daysInStock = (listedAt: string) => {
   const d = daysSince(listedAt);
-  return d === 0 ? "Today" : d === 1 ? "1 day" : `${d} days`;
+  return d === 0 ? "Today" : plural(d, "day");
 };
+
+// For sale the dealer's old stock days or more: the In stock badge shows (CarFlags).
+export const isOld = (car: Car, oldDays: number) => forSale(car) && Boolean(car.listedAt) && daysSince(car.listedAt!) >= oldDays;
 
 // What needs doing about a car, in words: off the website, too few photos, in stock too long. Nothing for a sold car.
 function carWarnings(car: Car, oldDays: number, photos: boolean): string[] {
   if (isSold(car)) return [];
   const out: string[] = [];
   if (car.listing === "hidden") out.push("Hidden from the website");
-  if (photos && car.photos.length < FEW_PHOTOS) out.push(car.photos.length === 0 ? "No photos" : `Only ${car.photos.length} ${car.photos.length === 1 ? "photo" : "photos"}`);
-  if (forSale(car) && car.listedAt && daysSince(car.listedAt) >= oldDays) out.push(`In stock ${daysSince(car.listedAt)} days`);
+  if (photos && car.photos.length < FEW_PHOTOS) out.push(car.photos.length === 0 ? "No photos" : `Only ${plural(car.photos.length, "photo")}`);
+  if (isOld(car, oldDays)) out.push(`In stock ${plural(daysSince(car.listedAt!), "day")}`);
   return out;
 }
 
@@ -62,7 +65,8 @@ export async function CarFlags({ car, status = true, photos = true }: { car: Car
   const showStatus = status || car.listing === "draft" || Boolean(car.reserved) || isSold(car);
   if (!showStatus && warnings.length === 0) return null;
   return (
-    <span className="flex flex-wrap gap-1.5">
+    // Kept inside its cell: a long warning wraps inside its badge.
+    <span className="flex min-w-0 max-w-full flex-wrap gap-1.5 *:h-auto *:min-h-6 *:whitespace-normal *:py-0.5">
       {showStatus && !(car.listing === "hidden" && warnings.length > 0) && <CarStatusBadge car={car} />}
       {warnings.map((w) => (
         <Badge key={w} tone="warn">{w}</Badge>

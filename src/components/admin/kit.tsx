@@ -24,7 +24,7 @@ export function PageHeader({ title, text, actions, back }: { title: string; text
             {back.label}
           </Link>
         )}
-        <h1 className="text-title font-bold">{title}</h1>
+        <h1 className="text-title font-bold [overflow-wrap:anywhere]">{title}</h1>
         {text && <p className="mt-0.5 max-w-measure text-meta text-text-2">{text}</p>}
       </div>
       {/* On a phone two or more actions are one full-width row of equal buttons, each icon above its label, so three fit at 360px and
@@ -58,8 +58,9 @@ export function Panel({ title, text, count, action, children, className = "", qu
               {text && <p className="text-meta text-text-2">{text}</p>}
             </div>
           )}
-          {/* A 44px box centred on the title line: tap targets reach past it, shorter actions sit on it, the header stays one line tall. */}
-          {action && <div className="-my-2.5 flex min-h-11 items-center">{action}</div>}
+          {/* A 44px box centred on the title line: tap targets reach past it, shorter actions sit on it, the header stays one line tall.
+              Its words may wrap (*:whitespace-normal): only when the action alone is wider than the panel, with large text. */}
+          {action && <div className="-my-2.5 flex min-h-11 min-w-0 max-w-full items-center *:whitespace-normal">{action}</div>}
         </div>
       )}
       {children}
@@ -67,11 +68,11 @@ export function Panel({ title, text, count, action, children, className = "", qu
   );
 }
 
-// A page in two columns from 1280px: the work on the left, wider, and `aside` (what supports it) on the right. Under 1280px one column,
+// A page in two columns from 1280px (`wider`, so large text gets one): the work on the left, wider, and `aside` (what supports it) on the right. Under 1280px one column,
 // the aside after the work.
 export function Columns({ children, aside }: { children: React.ReactNode; aside: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+    <div className="grid grid-cols-1 items-start gap-6 wider:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
       <div className="flex min-w-0 flex-col gap-6">{children}</div>
       <div className="flex min-w-0 flex-col gap-6">{aside}</div>
     </div>
@@ -123,28 +124,30 @@ export function StatCard({ label, value, hint, tone, href, className = "" }: { l
 }
 
 // A thin bar filled to a share of its width: ratings, visitors by source. Decorative: the number is always written beside it.
-export function Meter({ value, max }: { value: number; max: number }) {
+// Neutral by default; `lead` fills the one that matters (the top of a list) in the accent, so the accent stays the one thing that stands out.
+export function Meter({ value, max, lead = false }: { value: number; max: number; lead?: boolean }) {
   const share = max > 0 ? Math.min(100, (value / max) * 100) : 0;
   return (
     <span aria-hidden="true" className="h-2 overflow-hidden rounded-full bg-hairline">
-      <span className="block h-full rounded-full bg-accent" style={{ width: `${share}%` }} />
+      <span className={`block h-full rounded-full ${lead ? "bg-accent" : "bg-chart-muted"}`} style={{ width: `${share}%` }} />
     </span>
   );
 }
 
 export function StatGrid({ children }: { children: React.ReactNode }) {
   // Two to a row on a phone, so an odd last tile takes the whole row rather than sit alone beside a gap.
-  return <div className="grid grid-cols-2 gap-3 max-sm:[&>:last-child:nth-child(odd)]:col-span-2 sm:grid-cols-[repeat(auto-fit,minmax(11rem,1fr))]">{children}</div>;
+  return <div className="grid grid-cols-2 gap-3 max-sm:[&>:last-child:nth-child(odd)]:col-span-2 sm:grid-cols-[repeat(auto-fit,minmax(min(11rem,100%),1fr))]">{children}</div>;
 }
 
 const TONES = { neutral: "bg-hairline text-text", good: "bg-ok-soft text-ok", warn: "bg-warn-soft text-warn", bad: "bg-bad-soft text-bad", info: "bg-info-soft text-info" } as const;
 // Urgency, filled: for what needs doing now (overdue, past its date), and only that, so a filled badge always means act.
 const STRONG = { warn: "bg-warn text-ink", bad: "bg-bad text-ink" } as const;
 export type Tone = keyof typeof TONES;
-// A short status in words, never a colour alone.
+// A short status in words, never a colour alone. On one line (shrink-0, and nowrap in a table), unless it is wider than the space it is in
+// (large text): then it wraps rather than run off the screen.
 export function Badge({ tone = "neutral", strong = false, children }: { tone?: Tone; strong?: boolean; children: React.ReactNode }) {
   const look = strong && (tone === "warn" || tone === "bad") ? STRONG[tone] : TONES[tone];
-  return <span className={`inline-flex h-6 items-center whitespace-nowrap rounded-full px-2.5 text-meta font-medium ${look}`}>{children}</span>;
+  return <span className={`inline-flex min-h-6 max-w-full shrink-0 items-center rounded-full px-2.5 text-meta font-medium [td_&]:whitespace-nowrap ${look}`}>{children}</span>;
 }
 
 // Nothing to show: what that means and, with `action`, the button for the next step. `icon` sits above the title in a soft circle.
@@ -237,7 +240,7 @@ export function DataTable<T>({ columns, rows, rowKey, empty, bare = false, linkR
 export type SummaryTab = { label: string; href: string; active: boolean; count?: number | string; hint?: string };
 export function SummaryTabs({ items, label = "Filter" }: { items: SummaryTab[]; label?: string }) {
   return (
-    <TabRow current={items.find((i) => i.active)?.href ?? ""} aria-label={label} className="scrollbar-none -mx-4 -my-1 flex gap-2 overflow-x-auto px-4 py-1 sm:mx-0 sm:grid sm:grid-cols-[repeat(auto-fit,minmax(8rem,1fr))] sm:overflow-visible sm:px-0">
+    <TabRow current={items.find((i) => i.active)?.href ?? ""} aria-label={label} className="scrollbar-none -mx-4 -my-1 flex gap-2 overflow-x-auto px-4 py-1 sm:mx-0 sm:grid sm:grid-cols-[repeat(auto-fit,minmax(min(8rem,100%),1fr))] sm:overflow-visible sm:px-0">
       {items.map((i) => (
         <Link
           key={i.label}
@@ -255,12 +258,12 @@ export function SummaryTabs({ items, label = "Filter" }: { items: SummaryTab[]; 
 }
 
 // Above a table: its search and one Filters button (every filter it has, in a panel), and under them the filters that are on, as chips to
-// take off. On a phone the search and Filters share a row.
+// take off. On a phone the search and Filters share a row; with large text the buttons wrap under the search.
 // `action`: one more control in the row, after the filters (the stock list's Select on a phone).
 export function TableToolbar({ search, filters, action }: { search?: { placeholder: string; label: string }; filters?: FilterGroup[]; action?: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {search && <LiveSearch placeholder={search.placeholder} label={search.label} />}
         {filters && filters.length > 0 && <Filters groups={filters} />}
         {action}
@@ -281,7 +284,7 @@ export function paginate<T>(rows: T[], asked: string | undefined, size = PER_PAG
 export const pageOf = <T,>(rows: T[], sp: { page?: string; per?: string }) => paginate(rows, sp.page, perPage(sp.per));
 
 // Buttons in a row or a list: always a word, sometimes an icon before it. The levels are in docs/dashboard-polish.md (Buttons).
-const rowBase = `inline-flex h-11 items-center justify-center gap-1.5 whitespace-nowrap rounded-control px-3 text-meta font-medium transition-colors ${press}`;
+const rowBase = `inline-flex min-h-11 items-center justify-center gap-1.5 whitespace-nowrap rounded-control px-3 text-meta font-medium transition-colors ${press}`;
 // Tertiary: text only, for the rest of a row's actions, See all, More.
 export const rowButton = `${rowBase} text-accent-text hover:bg-accent-soft`;
 // The row's most used action (Call, Confirm, Record sale): tonal, one per row.
@@ -296,9 +299,9 @@ export const tapArea = "relative inline-block after:absolute after:left-1/2 afte
 // Too many for a small phone (Reports' four at 320px), it scrolls sideways as a tab row does, with the fade.
 export function Segmented({ items, label }: { items: { label: string; href: string; active: boolean }[]; label: string }) {
   return (
-    <TabRow current={items.find((i) => i.active)?.href ?? ""} aria-label={label} className="scrollbar-none inline-flex max-w-full sm:self-start overflow-x-auto rounded-control border border-hairline bg-card p-1">
+    <TabRow current={items.find((i) => i.active)?.href ?? ""} aria-label={label} className="scrollbar-none inline-flex max-w-full sm:self-start overflow-x-auto rounded-control bg-hairline p-1 dark:bg-surface dark:ring-1 dark:ring-inset dark:ring-hairline">
       {items.map((i) => (
-        <Link key={i.label} href={i.href} aria-current={i.active ? "page" : undefined} className={`inline-flex min-h-11 shrink-0 items-center justify-center whitespace-nowrap rounded-[calc(var(--radius-control)-4px)] px-4 text-meta max-sm:flex-1 max-sm:px-3 font-medium ${i.active ? "bg-accent text-white" : "text-text-2 hover:text-text"} ${press}`}>
+        <Link key={i.label} href={i.href} aria-current={i.active ? "page" : undefined} className={`inline-flex min-h-11 shrink-0 items-center justify-center whitespace-nowrap rounded-[calc(var(--radius-control)-4px)] px-4 text-meta max-sm:flex-1 max-sm:px-3 font-medium ${i.active ? "bg-card text-text shadow-[0_1px_3px_rgb(22_26_51/0.18)] dark:bg-hairline" : "text-text-2 hover:text-text"} ${press}`}>
           {i.label}
         </Link>
       ))}
@@ -311,12 +314,14 @@ export function Segmented({ items, label }: { items: { label: string; href: stri
 // hairline, so it still reads as raised.
 export function WhoseSwitch({ label, everyone, forMe, mine }: { label: string; everyone: string; forMe: string; mine: boolean }) {
   const half = (text: string, href: string, on: boolean) => (
-    <Link href={href} aria-current={on ? "page" : undefined} className={`relative z-10 inline-flex h-8 items-center justify-center whitespace-nowrap rounded-full px-3.5 text-meta font-medium transition-colors after:absolute after:inset-x-0 after:-inset-y-1.5 motion-reduce:transition-none ${on ? "text-text" : "text-text-2 hover:text-text"}`}>
-      {text}
+    <Link href={href} aria-current={on ? "page" : undefined} className={`relative z-10 inline-flex h-8 min-w-0 items-center justify-center whitespace-nowrap rounded-full px-[max(4px,calc(28px-0.875rem))] text-meta font-medium transition-colors after:absolute after:inset-x-0 after:-inset-y-1.5 motion-reduce:transition-none ${on ? "text-text" : "text-text-2 hover:text-text"}`}>
+      <span className="truncate">{text}</span>
     </Link>
   );
+  // With large text the padding gives way first (14px at normal size, less as the text grows), so the words still fit a phone. Still too
+  // wide for its line (320px at 150%), it shrinks with its panel rather than run off the screen, and the words end in "…".
   return (
-    <nav aria-label={label} className="relative inline-grid shrink-0 grid-cols-2 rounded-full bg-hairline p-0.5 dark:bg-surface dark:ring-1 dark:ring-inset dark:ring-hairline">
+    <nav aria-label={label} className="relative inline-grid max-w-full shrink-0 grid-cols-2 rounded-full bg-hairline p-0.5 dark:bg-surface dark:ring-1 dark:ring-inset dark:ring-hairline">
       <span aria-hidden="true" className={`absolute inset-y-0.5 left-0.5 w-[calc(50%-2px)] rounded-full bg-card shadow-[0_1px_3px_rgb(22_26_51/0.18)] transition-transform duration-200 ease-out motion-reduce:transition-none dark:bg-hairline ${mine ? "translate-x-full" : ""}`} />
       {half("Everyone", everyone, !mine)}
       {half("For me", forMe, mine)}
@@ -350,11 +355,11 @@ export function Facts({ items }: { items: (readonly [string, React.ReactNode, st
 
 export const adminInput = "h-11 rounded-control border border-control bg-card px-3 text-body";
 // Primary: filled, the main thing to do in a panel or screen area, one per area.
-export const adminButton = `inline-flex h-11 items-center justify-center gap-2 rounded-control bg-accent px-5 text-meta font-semibold text-on-accent ${press}`;
+export const adminButton = `inline-flex min-h-11 py-2 items-center justify-center gap-2 rounded-control bg-accent px-5 text-meta font-semibold text-on-accent ${press}`;
 // Secondary: a tonal fill, no outline, for the other actions beside the primary.
-export const adminButtonQuiet = `inline-flex h-11 items-center justify-center gap-2 rounded-control bg-accent-soft px-5 text-meta font-semibold text-accent-text transition-colors hover:bg-accent-soft-hover ${press}`;
+export const adminButtonQuiet = `inline-flex min-h-11 py-2 items-center justify-center gap-2 rounded-control bg-accent-soft px-5 text-meta font-semibold text-accent-text transition-colors hover:bg-accent-soft-hover ${press}`;
 // For what cannot be taken back: a red tint, never solid, so it never reads as the main action.
-export const dangerButton = `inline-flex h-11 items-center justify-center gap-2 rounded-control bg-bad-soft px-5 text-meta font-semibold text-bad ${press}`;
+export const dangerButton = `inline-flex min-h-11 py-2 items-center justify-center gap-2 rounded-control bg-bad-soft px-5 text-meta font-semibold text-bad ${press}`;
 
 // The buttons at the foot of a form, a dialog or a panel's own actions: on the right, the main one right-most and Cancel (quiet) before it,
 // as macOS, iOS and Material dialogs order them. When they do not fit a phone's width the main one wraps to the right of the line
@@ -403,12 +408,17 @@ export function Choice({ name, options, value, onChange, legend, error, classNam
   );
 }
 
+// The first and last word's first letters: "Caoimhín Ó Súilleabháin-Mac Giolla Phádraig" is CP.
+export const initials = (name: string) => {
+  const w = name.split(/\s+/).filter(Boolean);
+  return (w.length > 1 ? [w[0]!, w.at(-1)!] : w).map((x) => x[0]!.toUpperCase()).join("");
+};
+
 // Initials in a circle: a person at a glance.
 export function Avatar({ name, className = "" }: { name: string; className?: string }) {
-  const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join("");
   return (
     <span aria-hidden="true" className={`inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-hairline text-meta font-medium text-text ${className}`}>
-      {initials}
+      {initials(name)}
     </span>
   );
 }
@@ -450,7 +460,7 @@ export function Task({ title, detail, href, action, icon, mark, urgency = "info"
         {detail && <span className="text-meta text-text-2">{detail}</span>}
       </span>
       {href && <Link href={href} aria-label={count !== undefined ? `${count} ${title}` : title} className="absolute inset-0" />}
-      {action && <span className="relative z-10 flex shrink-0 flex-wrap justify-end gap-2 max-sm:basis-full sm:ml-auto">{action}</span>}
+      {action && <span className="relative z-10 flex max-w-full shrink-0 flex-wrap justify-end gap-2 max-sm:basis-full sm:ml-auto sm:shrink">{action}</span>}
     </li>
   );
 }
@@ -459,7 +469,7 @@ export function Task({ title, detail, href, action, icon, mark, urgency = "info"
 // presses first. Two across on a phone, up to four across from 640px. The first is the page's primary job and is filled.
 export function ActionTiles({ children, label = "Quick actions" }: { children: React.ReactNode; label?: string }) {
   return (
-    <nav aria-label={label} className="grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fit,minmax(12rem,1fr))]">
+    <nav aria-label={label} className="grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fit,minmax(min(12rem,100%),1fr))]">
       {children}
     </nav>
   );

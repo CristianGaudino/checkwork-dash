@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CarForm } from "@/components/admin/CarForm";
-import { Notice, PageHeader, Panel, adminButton, adminButtonQuiet, choicePill, dangerButton } from "@/components/admin/kit";
-import { CarFlags, ListingButton, PostToSocial, ViewOnSite, daysInStock } from "@/components/admin/CarActions";
+import { Notice, PageHeader, Panel, adminButton, adminButtonQuiet, choicePill, dangerButton, rowButton } from "@/components/admin/kit";
+import { CarFlags, ListingButton, PostToSocial, ViewOnSite, daysInStock, isOld } from "@/components/admin/CarActions";
 import { CarThumb } from "@/components/admin/CarThumb";
 import { card, NEW_TAB } from "@/components/ui";
 import { ActButton } from "@/components/admin/ActButton";
@@ -15,7 +15,7 @@ import { dealerProfile } from "@/lib/tenancy/current";
 import { CheckIcon, PencilIcon, ReceiptIcon, TagIcon, TrashIcon } from "@/components/stock/icons";
 import { costsStore, heldFor, prepStore, reservationsStore, salesStore } from "@/lib/admin/collections";
 import { RETURN_WINDOW_DAYS, withinReturnWindow } from "@/lib/admin/deposits";
-import { dublinDay, fmtAgo, fmtDate, fmtEur, fmtNum } from "@/lib/admin/format";
+import { dublinDay, fmtAgoOn, fmtDate, fmtEur, fmtNum, plural } from "@/lib/admin/format";
 import { reminderFacts } from "@/lib/admin/reminders";
 import { PrepPanel } from "@/components/admin/PrepPanel";
 import { CarPhotos } from "@/components/admin/CarPhotos";
@@ -95,41 +95,46 @@ export default async function Page({ params, searchParams }: { params: Promise<{
       </ActButton>
     ),
     (await hasModule("social")) && <PostToSocial key="post" car={car} className={quiet} />,
-    <ViewOnSite key="view" car={car} shown={conditionShown(await enabledModules(), car.condition)} className={quiet} />,
+    // Going to the website, and showing or hiding the car there, are quieter than the jobs done here.
+    <ViewOnSite key="view" car={car} shown={conditionShown(await enabledModules(), car.condition)} className={rowButton} />,
     deposits && !synced && !sold && (held || forSale(car)) && <Link key="reserve" href={`/stock/${id}/reserve`} className={quiet}><TagIcon className="shrink-0 size-4" />{held ? "See the deposit" : "Reserve"}</Link>,
     // A sold car too, while it is still on the site as Sold; one sold long ago is off it already.
-    !synced && (!sold || onPublicSite({ soldAt: car.soldAt }, rules.soldVisibleDays)) && <ListingButton key="listing" car={car} className={quiet} />,
+    !synced && (!sold || onPublicSite({ soldAt: car.soldAt }, rules.soldVisibleDays)) && <ListingButton key="listing" car={car} className={rowButton} />,
     synced && sold && !sale && !car.takenDownAt && <a key="dd" href={listingHref(car, listingUrl)} {...NEW_TAB} className={quiet}>Edit on {listingSite}<span className="sr-only"> (opens in a new tab)</span></a>,
     sold && sale && canDelete && <Link key="change" href={`/stock/${id}/sale`} className={quiet}>Change the sale</Link>,
     sold && sale && canDelete && <Link key="undo" href={`/stock/${id}/undo-sale`} className={quiet}>Undo sale</Link>,
   ].filter(Boolean);
+  // The reg is drawn apart, never split at a dash. The days in stock are left out while the old stock badge says them.
   const facts = [
-    car.reg,
-    car.listedAt && !sold ? (daysInStock(car.listedAt) === "Today" ? "Added today" : `${daysInStock(car.listedAt)} in stock`) : sale ? `Sold for ${fmtEur(sale.priceEur)} on ${day(sale.soldOn)}` : sold ? `Sold ${day(car.soldAt!)}` : undefined,
+    car.listedAt && !sold ? (isOld(car, rules.oldStockDays) ? undefined : daysInStock(car.listedAt) === "Today" ? "Added today" : `${daysInStock(car.listedAt)} in stock`) : sale ? `Sold for ${fmtEur(sale.priceEur)} on ${day(sale.soldOn)}` : sold ? `Sold ${day(car.soldAt!)}` : undefined,
     sale?.reviewAskedOn ? `Asked for a review ${day(sale.reviewAskedOn)}` : undefined,
     ...(sale && deposits ? reminderFacts(sale, { reg: car.reg, history: carHistory }, rules.serviceMonths, dublinDay()) : []), // the buyer's NCT and service (#171), the sales module
-    `${car.photos.length} ${car.photos.length === 1 ? "photo" : "photos"}`,
+    plural(car.photos.length, "photo"),
     car.mileageKm !== undefined ? `${fmtNum(car.mileageKm)} km` : undefined,
   ].filter(Boolean).join(" · ");
   // The car at a glance (photo, price, status and what needs doing) with what can be done with it. The first block on every car's page.
   const summary = (
     <section aria-label="This car" className={`${card} flex flex-col gap-4 p-4 sm:p-5`}>
-      <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center gap-4">
         <div className="aspect-[4/3] w-28 shrink-0 overflow-hidden rounded-control bg-photo-bg sm:w-40">
           <CarThumb src={car.photos[0]?.src} />
         </div>
-        <div className="flex min-w-0 flex-col gap-1">
+        <div className="flex min-w-[min(12rem,100%)] flex-1 flex-col gap-1">
           <p className="font-display text-title font-semibold tabular-nums">
             {priceLabel(car)}
             {isReduced(car) && <span className="block text-meta font-normal text-ok sm:ml-2 sm:inline">was {fmtEur(car.wasPriceEur!)}</span>}
           </p>
-          <p className="text-meta text-text-2">{facts}</p>
+          <p className="text-meta text-text-2">
+            {car.reg && <span className="whitespace-nowrap">{car.reg}</span>}
+            {car.reg && facts && " · "}
+            {facts}
+          </p>
           {drop && <p className="text-meta text-text-2">Suggested price {fmtEur(drop.priceEur)}{synced && `: change it on ${listingSite}`}</p>}
           <CarFlags car={car} />
         </div>
       </div>
-      {/* Two across on a phone, each a 44px button; in a row from 640px. */}
-      {actions.length > 0 && <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap max-sm:[&>*]:h-auto max-sm:[&>*]:min-h-11 max-sm:[&>*]:px-2 max-sm:[&>*]:py-2 max-sm:[&>*]:text-center">{actions}</div>}
+      {/* Two across on a phone, each a 44px button whose label wraps in its half; in a row from 640px. */}
+      {actions.length > 0 && <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:[&>*]:max-w-full sm:[&>*]:whitespace-normal max-sm:[&>*]:h-auto max-sm:[&>*]:min-h-11 max-sm:[&>*]:whitespace-normal max-sm:[&>*]:px-2 max-sm:[&>*]:py-2 max-sm:[&>*]:text-center">{actions}</div>}
     </section>
   );
   // The history check (#170): the car's own, and a recorded sale's trade-in's. Kept beside the car, so synced stock has it too.
@@ -144,7 +149,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
     const { lastOkAt } = await syncStatus();
     return (
       <>
-        <PageHeader title={carName(car)} text={lastOkAt ? `Last updated ${fmtAgo(lastOkAt)}` : "Not updated yet"} actions={main} back={{ href: "/stock", label: "Stock" }} />
+        <PageHeader title={carName(car)} text={lastOkAt ? `Last updated ${fmtAgoOn(lastOkAt)}` : "Not updated yet"} actions={main} back={{ href: "/stock", label: "Stock" }} />
         {summary}
         {checks}
         {/* The site shows the feed's text, so a better one is written here and pasted into the listing site (#225). Not for an ad that is gone. */}

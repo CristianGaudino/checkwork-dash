@@ -23,7 +23,8 @@ export const journeySchema = z.strictObject({
         fuel: z.enum(FUELS).optional(),
         gearbox: z.enum(GEARBOXES).optional(),
         priceBand: z.enum(PRICE_BANDS).optional(),
-        condition: z.enum(CONDITIONS).optional(),
+        // An older website still sends "new" (#188): that search is read as used, and the journey kept.
+        condition: z.enum([...CONDITIONS, "new"]).transform((c) => (c === "new" ? undefined : c)).optional(),
       }),
     )
     .max(8),
@@ -58,7 +59,7 @@ export const carBand = (c: Pick<Car, "priceEur">): PriceBand | undefined => (c.p
 export function searchWords(s: JourneySearch, stock: Car[]): string[] {
   const car = [s.make && makeLabel(s.make, stock), s.model && modelLabel(s.model, stock)].filter(Boolean).join(" ");
   const cap = (w: string) => w[0]!.toUpperCase() + w.slice(1);
-  return [s.condition === "new" ? "New" : s.condition === "commercial" ? "Commercial" : "", car, s.body && bodyLabel(s.body, stock), s.fuel && cap(FUEL_WORDS[s.fuel]), s.gearbox && cap(s.gearbox), s.priceBand && cap(BAND_SHORT[s.priceBand])].filter((w): w is string => Boolean(w));
+  return [s.condition === "commercial" ? "Commercial" : "", car, s.body && bodyLabel(s.body, stock), s.fuel && cap(FUEL_WORDS[s.fuel]), s.gearbox && cap(s.gearbox), s.priceBand && cap(BAND_SHORT[s.priceBand])].filter((w): w is string => Boolean(w));
 }
 
 // What else they used, in a line each.

@@ -103,8 +103,7 @@ test("a page the role cannot open says who it is for, shows nothing of the page,
   for (const [path, title, who] of [["/margins", "Margins", "owners, managers and finance"], ["/billing", "Billing", "owners and managers"], ["/activity", "Activity", "owners and managers"], ["/data-requests", "Data requests", "owners and managers"]]) {
     await page.goto(path);
     await expect(page.getByRole("heading", { level: 1 }), path).toHaveText("Not for your role");
-    await expect(page.getByText(title, { exact: true }), path).toBeVisible();
-    await expect(page.getByText(`This page is for ${who}. Ask an owner to change your role.`), path).toBeVisible();
+    await expect(page.getByText(`${title} is for ${who}. Ask an owner to change your role.`), path).toBeVisible();
   }
   await expect(page.getByText("Expected margin on stock")).toHaveCount(0); // nothing of Margins itself
   await page.getByRole("link", { name: "Back to the overview" }).click();

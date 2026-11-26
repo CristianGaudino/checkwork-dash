@@ -3,7 +3,7 @@ import { getDb } from "@/lib/db";
 import { currentDealer } from "@/lib/tenancy/current";
 import { cars } from "@/lib/db/schema";
 import { createStockEngine } from "./engine";
-import type { Car, StockProvider } from "./types";
+import { readCar, type StockProvider } from "./types";
 
 // The stock, read from Cloudflare D1 (the `cars` table: one row per car, the whole Car as JSON). The demo seeds it with made-up cars
 // (npm run stock:seed, then npm run db:seed); a site that manages its own stock writes the same rows.
@@ -20,7 +20,7 @@ async function engine(): Promise<StockProvider> {
   if (snapshot && Date.now() - snapshot.at < TTL_MS) return snapshot.engine;
   const load = getDb()
     .then((db) => db.select({ data: cars.data }).from(cars))
-    .then((rows) => createStockEngine(rows.map((r) => r.data as Car), { soldDays: profile.rules.soldVisibleDays }));
+    .then((rows) => createStockEngine(rows.map((r) => readCar(r.data)), { soldDays: profile.rules.soldVisibleDays }));
   const mine = { at: Date.now(), engine: load };
   snapshots.set(id, mine);
   load.catch(() => void (snapshots.get(id) === mine && snapshots.delete(id))); // a failed read is not kept: the next request tries again

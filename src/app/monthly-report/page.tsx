@@ -142,7 +142,7 @@ async function Report({ month, prevMonth, now, name, whole, hasMargins }: { mont
         <StatCard label="First reply, when closed" value={fmtWait(s.replies.medianOutOfHoursMin)} hint="Typical" />
         <StatCard label="No reply in 24 hours" value={fmtNum(s.replies.none)} tone={s.replies.none ? "warn" : undefined} />
       </StatGrid>
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 wide:grid-cols-2 wider:grid-cols-3">
         <Panel title="Where they came from">
           {sources.length ? <BarList items={sources.map(([name, n]) => ({ label: name, value: n }))} /> : <p className="text-meta text-text-2">No leads this month.</p>}
         </Panel>
@@ -150,7 +150,7 @@ async function Report({ month, prevMonth, now, name, whole, hasMargins }: { mont
           {topTypes.length ? <BarList items={topTypes.map(([t, n]) => ({ label: LEAD_TYPE_LABELS[t as LeadType] ?? t, value: n }))} /> : <p className="text-meta text-text-2">No leads this month.</p>}
         </Panel>
         <Panel title="By day of the week">
-          <BarList items={DAYS.map((d, i) => ({ label: d, value: s.leads.byWeekday[i] }))} />
+          {s.leads.total ? <BarList items={DAYS.map((d, i) => ({ label: d, value: s.leads.byWeekday[i] }))} /> : <p className="text-meta text-text-2">No leads this month.</p>}
         </Panel>
       </div>
 
@@ -164,7 +164,7 @@ async function Report({ month, prevMonth, now, name, whole, hasMargins }: { mont
             <p className="text-meta text-text-2">
               {fmtNum(a.totals.pageviews)} pages viewed in all. {compare(a.totals.pageviews, a.previous.pageviews)}.
             </p>
-            <DataTable bare rows={a.topCars.slice(0, 5)} rowKey={(c) => c.slug} columns={[{ key: "t", header: "Car", cell: (c) => <span className="font-medium">{c.title}</span> }, { key: "v", header: "Views", align: "right", cell: (c) => fmtNum(c.views) }]} />
+            <DataTable bare rows={a.topCars.slice(0, 5)} rowKey={(c) => c.slug} empty={<p className="text-meta text-text-2">No cars viewed this month.</p>} columns={[{ key: "t", header: "Car", cell: (c) => <span className="font-medium">{c.title}</span> }, { key: "v", header: "Views", align: "right", cell: (c) => fmtNum(c.views) }]} />
           </Panel>
         </>
       )}
@@ -194,7 +194,7 @@ async function Report({ month, prevMonth, now, name, whole, hasMargins }: { mont
       )}
 
       {/* Sales and reviews side by side on a wide screen: each is two or three figures, too few to fill the width alone. */}
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 wider:grid-cols-2">
         {hasSales && (
           <section className="flex flex-col gap-4">
             <h2 className="text-heading font-semibold">Sales</h2>

@@ -14,6 +14,7 @@ import { currentDealer } from "@/lib/tenancy/current";
 import { pauseAlertAction, removeAlertAction } from "./actions";
 import { CallButton } from "@/components/admin/LeadActions";
 import { RowMenu } from "@/components/admin/RowMenu";
+import { telHref } from "@/lib/phone";
 import { BrandName } from "@/components/admin/BrandIcon";
 
 export const metadata = { title: "Customers" };
@@ -63,10 +64,10 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
       sort: (c) => lastBought.get(c.id)?.on,
       cell: (c) => {
         const b = lastBought.get(c.id);
-        return b ? <span className="flex flex-col"><span className="line-clamp-2">{b.car}</span><span className="text-meta text-text-2">{fmtDate(`${b.on}T12:00:00Z`)}</span></span> : <span className="text-text-2">Nothing yet</span>;
+        return b ? <span className="flex max-w-[14rem] flex-col"><span className="truncate">{b.car}</span><span className="text-meta text-text-2">{fmtDate(`${b.on}T12:00:00Z`)}</span></span> : <span className="text-text-2">Nothing yet</span>;
       },
     },
-    { key: "open", header: "Open", hide: "sm", sort: (c) => open.get(c.id)?.length ?? 0, cell: (c) => <span className="flex flex-wrap gap-1">{(open.get(c.id) ?? []).map((w) => <Badge key={w} tone="info">{w}</Badge>)}</span> },
+    { key: "open", header: "In progress", hide: "sm", sort: (c) => open.get(c.id)?.length ?? 0, cell: (c) => <span className="flex flex-wrap gap-1">{(open.get(c.id) ?? []).map((w) => <Badge key={w} tone="info">{w}</Badge>)}</span> },
     { key: "source", header: "Came from", sort: (c) => c.source, cell: (c) => <BrandName name={c.source} />, hide: "2xl" },
     { key: "consent", header: "Marketing", hide: "xl", sort: (c) => (c.marketingConsent ? 0 : 1), cell: (c) => (c.marketingConsent ? <Badge tone="good">Agreed</Badge> : <Badge>No</Badge>) },
     { key: "last", header: "Last contact", sort: (c) => c.lastContactAt, cell: (c) => fmtAgo(c.lastContactAt), align: "right", nowrap: true },
@@ -78,11 +79,11 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
       nowrap: true,
       cell: (c) => (
         <span className="relative z-10 flex justify-end gap-2">
-          {/* A call, and Email under the row's menu (#95). */}
-          <CallButton phone={c.phone} name={c.name} />
-          {c.email && (
+          {/* Call and Email under the row's menu (#95): the same on every row, so not a button of its own (usability rule 3). */}
+          {(telHref(c.phone) || c.email) && (
             <RowMenu label={`More for ${c.name}`}>
-              <a href={`mailto:${c.email}`} aria-label={`Email ${c.name}`} className={rowButton}>Email</a>
+              <CallButton phone={c.phone} name={c.name} quiet />
+              {c.email && <a href={`mailto:${c.email}`} aria-label={`Email ${c.name}`} className={rowButton}>Email</a>}
             </RowMenu>
           )}
         </span>

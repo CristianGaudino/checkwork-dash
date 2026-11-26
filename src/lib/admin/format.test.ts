@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addMonths, daysSince, isIsoDay, isIsoMonth, fmtAgo, fmtDateTime, fmtDay, fmtEur, fmtPct, fmtTime, monthChoices, plural, threeLetter } from "./format";
+import { addMonths, daysSince, isIsoDay, isIsoMonth, fmtAgo, fmtAgoOn, fmtDateTime, fmtDay, fmtEur, fmtPct, fmtTime, monthChoices, plural, threeLetter } from "./format";
 
 describe("admin format", () => {
   const now = new Date("2026-11-10T12:00:00Z").getTime();
@@ -7,6 +7,17 @@ describe("admin format", () => {
     expect(fmtAgo(now - 5 * 3600_000, now)).toBe("5 hours ago");
     expect(fmtAgo(now - 86400_000, now)).toBe("yesterday");
     expect(fmtAgo(now - 20_000, now)).toBe("just now");
+  });
+  it("says days up to a week, then the date", () => {
+    expect(fmtAgo(now - 6 * 86400_000, now)).toBe("6 days ago");
+    expect(fmtAgo(now - 7 * 86400_000, now)).toBe("7 days ago");
+    expect(fmtAgo(now - 8 * 86400_000, now)).toBe("2 November");
+    expect(fmtAgo(Date.parse("2021-11-25T12:00:00Z"), now)).toBe("25 November 2021");
+  });
+  it("puts on before the day in a sentence, not before a time ago", () => {
+    expect(fmtAgoOn(now - 6 * 86400_000, now)).toBe("6 days ago");
+    expect(fmtAgoOn(now - 8 * 86400_000, now)).toBe("on 2 November");
+    expect(fmtAgoOn(Date.parse("2021-11-25T12:00:00Z"), now)).toBe("on 25 November 2021");
   });
   it("writes euros without cents and a percentage with one decimal at most", () => {
     expect(fmtEur(12500)).toBe("€12,500");
@@ -23,6 +34,27 @@ describe("Irish time", () => {
   it("shows a summer moment an hour ahead of UTC, and a winter one the same", () => {
     expect(fmtDateTime(Date.UTC(2026, 6, 1, 10, 0))).toContain("11:00");
     expect(fmtDateTime(Date.UTC(2026, 0, 15, 10, 0))).toContain("10:00");
+  });
+});
+
+describe("the year on a day or moment outside this Irish year", () => {
+  const now = Date.parse("2026-11-10T12:00:00Z");
+  it("leaves this year's out and puts another year's in", () => {
+    expect(fmtDay("2026-03-14", "dayMonth", now)).toBe("14 March");
+    expect(fmtDay("2023-03-14", "dayMonth", now)).toBe("14 March 2023");
+    expect(fmtDay("2023-03-14", "long", now)).toBe("Tuesday 14 March 2023");
+    expect(["weekday", "day", "month"].map((s) => fmtDay("2023-03-14", s as "day", now)).join(" ")).toBe("Tue 14 Mar 2023");
+    expect(fmtDay("2027-01-04", "month", now)).toBe("Jan 2027");
+    expect(fmtDateTime(Date.parse("2026-02-27T23:03:00Z"), now)).toBe("27 Feb, 23:03");
+    expect(fmtDateTime(Date.parse("2024-02-29T23:03:00Z"), now)).toBe("29 Feb 2024, 23:03");
+  });
+  it("takes the year in Dublin time around New Year", () => {
+    const newYear = Date.parse("2026-12-31T23:30:00Z"); // 23:30 on New Year's Eve in Dublin (UTC in winter)
+    expect(fmtDay("2026-12-31", "dayMonth", newYear)).toBe("31 December");
+    expect(fmtDay("2027-01-01", "dayMonth", newYear)).toBe("1 January 2027");
+    expect(fmtDateTime(newYear, newYear)).toBe("31 Dec, 23:30");
+    expect(fmtDateTime(newYear + 3600_000, newYear)).toBe("1 Jan 2027, 00:30");
+    expect(fmtDateTime(newYear, newYear + 3600_000)).toBe("31 Dec 2026, 23:30");
   });
 });
 
@@ -48,11 +80,12 @@ describe("plural", () => {
     expect(plural(2, "sold car")).toBe("2 sold cars");
   });
   it("says a calendar day the same in any zone, and a time in Irish time", () => {
-    expect(fmtDay("2026-11-12")).toBe("Thursday, 12 November");
-    expect(fmtDay("2026-11-12", "weekday")).toBe("Thu");
-    expect(fmtDay("2026-11-12", "day")).toBe("12");
-    expect(fmtDay("2026-11-12", "month")).toBe("Nov");
-    expect(fmtDay("2026-11-12", "dayMonth")).toBe("12 November");
+    const in2026 = Date.parse("2026-11-10T12:00:00Z");
+    expect(fmtDay("2026-11-12", "long", in2026)).toBe("Thursday, 12 November");
+    expect(fmtDay("2026-11-12", "weekday", in2026)).toBe("Thu");
+    expect(fmtDay("2026-11-12", "day", in2026)).toBe("12");
+    expect(fmtDay("2026-11-12", "month", in2026)).toBe("Nov");
+    expect(fmtDay("2026-11-12", "dayMonth", in2026)).toBe("12 November");
     expect(fmtTime(Date.parse("2026-07-01T10:30:00Z"))).toBe("11:30"); // summer time
     expect(fmtTime(Date.parse("2026-11-12T10:30:00Z"))).toBe("10:30");
   });

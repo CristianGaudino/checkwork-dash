@@ -2,23 +2,25 @@ import { z } from "zod";
 import { listedOn, slugify, carSlug } from "./stock-admin-pure";
 import { CONDITIONS, FUELS, GEARBOXES, PLUG_FUELS, TEXT_LIMITS, VAT_STATUSES, type Car } from "@/lib/stock/types";
 import { blank, fieldErrors } from "./validation";
+import { tooLong } from "@/lib/leads/constants";
 
 // The car form, as data the server checks. The browser's own limits (min, max, maxLength) are a convenience; this is the check.
 // Empty boxes mean "not given", never zero.
-const text = (max: number) => z.preprocess(blank, z.string().trim().max(max).optional());
-const num = (min: number, max: number) => z.preprocess(blank, z.coerce.number().min(min).max(max).optional());
-const int = (min: number, max: number) => z.preprocess(blank, z.coerce.number().int().min(min).max(max).optional());
+const text = (max: number) => z.preprocess(blank, z.string().trim().max(max, tooLong(max)).optional());
+const range = (min: number, max: number) => `Use a number from ${min} to ${max.toLocaleString("en-IE")}`;
+const num = (min: number, max: number) => z.preprocess(blank, z.coerce.number({ message: "Enter a number" }).min(min, range(min, max)).max(max, range(min, max)).optional());
+const int = (min: number, max: number) => z.preprocess(blank, z.coerce.number({ message: "Enter a number" }).int("Use a whole number").min(min, range(min, max)).max(max, range(min, max)).optional());
 const oneOf = <T extends readonly [string, ...string[]]>(values: T) => z.preprocess(blank, z.enum(values).optional());
 
 export const carFormSchema = z.object({
-  make: z.string().trim().min(1, "Enter the make").max(40),
-  model: z.string().trim().min(1, "Enter the model").max(60),
+  make: z.string().trim().min(1, "Enter the make").max(40, tooLong(40)),
+  model: z.string().trim().min(1, "Enter the model").max(60, tooLong(60)),
   variant: text(TEXT_LIMITS.variant),
   // Kept as typed, in upper case; empty clears it.
-  reg: z.preprocess((v) => (typeof v === "string" ? v.trim().toUpperCase() || undefined : v), z.string().max(12, "Up to 12 characters").regex(/^[A-Z0-9 -]+$/, "Letters, numbers and dashes only").optional()),
-  year: z.coerce.number().int().min(1980, "Enter a year from 1980").max(new Date().getFullYear() + 1),
+  reg: z.preprocess((v) => (typeof v === "string" ? v.trim().toUpperCase() || undefined : v), z.string().max(12, tooLong(12)).regex(/^[A-Z0-9 -]+$/, "Letters, numbers and dashes only").optional()),
+  year: z.coerce.number({ message: "Enter the year" }).int("Enter the year").min(1980, "Enter a year from 1980").max(new Date().getFullYear() + 1, `Enter a year up to ${new Date().getFullYear() + 1}`),
   // 0 is Price on request; an empty box is still an error, never a silent 0.
-  priceEur: z.preprocess(blank, z.coerce.number({ message: "Enter the price" }).int("Whole euros only").min(0, "Enter the price").max(1_000_000)),
+  priceEur: z.preprocess(blank, z.coerce.number({ message: "Enter the price" }).int("Whole euros only").min(0, "Enter the price").max(1_000_000, "That price looks too high")),
   wasPriceEur: int(0, 1_000_000),
   condition: oneOf(CONDITIONS),
   vat: oneOf(VAT_STATUSES),
@@ -42,7 +44,7 @@ export const carFormSchema = z.object({
   description: text(TEXT_LIMITS.description),
   features: z.preprocess(
     (v) => (typeof v === "string" ? v.split("\n").map((l) => l.trim()).filter(Boolean) : []),
-    z.array(z.string().max(TEXT_LIMITS.feature)).max(60),
+    z.array(z.string().max(TEXT_LIMITS.feature, tooLong(TEXT_LIMITS.feature))).max(60, "Use 60 features or fewer"),
   ),
   // Whether it is on the website. Selling is never here: Mark sold records the sale with it.
   listing: z.enum(["live", "hidden", "draft"]).default("live"),

@@ -48,7 +48,7 @@
   --font-weight-bold: 600;
 
   /* The Checkwork brand (the company site, checkwork-brand-pack), so a dealer site reads as part of the same family. Light is the brand's
-     paper and ink; dark is its Midnight canvas. Indigo is the one action colour in both, lavender its text on dark. */
+     paper and ink; dark is its Midnight canvas. Indigo is the one action colour in both, a lighter indigo its text on dark. */
   --color-surface: #f4f6fb; /* paper */
   --color-card: #ffffff;
   --color-row-alt: #f1f3f9; /* every other table row, between card and surface */
@@ -122,8 +122,8 @@
   --color-bing: #4fc3c7;
   --color-surface: #0b0f1f; /* Midnight */
   --color-accent: #5a5deb; /* white button text on it reaches 5:1 */
-  --color-accent-text: #a78bfa; /* lavender: accent text on Midnight */
-  --color-accent-soft: #22265a; /* lavender on it 5.2:1, 4.6:1 on hover */
+  --color-accent-text: #a5a8ff; /* the accent's indigo, lightened: 8.8:1 on Midnight, 7.6:1 on a row, 5.8:1 on accent-soft-hover */
+  --color-accent-soft: #22265a; /* accent-text on it 6.5:1, 5.8:1 on hover */
   --color-accent-soft-hover: #292d68;
   --color-card: #121832;
   --color-row-alt: #161d3b;
@@ -144,7 +144,7 @@
   --color-warn-soft: #3a2c14;
   --color-bad: #ff9d95;
   --color-bad-soft: #42202a;
-  --color-info: #c4b5fd;
+  --color-info: #b4b7ff; /* the same indigo: 7.1:1 on info-soft */
   --color-info-soft: #2a2766;
   --color-scrim: rgb(0 0 0 / 0.6);
   --color-wa-bar: #1f2c34;
@@ -170,6 +170,33 @@
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 @custom-variant reduce-transparency (@media (prefers-reduced-transparency: reduce));
+
+/* A page's two columns side by side: from 1024px (lg) and while the page (AdminShell's <main>, the `page` container) has 41rem. The rem
+   grows with the text size, so with large text the columns stack instead of running off the screen; at normal size it is lg exactly
+   (41rem leaves room for a 17px desktop scrollbar: <main> is 671px at 1024px). `narrow` is the opposite, for what changes when they stack.
+   `wider` is the same for xl (80rem, the page 56rem: 927px at 1280px with a scrollbar). */
+@custom-variant wide {
+  @media (width >= 64rem) {
+    @container page (width >= 41rem) {
+      @slot;
+    }
+  }
+}
+@custom-variant narrow {
+  @media (width < 64rem) {
+    @slot;
+  }
+  @container page (width < 41rem) {
+    @slot;
+  }
+}
+@custom-variant wider {
+  @media (width >= 80rem) {
+    @container page (width >= 56rem) {
+      @slot;
+    }
+  }
+}
 
 @layer base {
   /* Thin, rounded scrollbars with no track colour, and room at both ends so the thumb never reaches a rounded corner (drop-down lists,

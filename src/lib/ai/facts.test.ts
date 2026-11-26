@@ -17,7 +17,7 @@ describe("buildFacts for a lead reply", () => {
   it("gives the price and link of a car for sale, and neither for a sold one (#160)", async () => {
     const { adminCars } = await import("@/lib/admin/stock-admin");
     const stock = await adminCars();
-    const [live, sold] = [stock.find((c) => !c.soldAt && !c.listing && c.priceEur > 0 && c.condition !== "new" && c.condition !== "commercial")!, stock.find((c) => c.soldAt)!];
+    const [live, sold] = [stock.find((c) => !c.soldAt && !c.listing && c.priceEur > 0 && c.condition !== "commercial")!, stock.find((c) => c.soldAt)!];
     const lead = (await leadsStore.list())[0]!;
     const facts = async (c: typeof live) => {
       await leadsStore.put({ ...lead, id: "lead-price", carSlug: c.slug, carTitle: c.model });

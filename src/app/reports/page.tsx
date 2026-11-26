@@ -4,7 +4,7 @@ import { dealerProfile } from "@/lib/tenancy/current";
 import { AreaChart, BarList } from "@/components/admin/charts";
 import { ChevronDownIcon } from "@/components/stock/icons";
 import { MoreDetail } from "@/components/admin/MoreDetail";
-import { DataTable, PageHeader, Panel, StatCard, StatGrid, adminButtonQuiet } from "@/components/admin/kit";
+import { DataTable, EmptyState, PageHeader, Panel, StatCard, StatGrid, adminButtonQuiet } from "@/components/admin/kit";
 import { ReportViews } from "./views";
 import { getSettings, leadsStore, prepStore, salesStore } from "@/lib/admin/collections";
 import { isSalesLead } from "@/lib/admin/leads";
@@ -81,34 +81,40 @@ async function Full({ period }: { period: Period }) {
         <StatCard label="Days to sell" value={r.totals.avgDaysToSell === null ? "None" : fmtNum(r.totals.avgDaysToSell)} hint="On average, from listing to sale" />
       </StatGrid>
 
-      <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 items-start gap-6 wider:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
         <Panel title="Sales by month">
-          <AreaChart
-            data={r.months.map((m) => ({ label: monthLabel(m.month), value: m.value }))}
-            format={fmtEur}
-            summary={`Sales each month over the last ${period} months, the most in ${monthLabel(best.month)} at ${fmtEur(best.value)}.`}
-          />
-          {/* The chart is the answer; the figures behind it are one tap away. */}
-          <details className="group rounded-control border border-hairline px-3">
-            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between py-2.5 text-body font-medium [&::-webkit-details-marker]:hidden">
-              Show: each month
-              <ChevronDownIcon aria-hidden="true" className="size-4 text-text-2 transition-transform group-open:rotate-180" />
-            </summary>
-            <div className="pb-3">
-              <DataTable
-                bare
-                label="Sales by month"
-                rows={[...r.months].reverse()}
-                rowKey={(m) => m.month}
-                columns={[
-                  { key: "month", header: "Month", cell: (m) => monthLabel(m.month), nowrap: true },
-                  { key: "sold", header: "Cars sold", align: "right", hide: "sm", cell: (m) => fmtNum(m.sold) },
-                  { key: "value", header: "Sales", align: "right", cell: (m) => fmtEur(m.value) },
-                  { key: "profit", header: "Profit", align: "right", hide: "sm", cell: (m) => (m.costed ? fmtEur(m.profit) : <span className="text-text-2">-</span>) },
-                ]}
+          {r.totals.sold === 0 ? (
+            <EmptyState compact title={`No sales in the last ${period} months`} text="Record a sale on a car and it shows here." />
+          ) : (
+            <>
+              <AreaChart
+                data={r.months.map((m) => ({ label: monthLabel(m.month), value: m.value }))}
+                format={fmtEur}
+                summary={`Sales each month over the last ${period} months, the most in ${monthLabel(best.month)} at ${fmtEur(best.value)}.`}
               />
-            </div>
-          </details>
+              {/* The chart is the answer; the figures behind it are one tap away. */}
+              <details className="group rounded-control border border-hairline px-3">
+                <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between py-2.5 text-body font-medium [&::-webkit-details-marker]:hidden">
+                  Sales each month
+                  <ChevronDownIcon aria-hidden="true" className="size-4 text-text-2 transition-transform group-open:rotate-180" />
+                </summary>
+                <div className="pb-3">
+                  <DataTable
+                    bare
+                    label="Sales by month"
+                    rows={[...r.months].reverse()}
+                    rowKey={(m) => m.month}
+                    columns={[
+                      { key: "month", header: "Month", cell: (m) => monthLabel(m.month), nowrap: true },
+                      { key: "sold", header: "Cars sold", align: "right", hide: "sm", cell: (m) => fmtNum(m.sold) },
+                      { key: "value", header: "Sales", align: "right", cell: (m) => fmtEur(m.value) },
+                      { key: "profit", header: "Profit", align: "right", hide: "sm", cell: (m) => (m.costed ? fmtEur(m.profit) : <span className="text-text-2">Not costed</span>) },
+                    ]}
+                  />
+                </div>
+              </details>
+            </>
+          )}
         </Panel>
         <Panel title="Where the won leads came from">
           {r.sources.length ? <BarList items={r.sources.map((s) => ({ label: s.source, value: s.won, note: `of ${plural(s.leads, "lead")}, ${s.winRate}%` }))} /> : <p className="text-body text-text-2">No leads in this period.</p>}
@@ -126,14 +132,14 @@ async function Full({ period }: { period: Period }) {
             { key: "name", header: "Name", cell: (p) => <span className="font-medium">{p.name}</span>, nowrap: true },
             { key: "sold", header: "Cars sold", align: "right", cell: (p) => fmtNum(p.sold) },
             { key: "value", header: "Sales", align: "right", hide: "sm", cell: (p) => fmtEur(p.value) },
-            { key: "profit", header: "Profit", align: "right", hide: "md", cell: (p) => (p.costed ? fmtEur(p.profit) : <span className="text-text-2">-</span>) },
+            { key: "profit", header: "Profit", align: "right", hide: "md", cell: (p) => (p.costed ? fmtEur(p.profit) : <span className="text-text-2">Not costed</span>) },
             { key: "won", header: "Leads won", align: "right", hide: "sm", cell: (p) => `${p.won} of ${p.leads}` },
           ]}
         />
       </Panel>
 
       <MoreDetail>
-        <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-2">
+        <div className="grid grid-cols-1 items-start gap-6 wider:grid-cols-2">
           <Panel title="Why leads were lost" quiet>
             {r.lost.length ? <BarList items={r.lost.map((x) => ({ label: x.reason, value: x.leads, note: `${Math.round((x.leads / r.lost.reduce((n, y) => n + y.leads, 0)) * 100)}% of lost leads` }))} /> : <p className="text-body text-text-2">No lost leads in this period.</p>}
           </Panel>

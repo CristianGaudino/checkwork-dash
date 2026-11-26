@@ -43,8 +43,11 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ q
   const byStatus = new Map<string, number>();
   for (const r of stock) byStatus.set(carStatus(r.car), (byStatus.get(carStatus(r.car)) ?? 0) + 1);
   const noCost = rows.filter((r) => r.cost === undefined && !isSold(r.car));
-  const stockHint = [...byStatus].sort((a, b) => b[1] - a[1]).map(([s, n]) => `${fmtNum(n)} ${s.toLowerCase()}`).join(", ") || "No cars in stock";
+  // Why there is no stock figure: no cost prices, or every unsold car priced on request, or no cars at all.
+  const noFigures = noCost.length ? "No cost prices yet" : rows.some((r) => !isSold(r.car)) ? "No asking prices yet" : "No cars in stock";
+  const stockHint = [...byStatus].sort((a, b) => b[1] - a[1]).map(([s, n]) => `${fmtNum(n)} ${s.toLowerCase()}`).join(", ") || noFigures;
 
+  const notSet = <span className="text-text-2">Not set</span>;
   const columns: Column<Row>[] = [
     {
       key: "car",
@@ -71,8 +74,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ q
         return parts ? <span className="flex flex-col items-end">{fmtEur(r.cost)}<span className="text-meta text-text-2 max-sm:hidden">with {parts}</span></span> : fmtEur(r.cost);
       },
     },
-    { key: "margin", header: "Margin", align: "right", sort: (r) => (r.cost === undefined || !r.price ? undefined : marginOf(r.price, r.cost).eur), cell: (r) => (r.cost === undefined || !r.price ? "" : <span className={`font-semibold ${marginOf(r.price, r.cost).eur < 0 ? "text-bad" : ""}`}>{fmtEur(marginOf(r.price, r.cost).eur)}</span>) },
-    { key: "pct", header: "Margin %", align: "right", hide: "md", sort: (r) => (r.cost === undefined || !r.price ? undefined : marginOf(r.price, r.cost).pct), cell: (r) => (r.cost === undefined || !r.price ? "" : fmtPct(marginOf(r.price, r.cost).pct)) },
+    { key: "margin", header: "Margin", align: "right", sort: (r) => (r.cost === undefined || !r.price ? undefined : marginOf(r.price, r.cost).eur), cell: (r) => (r.cost === undefined ? notSet : !r.price ? "" : <span className={`font-semibold ${marginOf(r.price, r.cost).eur < 0 ? "text-bad" : ""}`}>{fmtEur(marginOf(r.price, r.cost).eur)}</span>) },
+    { key: "pct", header: "Margin %", align: "right", hide: "md", sort: (r) => (r.cost === undefined || !r.price ? undefined : marginOf(r.price, r.cost).pct), cell: (r) => (r.cost === undefined ? notSet : !r.price ? "" : fmtPct(marginOf(r.price, r.cost).pct)) },
   ];
   // The figures above are over every car; the table is searched, filtered, sorted and in pages.
   const q = (sp.q ?? "").trim().toLowerCase().slice(0, 60);
@@ -87,8 +90,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ q
       <PageHeader title="Margins" text="Asking or sale price, less cost, prep and warranty repairs, before VAT" />
       {/* The two figures an owner asks for first (what the stock should make, what the sales made), then what the stock is worth and cost. */}
       <StatGrid>
-        <StatCard label="Expected margin on stock" value={fmtEur(stockMargin.eur)} hint={`${fmtPct(stockMargin.pct)}, if each sells at its price`} tone={stockMargin.eur >= 0 ? "good" : "bad"} href="/margins?state=stock" />
-        <StatCard label="Margin on sold cars" value={fmtEur(soldMargin)} hint={`${plural(sold.length, "car")} sold`} href="/margins?state=sold" />
+        <StatCard label="Expected margin on stock" value={fmtEur(stockMargin.eur)} hint={stockPrice ? `${fmtPct(stockMargin.pct)}, if each sells at its price` : noFigures} tone={!stockPrice ? undefined : stockMargin.eur >= 0 ? "good" : "bad"} href="/margins?state=stock" />
+        <StatCard label="Margin on sold cars" value={fmtEur(soldMargin)} hint={`${plural(sold.length, "car")} sold`} tone={soldMargin < 0 ? "bad" : undefined} href="/margins?state=sold" />
         <StatCard label="Stock value" value={fmtEur(stockPrice)} hint="At the advertised prices" />
         <StatCard label="Stock cost" value={fmtEur(stockCost)} hint={stockHint} />
       </StatGrid>

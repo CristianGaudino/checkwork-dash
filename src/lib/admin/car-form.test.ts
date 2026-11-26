@@ -29,6 +29,10 @@ describe("carFromForm", () => {
     expect(carFromForm(form({ priceEur: "0" }), "1")).toMatchObject({ car: { priceEur: 0 } });
     expect(carFromForm(form({ priceEur: "" }), "1")).toMatchObject({ errors: { priceEur: "Enter the price" } });
   });
+  it("says plainly when a box is too long or a number out of range (#195)", () => {
+    expect(carFromForm(form({ model: "x".repeat(61) }), "1")).toMatchObject({ errors: { model: "Use 60 characters or fewer." } });
+    expect(carFromForm(form({ seats: "12" }), "1")).toMatchObject({ errors: { seats: "Use a number from 1 to 9" } });
+  });
   it("makes a car from the minimum, with empty boxes left out and not zero", () => {
     const r = carFromForm(form({ mileageKm: "", variant: "", wasPriceEur: "" }), "42");
     expect(r.ok).toBe(true);

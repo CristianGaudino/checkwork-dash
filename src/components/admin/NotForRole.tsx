@@ -10,8 +10,7 @@ export function NotForRole({ title, permission }: { title: string; permission: P
     <div className="flex flex-col items-center px-4 py-12">
       <div className={`${card} flex w-full max-w-lg flex-col items-center gap-3 p-8 text-center`}>
         <h1 className="text-display font-bold">Not for your role</h1>
-        <p className="text-heading font-semibold">{title}</p>
-        <p className="max-w-[45ch] text-body text-text-2">This page is for {whoCan(permission)}. Ask an owner to change your role.</p>
+        <p className="max-w-[45ch] text-body text-text-2">{title} is for {whoCan(permission)}. Ask an owner to change your role.</p>
         <Link href="/" className={`${adminButton} mt-2`}>
           Back to the overview
         </Link>

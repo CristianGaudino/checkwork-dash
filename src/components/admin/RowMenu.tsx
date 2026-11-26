@@ -35,7 +35,7 @@ export function RowMenu({ label, children }: { label: string; children: React.Re
         id={id}
         popover="auto"
         onClick={(e) => (e.target as HTMLElement).closest("a,button") && menu.current?.hidePopover()}
-        className="fixed inset-auto m-0 min-w-44 flex-col gap-1 rounded-control border border-hairline bg-card p-1 text-text shadow-lift [&:popover-open]:flex *:w-full *:justify-start *:border-0 *:text-text"
+        className="fixed inset-auto m-0 min-w-44 flex-col gap-1 rounded-control border border-hairline bg-card p-1 text-text shadow-lift [&:popover-open]:flex *:w-full *:justify-start *:border-0 *:not-[.text-bad]:text-text"
       >
         {children}
       </div>

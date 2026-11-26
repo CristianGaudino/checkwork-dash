@@ -42,8 +42,8 @@ import { LeadKind, LeadTags, leadChips } from "@/components/admin/LeadKind";
 import { LeadMenu, SpamButton } from "@/components/admin/LeadActions";
 import { readLead } from "@/lib/leads/lead-text";
 
-// One lead, worked from here. At the top: what they asked, the ways to reach them and the next step. Below: when to get back to them, who
-// has it, the reply draft and the notes. Shown at its own address under Leads, or, for a warranty request, under Aftersales (where it is
+// One lead, worked from here. At the top: what they asked, and the next step: the ways to reach them, where it stands, who has it, when to
+// get back to them and the reply draft. Below: their visit, their car and the notes. Shown at its own address under Leads, or, for a warranty request, under Aftersales (where it is
 // listed), so the menu marks the right place. The pages around it choose which.
 export async function LeadView({ id }: { id: string }) {
   const [lead, settings, drives, { name: dealer, profile: { siteUrl, rules } }, me] = await Promise.all([leadsStore.get(id), getSettings(), drivesStore.list(), currentDealer(), currentMember()]);
@@ -89,7 +89,7 @@ export async function LeadView({ id }: { id: string }) {
       />
       {/* The top answers what a call starts with: what they asked, how to reach them, and what happens next. */}
       <Panel>
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
+        <div className="grid grid-cols-1 gap-6 wide:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
           <section aria-labelledby="asked" className="flex min-w-0 flex-col gap-3">
             <h2 id="asked" className="text-section font-semibold">What they asked</h2>
             {lead.carTitle && (
@@ -108,7 +108,7 @@ export async function LeadView({ id }: { id: string }) {
             {/* A guided contact form's taps say what they want, often with no words typed: the same tags as the list. */}
             <LeadTags tags={leadChips(lead.type, lead.topic, lead.answers)} />
             {/* Their own words, set apart as a quote so they read as the customer's, not the dashboard's. */}
-            {text && <blockquote className="max-w-measure whitespace-pre-line rounded-control border-l-4 border-accent bg-row-alt px-4 py-3 text-body">{text}</blockquote>}
+            {text && <blockquote className="max-w-measure whitespace-pre-line [overflow-wrap:anywhere] rounded-control border-l-4 border-accent bg-row-alt px-4 py-3 text-body">{text}</blockquote>}
             {/* The form's other answers, one to a line (#59): never run together into the message. */}
             {Object.keys(facts).length > 0 && (
               <dl aria-label="Their answers" className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-body">
@@ -135,11 +135,11 @@ export async function LeadView({ id }: { id: string }) {
               </p>
             )}
             <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-0.5 text-meta">
-              {lead.email && (<><dt className="text-text-2">Email</dt><dd className="break-all">{lead.email}</dd></>)}
+              {lead.email && (<><dt className="text-text-2">Email</dt><dd className="[overflow-wrap:anywhere]">{lead.email}</dd></>)}
               {lead.phone && (<><dt className="text-text-2">Phone</dt><dd className="tabular-nums">{lead.phone}</dd></>)}
             </dl>
           </section>
-          <section aria-labelledby="next" className="flex min-w-0 flex-col gap-4 max-lg:order-first max-lg:border-b max-lg:border-hairline max-lg:pb-5 lg:border-l lg:border-hairline lg:pl-6">
+          <section aria-labelledby="next" className="flex min-w-0 flex-col gap-4 narrow:order-first narrow:border-b narrow:border-hairline narrow:pb-5 wide:border-l wide:border-hairline wide:pl-6">
             <h2 id="next" className="text-section font-semibold">Next step</h2>
             <ContactButtons phone={lead.phone} email={lead.email} main={main === "reply" ? replyVia(lead) : undefined} whatsapp={lead.whatsappOptIn !== false} reply={lead.status === "new" ? firstReply({ name: lead.name, from: replyFrom(me), dealer, title: lead.carTitle, car, siteUrl, modules }) : undefined} />
             {/* Booking a drive from the lead carries their car, name and number into the form. */}
@@ -231,6 +231,14 @@ export async function LeadView({ id }: { id: string }) {
                 />
               </div>
             )}
+            {/* Who has it, and the day to get back to them (only while the lead is open: won and lost need none). */}
+            <div className="flex flex-col gap-1">
+              <label htmlFor="lead-owner" className="text-meta font-semibold">
+                Who has it
+              </label>
+              <PersonPicker id="lead-owner" team={settings.team.map((t) => t.name)} value={lead.assignedTo} me={me.name} action={assignLeadAction.bind(null, lead.id)} />
+            </div>
+            {isOpenLead(lead) && <FollowUp action={setFollowUpAction.bind(null, lead.id)} on={lead.followUpOn} today={today} due={followUpDue(lead, today)} back={followUpBack} />}
             {/* They ticked the WhatsApp box on the form: the site's messages reach them there until someone stops it. */}
             {lead.whatsappOptIn === false && (
               <IfModule id="whatsapp">
@@ -241,41 +249,38 @@ export async function LeadView({ id }: { id: string }) {
               <IfModule id="whatsapp">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-meta text-text-2">WhatsApp updates: on</p>
-                  <ActButton act={stopWhatsAppAction.bind(null, lead.id)} done="WhatsApp updates stopped" confirm={{ title: "Stop WhatsApp?", text: "Nothing more goes to them on WhatsApp. They get email instead, if they gave an address.", yes: "Stop WhatsApp" }} className={rowButton}>
+                  <ActButton act={stopWhatsAppAction.bind(null, lead.id)} done="WhatsApp updates stopped" confirm={{ title: "Stop WhatsApp?", text: "Nothing more goes to them on WhatsApp. They get email instead, if they gave an address.", yes: "Stop WhatsApp" }} className={`${rowButton} -mx-3`}>
                     Stop WhatsApp
                   </ActButton>
                 </div>
               </IfModule>
             )}
+            {/* A reply to copy into email or WhatsApp: written from their message and the car, never from their phone or email. Only the
+                button until it is used, so a phone is not handed a big empty box. */}
+            <IfModule id="ai">
+              <div className="flex flex-col gap-1">
+                <h3 className="text-meta font-semibold">Draft a reply</h3>
+                <AITextarea label="Reply draft" task="leadReply" rows={6} copy folded request={{ task: "leadReply", leadId: lead.id }} />
+              </div>
+            </IfModule>
           </section>
         </div>
       </Panel>
 
-      {/* Below: the reply and the history on the left; when to get back to them and who has it on the right (first on a phone). */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
-        <div className="flex min-w-0 flex-col gap-6">
-          {/* What they did on the website before they got in touch, when they sent it: first, as it is read before the call. Nothing without it. */}
-          {lead.journey && <VisitPanel lead={{ ...lead, journey: lead.journey }} stock={stock} />}
-          {/* A reply to copy into email or WhatsApp: written from their message and the car, never from their phone or email. Only the
-              button until it is used, so a phone is not handed a big empty box. */}
-          <IfModule id="ai">
-            <Panel title="Draft a reply">
-              <AITextarea label="Reply draft" task="leadReply" rows={6} copy folded request={{ task: "leadReply", leadId: lead.id }} />
-            </Panel>
-          </IfModule>
-          {/* Selling or trading in: the car read first, with Edit and the plate's Look up, so the dealer knows what it is before calling back. */}
-          {hasCar && <TheirCar car={theirCar({ reg: lead.reg, details: read.facts })} selling={lead.type === "sell" || lead.type === "trade-in"} action={saveTheirCarAction.bind(null, lead.id)} />}
-          {/* Their car's history check (#170), once it has a plate: finance owed or a write-off changes the offer. */}
-          {(lead.type === "sell" || lead.type === "trade-in") && lead.reg && (await hasModule("history")) && <HistoryPanel reg={lead.reg} history={lead.history} act={checkHistoryAction.bind(null, "lead", lead.id)} />}
+      {/* Below: what they did on the website and their car on the left, the notes on the right. With neither, the notes alone. */}
+      <div className={`grid grid-cols-1 gap-6 ${lead.journey || hasCar ? "wide:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]" : ""}`}>
+        {(lead.journey || hasCar) && (
+          <div className="flex min-w-0 flex-col gap-6">
+            {/* What they did on the website before they got in touch, when they sent it: first, as it is read before the call. */}
+            {lead.journey && <VisitPanel lead={{ ...lead, journey: lead.journey }} stock={stock} />}
+            {/* Selling or trading in: the car read first, with Edit and the plate's Look up, so the dealer knows what it is before calling back. */}
+            {hasCar && <TheirCar car={theirCar({ reg: lead.reg, details: read.facts })} selling={lead.type === "sell" || lead.type === "trade-in"} action={saveTheirCarAction.bind(null, lead.id)} />}
+            {/* Their car's history check (#170), once it has a plate: finance owed or a write-off changes the offer. */}
+            {(lead.type === "sell" || lead.type === "trade-in") && lead.reg && (await hasModule("history")) && <HistoryPanel reg={lead.reg} history={lead.history} act={checkHistoryAction.bind(null, "lead", lead.id)} />}
+          </div>
+        )}
+        <div className="min-w-0">
           <Notes notes={lead.notes} action={addNoteAction.bind(null, lead.id)} me={me.name} />
-        </div>
-
-        <div className="flex min-w-0 flex-col gap-6 max-lg:order-first">
-          {/* The day to get back to them. Only while the lead is open: won and lost need none. */}
-          {isOpenLead(lead) && <FollowUp action={setFollowUpAction.bind(null, lead.id)} on={lead.followUpOn} today={today} due={followUpDue(lead, today)} back={followUpBack} />}
-          <Panel title="Who has it" quiet>
-            <PersonPicker label="Who has it" team={settings.team.map((t) => t.name)} value={lead.assignedTo} me={me.name} action={assignLeadAction.bind(null, lead.id)} />
-          </Panel>
         </div>
       </div>
     </>

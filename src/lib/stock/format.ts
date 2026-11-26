@@ -53,7 +53,7 @@ export function specRows(car: Car): SpecRow[] {
     ["Colour", car.colour],
     ["Doors", car.doors === undefined ? undefined : String(car.doors)],
     ["Seats", car.seats === undefined ? undefined : String(car.seats)],
-    ["Owners", car.owners ? String(car.owners) : undefined], // 0 is a new vehicle: no row, not "Owners 0"
+    ["Owners", car.owners ? String(car.owners) : undefined], // 0 or absent: not known, so no row
     ["NCT expires", car.nctExpiry && nctLabel(car.nctExpiry)],
     ["CO2", withUnit(car.co2GKm, "g/km")],
     ["Motor tax", car.motorTaxEur === undefined ? undefined : `${fmtEur(car.motorTaxEur)} a year`],

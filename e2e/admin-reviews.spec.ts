@@ -22,7 +22,8 @@ test("reviews show a rating summary, and a reply can be posted, then the review 
   await page.goto("/reviews?filter=unreplied");
   await expect(page.getByText(author!, { exact: true })).toHaveCount(0);
   await page.getByRole("link", { name: /^All/ }).click();
-  await expect(page.getByText("Thank you, we are glad it went well.").first()).toBeVisible();
+  // The posted reply on the page, not the edit box that now sits (closed) in the author line.
+  await expect(page.getByText("Your reply: Thank you, we are glad it went well.").first()).toBeVisible();
 });
 
 test("a reply goes to Google first and says so; flags are gone, since Google cannot take them", async ({ page }) => {

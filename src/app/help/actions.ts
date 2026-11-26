@@ -7,6 +7,7 @@ import { newId } from "@/lib/admin/ids";
 import { parseRequest, safeFrom } from "@/lib/admin/help-rules";
 import { currentMember } from "@/lib/permissions";
 import { requireStaff } from "@/lib/staff";
+import { tooLong } from "@/lib/leads/constants";
 
 export type HelpState = { errors?: Record<string, string>; saved?: boolean } | undefined;
 
@@ -28,7 +29,7 @@ export async function sendHelpAction(_p: HelpState, data: FormData): Promise<Hel
 }
 
 // Quick feedback: a score of 1 to 5 and an optional line; "Not now" is stored as 0. Either way it is not asked again for a quarter.
-const feedback = z.object({ score: z.coerce.number().int().min(0).max(5), note: z.string().trim().max(500) });
+const feedback = z.object({ score: z.coerce.number().int().min(0).max(5), note: z.string().trim().max(500, tooLong(500)) });
 export async function sendFeedbackAction(data: FormData) {
   await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
   const me = await currentMember();

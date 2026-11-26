@@ -10,11 +10,11 @@ import { mailtoHref, type Reply } from "@/lib/leads/first-reply";
 // `reply`: a first reply to fill into Email and WhatsApp (firstReplies), none on a later one.
 // `main`: on a lead, the way to answer them (replyVia) is the page's filled action. `whatsapp`: false once WhatsApp was stopped on the lead.
 export function ContactButtons({ phone, email, main, whatsapp = true, reply }: { phone?: string; email?: string; main?: ReplyVia; whatsapp?: boolean; reply?: Reply }) {
-  const look = (via: ReplyVia) => (via === main ? adminButton : adminButtonQuiet);
   const tel = phone ? telHref(phone) : undefined;
   const wa = phone && whatsapp ? waHref(phone, reply?.body) : undefined;
+  const look = (via: ReplyVia) => (via === main ? adminButton : adminButtonQuiet);
   return (
-    <div className="flex flex-wrap gap-2 *:grow *:px-3">
+    <div className="flex flex-wrap gap-2 max-sm:*:grow *:px-3">
       {tel && (
         <a href={tel} className={look("call")}>
           <PhoneIcon className="size-4 shrink-0" />

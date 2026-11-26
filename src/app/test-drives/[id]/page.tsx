@@ -12,7 +12,6 @@ import { isOpenDrive, slotData } from "@/lib/admin/drives";
 import { dublinDay, fmtDateTime, fmtDay, fmtTime } from "@/lib/admin/format";
 import { adminCars } from "@/lib/admin/stock-admin";
 import { askedCar } from "@/lib/leads/journey";
-import { telHref } from "@/lib/phone";
 import { forSale } from "@/lib/stock/types";
 import { assignDriveAction } from "../actions";
 import { ContactButtons } from "@/components/admin/ContactButtons";
@@ -33,32 +32,32 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   return (
     <>
       <PageHeader title={d.name} text={`${d.carTitle}, ${fmtDateTime(d.startsAt)}`} back={{ href: "/test-drives", label: "Test drives" }} />
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+      <div className="grid grid-cols-1 gap-6 wide:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="flex min-w-0 flex-col gap-6">
           {/* Read first; Change time opens the free times in the house dialog (#141). */}
           <Panel title="The booking" action={open ? <MoveDrive id={d.id} carSlug={d.carSlug} slots={{ ...slotData(drives, hours, d.id), windowMin: settings.driveSlotMinutes }} /> : undefined}>
             <Facts
               items={[
                 ["When", when(d.startsAt)],
-                ["Car", car ? <span key="c" className="flex flex-wrap items-center gap-2"><Link href={`/stock/${car.id}`} className="underline">{d.carTitle}</Link>{open && !forSale(car) && <Badge tone="warn">No longer for sale</Badge>}</span> : d.carTitle],
-                ["Phone", <a key="p" href={telHref(d.phone) ?? undefined} className="underline">{d.phone}</a>],
-                ["Email", d.email ? <a key="e" href={`mailto:${d.email}`} className="underline [overflow-wrap:anywhere]">{d.email}</a> : "Not given"],
+                ["Car", car ? <span key="c" className="flex flex-wrap items-center gap-2"><Link href={`/stock/${car.id}`} className="font-medium text-accent-text hover:underline">{d.carTitle}</Link>{open && !forSale(car) && <Badge tone="warn">No longer for sale</Badge>}</span> : d.carTitle],
+                // Plain text: Call and Email are the buttons below.
+                ["Phone", d.phone],
+                ["Email", d.email ? <span key="e" className="[overflow-wrap:anywhere]">{d.email}</span> : "Not given"],
                 ...(d.notes ? [["Notes", d.notes] as const] : []),
                 ["Booked", fmtDateTime(d.createdAt)],
               ] as const}
             />
-          </Panel>
-        </div>
-        <div className="flex min-w-0 flex-col gap-6 max-lg:order-first">
-          <Panel title="Contact">
             <ContactButtons phone={d.phone} email={d.email || undefined} />
           </Panel>
+        </div>
+        <div className="flex min-w-0 flex-col gap-6 narrow:order-first">
           <Panel title="Status" action={<DriveStatusBadge status={d.status} />}>
             {/* The steps due now, or Rebook once it is over. A confirmed drive still to come has none: Cancel only. */}
             <DriveSteps drive={d} page />
-          </Panel>
-          <Panel title="Taking them out" quiet>
-            <PersonPicker label="Taking them out" team={team} value={d.assignedTo} me={me.name} action={assignDriveAction.bind(null, d.id)} />
+            <div className="flex flex-col gap-1">
+              <label htmlFor="taking-them-out" className="text-meta text-text-2">Taking them out</label>
+              <PersonPicker id="taking-them-out" label="Taking them out" team={team} value={d.assignedTo} me={me.name} action={assignDriveAction.bind(null, d.id)} />
+            </div>
           </Panel>
         </div>
       </div>

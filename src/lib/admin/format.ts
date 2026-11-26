@@ -8,7 +8,9 @@ export { fmtEur, fmtNum } from "@/lib/stock/format";
 // Irish time, whatever zone the server runs in (a Worker runs in UTC): a 11:00 test drive reads 11:00 in summer too. No server-only
 // imports: the lead forms use these in the browser.
 const date = new Intl.DateTimeFormat("en-IE", { day: "numeric", month: "short", year: "numeric", timeZone });
-const dateTime = new Intl.DateTimeFormat("en-IE", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone });
+const dateTimeOpts = { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone } as const;
+const dateTime = new Intl.DateTimeFormat("en-IE", dateTimeOpts);
+const dateTimeYear = new Intl.DateTimeFormat("en-IE", { ...dateTimeOpts, year: "numeric" });
 
 const time = new Intl.DateTimeFormat("en-IE", { hour: "2-digit", minute: "2-digit", timeZone });
 // A calendar day (YYYY-MM-DD) in words, read at noon UTC so no zone moves it to the day before: the diary's headings and day strips.
@@ -21,15 +23,25 @@ const DAY_STYLES = {
   month: utc({ month: "short" }), // Nov
   monthYear: utc({ month: "long", year: "numeric" }), // November 2026
 } as const;
+// The styles that name the month, with the year, for a day outside this Irish year (#190): "14 March 2023", and "Tue 14 Mar 2023" when
+// weekday, day and month are put together. A weekday or a day number alone is only ever a part of one of those.
+const DAY_STYLES_YEAR = {
+  long: utc({ weekday: "long", day: "numeric", month: "long", year: "numeric" }), // Tuesday 14 March 2023
+  dayMonth: utc({ day: "numeric", month: "long", year: "numeric" }), // 14 March 2023
+  month: utc({ month: "short", year: "numeric" }), // Mar 2023
+} as const;
+const otherYear = (day: string, now: number) => day.slice(0, 4) !== dublinDay(now).slice(0, 4);
 
 // Some engines write September "Sept" beside "Oct": every short month is three letters.
 export const threeLetter = (s: string) => s.replace(/\bSept\b/, "Sep"); // a whole word: never the "Sept" in "September" (#40)
 export const fmtDate = (t: number | string) => threeLetter(date.format(new Date(t)));
 export const fmtTime = (t: number) => time.format(t);
-export const fmtDay = (iso: string, style: keyof typeof DAY_STYLES = "long") => threeLetter(DAY_STYLES[style].format(new Date(`${iso}T12:00:00Z`)));
+export const fmtDay = (iso: string, style: keyof typeof DAY_STYLES = "long", now = Date.now()) =>
+  threeLetter(((otherYear(iso, now) && DAY_STYLES_YEAR[style as keyof typeof DAY_STYLES_YEAR]) || DAY_STYLES[style]).format(new Date(`${iso}T12:00:00Z`)));
 // Whole days from a listed day (YYYY-MM-DD) to now, never below 0: how long a car has been in stock.
 export const daysSince = (day: string, now = Date.now()) => Math.max(0, Math.floor((now - Date.parse(`${day}T00:00:00Z`)) / 86_400_000));
-export const fmtDateTime = (t: number | string) => threeLetter(dateTime.format(new Date(t)));
+// With the year when the moment is not in this Irish year: "29 Feb 2024, 23:03".
+export const fmtDateTime = (t: number | string, now = Date.now()) => threeLetter((otherYear(dublinDay(new Date(t).getTime()), now) ? dateTimeYear : dateTime).format(new Date(t)));
 // A count with its word, singular for one: "1 review", "12 reviews", "1,284 cars".
 export const plural = (n: number, one: string, many = `${one}s`) => `${fmtNum(n)} ${n === 1 ? one : many}`;
 // The Irish calendar day of a moment, as YYYY-MM-DD ("today" for follow-ups and sales), and a day n days on.
@@ -61,9 +73,14 @@ export const monthChoices = (from: string, count: number) =>
 export const fmtPct = (n: number) => `${n.toFixed(1)}%`; // always one decimal, so 20.0% and 20.1% line up
 
 const rtf = new Intl.RelativeTimeFormat("en-IE", { numeric: "auto" });
-// "2 hours ago", "yesterday": for a list where the order of events matters more than the exact time.
+// "2 hours ago", "yesterday": for a list where the order of events matters more than the exact time. Past a week, the day ("12 November",
+// "25 November 2021" in another year), never "1,825 days ago". In a sentence use fmtAgoOn.
+const pastAWeek = (t: number | string, now: number) => Math.round(Math.abs(new Date(t).getTime() - now) / 86_400_000) > 7;
 export function fmtAgo(t: number | string, now = Date.now()) {
   const s = Math.round((new Date(t).getTime() - now) / 1000);
+  if (pastAWeek(t, now)) return fmtDay(dublinDay(new Date(t).getTime()), "dayMonth", now);
   for (const [unit, secs] of [["day", 86400], ["hour", 3600], ["minute", 60]] as const) if (Math.abs(s) >= secs) return rtf.format(Math.round(s / secs), unit);
   return "just now";
 }
+// fmtAgo in a sentence: "Came in 2 hours ago", "Came in on 12 November".
+export const fmtAgoOn = (t: number | string, now = Date.now()) => `${pastAWeek(t, now) ? "on " : ""}${fmtAgo(t, now)}`;

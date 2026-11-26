@@ -19,10 +19,9 @@ Keep the demo stock and records; change what the dealer will recognise.
    `service.webp` (the workshop, 1200x900). Every photo here shows the Checkwork sign, so replace them all. Another size works if
    you change the `width`/`height` and the `srcSet` widths where it is used.
 3. `src/lib/home.config.ts`: the hero title and line, and how many featured cars, type tiles and make chips the home page shows.
-4. `src/lib/partners.ts`: the makes the dealer sells new (New cars shows them first). Empty if they sell used only.
-5. Colours, only if the dealer has its own: `--color-accent` and `--color-accent-text` in both theme blocks of `src/app/globals.css`.
+4. Colours, only if the dealer has its own: `--color-accent` and `--color-accent-text` in both theme blocks of `src/app/globals.css`.
    Keep white text on the accent at 4.5:1 or more. Everything else stays the Checkwork palette, so every site reads as one family.
-6. Deploy it as a demo (no `APP_ENV=production`): it stays out of search and its emails say DEMO. In the dashboard, a dealer marked as a demo in the directory has its lived-in records on any deploy.
+5. Deploy it as a demo (no `APP_ENV=production`): it stays out of search and its emails say DEMO. In the dashboard, a dealer marked as a demo in the directory has its lived-in records on any deploy.
 
 ## A real dealer
 Everything above, then:
@@ -34,7 +33,6 @@ Everything above, then:
 | Finance figures and the lender's wording | `src/lib/finance/finance.config.ts` (the dealer supplies them; never invent an APR) |
 | Consent wording | `CONSENT` in `src/lib/leads/constants.ts`. New wording is a new version: add it to the frozen list in `src/lib/leads/consent.test.ts`. |
 | Home page words and counts | `src/lib/home.config.ts` |
-| New car franchises | `src/lib/partners.ts` |
 | Memberships and partners (SIMI, AA Approved Dealer, warranty provider, lenders), with their logos and permission | `src/lib/affiliations.ts` and `public/affiliations/`. Empty on the demo. How, the Irish options and the wording: `docs/affiliations.md` |
 | Business rules: days before a car is old stock (60), the price drop the slow-stock alert suggests, how long a sold car stays on the site | `src/lib/dealer.config.ts`. Agreed with the dealer at launch; the dashboard cannot change them, so a later change is ours to make (and charge for). |
 | Font | `src/app/layout.tsx` and `src/app/fonts/` (Sora for headings, Inter for text, both kept in the repo) |

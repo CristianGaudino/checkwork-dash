@@ -1,4 +1,5 @@
 import { NAME_REQUIRED } from "@/lib/copy";
+import { LIMITS, tooLong } from "@/lib/leads/constants";
 import type { ModuleId } from "@/lib/modules-rules";
 import { roleCan, type Role } from "@/lib/permission-rules";
 import { EVENTS, defaultAlerts, eventText, staffErrors, type EventId } from "@/lib/whatsapp/rules";
@@ -74,6 +75,6 @@ export function reachLine(p: Prefs, role: Role, has: { devices: boolean; whatsap
 export function profileErrors(name: string, phone: string, quietFrom = "", quietTo = ""): Record<string, string> {
   const errors = staffErrors(phone, quietFrom, quietTo);
   if (!name.trim()) errors.name = NAME_REQUIRED;
-  else if (name.trim().length > 60) errors.name = "Use 60 characters or fewer";
+  else if (name.trim().length > LIMITS.name) errors.name = tooLong(LIMITS.name); // as long as a website lead's name (owner, #195)
   return errors;
 }

@@ -8,7 +8,7 @@ import { DriveSteps } from "@/components/admin/DriveSteps";
 import { carCosts } from "@/lib/admin/costs";
 import { claimsStore, drivesStore, getSettings, leadsStore, reservationsStore, reviewsStore, salesStore, type Lead } from "@/lib/admin/collections";
 import { can, currentMember } from "@/lib/permissions";
-import { dublinDay, fmtAgo, fmtDateTime, fmtDay, plural } from "@/lib/admin/format";
+import { dublinDay, fmtAgoOn, fmtDateTime, fmtDay, plural } from "@/lib/admin/format";
 import { overview } from "@/lib/admin/overview";
 import { adminCars } from "@/lib/admin/stock-admin";
 import { syncStatus } from "@/lib/donedeal/sync";
@@ -37,8 +37,11 @@ const GROUPED: Record<string, { noun: string; verb: string; icon: React.ReactNod
   costs: { noun: "car", verb: "Add costs", icon: <PercentIcon /> },
 };
 
-// A lead in a line: the car, else the first line of the message.
-const about = (l: Lead) => l.carTitle ?? (readLead(l).text.split("\n")[0] || undefined);
+// A lead in a line: the car, else the first line of the message in quotes, as Leads shows it.
+const about = (l: Lead) => {
+  const line = readLead(l).text.split("\n")[0];
+  return l.carTitle ?? (line ? `“${line}”` : undefined);
+};
 // A lead's row (#95): the way to reach them, and Open in the row's menu.
 const LeadMenu = ({ id, name }: { id: string; name: string }) => (
   <RowMenu label={`More for ${name}`}>
@@ -78,7 +81,7 @@ export async function loadToDo(mineParam: string | undefined) {
       case "reply":
         return [
           ...o.reply.slice(0, EACH).map(({ lead: l, urgency, flag }) => (
-            <Task key={`reply-${l.id}`} urgency={urgency} icon={<InboxIcon />} title={`Reply to ${l.name}`} detail={[who(l.assignedTo), about(l), `came in ${fmtAgo(l.createdAt)}${flag === "late" ? ", past your reply time" : ""}`].filter(Boolean).join(" · ")} action={<><ReachButton lead={l} reply={reply(l)} /><LeadMenu id={l.id} name={l.name} /></>} />
+            <Task key={`reply-${l.id}`} urgency={urgency} icon={<InboxIcon />} title={`Reply to ${l.name}`} detail={[who(l.assignedTo), about(l), `Came in ${fmtAgoOn(l.createdAt)}${flag === "late" ? ", past your reply time" : ""}`].filter(Boolean).join(" · ")} action={<><ReachButton lead={l} reply={reply(l)} /><LeadMenu id={l.id} name={l.name} /></>} />
           )),
           ...rest(a.key, o.reply.length, "new lead to answer", "new leads to answer", a.href, a.urgency),
         ];

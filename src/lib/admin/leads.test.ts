@@ -11,6 +11,7 @@ describe("lead filters", () => {
     expect(parseLeadFilter({ status: "hacked", type: "nope", q: "  Ford  " })).toEqual({ status: undefined, type: undefined, q: "ford" });
     expect(parseLeadFilter({ status: "won", type: "finance" })).toMatchObject({ status: "won", type: "finance" });
     expect(parseLeadFilter({ q: "x".repeat(200) }).q).toHaveLength(60);
+    expect(parseLeadFilter({ with: "M".repeat(90) }).with).toBe("M".repeat(90)); // a long team name still filters
   });
   it("filters by status, type and text, newest first", () => {
     const leads = [lead("a1", { status: "won" }), lead("a2", { type: "finance", carTitle: "2019 Ford Focus" }), lead("a3", { message: "Is the Ford still here?" })];
@@ -56,6 +57,7 @@ describe("the lead's main button", () => {
     expect(replyVia(lead("a", { source: "WhatsApp", phone: PHONE }))).toBe("whatsapp");
     expect(replyVia(lead("a", { phone: PHONE, answers: { contactVia: "whatsapp" } }))).toBe("whatsapp");
     expect(replyVia(lead("a", { source: "WhatsApp", phone: PHONE, whatsappOptIn: false }))).toBe("call"); // WhatsApp stopped on the lead
+    expect(replyVia(lead("a", { source: "WhatsApp", phone: "(021) 496 1234" }))).toBe("call"); // a landline is not on WhatsApp
     expect(replyVia(lead("a", { phone: PHONE, answers: { contactVia: "email" } }))).toBe("email");
     expect(replyVia(lead("a", { source: "WhatsApp", phone: "" }))).toBe("email"); // no number to message
     expect(replyVia(lead("a", { phone: "12", email: "" }))).toBeUndefined();

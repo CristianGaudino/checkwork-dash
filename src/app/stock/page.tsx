@@ -9,7 +9,7 @@ import { carCosts } from "@/lib/admin/costs";
 import { marginOf } from "@/lib/admin/margins";
 import { adminCars } from "@/lib/admin/stock-admin";
 import { can } from "@/lib/permissions";
-import { daysSince, fmtAgo, fmtDate, fmtEur, fmtNum } from "@/lib/admin/format";
+import { daysSince, fmtAgoOn, fmtDate, fmtEur, fmtNum } from "@/lib/admin/format";
 import { carName, siteCarUrl, priceLabel } from "@/lib/stock/format";
 import { FUEL_LABELS, FUELS, GEARBOXES, GEARBOX_LABELS, forSale, isReduced, isSold, type Car, onPublicSite } from "@/lib/stock/types";
 import { stockSource } from "@/lib/stock-source";
@@ -101,7 +101,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sto
     <>
       <PageHeader
         title="Stock"
-        text={sync ? (sync.lastOkAt ? `Last updated ${fmtAgo(sync.lastOkAt)}` : "Not updated yet") : "Press a car to change its price, photos or details"}
+        text={sync ? (sync.lastOkAt ? `Last updated ${fmtAgoOn(sync.lastOkAt)}` : "Not updated yet") : "Press a car to change its price, photos or details"}
         actions={
           <>
             {synced ? (
@@ -276,12 +276,12 @@ async function StockTable({ sp, matching, sales, view, q, synced, social, canUnd
               <Link href={open(c)} {...(open(c).startsWith("/") ? {} : NEW_TAB)} title={`${c.make} ${c.model}`} className="line-clamp-2 font-medium after:absolute after:inset-0">
                 {c.make} {c.model}
               </Link>
-              {/* The reg and the days before the variant, so a long variant never clamps them away on a phone; the reg never split at a dash. */}
-              <span title={[c.year, c.reg, c.variant].filter(Boolean).join(" · ")} className="line-clamp-2 text-meta text-text-2">
+              {/* The reg on a line of its own, never clamped away by a long variant nor split at a dash. */}
+              {c.reg && <span className="block whitespace-nowrap text-meta text-text-2">{c.reg}</span>}
+              <span title={[c.year, c.variant].filter(Boolean).join(" · ")} className="line-clamp-2 text-meta text-text-2">
                 {c.year}
-                {c.reg && <> · <span className="whitespace-nowrap">{c.reg}</span></>}
                 {/* The days in stock have their own column from 1024px. */}
-                {c.listedAt && !isSold(c) && <span className="whitespace-nowrap lg:hidden"> · {daysInStock(c.listedAt)}</span>}
+                {c.listedAt && !isSold(c) && <span className="lg:hidden"> · <span className="whitespace-nowrap">{daysInStock(c.listedAt)}</span></span>}
                 {c.variant && ` · ${c.variant}`}
               </span>
             </span>
@@ -290,18 +290,18 @@ async function StockTable({ sp, matching, sales, view, q, synced, social, canUnd
           </div>
         </div>
       ),
-      // A truncated name still asks for its whole width in a table. On a phone the car takes the room the price leaves (w-full with max-w-0)
-      // and wraps inside it; from 640px a cap keeps it from crowding the other columns.
-      className: "max-sm:w-full max-sm:max-w-0 max-sm:!pr-2 sm:min-w-[13rem] sm:max-w-[18rem]",
+      // On a phone the car takes the room the price leaves (w-full; max-w-0 stops a full-width column stretching the table past its box),
+      // with a floor so the name and reg stay readable; from 640px a cap keeps it from crowding the other columns.
+      className: "max-sm:w-full max-sm:max-w-0 max-sm:min-w-[8.5rem] max-sm:!pr-2 sm:min-w-[13rem] sm:max-w-[18rem]",
     },
     {
       key: "price",
       header: "Price",
       align: "right",
-      nowrap: true,
       sort: (c) => c.priceEur,
-      // Tight on a phone, and the was-price left to the car's page there, so the car's name has the room for one line.
-      className: "max-sm:!pl-1",
+      // Tight on a phone, and the was-price left to the car's page there, so the car's name has the room for one line. Price on request
+      // wraps there, onto two lines.
+      className: "max-sm:!pl-1 max-sm:whitespace-normal",
       cell: (c) => (
         <span className="flex flex-col items-end">
           <span className="font-medium">{priceLabel(c)}</span>
@@ -316,7 +316,7 @@ async function StockTable({ sp, matching, sales, view, q, synced, social, canUnd
       ),
     },
     // A sold car's margin is on what it sold for, as on Margins; a car on request (price 0, no sale) has none.
-    ...(costs ? [{ key: "margin", header: "Margin", align: "right" as const, hide: "md" as const, nowrap: true, sort: (c: Car) => (costs.has(c.id) && marginPrice(c) ? marginOf(marginPrice(c), costs.get(c.id)!).eur : undefined), cell: (c: Car) => (!marginPrice(c) ? "" : costs.has(c.id) ? fmtEur(marginOf(marginPrice(c), costs.get(c.id)!).eur) : <span className="text-text-2">Not set</span>) }] : []),
+    ...(costs ? [{ key: "margin", header: "Margin", align: "right" as const, hide: "md" as const, nowrap: true, sort: (c: Car) => (costs.has(c.id) && marginPrice(c) ? marginOf(marginPrice(c), costs.get(c.id)!).eur : undefined), cell: (c: Car) => (!marginPrice(c) ? "" : costs.has(c.id) ? <MarginCell eur={marginOf(marginPrice(c), costs.get(c.id)!).eur} /> : <span className="text-text-2">Not set</span>) }] : []),
     // How long a car has been for sale: what a dealer watches to decide on a price drop.
     // The days, and a bar that turns amber at the dealer's old stock days (the old stock view): which cars are ageing, down the column at a glance.
     {
@@ -345,8 +345,8 @@ async function StockTable({ sp, matching, sales, view, q, synced, social, canUnd
       header: "",
       hide: "sm", // on a phone the row opens the car, and its page has these at the top
       cell: (c) => (
-        // Above the row's own link, so these buttons are what a press on them hits. One button, the car's next step (Record sale, Mark sold),
-        // and the rest under the row's menu (#95).
+        // Above the row's own link, so these buttons are what a press on them hits. A button only for a step that is due (Record sale, a
+        // price drop), and the rest under the row's menu, Mark sold first (#95).
         <div className="relative z-10 flex justify-end gap-2">
           {recordSale(c)}
           {synced ? (
@@ -364,13 +364,13 @@ async function StockTable({ sp, matching, sales, view, q, synced, social, canUnd
           ) : (
             <>
               {drop(c) && dropButton(c, drop(c)!.priceEur)}
-              {!isSold(c) && (
-                <Link href={`/stock/${c.id}/sale`} aria-label={`Mark sold: ${carName(c)}`} className={rowButtonStrong}>
-                  <CheckIcon className="shrink-0 size-4" />
-                  Mark sold
-                </Link>
-              )}
               <RowMenu label={`More for ${carName(c)}`}>
+                {!isSold(c) && (
+                  <Link href={`/stock/${c.id}/sale`} aria-label={`Mark sold: ${carName(c)}`} className={rowButton}>
+                    <CheckIcon className="shrink-0 size-4" />
+                    Mark sold
+                  </Link>
+                )}
                 <Link href={`/stock/${c.id}`} className={rowButton}>
                   <PencilIcon className="shrink-0 size-4" />
                   Edit details and photos
@@ -419,3 +419,6 @@ async function StockTable({ sp, matching, sales, view, q, synced, social, canUnd
     </>
   );
 }
+
+// A loss is red, as on Margins.
+const MarginCell = ({ eur }: { eur: number }) => <span className={eur < 0 ? "text-bad" : undefined}>{fmtEur(eur)}</span>;
