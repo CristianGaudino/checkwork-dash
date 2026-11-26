@@ -1,10 +1,7 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { Car } from "./types";
 
-vi.mock("server-only", () => ({}));
-vi.mock("@/lib/db", () => ({}));
-vi.mock("@/lib/tenancy/current", () => ({}));
-const { readCar } = await import("./d1-provider");
+import { readCar } from "./types";
 
 describe("readCar", () => {
   it("reads a car still stored as new as used, and leaves the rest alone", () => {

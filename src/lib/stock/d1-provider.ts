@@ -3,7 +3,7 @@ import { getDb } from "@/lib/db";
 import { currentDealer } from "@/lib/tenancy/current";
 import { cars } from "@/lib/db/schema";
 import { createStockEngine } from "./engine";
-import type { Car, StockProvider } from "./types";
+import { readCar, type StockProvider } from "./types";
 
 // The stock, read from Cloudflare D1 (the `cars` table: one row per car, the whole Car as JSON). The demo seeds it with made-up cars
 // (npm run stock:seed, then npm run db:seed); a site that manages its own stock writes the same rows.
@@ -13,14 +13,6 @@ const TTL_MS = 30_000;
 // One snapshot per dealer, each from that dealer's own database. The promise is kept, not the result, so requests that arrive together
 // while it loads share one read of the table.
 const snapshots = new Map<string, { at: number; engine: Promise<StockProvider> }>();
-
-// A car saved as new in the minutes between drizzle/0006 and this code going live reads as used, as the migration made the rest (#188).
-export function readCar(data: unknown): Car {
-  const car = data as Car;
-  if ((car.condition as string) !== "new") return car;
-  const { condition: _, ...used } = car;
-  return used;
-}
 
 async function engine(): Promise<StockProvider> {
   const { id, profile } = await currentDealer();

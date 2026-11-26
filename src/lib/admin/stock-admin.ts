@@ -4,7 +4,7 @@ import { getDb } from "@/lib/db";
 import { cars } from "@/lib/db/schema";
 import { hasD1 } from "@/lib/tenancy/current";
 import { memoryCars, refreshMemoryStock } from "@/lib/stock";
-import type { Car } from "@/lib/stock/types";
+import { readCar, type Car } from "@/lib/stock/types";
 import { devFixtureCars } from "@/lib/dev-data";
 import { drivesStore, leadsStore, mediaStore, postsStore, reservationsStore, salesStore } from "./collections";
 import { carSlug, nextCarId, slugId } from "./stock-admin-pure";
@@ -26,7 +26,7 @@ export async function adminCars(): Promise<Car[]> {
     return [...(dev ?? (await memoryCars()))];
   }
   const rows = await (await getDb()).select({ data: cars.data }).from(cars);
-  return rows.map((r) => r.data as Car);
+  return rows.map((r) => readCar(r.data));
 }
 
 // The id for a new car: above every id still in use, by a car or by a record that names one (a sale, a deposit, a lead and its visit note,
@@ -42,7 +42,7 @@ export async function freeCarId(): Promise<string> {
 export async function adminCar(id: string): Promise<Car | undefined> {
   if (!hasDb()) return (await adminCars()).find((c) => c.id === id);
   const [r] = await (await getDb()).select({ data: cars.data }).from(cars).where(eq(cars.id, id)).limit(1);
-  return r?.data as Car | undefined;
+  return r && readCar(r.data);
 }
 
 // When each car in memory was last written (D1 keeps it in the row's updated_at). Kept off the Car, so the website never sees it.
@@ -73,7 +73,7 @@ export async function adminCarAt(id: string): Promise<{ car: Car; at: number } |
     return car && { car, at: memAt.get(car) ?? 0 };
   }
   const [row] = await (await getDb()).select({ car: cars.data, at: cars.updatedAt }).from(cars).where(eq(cars.id, id)).limit(1);
-  return row && { car: row.car as Car, at: row.at };
+  return row && { car: readCar(row.car), at: row.at };
 }
 
 // A change to one car (hide it, drop its price, add a photo) while others may change it too, as docs.ts' update does for records: `fn`

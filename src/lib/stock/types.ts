@@ -153,3 +153,12 @@ export interface StockProvider {
   lookup(slug: string): Promise<Lookup>;
   taxonomy(): Promise<Taxonomy>; // over every car, expired included
 }
+
+// A car stored as new (saved in the minutes of a deploy, or during a rollback to older code) reads as used, as drizzle/0006 made the
+// rest (#188). Every read of a stored car goes through this: the stock engine and the dashboard's own reads (stock-admin.ts).
+export function readCar(data: unknown): Car {
+  const car = data as Car;
+  if ((car.condition as string) !== "new") return car;
+  const { condition: _, ...used } = car;
+  return used;
+}
