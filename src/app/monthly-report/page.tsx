@@ -204,7 +204,7 @@ async function Report({ month, prevMonth, now, name, whole, hasMargins }: { mont
             <StatGrid>
               {/* Cars sold is in the month in short at the top; here it shows only when there is no money to show beside it. */}
               {s.sales.valueEur === undefined && profit === undefined && <StatCard label="Cars sold" value={fmtCompact(s.sales.count)} hint={compare(s.sales.count, p.sales.count)} />}
-              {s.sales.valueEur !== undefined && <StatCard label="Sales" value={fmtCompactEur(s.sales.valueEur)} title={fmtEur(s.sales.valueEur)} />}
+              {s.sales.valueEur !== undefined && <StatCard label="Sales" value={fmtCompactEur(s.sales.valueEur)} hint={fmtCompactEur(s.sales.valueEur) === fmtEur(s.sales.valueEur) ? undefined : fmtEur(s.sales.valueEur)} />}
               {profit !== undefined && <StatCard label="Profit" value={fmtEur(profit)} hint="Cars with their cost entered" />}
             </StatGrid>
           </section>

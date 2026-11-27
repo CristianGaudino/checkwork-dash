@@ -6,7 +6,7 @@ import { BrandIcon } from "@/components/admin/BrandIcon";
 import { postName, prepared } from "@/components/admin/PostNow";
 import { carCards } from "@/lib/admin/car-cards";
 import { mediaStore, postsStore } from "@/lib/admin/collections";
-import { dublinDateTime, fmtCompact, fmtDateTime } from "@/lib/admin/format";
+import { dublinDateTime, fmtDateTime, fmtNum } from "@/lib/admin/format";
 import { newestForSale, worthPosting } from "@/lib/admin/marketing";
 import { adminCars } from "@/lib/admin/stock-admin";
 import { slugId } from "@/lib/admin/stock-admin-pure";
@@ -44,8 +44,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           {/* Held until the network approves us: it has not gone out, so no figures. */}
           {!held && (
             <StatGrid>
-              <StatCard label="People who saw it" value={fmtCompact(post.reach ?? 0)} />
-              <StatCard label="Clicks to your site" value={fmtCompact(post.clicks ?? 0)} />
+              <StatCard label="People who saw it" value={fmtNum(post.reach ?? 0)} />
+              <StatCard label="Clicks to your site" value={fmtNum(post.clicks ?? 0)} />
             </StatGrid>
           )}
         </div>

@@ -75,7 +75,7 @@ export const monthChoices = (from: string, count: number) =>
 // Prices, costs, margins, deposits, bills, finance and every table keep fmtEur and fmtNum. Worked from whole numbers, so 9,950 is "10k".
 function compact(n: number, eur: boolean) {
   const a = Math.abs(n);
-  if (a < 1000) return eur ? fmtEur(n) : fmtNum(n);
+  if (a < 1000 || !Number.isFinite(n)) return eur ? fmtEur(n) : fmtNum(n); // NaN or Infinity: never "NaNm"
   const at = (size: number) => (a < size * 100 - size / 20 ? Math.round(a / (size / 10)) / 10 : Math.round(a / size));
   const [v, unit] = at(1e3) < 1000 ? [at(1e3), "k"] : [at(1e6), "m"];
   return `${n < 0 ? "-" : ""}${eur ? "€" : ""}${fmtNum(v)}${unit}`;

@@ -37,6 +37,8 @@ describe("tween-number", () => {
     expect(figureAt(from, to, 0)).toBe("12.4k");
     expect(figureAt(from, to, 1)).toBe("13k");
     expect(figureAt({ ...to, n: 0 }, to, 0.5)).toMatch(/^\d+k$/);
-    expect(figureAt({ ...parseFigure("€1.2m")!, n: 0 }, parseFigure("€1.2m")!, 0.5)).toMatch(/^€\d\.\dm$/);
+    expect(figureAt({ ...parseFigure("€1.2m")!, n: 0 }, parseFigure("€1.2m")!, 0.5)).toMatch(/^€\d\.[1-9]m$|^€\dm$/); // never "€0.0m"
+    for (let t = 0; t <= 1; t += 0.01) expect(figureAt(parseFigure("12.4k")!, parseFigure("13.2k")!, t)).not.toMatch(/\.0[km]/);
+    for (let t = 0; t <= 1; t += 0.01) expect(figureAt({ ...parseFigure("€1.2m")!, n: 0 }, parseFigure("€1.2m")!, t)).not.toMatch(/\.0[km]/);
   });
 });

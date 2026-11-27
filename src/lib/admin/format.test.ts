@@ -36,6 +36,8 @@ describe("admin format", () => {
       [99950, "100k", "€100k"],
       [117565, "118k", "€118k"],
       [999499, "999k", "€999k"],
+      [999500, "1m", "€1m"],
+      [999949, "1m", "€1m"],
       [999950, "1m", "€1m"],
       [1050000, "1.1m", "€1.1m"],
       [5864950, "5.9m", "€5.9m"],
@@ -46,6 +48,8 @@ describe("admin format", () => {
       expect(fmtCompact(n)).toBe(count);
       expect(fmtCompactEur(n)).toBe(eur);
     }
+    expect(fmtCompact(NaN)).toBe("NaN");
+    expect(fmtCompactEur(Infinity)).toBe("€∞");
   });
   it("writes September in full, and short as Sep", () => {
     expect(fmtDay("2027-09-01", "monthYear")).toBe("September 2027");

@@ -18,10 +18,11 @@ export const countable = (a: Figure | null, b: Figure | null): a is Figure =>
   !!a && !!b && a.before === b.before && a.after === b.after && a.n !== b.n;
 
 // The text at `t` (0 to 1) of the way from one figure to the other, eased out so it settles on the new value. Between figures with
-// different decimals it shows up to the longer and drops a ".0", so "12.4k" counts to "13k" without a "13.0k" on the way.
+// different decimals it shows up to the longer and drops a ".0", so "12.4k" counts to "13k" without a "13.0k" on the way. A rounded
+// figure (k or m) never shows a ".0" at all: "€1.2m" counts up through "€1m", not "€1.0m".
 export function figureAt(from: Figure, to: Figure, t: number): string {
   const eased = 1 - (1 - Math.min(1, Math.max(0, t))) ** 4;
   const n = from.n + (to.n - from.n) * eased;
-  const text = n.toLocaleString("en-IE", { minimumFractionDigits: Math.min(from.decimals, to.decimals), maximumFractionDigits: Math.max(from.decimals, to.decimals), useGrouping: from.grouped || to.grouped });
+  const text = n.toLocaleString("en-IE", { minimumFractionDigits: /^[km]/.test(to.after) ? 0 : Math.min(from.decimals, to.decimals), maximumFractionDigits: Math.max(from.decimals, to.decimals), useGrouping: from.grouped || to.grouped });
   return `${to.before}${text}${to.after}`;
 }
