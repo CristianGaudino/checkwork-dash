@@ -121,7 +121,7 @@ export function DemoBar({ demo, donedeal }: { demo: boolean; donedeal: boolean }
           id={panelId}
           popover="auto"
           onToggle={(e) => setOpen(e.newState === "open")}
-          className={`fixed inset-auto right-[max(0.75rem,env(safe-area-inset-right))] m-0 w-[min(20rem,calc(100vw-1.5rem))] flex-col items-start gap-1 rounded-card border border-hairline bg-band p-2 text-text shadow-panel bottom-[calc(7rem+env(safe-area-inset-bottom))] max-lg:[&:popover-open]:flex lg:hidden`}
+          className={`fixed inset-auto right-[max(0.75rem,env(safe-area-inset-right))] m-0 w-[min(20rem,calc(100vw-1.5rem))] flex-col items-start gap-1 rounded-card border border-hairline bg-band p-2 text-text shadow-panel transition-[opacity,translate,overlay,display] transition-discrete duration-150 ease-out opacity-0 -translate-y-1 open:opacity-100 open:translate-y-0 starting:open:opacity-0 starting:open:-translate-y-1 motion-reduce:translate-y-0! bottom-[calc(7rem+env(safe-area-inset-bottom))] max-lg:[&:popover-open]:flex lg:hidden`}
         >
           {controls(true)}
         </div>

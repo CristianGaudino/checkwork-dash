@@ -58,7 +58,7 @@ export function LiveSearch({ placeholder, label }: { placeholder: string; label:
     start(() => router.replace(hrefWith({ q: v.trim() || undefined }), { scroll: false }));
   };
   return (
-    <form role="search" aria-busy={pending} onSubmit={(e) => (e.preventDefault(), run(value))} className="relative min-w-0 flex-1 basis-24 sm:max-w-sm">
+    <form role="search" aria-busy={pending} data-list-busy={pending || undefined} onSubmit={(e) => (e.preventDefault(), run(value))} className="relative min-w-0 flex-1 basis-24 sm:max-w-sm">
       <SearchIcon className="shrink-0 pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2 text-text-2" />
       <input
         ref={input}
@@ -116,7 +116,7 @@ export function Filters({ groups }: { groups: FilterGroup[] }) {
   const sp = useSearchParams();
   const router = useRouter();
   const hrefWith = useParamHref();
-  const [, start] = useTransition();
+  const [pending, start] = useTransition();
   const id = useId();
   const button = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLDivElement>(null);
@@ -131,7 +131,7 @@ export function Filters({ groups }: { groups: FilterGroup[] }) {
   const place = () => placeSheet(panel.current, button.current);
   return (
     <>
-      <button ref={button} type="button" popoverTarget={id} onClick={place} className={`inline-flex h-11 shrink-0 items-center gap-2 rounded-control bg-accent-soft px-4 text-meta font-semibold text-accent-text transition-colors hover:bg-accent-soft-hover ${press}`}>
+      <button ref={button} type="button" popoverTarget={id} onClick={place} data-list-busy={pending || undefined} className={`inline-flex h-11 shrink-0 items-center gap-2 rounded-control bg-accent-soft px-4 text-meta font-semibold text-accent-text transition-colors hover:bg-accent-soft-hover ${press}`}>
         <SlidersIcon className="shrink-0 size-4" />
         Filters
         {on > 0 && (
