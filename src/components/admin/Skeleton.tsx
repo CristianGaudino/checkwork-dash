@@ -29,23 +29,29 @@ export function Skeleton({ children, className = "flex flex-col gap-6" }: { chil
   );
 }
 
-// A row of stat tiles (StatGrid, StatCard): label, figure, hint. `lead`: the first is the grid's lead tile (StatCard `lead`).
+// A group of figures loading (StatGrid, StatCard): rows of a label and a figure. `lead`: the first is the headline (StatCard `lead`).
 export function TileBones({ count = 4, lead = false }: { count?: number; lead?: boolean }) {
   return <StatGrid>{Array.from({ length: count }, (_, i) => <TileBone key={i} lead={lead && i === 0} />)}</StatGrid>;
 }
 
-// One stat tile, for a fallback inside a StatGrid that already holds the other tiles: a direct child of the grid, so the grid counts it as the
-// tile it stands for, three rows tall as a StatCard is. Its lines are the tile's own (label, figure at its size, hint). `busy`: the first
-// bone of a fallback made of bones alone (the Overview's website tiles), which then says "Loading" as Skeleton does.
+// One figure's bones, for a fallback inside a StatGrid that already holds the others: a direct child of the grid, so a `lead` one takes the
+// headline's place and the rest are rows. `busy`: the first bone of a fallback made of bones alone (the Overview's website figures), which
+// then says "Loading" as Skeleton does.
 export function TileBone({ lead = false, busy = false }: { lead?: boolean; busy?: boolean }) {
-  return (
-    <div aria-busy={busy || undefined} data-skeleton={busy || undefined} data-lead={lead || undefined} className={`${card} row-span-3 flex min-w-0 flex-col gap-1 p-4 ${lead ? "col-span-2" : ""}`}>
+  return lead ? (
+    <div aria-busy={busy || undefined} data-skeleton={busy || undefined} className="flex min-w-0 flex-col gap-1">
       {busy && <p className="sr-only">Loading</p>}
       <LineBone className="h-3.5 w-24 max-w-full" />
       <div className="@container min-w-0">
-        <LineBone text={`${figureSize("00", lead)} leading-[1.1]`} className={`h-[0.75em] ${lead ? "w-28" : "w-20"}`} />
+        <LineBone text={`${figureSize("00")} leading-[1.1]`} className="h-[0.75em] w-28" />
       </div>
       <LineBone className="h-3.5 w-32 max-w-full" />
+    </div>
+  ) : (
+    <div aria-busy={busy || undefined} data-skeleton={busy || undefined} className="flex min-h-14 min-w-0 items-center gap-3 py-2.5">
+      {busy && <p className="sr-only">Loading</p>}
+      <LineBone className="h-3.5 w-32 max-w-full" />
+      <LineBone className="ml-auto h-4 w-12" />
     </div>
   );
 }
@@ -92,9 +98,9 @@ export function PanelBones({ title, text = false, plain = false, children = <Row
 // A row of tabs with their counts (SummaryTabs): a label, a figure and, with `hint`, a line under it. The same row and tile classes.
 export function TabBones({ count, hint = false }: { count: number; hint?: boolean }) {
   return (
-    <div className="scrollbar-none -mx-4 -my-1 flex gap-2 overflow-x-auto px-4 py-1 sm:mx-0 sm:grid sm:grid-cols-[repeat(auto-fit,minmax(min(8rem,100%),1fr))] sm:overflow-visible sm:px-0">
+    <div className="scrollbar-none flex divide-x divide-hairline overflow-x-auto rounded-card border border-hairline/70 bg-card p-1 shadow-panel">
       {Array.from({ length: count }, (_, i) => (
-        <div key={i} className="flex min-w-28 shrink-0 flex-col gap-0.5 rounded-card border border-hairline bg-card px-4 py-3">
+        <div key={i} className="flex min-w-24 shrink-0 grow flex-col gap-0.5 px-4 py-2.5">
           <LineBone className="h-3.5 w-16" />
           <LineBone text="text-heading" className="h-5 w-10" />
           {hint && <LineBone className="h-3.5 w-24" />}

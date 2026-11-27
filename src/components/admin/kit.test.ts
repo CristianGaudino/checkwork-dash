@@ -45,14 +45,12 @@ describe("sortRows", () => {
   });
 });
 
-describe("a stat tile's figure size", () => {
-  it("keeps figures large, and makes a long word smaller so it never breaks inside", () => {
-    expect(figureSize("€117,565")).toBe("text-[min(2rem,20cqi)]");
-    expect(figureSize("WhatsApp")).toBe("text-[min(2rem,15cqi)]"); // at 20cqi it broke as "WhatsAp / p"
-    expect(figureSize("€5,864,950")).toBe("text-[min(2rem,15cqi)]");
-    expect(figureSize("Bookmarked")).toBe("text-[min(2rem,12cqi)]");
-    expect(figureSize("€117,565", true)).toBe("text-[min(3.5rem,20cqi)]"); // a lead tile: the same share of twice the width, up to 3.5rem
-    expect(figureSize("€5,864,950", true)).toBe("text-[min(3.5rem,15cqi)]");
+describe("a headline figure's size", () => {
+  it("is large, and makes a long word smaller so it never breaks inside", () => {
+    expect(figureSize("€117,565")).toBe("text-[min(3.5rem,20cqi)]");
+    expect(figureSize("WhatsApp")).toBe("text-[min(3.5rem,15cqi)]"); // at 20cqi it broke as "WhatsAp / p"
+    expect(figureSize("€5,864,950")).toBe("text-[min(3.5rem,15cqi)]");
+    expect(figureSize("Bookmarked")).toBe("text-[min(3.5rem,12cqi)]");
   });
 });
 
