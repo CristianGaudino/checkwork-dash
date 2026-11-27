@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { Skeleton, TileBone } from "@/components/admin/Skeleton";
+import { TileBone } from "@/components/admin/Skeleton";
 import { ActionTile, ActionTiles, Columns, EmptyState, PageHeader, Panel, PanelLink, StatCard, StatGrid, TaskList } from "@/components/admin/kit";
 import { CalendarIcon, CarIcon, CheckIcon, InboxIcon, ShareIcon } from "@/components/stock/icons";
 import { can } from "@/lib/permissions";
@@ -93,9 +93,10 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
                 {/* This week's leads: Leads has no date filter, Analytics over 7 days does. */}
                 <StatCard lead href={mods.has("analytics") ? "/analytics?range=7" : "/leads"} label="Leads this week" value={fmtCompact(thisWeek)} hint={`${fmtNum(o.usualWeek)} in a usual week`} tone={thisWeek > o.usualWeek ? "good" : undefined} />
                 <StatCard href="/stock" label="Cars for sale" value={fmtCompact(cars.filter(forSale).length)} hint={o.oldStock ? `${o.oldStock} for sale ${rules.oldStockDays} days or more` : undefined} tone={o.oldStock ? "warn" : undefined} />
-                {/* Only the website's tiles wait: the two above are links in the first chunk (#109). */}
+                {/* Only the website's tiles wait: the two above are links in the first chunk (#109). Their bones are the grid's own tiles, so the
+                    layout counts them as the tiles they stand for. */}
                 {boss && (
-                  <Suspense fallback={<Skeleton className="contents"><TileBone />{mods.has("analytics") && <TileBone />}</Skeleton>}>
+                  <Suspense fallback={<><TileBone busy />{mods.has("analytics") && <TileBone />}</>}>
                     <WebsiteTiles leads={leads} analytics={mods.has("analytics")} />
                   </Suspense>
                 )}

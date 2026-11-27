@@ -1,5 +1,5 @@
 import { card } from "@/components/ui";
-import { StatGrid } from "./kit";
+import { StatGrid, figureSize } from "./kit";
 
 // The loading kit (#109): the shape of a slow part of a page while its records load, in a <Suspense> inside the page. Never loading.tsx
 // (NavProgress.tsx says why), never around the page's header, tabs or a notFound(). Bones in the hairline colour, rows on the row-alt fill,
@@ -34,13 +34,18 @@ export function TileBones({ count = 4, lead = false }: { count?: number; lead?: 
   return <StatGrid>{Array.from({ length: count }, (_, i) => <TileBone key={i} lead={lead && i === 0} />)}</StatGrid>;
 }
 
-// One stat tile, for a fallback inside a StatGrid that already holds the other tiles.
-export function TileBone({ lead = false }: { lead?: boolean }) {
+// One stat tile, for a fallback inside a StatGrid that already holds the other tiles: a direct child of the grid, so the grid counts it as the
+// tile it stands for, three rows tall as a StatCard is. Its lines are the tile's own (label, figure at its size, hint). `busy`: the first
+// bone of a fallback made of bones alone (the Overview's website tiles), which then says "Loading" as Skeleton does.
+export function TileBone({ lead = false, busy = false }: { lead?: boolean; busy?: boolean }) {
   return (
-    <div data-lead={lead || undefined} className={`${card} flex min-w-0 flex-col gap-2 p-4 ${lead ? "col-span-2" : ""}`}>
-      <Bone className="h-4 w-24 max-w-full" />
-      <Bone className={lead ? "h-14 w-28" : "h-8 w-20"} />
-      <Bone className="h-4 w-32 max-w-full" />
+    <div aria-busy={busy || undefined} data-skeleton={busy || undefined} data-lead={lead || undefined} className={`${card} row-span-3 flex min-w-0 flex-col gap-1 p-4 ${lead ? "col-span-2" : ""}`}>
+      {busy && <p className="sr-only">Loading</p>}
+      <LineBone className="h-3.5 w-24 max-w-full" />
+      <div className="@container min-w-0">
+        <LineBone text={`${figureSize("00", lead)} leading-[1.1]`} className={`h-[0.75em] ${lead ? "w-28" : "w-20"}`} />
+      </div>
+      <LineBone className="h-3.5 w-32 max-w-full" />
     </div>
   );
 }

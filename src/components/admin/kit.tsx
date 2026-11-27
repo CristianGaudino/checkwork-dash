@@ -145,10 +145,11 @@ export function Meter({ value, max, lead = false }: { value: number; max: number
 // Two to a row on a phone, so an odd last tile takes the whole row rather than sit alone beside a gap. With a lead tile (StatCard `lead`,
 // two columns wide, first): two to a row until the grid itself is 48rem wide, the last tile filling its row when the others are odd, then
 // every tile on one row, the lead twice the others, so no row is left part empty. A container query, as the Overview's grid sits in a column.
+// Tiles are counted "of :not(template)": while a part streams in, React's <template> marker sits in the grid beside its fallback's bones.
 export function StatGrid({ children }: { children: React.ReactNode }) {
   return (
     <div className="@container">
-      <div className="grid grid-cols-2 gap-3 max-sm:[&:not(:has(>[data-lead]))>:last-child:nth-child(odd)]:col-span-2 sm:[&:not(:has(>[data-lead]))]:grid-cols-[repeat(auto-fit,minmax(min(11rem,100%),1fr))] @max-3xl:[&:has(>[data-lead])>:last-child:nth-child(even)]:col-span-2 @3xl:[&:has(>[data-lead])]:auto-cols-fr @3xl:[&:has(>[data-lead])]:grid-flow-col @3xl:[&:has(>[data-lead])]:grid-cols-none">
+      <div className="grid grid-cols-2 gap-3 max-sm:[&:not(:has(>[data-lead]))>:last-child:nth-child(odd_of_:not(template))]:col-span-2 sm:[&:not(:has(>[data-lead]))]:grid-cols-[repeat(auto-fit,minmax(min(11rem,100%),1fr))] @max-3xl:[&:has(>[data-lead])>:last-child:nth-child(even_of_:not(template))]:col-span-2 @3xl:[&:has(>[data-lead])]:auto-cols-fr @3xl:[&:has(>[data-lead])]:grid-flow-col @3xl:[&:has(>[data-lead])]:grid-cols-none">
         {children}
       </div>
     </div>
@@ -254,13 +255,14 @@ export function DataTable<T>({ columns, rows, rowKey, empty, bare = false, linkR
 // list can be shared and the back button works. Never a row of numbers above a separate row of chips. On a phone the tiles scroll sideways
 // (TabRow): the chosen one is scrolled into view and an edge with more past it fades.
 // `lead`: the view acted on (#208), wider with a larger count. It keeps its place in the row (after All), so the reading order is the same.
-// From 640px a row with a lead wraps as a flex row, the lead twice the others, so a wrapped row has no gap; one without stays a grid.
+// A row with a lead stays one line at every width, scrolling sideways when it does not fit (a wrapped row left one tab alone, stretched);
+// from 640px its tabs grow to fill it, the lead twice the others. A row without stays a grid from 640px.
 export type SummaryTab = { label: string; href: string; active: boolean; count?: number | string; hint?: string; lead?: boolean };
 export function SummaryTabs({ items, label = "Filter" }: { items: SummaryTab[]; label?: string }) {
   const led = items.some((i) => i.lead);
   return (
     // A tapped tile takes the chosen look at the tap and the chosen one gives it up (LinkPending), not when the server answers.
-    <TabRow current={items.find((i) => i.active)?.href ?? ""} aria-label={label} className={`group/tabs scrollbar-none -mx-4 -my-1 flex gap-2 overflow-x-auto px-4 py-1 sm:mx-0 sm:overflow-visible sm:px-0 ${led ? "sm:flex-wrap" : "sm:grid sm:grid-cols-[repeat(auto-fit,minmax(min(8rem,100%),1fr))]"}`}>
+    <TabRow current={items.find((i) => i.active)?.href ?? ""} aria-label={label} className={`group/tabs scrollbar-none -mx-4 -my-1 flex gap-2 overflow-x-auto px-4 py-1 ${led ? "" : "sm:mx-0 sm:grid sm:grid-cols-[repeat(auto-fit,minmax(min(8rem,100%),1fr))] sm:overflow-visible sm:px-0"}`}>
       {items.map((i) => (
         <Link
           key={i.label}
@@ -496,21 +498,18 @@ export function Task({ title, detail, href, action, icon, mark, urgency = "info"
 }
 
 // The page's main jobs as big buttons, each an icon, a verb and one line on what it is for: what a person who has never used the dashboard
-// presses first. The first is the page's primary job (#208): filled and two columns wide. Laid out as StatGrid with a lead: two across, the
-// last filling its row when the others are odd, then all on one row once the row is 48rem wide.
+// presses first. The first is the page's primary job (#208), filled: StatGrid's lead, so the two rows of tiles on the Overview break alike.
 export function ActionTiles({ children, label = "Quick actions" }: { children: React.ReactNode; label?: string }) {
   return (
-    <nav aria-label={label} className="@container">
-      <div className="grid grid-cols-2 gap-3 [&>:first-child]:col-span-2 @max-3xl:[&>:last-child:nth-child(even)]:col-span-2 @3xl:auto-cols-fr @3xl:grid-flow-col @3xl:grid-cols-none">
-        {children}
-      </div>
+    <nav aria-label={label}>
+      <StatGrid>{children}</StatGrid>
     </nav>
   );
 }
 // `external`: another site (DoneDeal), opened in a new tab and said so to screen readers. `figure`: the primary job's count, large, before
 // `text` ("15" "leads to answer").
 export function ActionTile({ href, icon, label, text, figure, primary = false, external = false }: { href: string; icon: React.ReactNode; label: string; text?: string; figure?: string; primary?: boolean; external?: boolean }) {
-  const className = `flex min-h-24 flex-col justify-between gap-3 rounded-card border p-4 transition-colors ${primary ? "border-accent bg-accent text-on-accent" : `${card} hover:border-control`} ${press}`;
+  const className = `flex min-h-24 flex-col justify-between gap-3 rounded-card border p-4 transition-colors ${primary ? "col-span-2 border-accent bg-accent text-on-accent" : `${card} hover:border-control`} ${press}`;
   const body = (
     <>
       <span aria-hidden="true" className={`grid size-10 place-items-center rounded-control [&>svg]:size-5 ${primary ? "bg-card text-accent-text" : "bg-row-alt text-accent-text"}`}>{icon}</span>

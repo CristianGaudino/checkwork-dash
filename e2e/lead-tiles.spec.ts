@@ -22,7 +22,9 @@ const LEADS = [
 const measure = (lead: Locator) =>
   lead.evaluate((el) => {
     const row = el.parentElement!;
-    const tiles = [...row.children].filter((c) => c.getBoundingClientRect().width > 0);
+    // A wrapper with display: contents (a loading fallback) lays its children out as the row's own: measure those.
+    const flat = (cs: Element[]): Element[] => cs.flatMap((c) => (getComputedStyle(c).display === "contents" ? flat([...c.children]) : [c]));
+    const tiles = flat([...row.children]).filter((c) => c.getBoundingClientRect().width > 0);
     const box = row.getBoundingClientRect();
     const css = getComputedStyle(row);
     const [left, right] = [box.left + parseFloat(css.paddingLeft), box.right - parseFloat(css.paddingRight)];
@@ -43,7 +45,9 @@ const measure = (lead: Locator) =>
 
 const overflow = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
 
-for (const width of [360, 1280]) {
+// 700 and 900: a tab row between 640px and the sidebar, and the Overview's Numbers full width under the To do list (wider than 48rem).
+const WIDTHS = [360, 700, 900, 1280];
+for (const width of WIDTHS) {
   test(`each page's lead tile comes first and wider, with no gaps, at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     for (const [path, label, index] of LEADS) {
@@ -63,6 +67,25 @@ for (const width of [360, 1280]) {
     }
   });
 }
+
+// The Overview's website tiles stream in after the first paint. With scripts off the loading tiles stay, as on a slow connection: they
+// take the places of the tiles they stand for, with no gap and none stacked under another.
+test.describe("while the Overview's website tiles load", () => {
+  test.use({ javaScriptEnabled: false });
+  for (const width of WIDTHS) {
+    test(`the loading tiles leave no gap at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto("/");
+      const lead = page.getByRole("main").locator("[data-lead]").filter({ hasText: "Leads this week" });
+      await expect(page.getByRole("main").locator("[data-skeleton]")).toHaveCount(1);
+      const m = await measure(lead);
+      expect(m.index).toBe(0);
+      expect(m.lead, "wider than the others").toBeGreaterThan(Math.max(...m.paired) + 1);
+      expect(m.lead, "none wider").toBeGreaterThanOrEqual(m.widest - 1);
+      expect(m.gaps, "rows with a gap").toBe(0);
+    });
+  }
+});
 
 test("the tabs with a lead still filter, and the lead keeps the chosen look when picked", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
