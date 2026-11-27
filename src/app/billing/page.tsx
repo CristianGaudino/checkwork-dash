@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { DetailsEdit, LimitsEdit } from "@/components/admin/BillingForms";
-import { Badge, DataTable, Facts, FormActions, PageHeader, Panel, adminButtonQuiet, tapArea } from "@/components/admin/kit";
+import { Badge, DataTable, Facts, PageHeader, Panel, adminButtonQuiet, tapArea } from "@/components/admin/kit";
 import { listing, stockSource } from "@/lib/stock-source";
 import { currentDealer } from "@/lib/tenancy/current";
 import { dublinDay, fmtDay, fmtNum, plural } from "@/lib/admin/format";
@@ -42,40 +42,43 @@ export default async function Page() {
   const rows: { id: string; bill?: Bill }[] = [{ id: month }, ...bills.map((bill) => ({ id: bill.id, bill }))];
   return (
     <>
-      <PageHeader title="Billing" text="Your plan, this month's bill and your bills" />
+      <PageHeader
+        title="Billing"
+        text="Your plan, this month's bill and your bills"
+        actions={
+          <Link href="/help?type=Billing&from=/billing" className={adminButtonQuiet}>
+            Ask about my bill
+          </Link>
+        }
+      />
 
-      {/* What most people come for first: this month's bill, and what it is made of. Beside it, what to do if it looks wrong. */}
-      <div className="grid grid-cols-1 gap-6 wide:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
-        <Panel title="This month's bill">
-          <div>
-            <p className="font-display text-[2.5rem] font-semibold leading-none tracking-[-0.02em] tabular-nums">{eur(total)}</p>
-            <p className="mt-2 text-meta text-text-2">Estimate with {VAT_PCT}% VAT. Next bill on {nextBillDate(now)}</p>
-          </div>
-          <dl className="flex flex-col divide-y divide-hairline text-body">
-            {lines.map(([label, n]) => (
-              <div key={label} className="flex justify-between gap-4 py-2">
-                <dt>{label}</dt>
-                <dd className="whitespace-nowrap tabular-nums">{n < 0 ? `-${eur(-n)}` : eur(n)}</dd>
-              </div>
-            ))}
-            <div className="flex justify-between gap-4 py-2 font-semibold">
-              <dt>Total</dt>
-              <dd className="tabular-nums">{eur(total)}</dd>
+      {/* What most people come for first: this month's bill, the total large and what it is made of beside it (#213). A question about it
+          is the header's Ask about my bill, not a box of its own. */}
+      <Panel title="This month's bill">
+        <div className="@container">
+          <div className="grid gap-x-10 gap-y-4 @2xl:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)] @2xl:items-center">
+            <div>
+              <p className="font-display text-[min(3.5rem,18cqi)] font-semibold leading-none tracking-[-0.03em] tabular-nums">{eur(total)}</p>
+              <p className="mt-2 text-meta text-text-2">Estimate with {VAT_PCT}% VAT. Next bill on {nextBillDate(now)}</p>
             </div>
-          </dl>
-          <p className="text-meta text-text-2">
-            Everything in your plan is included. {b.term === 2 ? "2-year contract, no setup fee." : `1-year contract${p.setupEur ? `, setup ${eur(p.setupEur)} once` : ""}.`} Prices before VAT.
-          </p>
-        </Panel>
-        <Panel title="Something look wrong?" quiet>
-          <p className="text-body text-text-2">Tell us what you expected and we check it. Our reply shows in Help.</p>
-          <FormActions>
-            <Link href="/help?type=Billing&from=/billing" className={adminButtonQuiet}>
-              Ask about my bill
-            </Link>
-          </FormActions>
-        </Panel>
-      </div>
+            <dl className="flex flex-col divide-y divide-hairline text-body">
+              {lines.map(([label, n]) => (
+                <div key={label} className="flex justify-between gap-4 py-2">
+                  <dt>{label}</dt>
+                  <dd className="whitespace-nowrap tabular-nums">{n < 0 ? `-${eur(-n)}` : eur(n)}</dd>
+                </div>
+              ))}
+              <div className="flex justify-between gap-4 py-2 font-semibold">
+                <dt>Total</dt>
+                <dd className="tabular-nums">{eur(total)}</dd>
+              </div>
+            </dl>
+          </div>
+        </div>
+        <p className="text-meta text-text-2">
+          Everything in your plan is included. {b.term === 2 ? "2-year contract, no setup fee." : `1-year contract${p.setupEur ? `, setup ${eur(p.setupEur)} once` : ""}.`} Prices before VAT.
+        </p>
+      </Panel>
 
       {services.length > 0 && (
         // One limit per paid service, read first; Edit changes them in the house dialog (#141).
@@ -139,8 +142,11 @@ export default async function Page() {
         />
         <p className="text-meta text-text-2">Paid by direct debit. Invoices are emailed as PDFs when each bill is issued.</p>
       </Panel>
-      <BillingDetailsPanel details={details} owner={me.role === "Owner"} />
-      <SetForYou b={b} />
+      {/* Two short sets of details side by side on a wide screen, rather than two half-empty full-width cards. */}
+      <div className="grid grid-cols-1 items-start gap-6 wide:grid-cols-2">
+        <BillingDetailsPanel details={details} owner={me.role === "Owner"} />
+        <SetForYou b={b} />
+      </div>
     </>
   );
 }

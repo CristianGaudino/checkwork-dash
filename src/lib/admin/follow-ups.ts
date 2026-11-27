@@ -20,7 +20,7 @@ export const leadFlag = (l: Lead, slaHours: number, now = Date.now()) => (pastRe
 // To answer now and the Leads table's pinning (urgentFirst) both use it, so the panel and the table agree (#55).
 export const answerNow = (l: Lead, now: number, today: string, slaHours: number) => leadFlag(l, slaHours, now) !== undefined || (followUpDue(l, today) && l.followUpOn! < today);
 
-// The one rule for the leads waiting on you (#38). The Overview's headline, To do and Reply to leads button, Leads' To answer now and the
+// The one rule for the leads waiting on you (#38). The Overview's headline, To do and This week's To answer, Leads' To answer now and the
 // salesperson's report all count from it, so they agree. Each lead once: a follow-up due ("follow", exactly followUpDue, so the report and
 // the Follow-ups due filter match), else a new lead ("reply"). Now (red) by answerNow, else soon. Now first, then the longest waiting: a
 // new lead since it came in, a follow-up since its day.
