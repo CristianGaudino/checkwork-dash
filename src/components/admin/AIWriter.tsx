@@ -8,6 +8,9 @@ import { writeAction } from "@/lib/ai/actions";
 import { ADJUSTS, adjustsFor, type Adjust, type Task, type WriteRequest } from "@/lib/ai/tasks";
 import type { PostFormat } from "@/lib/admin/networks";
 import { adminButtonQuiet, adminInput, rowButton } from "./kit";
+import { BUSY } from "./ActButton";
+// A box being written into by AI: dimmed with the busy pulse, and the new text fades in as it lifts.
+export const WRITING = "transition-opacity duration-200 aria-busy:opacity-60 motion-safe:aria-busy:animate-pulse";
 
 // The changes to a draft: small neutral chips, a quieter group than Write with AI, 44px on a phone and 36px from 640px.
 const chip = `inline-flex min-h-11 items-center rounded-full bg-hairline px-3.5 text-meta font-medium text-text transition-colors hover:bg-accent-soft hover:text-accent-text disabled:opacity-50 pointer-fine:min-h-9 ${press}`;
@@ -53,7 +56,7 @@ export function AIWriter({ task, request, text, onText, onBusy, format }: { task
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         {/* Its own look among the secondary buttons: the sparkle in a filled dot says this one writes for you. */}
-        <button type="button" onClick={() => run()} disabled={pending} aria-busy={pending} className={`${adminButtonQuiet} pl-2.5 disabled:opacity-60`}>
+        <button type="button" onClick={() => run()} disabled={pending} aria-busy={pending || undefined} className={`${adminButtonQuiet} pl-2.5 ${BUSY}`}>
           <span aria-hidden="true" className="grid size-7 place-items-center rounded-full bg-accent text-on-accent">
             <SparkleIcon className="shrink-0 size-4" />
           </span>
@@ -116,7 +119,7 @@ export function AITextarea({ id, name, label, defaultValue = "", rows = 5, maxLe
       {open && (
         <>
           <label className="sr-only" htmlFor={id}>{label}</label>
-          <textarea ref={box} id={id} name={name} rows={rows} maxLength={maxLength} autoFocus={folded} readOnly={busy} aria-busy={busy} value={text} onChange={(e) => { setText(e.target.value); setCopied(false); setCopyError(""); }} className={`${adminInput} h-auto py-2`} />
+          <textarea ref={box} id={id} name={name} rows={rows} maxLength={maxLength} autoFocus={folded} readOnly={busy} aria-busy={busy || undefined} value={text} onChange={(e) => { setText(e.target.value); setCopied(false); setCopyError(""); }} className={`${adminInput} h-auto py-2 ${WRITING}`} />
         </>
       )}
       <AIWriter task={task} text={text} request={() => (typeof request === "function" ? request(box.current) : request)} onBusy={(b) => { setBusy(b); if (b) setOpen(true); }} onText={(t) => { setText(t); setCopied(false); setCopyError(""); }} />
@@ -155,7 +158,7 @@ export function AIBrief({ leadId }: { leadId: string }) {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <button type="button" onClick={run} disabled={pending} aria-busy={pending} className={`${adminButtonQuiet} pl-2.5 disabled:opacity-60`}>
+        <button type="button" onClick={run} disabled={pending} aria-busy={pending || undefined} className={`${adminButtonQuiet} pl-2.5 ${BUSY}`}>
           <span aria-hidden="true" className="grid size-7 place-items-center rounded-full bg-accent text-on-accent">
             <SparkleIcon className="shrink-0 size-4" />
           </span>
@@ -170,7 +173,7 @@ export function AIBrief({ leadId }: { leadId: string }) {
       </div>
       {/* A line a paragraph, so the parts (what they want, the cars, the opening line) read apart on a phone. */}
       {brief && (
-        <div aria-label="Brief" role="group" className="flex max-w-measure flex-col gap-2 rounded-control bg-row-alt px-4 py-3 text-body">
+        <div aria-label="Brief" role="group" aria-busy={pending || undefined} className={`flex max-w-measure flex-col gap-2 rounded-control bg-row-alt px-4 py-3 text-body ${WRITING}`}>
           {brief.split("\n").filter((l) => l.trim()).map((l, i) => <p key={i}>{l}</p>)}
         </div>
       )}

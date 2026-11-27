@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Select } from "@/components/Select";
 import { CameraIcon } from "@/components/stock/icons";
 import { Field, FormActions, adminButton, adminButtonQuiet, adminInput, choicePill } from "@/components/admin/kit";
+import { BUSY } from "@/components/admin/ActButton";
 import { sendFeedbackAction, sendHelpAction, type HelpState } from "@/app/help/actions";
 import { MESSAGE_MAX, type HelpType } from "@/lib/admin/help-rules";
 
@@ -47,7 +48,7 @@ export function HelpForm({ types, first, from }: { types: HelpType[]; first: Hel
             Sent. We will reply here.
           </p>
         )}
-        <button type="submit" disabled={pending} className={adminButton}>
+        <button type="submit" disabled={pending} aria-busy={pending || undefined} className={`${adminButton} ${BUSY}`}>
           {pending ? "Sending" : "Send"}
         </button>
       </FormActions>
