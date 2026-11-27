@@ -1,4 +1,5 @@
 import { card } from "@/components/ui";
+import { StatGrid } from "./kit";
 
 // The loading kit (#109): the shape of a slow part of a page while its records load, in a <Suspense> inside the page. Never loading.tsx
 // (NavProgress.tsx says why), never around the page's header, tabs or a notFound(). Bones in the hairline colour, rows on the row-alt fill,
@@ -28,21 +29,17 @@ export function Skeleton({ children, className = "flex flex-col gap-6" }: { chil
   );
 }
 
-// A row of stat tiles (StatGrid, StatCard): label, figure, hint.
-export function TileBones({ count = 4 }: { count?: number }) {
-  return (
-    <div className="grid grid-cols-2 gap-3 max-sm:[&>:last-child:nth-child(odd)]:col-span-2 sm:grid-cols-[repeat(auto-fit,minmax(11rem,1fr))]">
-      {Array.from({ length: count }, (_, i) => <TileBone key={i} />)}
-    </div>
-  );
+// A row of stat tiles (StatGrid, StatCard): label, figure, hint. `lead`: the first is the grid's lead tile (StatCard `lead`).
+export function TileBones({ count = 4, lead = false }: { count?: number; lead?: boolean }) {
+  return <StatGrid>{Array.from({ length: count }, (_, i) => <TileBone key={i} lead={lead && i === 0} />)}</StatGrid>;
 }
 
 // One stat tile, for a fallback inside a StatGrid that already holds the other tiles.
-export function TileBone() {
+export function TileBone({ lead = false }: { lead?: boolean }) {
   return (
-    <div className={`${card} flex min-w-0 flex-col gap-2 p-4`}>
+    <div data-lead={lead || undefined} className={`${card} flex min-w-0 flex-col gap-2 p-4 ${lead ? "col-span-2" : ""}`}>
       <Bone className="h-4 w-24 max-w-full" />
-      <Bone className="h-8 w-20" />
+      <Bone className={lead ? "h-14 w-28" : "h-8 w-20"} />
       <Bone className="h-4 w-32 max-w-full" />
     </div>
   );

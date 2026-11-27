@@ -23,6 +23,7 @@ audit at the end of each.
 9. **Motion:** color, background, opacity and transform only (and clip-path for a chart drawing in, so rounded bar ends do not squash), one easing, no looping, nothing that moves on hover by more than a few pixels.
 10. **Clickable means clickable:** a number, a badge or a row that looks like a link is one.
 11. **Round what is read at a glance** (#206): tiles, chart labels and headline totals use `fmtCompact` / `fmtCompactEur` (`src/lib/admin/format.ts`): under 1,000 in full, then "12.4k", "118k", "€1.2m", one decimal below 100 of the unit, never ".0". Prices, costs, margins and profit, deposits, bills, finance and every table keep the full figure; a rounded money tile carries the exact one in its `title` (the Monthly report, which is printed, as its hint). Margins keeps stock value full, beside its cost and margin.
+12. **The one that matters leads** (#208): on a row of tiles, figures or head buttons, the one acted on or asked about first comes first (after All on a row of tabs), two columns wide with a larger figure: StatCard `lead`, a SummaryTab's `lead`, the Overview's first ActionTile with its `figure`. One per row, and none where the tiles are equal (Customers, Marketing, Activity, a post, a salesperson's Reports, Test drives). Two to a row on a phone with the lead across both and an odd last tile filling its row; on a wide area one row, no gaps.
 
 ## Spec by issue
 | # | What |

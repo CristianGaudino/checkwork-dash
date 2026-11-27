@@ -93,12 +93,16 @@ export function PanelLink({ href, children }: { href: string; children: React.Re
 // With `href` the whole tile is a link to the page behind the number. `tone` colours the hint only when it says something good or to act on.
 // A tile is a number: a chart belongs in its own panel (Analytics).
 // A figure's size from its width. Letters are wider than figures: a word of six or more ("WhatsApp") takes the smaller size and one of
-// nine or more ("Bookmarked") smaller again, so a word fits whole on a phone and never breaks inside.
-export const figureSize = (value: string) =>
-  /\p{L}{9}/u.test(value) ? "text-[min(2rem,12cqi)]" : value.length > 8 || /\p{L}{6}/u.test(value) ? "text-[min(2rem,15cqi)]" : "text-[min(2rem,20cqi)]";
+// nine or more ("Bookmarked") smaller again, so a word fits whole on a phone and never breaks inside. A `lead` tile is two columns wide, so
+// the same shares make its figure about twice the size, up to 3.5rem.
+const FIGURE_SIZES = ["text-[min(2rem,12cqi)]", "text-[min(2rem,15cqi)]", "text-[min(2rem,20cqi)]"];
+const LEAD_SIZES = ["text-[min(3.5rem,12cqi)]", "text-[min(3.5rem,15cqi)]", "text-[min(3.5rem,20cqi)]"];
+export const figureSize = (value: string, lead = false) =>
+  (lead ? LEAD_SIZES : FIGURE_SIZES)[/\p{L}{9}/u.test(value) ? 0 : value.length > 8 || /\p{L}{6}/u.test(value) ? 1 : 2];
 
 // `title`: the exact figure behind a rounded one (fmtCompactEur), for a money figure someone may check.
-export function StatCard({ label, value, title, hint, tone, href, className = "" }: { label: string; value: string; title?: string; hint?: string; tone?: "good" | "bad" | "warn"; href?: string; className?: string }) {
+// `lead`: the page's headline figure (#208), first in its StatGrid, two columns wide and larger. One per grid.
+export function StatCard({ label, value, title, hint, tone, href, lead = false, className = "" }: { label: string; value: string; title?: string; hint?: string; tone?: "good" | "bad" | "warn"; href?: string; lead?: boolean; className?: string }) {
   const body = (
     <>
       <p className="text-meta text-text-2">{label}</p>
@@ -106,7 +110,7 @@ export function StatCard({ label, value, title, hint, tone, href, className = ""
           half-width tile on a 360px phone still fits €117,565 (a margin, kept full) on one line. Anything longer takes a smaller share,
           and wraps rather than spills. */}
       <div className="@container min-w-0">
-        <p title={title} className={`font-display font-semibold leading-[1.1] tracking-[-0.02em] tabular-nums [overflow-wrap:anywhere] ${figureSize(value)}`}>
+        <p title={title} className={`font-display font-semibold leading-[1.1] tracking-[-0.02em] tabular-nums [overflow-wrap:anywhere] ${figureSize(value, lead)}`}>
           <Tween value={value} />
         </p>
       </div>
@@ -115,13 +119,15 @@ export function StatCard({ label, value, title, hint, tone, href, className = ""
   );
   // Label, figure and hint are rows of the grid around it (subgrid), so tiles side by side keep their figures level when one label wraps,
   // with no blank line when none does. The container query sits on the figure's wrapper: on the frame it would switch the subgrid off.
-  const frame = `${card} row-span-3 grid min-w-0 grid-rows-subgrid gap-1 p-4 ${className}`;
+  const frame = `${card} row-span-3 grid min-w-0 grid-rows-subgrid gap-1 p-4 ${lead ? "col-span-2" : ""} ${className}`;
   return href ? (
-    <Link href={href} className={`${frame} transition-colors hover:border-control ${press}`}>
+    <Link href={href} data-lead={lead || undefined} className={`${frame} transition-colors hover:border-control ${press}`}>
       {body}
     </Link>
   ) : (
-    <div className={frame}>{body}</div>
+    <div data-lead={lead || undefined} className={frame}>
+      {body}
+    </div>
   );
 }
 
@@ -136,9 +142,17 @@ export function Meter({ value, max, lead = false }: { value: number; max: number
   );
 }
 
+// Two to a row on a phone, so an odd last tile takes the whole row rather than sit alone beside a gap. With a lead tile (StatCard `lead`,
+// two columns wide, first): two to a row until the grid itself is 48rem wide, the last tile filling its row when the others are odd, then
+// every tile on one row, the lead twice the others, so no row is left part empty. A container query, as the Overview's grid sits in a column.
 export function StatGrid({ children }: { children: React.ReactNode }) {
-  // Two to a row on a phone, so an odd last tile takes the whole row rather than sit alone beside a gap.
-  return <div className="grid grid-cols-2 gap-3 max-sm:[&>:last-child:nth-child(odd)]:col-span-2 sm:grid-cols-[repeat(auto-fit,minmax(min(11rem,100%),1fr))]">{children}</div>;
+  return (
+    <div className="@container">
+      <div className="grid grid-cols-2 gap-3 max-sm:[&:not(:has(>[data-lead]))>:last-child:nth-child(odd)]:col-span-2 sm:[&:not(:has(>[data-lead]))]:grid-cols-[repeat(auto-fit,minmax(min(11rem,100%),1fr))] @max-3xl:[&:has(>[data-lead])>:last-child:nth-child(even)]:col-span-2 @3xl:[&:has(>[data-lead])]:auto-cols-fr @3xl:[&:has(>[data-lead])]:grid-flow-col @3xl:[&:has(>[data-lead])]:grid-cols-none">
+        {children}
+      </div>
+    </div>
+  );
 }
 
 const TONES = { neutral: "bg-hairline text-text", good: "bg-ok-soft text-ok", warn: "bg-warn-soft text-warn", bad: "bg-bad-soft text-bad", info: "bg-info-soft text-info" } as const;
@@ -239,22 +253,26 @@ export function DataTable<T>({ columns, rows, rowKey, empty, bare = false, linkR
 // The summary that is also the filter: one tile per view, its count, and the chosen one filled. The filter lives in the URL, so a filtered
 // list can be shared and the back button works. Never a row of numbers above a separate row of chips. On a phone the tiles scroll sideways
 // (TabRow): the chosen one is scrolled into view and an edge with more past it fades.
-export type SummaryTab = { label: string; href: string; active: boolean; count?: number | string; hint?: string };
+// `lead`: the view acted on (#208), wider with a larger count. It keeps its place in the row (after All), so the reading order is the same.
+// From 640px a row with a lead wraps as a flex row, the lead twice the others, so a wrapped row has no gap; one without stays a grid.
+export type SummaryTab = { label: string; href: string; active: boolean; count?: number | string; hint?: string; lead?: boolean };
 export function SummaryTabs({ items, label = "Filter" }: { items: SummaryTab[]; label?: string }) {
+  const led = items.some((i) => i.lead);
   return (
     // A tapped tile takes the chosen look at the tap and the chosen one gives it up (LinkPending), not when the server answers.
-    <TabRow current={items.find((i) => i.active)?.href ?? ""} aria-label={label} className="group/tabs scrollbar-none -mx-4 -my-1 flex gap-2 overflow-x-auto px-4 py-1 sm:mx-0 sm:grid sm:grid-cols-[repeat(auto-fit,minmax(min(8rem,100%),1fr))] sm:overflow-visible sm:px-0">
+    <TabRow current={items.find((i) => i.active)?.href ?? ""} aria-label={label} className={`group/tabs scrollbar-none -mx-4 -my-1 flex gap-2 overflow-x-auto px-4 py-1 sm:mx-0 sm:overflow-visible sm:px-0 ${led ? "sm:flex-wrap" : "sm:grid sm:grid-cols-[repeat(auto-fit,minmax(min(8rem,100%),1fr))]"}`}>
       {items.map((i) => (
         <Link
           key={i.label}
           href={i.href}
           aria-current={i.active ? "true" : undefined}
-          className={`group/tab flex min-w-28 shrink-0 flex-col gap-0.5 rounded-card border bg-card px-4 py-3 text-text transition-colors ${i.active ? "border-accent ring-1 ring-inset ring-accent group-has-data-pending/tabs:not-has-data-pending:border-hairline group-has-data-pending/tabs:not-has-data-pending:ring-0" : "border-hairline hover:border-control has-data-pending:border-accent has-data-pending:ring-1 has-data-pending:ring-inset has-data-pending:ring-accent"} ${press}`}
+          data-lead={i.lead || undefined}
+          className={`group/tab flex ${i.lead ? "min-w-40 sm:grow-2 sm:basis-64" : `min-w-28 ${led ? "sm:grow sm:basis-32" : ""}`} shrink-0 flex-col gap-0.5 rounded-card border bg-card px-4 py-3 text-text transition-colors ${i.active ? "border-accent ring-1 ring-inset ring-accent group-has-data-pending/tabs:not-has-data-pending:border-hairline group-has-data-pending/tabs:not-has-data-pending:ring-0" : "border-hairline hover:border-control has-data-pending:border-accent has-data-pending:ring-1 has-data-pending:ring-inset has-data-pending:ring-accent"} ${press}`}
         >
           <LinkPending />
           <span className="text-meta text-text-2">{i.label}</span>
           {i.count !== undefined && (
-            <span className={`text-heading font-semibold tabular-nums ${i.active ? "text-accent-text group-has-data-pending/tabs:group-not-has-data-pending/tab:text-text" : "group-has-data-pending/tab:text-accent-text"}`}>
+            <span className={`${i.lead ? "font-display text-[2.5rem] leading-none tracking-[-0.02em]" : "text-heading"} font-semibold tabular-nums ${i.active ? "text-accent-text group-has-data-pending/tabs:group-not-has-data-pending/tab:text-text" : "group-has-data-pending/tab:text-accent-text"}`}>
               {typeof i.count === "number" ? <Tween value={fmtNum(i.count)} /> : i.count}
             </span>
           )}
@@ -478,35 +496,48 @@ export function Task({ title, detail, href, action, icon, mark, urgency = "info"
 }
 
 // The page's main jobs as big buttons, each an icon, a verb and one line on what it is for: what a person who has never used the dashboard
-// presses first. Two across on a phone, up to four across from 640px. The first is the page's primary job and is filled.
+// presses first. The first is the page's primary job (#208): filled and two columns wide. Laid out as StatGrid with a lead: two across, the
+// last filling its row when the others are odd, then all on one row once the row is 48rem wide.
 export function ActionTiles({ children, label = "Quick actions" }: { children: React.ReactNode; label?: string }) {
   return (
-    <nav aria-label={label} className="grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fit,minmax(min(12rem,100%),1fr))]">
-      {children}
+    <nav aria-label={label} className="@container">
+      <div className="grid grid-cols-2 gap-3 [&>:first-child]:col-span-2 @max-3xl:[&>:last-child:nth-child(even)]:col-span-2 @3xl:auto-cols-fr @3xl:grid-flow-col @3xl:grid-cols-none">
+        {children}
+      </div>
     </nav>
   );
 }
-// `external`: another site (DoneDeal), opened in a new tab and said so to screen readers.
-export function ActionTile({ href, icon, label, text, primary = false, external = false }: { href: string; icon: React.ReactNode; label: string; text?: string; primary?: boolean; external?: boolean }) {
+// `external`: another site (DoneDeal), opened in a new tab and said so to screen readers. `figure`: the primary job's count, large, before
+// `text` ("15" "leads to answer").
+export function ActionTile({ href, icon, label, text, figure, primary = false, external = false }: { href: string; icon: React.ReactNode; label: string; text?: string; figure?: string; primary?: boolean; external?: boolean }) {
   const className = `flex min-h-24 flex-col justify-between gap-3 rounded-card border p-4 transition-colors ${primary ? "border-accent bg-accent text-on-accent" : `${card} hover:border-control`} ${press}`;
   const body = (
     <>
       <span aria-hidden="true" className={`grid size-10 place-items-center rounded-control [&>svg]:size-5 ${primary ? "bg-card text-accent-text" : "bg-row-alt text-accent-text"}`}>{icon}</span>
       <span className="flex flex-col">
-        <span className="font-semibold">
+        <span className={`font-semibold ${primary ? "text-heading" : ""}`}>
           {label}
           {external && <span className="sr-only"> (opens in a new tab)</span>}
         </span>
-        {text && <span className={`text-meta ${primary ? "" : "text-text-2"}`}>{text}</span>}
+        {figure ? (
+          <span className="mt-1 flex flex-wrap items-baseline gap-x-2">
+            <span className="font-display text-[2.75rem] font-semibold leading-none tracking-[-0.02em] tabular-nums">
+              <Tween value={figure} />
+            </span>{" "}
+            {text}
+          </span>
+        ) : (
+          text && <span className={`text-meta ${primary ? "" : "text-text-2"}`}>{text}</span>
+        )}
       </span>
     </>
   );
   return external ? (
-    <a href={href} {...NEW_TAB} className={className}>
+    <a href={href} {...NEW_TAB} data-lead={primary || undefined} className={className}>
       {body}
     </a>
   ) : (
-    <Link href={href} className={className}>
+    <Link href={href} data-lead={primary || undefined} className={className}>
       {body}
     </Link>
   );

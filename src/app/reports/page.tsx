@@ -62,7 +62,7 @@ function FiguresBones({ whole }: { whole: boolean }) {
   return (
     <Skeleton>
       <TextBones />
-      <TileBones />
+      <TileBones lead />
       <div className="grid grid-cols-1 items-start gap-6 wider:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
         <PanelBones title="Sales by month">
           {/* The chart and its caption (AreaChart), then the "Sales each month" fold: 44px and its border. */}
@@ -92,10 +92,11 @@ async function Full({ period }: { period: Period }) {
         {r.totals.costed > 0 && (r.totals.costed === r.totals.sold ? <>, {fmtEur(r.totals.profit)} of it profit</> : <>, with {fmtEur(r.totals.profit)} profit on the {r.totals.costed} with a cost entered</>)}.{best && best.value > 0 && ` Your best month was ${monthLabel(best.month)}, at ${fmtCompactEur(best.value)}.`}
       </p>
       <StatGrid>
+        {/* Profit leads (#208): sales value without the margin says little. */}
+        <StatCard lead label="Profit" value={fmtEur(r.totals.profit)} hint={r.totals.costed < r.totals.sold ? `On ${r.totals.costed} of ${r.totals.sold} cars with their cost entered` : "Less cost, prep and warranty repairs, before VAT"} />
         <StatCard label="Cars sold" value={fmtCompact(r.totals.sold)} />
         {/* Returns are a line under Sales, not a tile of their own: a fifth tile sat alone on its row. */}
         <StatCard label="Sales" value={fmtCompactEur(r.totals.value)} title={fmtEur(r.totals.value)} hint={r.returns.count > 0 ? `Not counting ${plural(r.returns.count, "return")}, ${fmtEur(r.returns.refundEur)} refunded` : undefined} />
-        <StatCard label="Profit" value={fmtEur(r.totals.profit)} hint={r.totals.costed < r.totals.sold ? `On ${r.totals.costed} of ${r.totals.sold} cars with their cost entered` : "Less cost, prep and warranty repairs, before VAT"} />
         <StatCard label="Days to sell" value={r.totals.avgDaysToSell === null ? "None" : fmtNum(r.totals.avgDaysToSell)} hint="On average, from listing to sale" />
       </StatGrid>
 

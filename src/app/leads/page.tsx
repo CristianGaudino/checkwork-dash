@@ -102,7 +102,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
   const statusTabs = (
     <SummaryTabs
       label="Lead status"
-      items={[{ label: "All", href: href({ status: undefined }), active: !f.status, count: Object.values(counts).reduce((a, b) => a + b, 0) - counts.spam }, ...LEAD_STATUSES.filter((s) => !["closed", "spam"].includes(s) || counts[s] > 0 || f.status === s).map((s) => ({ label: LEAD_STATUS_LABELS[s], hint: STATUS_HINTS[s], href: href({ status: s }), active: f.status === s, count: counts[s] }))]}
+      items={[{ label: "All", href: href({ status: undefined }), active: !f.status, count: Object.values(counts).reduce((a, b) => a + b, 0) - counts.spam }, ...LEAD_STATUSES.filter((s) => !["closed", "spam"].includes(s) || counts[s] > 0 || f.status === s).map((s) => ({ label: LEAD_STATUS_LABELS[s], hint: STATUS_HINTS[s], href: href({ status: s }), active: f.status === s, count: counts[s], lead: s === "new" }))]}
     />
   );
 

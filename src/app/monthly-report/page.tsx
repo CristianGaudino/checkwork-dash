@@ -80,7 +80,7 @@ function ReportBones() {
       <PanelBones title="What to do">
         <TextBones />
       </PanelBones>
-      <TileBones />
+      <TileBones lead />
       <h2 className="text-heading font-semibold">Leads</h2>
       <TileBones />
     </Skeleton>
@@ -127,7 +127,7 @@ async function Report({ month, prevMonth, now, name, whole, hasMargins }: { mont
 
       {/* The month in short: the few numbers an owner asks about first, each against the month before. The sections below say more. */}
       <StatGrid>
-        <StatCard label="Leads" value={fmtCompact(s.leads.total)} hint={compare(s.leads.total, p.leads.total)} />
+        <StatCard lead label="Leads" value={fmtCompact(s.leads.total)} hint={compare(s.leads.total, p.leads.total)} />
         {a && <StatCard label="Visitors" value={fmtCompact(a.totals.visitors)} hint={compare(a.totals.visitors, a.previous.visitors)} />}
         {real && <StatCard label="Visits" value={fmtCompact(real.now.totals.visits)} hint={compare(real.now.totals.visits, real.before.totals.visits)} />}
         {hasSales ? (

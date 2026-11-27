@@ -194,7 +194,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sto
       <SummaryTabs label="Stock views" items={(Object.keys(STOCK_VIEWS) as StockView[])
           .map((v) => [v, all.filter(STOCK_VIEWS[v].test).length] as const)
           .filter(([v, count]) => view === v || (!["photos", "old"].includes(v) && (count > 0 || !["hidden", "drafts", "reserved"].includes(v))))
-          .map(([v, count]) => ({ label: STOCK_VIEWS[v].label, count, href: href(v), active: view === v }))} />
+          .map(([v, count]) => ({ label: STOCK_VIEWS[v].label, count, href: href(v), active: view === v, lead: v === "for-sale" }))} />
       {/* Under the views, so they stay put when one is picked. On the plain list only, as on Leads: its counts are of the whole stock, a search is looking for something else. */}
       {todo.length > 0 && view === "for-sale" && !q && !make && !fuel && !gearbox && (!sp.page || sp.page === "1") && (
         <Panel title="To do" count={todo.length}>
