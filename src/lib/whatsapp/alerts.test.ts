@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { Lead } from "@/lib/admin/collections";
 
 vi.mock("server-only", () => ({}));
 const db = vi.hoisted(() => ({
@@ -30,7 +31,7 @@ vi.mock("@/lib/admin/collections", () => ({
 }));
 vi.mock("@/lib/admin/stock-admin", () => ({ adminCars: async () => db.cars }));
 vi.mock("@/lib/admin/seed-data", () => ({ carTitleOf: () => "2019 Ford Focus" }));
-const { alertStaff, sendDailyAlerts } = await import("./alerts");
+const { alertStaff, alertStaffOnWhatsApp, sendDailyAlerts } = await import("./alerts");
 
 const phone = (id: string, o: Record<string, unknown> = {}) => ({ id, name: id, phone: "+353 83 000 0000", alerts: ["deposit", "new-in", "slow-stock", "review", "monday"], quietFrom: "", quietTo: "", ...o });
 const to = () => db.msgs.map((m) => m.to);
@@ -91,6 +92,18 @@ describe("alertStaff", () => {
     expect(await alertStaff("new-in", { car: "2019 Ford Focus" })).toBe(1);
     expect(db.msgs).toEqual([expect.objectContaining({ to: "a", via: "email" })]);
     expect(db.used).toBe(0);
+  });
+});
+
+describe("alertStaffOnWhatsApp", () => {
+  it("thanks a buyer who ticked WhatsApp on a mobile, never on a landline (#196)", async () => {
+    const lead = { id: "real-1", type: "enquiry", status: "new", name: "Pat Byrne", email: "", phone: "087 123 4567", message: "Is it still for sale?", source: "Website", notes: [], createdAt: 1, whatsappOptIn: true } as Lead;
+    const buyer = () => db.msgs.filter((m) => m.thread === "buyer");
+    await alertStaffOnWhatsApp(lead);
+    expect(buyer()).toHaveLength(1);
+    db.msgs = [];
+    await alertStaffOnWhatsApp({ ...lead, phone: "(021) 496 1234" });
+    expect(buyer()).toEqual([]);
   });
 });
 

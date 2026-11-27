@@ -1,4 +1,5 @@
 import { enabledModules, hasModule } from "@/lib/modules";
+import { wantsWhatsApp } from "@/lib/phone";
 import { conditionShown } from "@/lib/modules-rules";
 import { onPublicSite } from "@/lib/stock/types";
 import { sourceText } from "@/lib/visit-rules";
@@ -245,7 +246,12 @@ export async function LeadView({ id }: { id: string }) {
                 <p className="text-meta text-text-2">WhatsApp updates: off</p>
               </IfModule>
             )}
-            {lead.whatsappOptIn && (
+            {lead.whatsappOptIn && !wantsWhatsApp(lead) && (
+              <IfModule id="whatsapp">
+                <p className="text-meta text-text-2">WhatsApp updates: off, the number is a landline</p>
+              </IfModule>
+            )}
+            {wantsWhatsApp(lead) && (
               <IfModule id="whatsapp">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-meta text-text-2">WhatsApp updates: on</p>

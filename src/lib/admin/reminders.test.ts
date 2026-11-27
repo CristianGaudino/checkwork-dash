@@ -110,7 +110,7 @@ describe("which reminders are due", () => {
 });
 
 describe("who gets one", () => {
-  const optedIn = [{ id: "l", whatsappOptIn: true, phone: "1" }];
+  const optedIn = [{ id: "l", whatsappOptIn: true, phone: "087 123 4567" }];
   it("only a buyer who agreed to marketing, by WhatsApp if opted in and it can go, else email", () => {
     expect(reminderReach({ email: "a@b.ie", marketingConsent: false }, optedIn, true)).toBeNull();
     expect(reminderReach({ email: "a@b.ie", marketingConsent: true }, optedIn, true)).toEqual({ via: "whatsapp", leadId: "l" });
@@ -118,7 +118,7 @@ describe("who gets one", () => {
     expect(reminderReach({ email: "", marketingConsent: true }, [], true)).toBeNull(); // no way to reach them
   });
   it("never someone who stopped messages", () => {
-    expect(reminderReach({ email: "a@b.ie", marketingConsent: true }, [{ id: "l", whatsappOptIn: false, phone: "1" }], true)).toBeNull();
+    expect(reminderReach({ email: "a@b.ie", marketingConsent: true }, [{ id: "l", whatsappOptIn: false, phone: "087 123 4567" }], true)).toBeNull();
   });
 });
 

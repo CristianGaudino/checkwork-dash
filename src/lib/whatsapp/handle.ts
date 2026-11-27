@@ -1,4 +1,5 @@
 import "server-only";
+import { wantsWhatsApp } from "@/lib/phone";
 import { logActivity } from "@/lib/admin/activity";
 import { drivesStore, getSettings, leadsStore, reservationsStore, reviewsStore, type Lead, type LeadStatus } from "@/lib/admin/collections";
 import { dublinDay, fmtDateTime, fmtEur } from "@/lib/admin/format";
@@ -50,9 +51,9 @@ async function say(to: string, m: Partial<Msg> & { text: string }, at = Date.now
   await addMessage({ thread: "staff", from: "site", to, at, ...m });
 }
 
-// How a buyer can be reached: WhatsApp if they ticked the box and gave a number, email if they gave an address, or neither (only a phone,
+// How a buyer can be reached: WhatsApp if they ticked the box and gave a mobile (wantsWhatsApp), email if they gave an address, or neither (only a phone,
 // no box): then nothing is sent and the dealer is told to call.
-const reach = (lead: Lead): "WhatsApp" | "email" | null => (lead.whatsappOptIn && lead.phone ? "WhatsApp" : lead.email ? "email" : null);
+const reach = (lead: Lead): "WhatsApp" | "email" | null => (wantsWhatsApp(lead) ? "WhatsApp" : lead.email ? "email" : null);
 const callThem = (lead: Lead) =>
   `${lead.whatsappOptIn ? `WhatsApp could not send and ${firstName(lead.name)} gave no email` : `${firstName(lead.name)} gave no email and did not ask for WhatsApp`}, so nothing was sent. Call them on ${lead.phone || "the number on the lead"}.`;
 

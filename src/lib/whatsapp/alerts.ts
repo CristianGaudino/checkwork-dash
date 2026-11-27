@@ -1,4 +1,5 @@
 import "server-only";
+import { wantsWhatsApp } from "@/lib/phone";
 import { readLead } from "@/lib/leads/lead-text";
 import { addMessage, isStaffAlert, lastWeek, messagesStore, staffStore, type Msg } from "./store";
 import { modeOf } from "@/lib/integrations";
@@ -55,7 +56,7 @@ export async function alertStaffOnWhatsApp(lead: Lead): Promise<void> {
     const { text: words, facts } = readLead(lead);
     const text = alertText(event, { first: firstName(lead.name), car: lead.carTitle, reg: lead.reg, text: words, when: facts["Test drive"], sell: lead.type === "sell", warranty: lead.type === "warranty" });
     const drafts = await staffCopies(event, text, { leadId: lead.id, ref: lead.id, ...(event === "enquiry" && !lead.carTitle && { buttons: ["call", "handled"] }) });
-    if (lead.whatsappOptIn && lead.phone) drafts.push({ thread: "buyer", from: "site", leadId: lead.id, text: `Hi ${firstName(lead.name)}, thanks for your message to ${(await currentDealer()).name}. We have it and will be in touch soon.` });
+    if (wantsWhatsApp(lead)) drafts.push({ thread: "buyer", from: "site", leadId: lead.id, text: `Hi ${firstName(lead.name)}, thanks for your message to ${(await currentDealer()).name}. We have it and will be in touch soon.` });
     // By email instead only where there is an address: a buyer with only a phone gets nothing rather than an email nobody receives.
     await deliver(drafts, "alert", (d) => d.thread !== "buyer" || Boolean(lead.email));
   } catch {

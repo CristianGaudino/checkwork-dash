@@ -16,3 +16,5 @@ export const waHref = (phone: string, text?: string) => {
   const d = intlDigits(phone);
   return d && onWhatsApp(d) ? `https://wa.me/${d}${text ? `?text=${encodeURIComponent(text)}` : ""}` : null;
 };
+// They ticked the WhatsApp box and gave a number that can be on WhatsApp: a ticked box with a landline gets no WhatsApp (#196).
+export const wantsWhatsApp = (l: { whatsappOptIn?: boolean; phone?: string }) => Boolean(l.whatsappOptIn && l.phone && waHref(l.phone));
