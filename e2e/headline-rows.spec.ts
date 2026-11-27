@@ -1,141 +1,127 @@
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
-// The one that matters leads (#208): on each page with a row of tiles, figures or head buttons, the lead is first (second after All on a
-// row of tabs, so the reading order stays the same), wider than the others, and the row has no gaps and no sideways scroll.
-// [page, the lead's label, its place in the row]
-const LEADS = [
-  ["/", "Reply to leads", 0],
-  ["/", "Leads this week", 0],
-  ["/analytics", "Leads", 0],
-  ["/margins", "Expected margin on stock", 0],
-  ["/reports", "Profit", 0],
-  ["/monthly-report", "Leads", 0],
-  ["/leads", "New", 1],
-  ["/stock", "For sale", 0],
-  ["/reviews", "Needs a reply", 1],
-  ["/aftersales", "Requests", 0],
+// One headline, then rows (#213, docs/dashboard-polish.md rule 12). A group of figures is one panel: the headline first and large, the
+// other figures as rows with no card of their own. Summary tabs are one segmented bar whose every tab can be reached. The page's jobs sit in
+// its header. None of it scrolls the page sideways, at any width or with large text.
+// [page, the headline's label]
+const HEADLINES = [
+  ["/", "New leads"],
+  ["/analytics", "Leads"],
+  ["/margins", "Expected margin on stock"],
+  ["/reports", "Profit"],
+  ["/monthly-report", "Leads"],
 ] as const;
 
-// The lead's place among the tiles beside it, its width, the widths of the tiles that share a row (an odd last tile fills its row, as wide
-// as the lead, by design), the widest of all, and the rows that do not reach both edges (gaps). A row of tabs that scrolls sideways on a
-// phone is one row by design: its edges are not measured.
-const measure = (lead: Locator) =>
-  lead.evaluate((el) => {
-    const row = el.parentElement!;
-    // A wrapper with display: contents (a loading fallback) lays its children out as the row's own: measure those.
-    const flat = (cs: Element[]): Element[] => cs.flatMap((c) => (getComputedStyle(c).display === "contents" ? flat([...c.children]) : [c]));
-    const tiles = flat([...row.children]).filter((c) => c.getBoundingClientRect().width > 0);
-    const box = row.getBoundingClientRect();
-    const css = getComputedStyle(row);
-    const [left, right] = [box.left + parseFloat(css.paddingLeft), box.right - parseFloat(css.paddingRight)];
-    const rows = new Map<number, Element[]>();
-    for (const t of tiles) rows.set(Math.round(t.getBoundingClientRect().top), [...(rows.get(Math.round(t.getBoundingClientRect().top)) ?? []), t]);
-    const rect = (t: Element) => t.getBoundingClientRect();
-    const scrolls = row.scrollWidth > row.clientWidth + 1;
-    const gaps = scrolls ? 0 : [...rows.values()].filter((ts) => Math.min(...ts.map((t) => rect(t).left)) > left + 1 || Math.max(...ts.map((t) => rect(t).right)) < right - 1).length;
-    const others = tiles.filter((t) => t !== el);
-    return {
-      index: tiles.indexOf(el),
-      lead: rect(el).width,
-      paired: others.filter((t) => rows.get(Math.round(rect(t).top))!.length > 1).map((t) => rect(t).width),
-      widest: Math.max(...others.map((t) => rect(t).width)),
-      gaps,
-    };
+const overflow = (page: Page) =>
+  page.evaluate(async () => {
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    return document.documentElement.scrollWidth - document.documentElement.clientWidth;
   });
 
-const overflow = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+// CDP sets the browser's own font size, as Chrome's setting does (as e2e/large-text.spec.ts).
+async function textAt(page: Page, scale: number) {
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send("Page.setFontSizes", { fontSizes: { standard: Math.round(16 * scale), fixed: Math.round(13 * scale) } });
+}
 
-// 700 and 900: a tab row between 640px and the sidebar, and the Overview's Numbers full width under the To do list (wider than 48rem).
-const WIDTHS = [360, 700, 900, 1280];
-for (const width of WIDTHS) {
-  test(`each page's lead tile comes first and wider, with no gaps, at ${width}px`, async ({ page }) => {
+// The panel around a headline: its figure's size against the rows' values, whether it comes before them, and how many cards are inside it.
+const shape = (page: Page, label: string) =>
+  page
+    .getByRole("main")
+    .locator("[data-lead]")
+    .filter({ hasText: label })
+    .first()
+    .evaluate((lead) => {
+      const panel = lead.closest("section")!;
+      const rows = [...panel.querySelectorAll("[data-figure]")];
+      const size = (el: Element | null) => (el ? parseFloat(getComputedStyle(el).fontSize) : 0);
+      return {
+        rows: rows.length,
+        first: rows.every((r) => lead.compareDocumentPosition(r) & Node.DOCUMENT_POSITION_FOLLOWING),
+        lead: size(lead.querySelector(".font-display")),
+        row: Math.max(...rows.map((r) => size(r.querySelector("[title], .text-heading")))),
+        cardsInside: [...panel.querySelectorAll("*")].filter((el) => getComputedStyle(el).boxShadow !== "none").length,
+      };
+    });
+
+for (const width of [360, 700, 900, 1280]) {
+  test(`each page's headline comes first and large, its other figures as rows, at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
-    for (const [path, label, index] of LEADS) {
+    for (const [path, label] of HEADLINES) {
       await page.goto(path);
-      const lead = page.getByRole("main").locator("[data-lead]").filter({ hasText: label }).first();
-      await expect(lead).toBeVisible();
-      // The Overview's website tiles and the reports' figures arrive after the first paint: measure once they are in.
+      await expect(page.getByRole("main").locator("[data-lead]").filter({ hasText: label }).first()).toBeVisible();
+      // The Overview's website figures arrive after the first paint: measure once they are in.
       await expect(async () => {
-        const m = await measure(lead);
-        expect(m.index, `${path} ${label}: place`).toBe(index);
-        expect(m.paired.length, `${path} ${label}: tiles beside it`).toBeGreaterThan(0);
-        expect(m.lead, `${path} ${label}: wider than the others`).toBeGreaterThan(Math.max(...m.paired) + 1);
-        expect(m.lead, `${path} ${label}: none wider`).toBeGreaterThanOrEqual(m.widest - 1);
-        expect(m.gaps, `${path} ${label}: rows with a gap`).toBe(0);
+        const m = await shape(page, label);
+        expect(m.rows, `${path}: rows beside the headline`).toBeGreaterThan(0);
+        expect(m.first, `${path}: the headline comes first`).toBe(true);
+        expect(m.lead, `${path}: the headline is the large figure`).toBeGreaterThan(m.row * 1.5);
+        expect(m.cardsInside, `${path}: no card for each figure`).toBe(0);
       }).toPass();
       expect(await overflow(page), `${path} @${width}px`).toBeLessThanOrEqual(0);
     }
   });
 }
 
-// The Overview's website tiles stream in after the first paint. With scripts off the loading tiles stay, as on a slow connection: they
-// take the places of the tiles they stand for, with no gap and none stacked under another. If the tiles were ready before the first HTML
-// went out there are no bones, and the loaded row is held to the same rules.
-test.describe("while the Overview's website tiles load", () => {
-  test.use({ javaScriptEnabled: false });
-  for (const width of WIDTHS) {
-    test(`the loading tiles leave no gap at ${width}px`, async ({ page }) => {
-      await page.setViewportSize({ width, height: 900 });
-      await page.goto("/");
-      const lead = page.getByRole("main").locator("[data-lead]").filter({ hasText: "Leads this week" });
-      const bones = page.getByRole("main").locator("[data-skeleton]");
-      if ((await bones.count()) > 0) await expect(bones).toHaveText("Loading"); // one region, said once
-      const m = await measure(lead);
-      expect(m.index).toBe(0);
-      expect(m.lead, "wider than the others").toBeGreaterThan(Math.max(...m.paired) + 1);
-      expect(m.lead, "none wider").toBeGreaterThanOrEqual(m.widest - 1);
-      expect(m.gaps, "rows with a gap").toBe(0);
-    });
+test("the figures stay on screen with large text", async ({ page }) => {
+  for (const [width, scale] of [[360, 1.5], [1280, 2]] as const) {
+    await textAt(page, scale);
+    await page.setViewportSize({ width, height: 900 });
+    for (const [path] of HEADLINES) {
+      await page.goto(path);
+      expect(await overflow(page), `${path} @${width}px, text ${scale * 100}%`).toBeLessThanOrEqual(0);
+    }
   }
 });
 
-// On a laptop the tab rows shrink their tabs to fit before they scroll: at 1024px, and at 1263px (a 1280px window less a 17px scrollbar),
-// every tab on Leads and Stock is wholly in view.
+// The Overview's website figures stream in after the first paint. With scripts off their bones stay, as on a slow connection: rows in the
+// rows' place, said once as "Loading", and the headline still first.
+test.describe("while the Overview's website figures load", () => {
+  test.use({ javaScriptEnabled: false });
+  test("the bones are rows under the headline", async ({ page }) => {
+    await page.goto("/");
+    const week = page.getByRole("region", { name: "This week" });
+    await expect(week.locator("[data-lead]")).toContainText("New leads");
+    const bones = week.locator("[data-skeleton]");
+    if ((await bones.count()) > 0) await expect(bones).toHaveText("Loading");
+    // No animation frames without scripts: measured at once.
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
+  });
+});
+
+// The segmented bar: on a phone it scrolls, and every tab can be scrolled to; on a laptop (a mouse does not scroll a row sideways) every tab
+// is in view at once.
+const BARS = [["/leads", "Lead status"], ["/stock", "Stock views"]] as const;
+test("every tab of a segmented bar can be reached on a phone", async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 800 });
+  for (const [path, name] of BARS) {
+    await page.goto(path);
+    const bar = page.getByRole("navigation", { name });
+    for (const tab of await bar.getByRole("link").all()) {
+      await tab.scrollIntoViewIfNeeded();
+      await expect(tab).toBeInViewport({ ratio: 0.9 });
+    }
+    expect(await overflow(page), path).toBeLessThanOrEqual(0);
+  }
+});
+
 for (const width of [1024, 1263]) {
   test(`every tab on Leads and Stock is in view at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
-    for (const [path, name] of [["/leads", "Lead status"], ["/stock", "Stock views"]]) {
+    for (const [path, name] of BARS) {
       await page.goto(path);
-      const row = page.getByRole("navigation", { name });
-      await expect(row.getByRole("link").first()).toBeVisible();
-      const out = await row.evaluate((nav) => {
-        // Inside the row's padding, where its edge fades when it scrolls.
-        const [n, css] = [nav.getBoundingClientRect(), getComputedStyle(nav)];
-        const [left, right] = [n.left + parseFloat(css.paddingLeft), n.right - parseFloat(css.paddingRight)];
-        return [...nav.querySelectorAll("a")].filter((a) => a.getBoundingClientRect().left < left - 1 || a.getBoundingClientRect().right > right + 1).map((a) => a.textContent);
+      const bar = page.getByRole("navigation", { name });
+      await expect(bar.getByRole("link").first()).toBeVisible();
+      const out = await bar.evaluate((nav) => {
+        const n = nav.getBoundingClientRect();
+        return [...nav.querySelectorAll("a")].filter((a) => a.getBoundingClientRect().left < n.left - 1 || a.getBoundingClientRect().right > n.right + 1).map((a) => a.textContent);
       });
       expect(out, `${path} @${width}px: tabs out of view`).toEqual([]);
     }
   });
 }
 
-// A full row: Closed shows as a seventh tab once it is open (as it does for a dealer with a closed lead). The lead stays the widest tab
-// when the row is crowded, and at 1263px every count on the row sits level (a label that wrapped pushed its count a line down).
-for (const width of [1024, 1263]) {
-  test(`on a full Leads row the lead stays the widest tab, and the counts level, at ${width}px`, async ({ page }) => {
-    await page.setViewportSize({ width, height: 900 });
-    for (const path of ["/leads", "/leads?status=closed"]) {
-      await page.goto(path);
-      const row = page.getByRole("navigation", { name: "Lead status" });
-      await expect(row.getByRole("link").first()).toBeVisible();
-      const m = await row.evaluate((nav) => {
-        const tabs = [...nav.querySelectorAll("a")];
-        const lead = tabs.find((a) => a.hasAttribute("data-lead"))!;
-        return {
-          tabs: tabs.length,
-          lead: lead.getBoundingClientRect().width,
-          widest: Math.max(...tabs.filter((a) => a !== lead).map((a) => a.getBoundingClientRect().width)),
-          counts: tabs.map((a) => a.querySelector(":scope > span.tabular-nums")!.getBoundingClientRect().top),
-        };
-      });
-      if (path.includes("closed")) expect(m.tabs, "Closed shows").toBeGreaterThanOrEqual(7); // and Spam, when another spec has marked one
-      expect(m.lead, `${path} @${width}px: the lead is the widest`).toBeGreaterThanOrEqual(m.widest - 1);
-      if (width === 1263) expect(Math.max(...m.counts) - Math.min(...m.counts), `${path}: counts level`).toBeLessThanOrEqual(1);
-    }
-  });
-}
-
-test("the tabs with a lead still filter, and the lead keeps the chosen look when picked", async ({ page }) => {
+test("a segmented bar filters, and the tab acted on first is marked by its count, not its size", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto("/leads");
   const tabs = page.getByRole("navigation", { name: "Lead status" });
@@ -147,12 +133,49 @@ test("the tabs with a lead still filter, and the lead keeps the chosen look when
   await expect(page).toHaveURL(/status=new/);
   await expect(tabs.getByRole("link", { name: /^New/ })).toHaveAttribute("aria-current", "true");
   await expect(tabs.getByRole("link", { name: /^Contacted/ })).not.toHaveAttribute("aria-current");
+  // The lead is no wider than the widest of the others.
+  const widths = await tabs.getByRole("link").evaluateAll((as) => as.map((a) => [a.hasAttribute("data-lead"), a.getBoundingClientRect().width] as const));
+  const lead = widths.find(([l]) => l)![1];
+  expect(lead).toBeLessThanOrEqual(Math.max(...widths.filter(([l]) => !l).map(([, w]) => w)) + 1);
 });
 
-test("the Reply to leads button says its count in its name, large on screen", async ({ page }) => {
-  await page.goto("/");
-  const reply = page.getByRole("navigation", { name: "Quick actions" }).getByRole("link", { name: /^Reply to leads \d+ leads? to answer$/ });
-  await expect(reply).toBeVisible();
-  const size = await reply.locator(".font-display").evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
-  expect(size).toBeGreaterThan(32);
+// The page's jobs, and a person's ways to reach them, are in the page's header, not in a box beside a column.
+const HEADER_ACTIONS = [
+  ["/", ["Add a car", "Book a test drive", "New post"]],
+  ["/leads/lead-4000", ["Call", "Email", "WhatsApp"]],
+  ["/customers/cust-300", ["Call", "Email", "WhatsApp"]],
+  ["/test-drives/drive-232", ["Call", "Email", "WhatsApp"]],
+  ["/help", ["Call", "Email", "WhatsApp"]],
+  ["/billing", ["Ask about my bill"]],
+] as const;
+for (const width of [360, 1280]) {
+  test(`each page's jobs are in its header at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    for (const [path, names] of HEADER_ACTIONS) {
+      await page.goto(path);
+      const header = page.getByRole("main").locator("header").first();
+      for (const name of names) await expect(header.getByRole("link", { name: new RegExp(`^${name}`) }).first(), `${path}: ${name}`).toBeVisible();
+      expect(await overflow(page), `${path} @${width}px`).toBeLessThanOrEqual(0);
+    }
+  });
+}
+
+// A lead reads as one balanced page from 1280px: what they asked and the next step side by side and level at the top, their visit straight
+// under what they asked (no gap left by the taller next step), the notes under the next step. On a phone one column, in that reading order.
+test("a lead's page is two balanced columns on a laptop, one in reading order on a phone", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/leads/lead-4000");
+  const box = async (name: string) => (await page.getByRole("region", { name, exact: true }).boundingBox())!;
+  const [asked, next, visit, notes] = [await box("What they asked"), await box("Next step"), await box("This visit"), await box("Notes")];
+  expect(Math.abs(asked.y - next.y), "level at the top").toBeLessThanOrEqual(1);
+  expect(next.x, "the next step on the right").toBeGreaterThan(asked.x + asked.width);
+  expect(visit.y - (asked.y + asked.height), "the visit straight under what they asked").toBeLessThanOrEqual(25);
+  expect(Math.abs(notes.x - next.x), "the notes under the next step").toBeLessThanOrEqual(1);
+  expect(notes.y).toBeGreaterThan(next.y + next.height);
+
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.reload();
+  const order = [await box("What they asked"), await box("Next step"), await box("Notes"), await box("This visit")].map((b) => b.y);
+  expect(order, "what they asked, the next step, the notes, the visit").toEqual([...order].sort((a, b) => a - b));
+  expect(await overflow(page)).toBeLessThanOrEqual(0);
 });

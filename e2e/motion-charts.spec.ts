@@ -5,8 +5,8 @@ import { sideLink } from "./admin-menu";
 // so the page arrives as one thing. Never on the server's first paint, and the chart stands still with reduced motion.
 const animations = (l: Locator) => l.evaluate((el) => el.getAnimations().map((a) => (a as CSSAnimation).animationName));
 const chart = (page: Page) => page.locator("[data-chart]");
-const visitsFigure = (page: Page) => page.getByRole("region", { name: "Numbers" }).getByRole("link", { name: /^Visits this week/ }).locator("p.font-display");
-const sourceFigure = (page: Page) => page.getByRole("region", { name: "Where visits come from" }).locator("[data-tile] p.font-display > span").first();
+const visitsFigure = (page: Page) => page.getByRole("region", { name: "This week" }).getByRole("link", { name: /^Visits/ }).locator("span.text-heading");
+const sourceFigure = (page: Page) => page.getByRole("region", { name: "Where visits come from" }).locator("ol > li > div span.font-display").first();
 
 test.beforeEach(({ page }) => page.setViewportSize({ width: 1280, height: 900 })); // the sidebar
 
