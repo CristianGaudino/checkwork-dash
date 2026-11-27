@@ -3,6 +3,7 @@ import Link from "next/link";
 import { LeadStatusBadge } from "@/components/admin/badges";
 import { Avatar, Badge, DataTable, EmptyState, PageHeader, Panel, PanelLink, SummaryTabs, TableFooter, TableToolbar, Task, WhoseSwitch, pageOf, sortRows, type Column, type FilterGroup } from "@/components/admin/kit";
 import { Suspense } from "react";
+import { Fresh } from "@/components/Tween";
 import { Skeleton, TableBones } from "@/components/admin/Skeleton";
 import { CloseChoices, NextStatusButton, ReachButton, SpamButton } from "@/components/admin/LeadActions";
 import { firstReplies } from "@/lib/leads/first-replies";
@@ -163,7 +164,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
       {/* The rows stream in under the tiles, To answer now and the search, so a tap on a tile works from the first paint (#109), as on Stock.
           Keyed by the status only: a new status shows the bones, a search, sort or page keeps the old rows until the new ones come. */}
       <Suspense key={f.status ?? ""} fallback={<Skeleton><TableBones /></Skeleton>}>
-        <LeadsTable sp={sp} all={all} f={f} today={today} leadSlaHours={leadSlaHours} at={at} me={me.name} />
+        <Fresh className="flex flex-col gap-6">
+          <LeadsTable sp={sp} all={all} f={f} today={today} leadSlaHours={leadSlaHours} at={at} me={me.name} />
+        </Fresh>
       </Suspense>
     </>
   );

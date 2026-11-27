@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { Suspense } from "react";
+import { Bone, Skeleton, TabBones, TableBones } from "@/components/admin/Skeleton";
+import { Fresh } from "@/components/Tween";
 import { Badge, DataTable, EmptyState, PageHeader, Panel, SummaryTabs, TableFooter, TableToolbar, Task, TaskList, pageOf, rowButton, rowDanger, sortRows, type Column, type FilterGroup } from "@/components/admin/kit";
 import { filterAlerts, filterCustomers } from "@/lib/admin/customer-lists";
 import { ActButton } from "@/components/admin/ActButton";
@@ -29,6 +32,20 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
   const tabs = TABS.filter(([, , m]) => (m === "sales" ? sales : alertsOn));
   if (!tabs.length) notFound();
   const tab = tabs.find(([k]) => k === sp.tab)?.[0] ?? tabs[0][0];
+  // The header first; the tabs (their counts are the lists), the reminders and the list stream in under it, keyed by the tab (#200).
+  return (
+    <>
+      <PageHeader title="Customers" text="Buyers, and people who signed up for stock alerts" />
+      <Suspense key={tab} fallback={<Skeleton><TabBones count={tabs.length} hint /><Bone className="h-11 w-full sm:max-w-sm" /><TableBones /></Skeleton>}>
+        <Fresh className="flex flex-col gap-6">
+          <Lists sp={sp} tab={tab} sales={sales} alertsOn={alertsOn} />
+        </Fresh>
+      </Suspense>
+    </>
+  );
+}
+
+async function Lists({ sp, tab, sales, alertsOn }: { sp: Params; tab: string; sales: boolean; alertsOn: boolean }) {
   const q = (sp.q ?? "").trim().toLowerCase().slice(0, 60);
   const [customers, alerts, sold, deposits, claims, service] = await Promise.all([customersStore.list(), alertsStore.list(), salesStore.list(), reservationsStore.list(), claimsStore.list(), hasModule("service")]);
   const synced = (await stockSource()) === "donedeal"; // deposits are our version only
@@ -148,7 +165,6 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
 
   return (
     <>
-      <PageHeader title="Customers" text="Buyers, and people who signed up for stock alerts" />
       {/* The lists are the summary: each tile is its count and opens its list. */}
       <SummaryTabs
         label="Customer lists"
