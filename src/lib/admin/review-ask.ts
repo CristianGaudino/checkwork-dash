@@ -1,6 +1,6 @@
 import "server-only";
 import { wantsWhatsApp } from "@/lib/phone";
-import { simulating } from "@/lib/integrations";
+import { isUsable, simulating } from "@/lib/integrations";
 import { leadRecipients, sendTo } from "@/lib/leads/mail";
 import { hasModule } from "@/lib/modules";
 import { currentDealer } from "@/lib/tenancy/current";
@@ -79,8 +79,8 @@ export async function askForReview(carId: string): Promise<"whatsapp" | "email" 
   if (!placeId || !sale || sale.returnedOn || sale.reviewAskedOn || !sale.customerId) return null;
   const c = await customersStore.get(sale.customerId);
   if (!c) return null;
-  // The plan alone here (not reviewByWhatsApp), so a buyer who chose WhatsApp gets "by email" in their conversation when it cannot go.
-  const reach = reviewReach(c, leadsOf(c, await leadsStore.list(), sale.leadId), await hasModule("whatsapp"));
+  // Connected alone here (not reviewByWhatsApp), so a buyer who chose WhatsApp gets "by email" in their conversation when it cannot go.
+  const reach = reviewReach(c, leadsOf(c, await leadsStore.list(), sale.leadId), await isUsable("whatsapp"));
   if (!reach) return null;
   const dealer = (await currentDealer()).name;
   const text = reviewText(firstName(c.name), sale.carTitle, dealer, reviewLink(placeId));

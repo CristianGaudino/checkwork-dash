@@ -4,7 +4,7 @@ import { dublinDay } from "@/lib/admin/format";
 import { SETTINGS_DEFAULT, getSettings, settingsStore, type DealerSettings } from "@/lib/admin/collections";
 import { notify } from "@/lib/admin/notifications";
 import { alertsCrossed, allowanceFor, inAllowance, usageCosts, usageId, withinCaps, type BillingSettings, type Kind, type Service, type UsageCount, withBillingDefaults } from "./rules";
-import { enabledModules } from "@/lib/modules";
+import { billedModules } from "@/lib/modules";
 import { roleCan } from "@/lib/permission-rules";
 import { currentDealer } from "@/lib/tenancy/current";
 
@@ -20,7 +20,7 @@ export const monthOf = (t: number = Date.now()) => dublinDay(t).slice(0, 7);
 // A record saved before the AI assistant was dropped may still carry `aiPlan`: nothing reads it.
 export const billingSettings = async (): Promise<BillingSettings> => withBillingDefaults((await getSettings()).billing);
 // What the plan includes this month before usage is billed.
-export const monthAllowance = async (b: BillingSettings) => allowanceFor(await enabledModules(), b);
+export const monthAllowance = async (b: BillingSettings) => allowanceFor(await billedModules(), b);
 export async function monthCounts(month = monthOf()): Promise<UsageCount[]> {
   return (await usageStore.list()).filter((c) => c.month === month);
 }

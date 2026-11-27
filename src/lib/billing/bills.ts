@@ -3,7 +3,7 @@ import { defineCollection } from "@/lib/admin/docs";
 import { dublinDay } from "@/lib/admin/format";
 import { getSettings } from "@/lib/admin/collections";
 import { MODULE_IDS } from "@/lib/modules-rules";
-import { enabledModules } from "@/lib/modules";
+import { billedModules } from "@/lib/modules";
 import { billingSettings } from "./usage";
 import { usageLines, type Bill, type BillingDetails } from "./bills-rules";
 import { BILLING_DEFAULT, allowanceFor, planLines, type Service } from "./rules";
@@ -23,10 +23,10 @@ export async function getBill(id: string): Promise<Bill | undefined> {
   const bill = await billsStore.get(id);
   return bill && (await asShown())(bill);
 }
-// A demo dealer's bills follow the plan the demo bar shows now, so the Bills tab never disagrees with the Plan tab. A real dealer's are as issued.
+// A demo dealer's bills follow the plan in its profile, as this month's does. A real dealer's are as issued.
 async function asShown(): Promise<(bill: Bill) => Bill> {
   if (!(await currentDealer()).demo) return (bill) => bill;
-  const [modules, b] = await Promise.all([enabledModules(), billingSettings()]);
+  const [modules, b] = await Promise.all([billedModules(), billingSettings()]);
   const allowance = allowanceFor(modules, b);
   return (bill) => ({ ...bill, modules: planLines(modules, b, bill.id), usage: usageLines(bill.usage, allowance) });
 }

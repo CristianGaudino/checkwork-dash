@@ -6,7 +6,7 @@ import { logActivity } from "@/lib/admin/activity";
 import { SETTINGS_DEFAULT, settingsStore, type DealerSettings } from "@/lib/admin/collections";
 import { addRequest, helpStore } from "@/lib/admin/help";
 import { MODULES, type ModuleId } from "@/lib/modules-rules";
-import { enabledModules } from "@/lib/modules";
+import { billedModules, enabledModules } from "@/lib/modules";
 import { can, currentMember } from "@/lib/permissions";
 import { fieldErrors } from "@/lib/admin/validation";
 import { tooLong } from "@/lib/leads/constants";
@@ -18,7 +18,7 @@ import { requireStaff } from "@/lib/staff";
 export type BillingState = { errors?: Record<string, string>; saved?: boolean } | undefined;
 const NO = "Only an owner or manager can change this";
 // What can have a limit: the services the Billing page lists.
-const scopesOf = async (): Promise<Scope[]> => billedServices(await enabledModules(), await monthUsage());
+const scopesOf = async (): Promise<Scope[]> => billedServices(await billedModules(), await monthUsage());
 const done = (): BillingState => (revalidatePath("/billing"), { saved: true });
 
 export async function saveLimitsAction(_p: BillingState, data: FormData): Promise<BillingState> {

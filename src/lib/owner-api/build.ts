@@ -5,7 +5,7 @@ import { monthAllowance, monthCounts, billingSettings, monthOf } from "@/lib/bil
 import { planEur, usageCosts } from "@/lib/billing/rules";
 import { syncStatus } from "@/lib/donedeal/sync";
 import { MODULE_IDS } from "@/lib/modules-rules";
-import { enabledModules } from "@/lib/modules";
+import { billedModules } from "@/lib/modules";
 import { summarise } from "@/lib/reports/monthly";
 import { loadReportData } from "@/lib/reports/load";
 import { dealerProfile } from "@/lib/tenancy/current";
@@ -14,7 +14,7 @@ import { countsBetween } from "./counters";
 export const API_VERSION = 1;
 
 export async function modulesBody() {
-  const on = await enabledModules();
+  const on = await billedModules();
   const b = await billingSettings();
   return { version: API_VERSION, appVersion: pkg.version, modules: MODULE_IDS.filter((m) => on.has(m)), planEur: planEur(on, b) }; // the plan and its add-ons, as the Billing page
 }

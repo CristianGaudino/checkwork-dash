@@ -16,10 +16,9 @@ beforeEach(() => {
   offline.on = false;
 });
 let role = "Owner";
-let modules: string | undefined; // the demo bar's module switches; unset is every module
 vi.mock("react", async (orig) => ({ ...(await orig<typeof import("react")>()), cache: <T,>(fn: T) => fn }));
 vi.mock("next/headers", () => ({
-  cookies: async () => ({ get: (n: string) => (n === "checkwork-demo-role" ? { value: role } : n === "checkwork-demo-modules" && modules ? { value: modules } : undefined) }),
+  cookies: async () => ({ get: (n: string) => (n === "checkwork-demo-role" ? { value: role } : undefined) }),
   headers: async () => ({ get: () => null }),
 }));
 const { pauseAlertAction, removeAlertAction } = await import("./customers/actions");
@@ -50,14 +49,10 @@ describe("stock alerts", () => {
     expect(await alertsStore.get(alert.id)).toBeUndefined();
     await removeAlertAction(alert.id); // gone: nothing
   });
-  it("belongs to the alerts module (id \"newsletter\"), where visitors sign up, not to sales", async () => {
+  it("pauses an alert", async () => {
     const alert = (await alertsStore.list()).find((a) => a.active)!;
-    modules = "dashboard,sales";
-    await expect(pauseAlertAction(alert.id)).rejects.toThrow("not-found");
-    modules = "dashboard,newsletter";
     await pauseAlertAction(alert.id);
     expect((await alertsStore.get(alert.id))!.active).toBe(false);
-    modules = undefined;
   });
 });
 

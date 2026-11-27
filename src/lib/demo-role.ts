@@ -3,10 +3,9 @@
 import { useSyncExternalStore } from "react";
 import { ROLE_COOKIE, parseRole, type Role } from "@/lib/permission-rules";
 import { STOCK_COOKIE, type StockSource } from "@/lib/stock-source-rules";
-import { MODULES_COOKIE, modulesValue, type ModuleId } from "@/lib/modules-rules";
 
 // The demo bar's switches, remembered in this browser as cookies the server reads: the dealer's role (what they may see), where the stock
-// comes from, and which modules are on. The server counts them for a demo dealer only (src/lib/tenancy/current.ts, demoCookie); each switch
+// comes from. The server counts them for a demo dealer only (src/lib/tenancy/current.ts, demoCookie); each switch
 // refreshes the page, which brings back what the server made of it.
 const listeners = new Set<() => void>();
 const notify = () => listeners.forEach((l) => l());
@@ -23,5 +22,3 @@ export const useDealerRole = () => useSyncExternalStore(subscribe, roleValue, ()
 
 // The demo's stock switch: our own uploader, or stock synced from a listing site (src/lib/stock-source.ts).
 export const setDemoStockSource = (source: StockSource) => set(STOCK_COOKIE, source);
-// The demo's module switches (src/lib/modules-rules.ts).
-export const setDemoModules = (on: Iterable<ModuleId>) => set(MODULES_COOKIE, modulesValue(on));

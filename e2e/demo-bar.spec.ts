@@ -16,35 +16,16 @@ test("on a phone the demo bar is a small pill: the role is on it, the rest opens
   await expect(role).toBeVisible();
 });
 
-test("on the narrowest phone the dealer's module switches open inside the panel and can be used", async ({ page }) => {
+// One system (#212): the bar switches the role and the stock source, never a plan or a module.
+test("the demo bar has no plan or module switch, on the narrowest phone or the slim bar", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 640 });
   await page.goto("/");
-  await demoBar(page);
-  const bar = page.locator("[data-demo-bar]");
-  const modules = bar.getByRole("button", { name: /^Plan/ });
-  await expect(modules).toBeInViewport({ ratio: 1 });
-  await modules.click();
-  const dashboard = bar.getByRole("button", { name: /^Dashboard/ });
-  await expect(dashboard).toBeInViewport({ ratio: 1 });
-  await dashboard.click();
-  await expect(modules).toContainText("Dashboard");
-  await expect(modules).not.toContainText("Website"); // the dashboard alone, no longer Website + Dashboard
-  await expect(dashboard).toHaveAttribute("aria-pressed", "true");
-});
-
-test("on the Website plan there is no dashboard: every page is not found, the dealer tools go, and the Plan switch brings it back", async ({ page }) => {
-  await page.setViewportSize({ width: 1280, height: 800 });
-  await page.goto("/");
   const bar = await demoBar(page);
-  await bar.getByRole("button", { name: /^Plan/ }).click();
-  await bar.getByRole("button", { name: /^Website\s?€/ }).click();
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("We couldn't find that page");
-  await expect(bar.getByRole("combobox", { name: "Role" })).toHaveCount(0);
-  // The page is not reloaded (no 404 now: the layout answers), so the plan list may still be open.
-  const plan = bar.getByRole("button", { name: /^Plan/ });
-  if ((await plan.getAttribute("aria-expanded")) !== "true") await plan.click();
-  await bar.getByRole("button", { name: /^Website \+ Dashboard/ }).click();
-  await expect(bar.getByRole("combobox", { name: "Role" })).toBeVisible(); // the dealer tools are back
+  await expect(bar.getByRole("button", { name: /sync/ })).toBeInViewport({ ratio: 1 });
+  await expect(bar.getByRole("button", { name: /^(Plan|Dashboard|Website)/ })).toHaveCount(0);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await expect(bar.getByRole("combobox", { name: "Role" })).toBeVisible();
+  await expect(bar.getByRole("button", { name: /^(Plan|Dashboard|Website)/ })).toHaveCount(0);
 });
 
 test("light is the default, dark is a choice that sticks and does not flash", async ({ page }) => {
@@ -59,15 +40,4 @@ test("light is the default, dark is a choice that sticks and does not flash", as
   await expect(html).toHaveAttribute("data-theme", "dark");
   await (await demoBar(page)).getByRole("button", { name: "Dark" }).click();
   await expect(html).not.toHaveAttribute("data-theme", "dark");
-});
-
-// Without the dashboard module every page is the not found screen (the root layout decides per dealer, src/app/layout.tsx), with the bar
-// still there to choose again. The proxy reads no directory, so the answer is the screen, not a 404 status.
-test("the dashboard follows the modules: with none on, its pages are gone", async ({ page, context, baseURL }) => {
-  await context.addCookies([{ name: "checkwork-demo-modules", value: "none", url: baseURL! }]);
-  for (const path of ["/", "/leads", "/test-drives"]) {
-    await page.goto(path);
-    await expect(page.getByRole("heading", { level: 1 }), path).toHaveText("We couldn't find that page");
-    await expect(page.getByRole("navigation", { name: "Dealer dashboard" }).getByRole("link"), path).toHaveCount(0);
-  }
 });

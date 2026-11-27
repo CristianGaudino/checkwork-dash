@@ -8,7 +8,7 @@ vi.mock("@/lib/admin/collections", () => ({
 }));
 const notices = vi.hoisted(() => [] as { for?: string }[]);
 vi.mock("@/lib/admin/notifications", () => ({ notify: async (n: { for?: string }) => void notices.push(n) }));
-vi.mock("@/lib/modules", () => ({ enabledModules: async () => new Set(["tradeIn"]) })); // Website: no lookups included
+vi.mock("@/lib/modules", () => ({ billedModules: async () => new Set(["tradeIn"]) })); // Website: no lookups included
 const { recordUsage, usageStore, sentAlertsStore } = await import("./usage");
 
 beforeEach(async () => {

@@ -24,7 +24,7 @@ const store = (m: Map<string, Record<string, unknown>>) => ({
 vi.mock("./collections", () => ({ salesStore: store(db.sales), customersStore: store(db.customers), leadsStore: { list: async () => db.leads } }));
 vi.mock("./activity", () => ({ logActivity: async (_a: string, text: string) => void db.activity.push(text) }));
 vi.mock("@/lib/tenancy/current", () => ({ currentDealer: async () => ({ name: "Byrne Motors", demo: db.demo, profile: { placeId: db.placeId } }) }));
-vi.mock("@/lib/integrations", () => ({ simulating: async () => db.demo }));
+vi.mock("@/lib/integrations", () => ({ simulating: async () => db.demo, isUsable: async () => db.whatsapp }));
 vi.mock("@/lib/modules", () => ({ hasModule: async () => db.whatsapp }));
 vi.mock("@/lib/leads/mail", () => ({
   leadRecipients: async () => ["sales@byrne.ie"],
