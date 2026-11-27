@@ -97,15 +97,16 @@ export function PanelLink({ href, children }: { href: string; children: React.Re
 export const figureSize = (value: string) =>
   /\p{L}{9}/u.test(value) ? "text-[min(2rem,12cqi)]" : value.length > 8 || /\p{L}{6}/u.test(value) ? "text-[min(2rem,15cqi)]" : "text-[min(2rem,20cqi)]";
 
-export function StatCard({ label, value, hint, tone, href, className = "" }: { label: string; value: string; hint?: string; tone?: "good" | "bad" | "warn"; href?: string; className?: string }) {
+// `title`: the exact figure behind a rounded one (fmtCompactEur), for a money figure someone may check.
+export function StatCard({ label, value, title, hint, tone, href, className = "" }: { label: string; value: string; title?: string; hint?: string; tone?: "good" | "bad" | "warn"; href?: string; className?: string }) {
   const body = (
     <>
       <p className="text-meta text-text-2">{label}</p>
       {/* Sized from the tile's own width (a container query), so tiles side by side show their figures at the same size, and a
-          half-width tile on a 360px phone still fits €117,565 on one line. A year's sales (€5,864,950) take a smaller share. Anything
-          longer still wraps, never spills. */}
+          half-width tile on a 360px phone still fits €117,565 (a margin, kept full) on one line. Anything longer takes a smaller share,
+          and wraps rather than spills. */}
       <div className="@container min-w-0">
-        <p className={`font-display font-semibold leading-[1.1] tracking-[-0.02em] tabular-nums [overflow-wrap:anywhere] ${figureSize(value)}`}>
+        <p title={title} className={`font-display font-semibold leading-[1.1] tracking-[-0.02em] tabular-nums [overflow-wrap:anywhere] ${figureSize(value)}`}>
           <Tween value={value} />
         </p>
       </div>

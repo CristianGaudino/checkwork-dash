@@ -7,7 +7,7 @@ import Link from "next/link";
 import { LEAD_TYPE_LABELS, type LeadType } from "@/lib/admin/collections";
 import { buildAnalytics } from "@/lib/admin/analytics";
 import { carCosts } from "@/lib/admin/costs";
-import { addMonths, dublinDay, fmtEur, fmtNum, fmtPct, isIsoMonth, plural } from "@/lib/admin/format";
+import { addMonths, dublinDay, fmtCompact, fmtCompactEur, fmtEur, fmtNum, fmtPct, isIsoMonth, plural } from "@/lib/admin/format";
 import { visitorFigures } from "@/lib/admin/visitor-figures";
 import { countsBetween } from "@/lib/owner-api/counters";
 import { counted, monthLabel } from "@/lib/admin/reports";
@@ -127,23 +127,23 @@ async function Report({ month, prevMonth, now, name, whole, hasMargins }: { mont
 
       {/* The month in short: the few numbers an owner asks about first, each against the month before. The sections below say more. */}
       <StatGrid>
-        <StatCard label="Leads" value={fmtNum(s.leads.total)} hint={compare(s.leads.total, p.leads.total)} />
-        {a && <StatCard label="Visitors" value={fmtNum(a.totals.visitors)} hint={compare(a.totals.visitors, a.previous.visitors)} />}
-        {real && <StatCard label="Visits" value={fmtNum(real.now.totals.visits)} hint={compare(real.now.totals.visits, real.before.totals.visits)} />}
+        <StatCard label="Leads" value={fmtCompact(s.leads.total)} hint={compare(s.leads.total, p.leads.total)} />
+        {a && <StatCard label="Visitors" value={fmtCompact(a.totals.visitors)} hint={compare(a.totals.visitors, a.previous.visitors)} />}
+        {real && <StatCard label="Visits" value={fmtCompact(real.now.totals.visits)} hint={compare(real.now.totals.visits, real.before.totals.visits)} />}
         {hasSales ? (
-          <StatCard label="Cars sold" value={fmtNum(s.sales.count)} hint={compare(s.sales.count, p.sales.count)} />
+          <StatCard label="Cars sold" value={fmtCompact(s.sales.count)} hint={compare(s.sales.count, p.sales.count)} />
         ) : (
-          whole && <StatCard label="Cars sold" value={fmtNum(s.stock.sold)} hint={compare(s.stock.sold, p.stock.sold)} />
+          whole && <StatCard label="Cars sold" value={fmtCompact(s.stock.sold)} hint={compare(s.stock.sold, p.stock.sold)} />
         )}
         {topSource && <StatCard label="Most leads from" value={topSource[0]} hint={plural(topSource[1], "lead")} />}
       </StatGrid>
 
       <h2 className="text-heading font-semibold">Leads</h2>
       <StatGrid>
-        <StatCard label="Out of hours" value={fmtNum(s.leads.outOfHours)} hint={s.leads.total ? `${Math.round((s.leads.outOfHours / s.leads.total) * 100)}% of leads` : undefined} />
+        <StatCard label="Out of hours" value={fmtCompact(s.leads.outOfHours)} hint={s.leads.total ? `${Math.round((s.leads.outOfHours / s.leads.total) * 100)}% of leads` : undefined} />
         <StatCard label="First reply, when open" value={fmtWait(s.replies.medianInHoursMin)} hint="Typical" />
         <StatCard label="First reply, when closed" value={fmtWait(s.replies.medianOutOfHoursMin)} hint="Typical" />
-        <StatCard label="No reply in 24 hours" value={fmtNum(s.replies.none)} tone={s.replies.none ? "warn" : undefined} />
+        <StatCard label="No reply in 24 hours" value={fmtCompact(s.replies.none)} tone={s.replies.none ? "warn" : undefined} />
       </StatGrid>
       <div className="grid grid-cols-1 gap-6 wide:grid-cols-2 wider:grid-cols-3">
         <Panel title="Where they came from">
@@ -165,7 +165,7 @@ async function Report({ month, prevMonth, now, name, whole, hasMargins }: { mont
           </Panel>
           <Panel title="Top 5 cars viewed">
             <p className="text-meta text-text-2">
-              {fmtNum(a.totals.pageviews)} pages viewed in all. {compare(a.totals.pageviews, a.previous.pageviews)}.
+              {fmtCompact(a.totals.pageviews)} pages viewed in all. {compare(a.totals.pageviews, a.previous.pageviews)}.
             </p>
             <DataTable bare rows={a.topCars.slice(0, 5)} rowKey={(c) => c.slug} empty={<p className="text-meta text-text-2">No cars viewed this month.</p>} columns={[{ key: "t", header: "Car", cell: (c) => <span className="font-medium">{c.title}</span> }, { key: "v", header: "Views", align: "right", cell: (c) => fmtNum(c.views) }]} />
           </Panel>
@@ -189,9 +189,9 @@ async function Report({ month, prevMonth, now, name, whole, hasMargins }: { mont
         <>
           <h2 className="text-heading font-semibold">Stock</h2>
           <StatGrid>
-            <StatCard label="Cars added" value={fmtNum(s.stock.added)} hint={compare(s.stock.added, p.stock.added)} />
+            <StatCard label="Cars added" value={fmtCompact(s.stock.added)} hint={compare(s.stock.added, p.stock.added)} />
             <StatCard label="Days in stock" value={s.stock.avgDaysInStock === null ? "None" : fmtNum(s.stock.avgDaysInStock)} hint="Average, cars for sale now" />
-            <StatCard href="/stock?view=old" label={`${oldDays} days or more`} value={fmtNum(s.stock.oldStock)} tone={s.stock.oldStock ? "warn" : undefined} hint="Cars for sale now" />
+            <StatCard href="/stock?view=old" label={`${oldDays} days or more`} value={fmtCompact(s.stock.oldStock)} tone={s.stock.oldStock ? "warn" : undefined} hint="Cars for sale now" />
           </StatGrid>
         </>
       )}
@@ -203,8 +203,8 @@ async function Report({ month, prevMonth, now, name, whole, hasMargins }: { mont
             <h2 className="text-heading font-semibold">Sales</h2>
             <StatGrid>
               {/* Cars sold is in the month in short at the top; here it shows only when there is no money to show beside it. */}
-              {s.sales.valueEur === undefined && profit === undefined && <StatCard label="Cars sold" value={fmtNum(s.sales.count)} hint={compare(s.sales.count, p.sales.count)} />}
-              {s.sales.valueEur !== undefined && <StatCard label="Sales" value={fmtEur(s.sales.valueEur)} />}
+              {s.sales.valueEur === undefined && profit === undefined && <StatCard label="Cars sold" value={fmtCompact(s.sales.count)} hint={compare(s.sales.count, p.sales.count)} />}
+              {s.sales.valueEur !== undefined && <StatCard label="Sales" value={fmtCompactEur(s.sales.valueEur)} hint={fmtCompactEur(s.sales.valueEur) === fmtEur(s.sales.valueEur) ? undefined : fmtEur(s.sales.valueEur)} />}
               {profit !== undefined && <StatCard label="Profit" value={fmtEur(profit)} hint="Cars with their cost entered" />}
             </StatGrid>
           </section>
@@ -214,7 +214,7 @@ async function Report({ month, prevMonth, now, name, whole, hasMargins }: { mont
           <section className="flex flex-col gap-4">
             <h2 className="text-heading font-semibold">Reviews</h2>
             <StatGrid>
-              <StatCard label="New reviews" value={fmtNum(s.reviews.count)} hint={compare(s.reviews.count, p.reviews.count)} />
+              <StatCard label="New reviews" value={fmtCompact(s.reviews.count)} hint={compare(s.reviews.count, p.reviews.count)} />
               <StatCard label="Average rating" value={s.reviews.average === null ? "None" : s.reviews.average.toFixed(1)} hint={s.reviews.average === null ? undefined : `From ${plural(s.reviews.count, "review")}`} />
             </StatGrid>
           </section>

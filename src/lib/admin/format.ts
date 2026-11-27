@@ -1,6 +1,6 @@
 import { TIME_ZONE as timeZone } from "@/lib/site";
 import { HOUR } from "@/lib/time";
-import { fmtNum } from "@/lib/stock/format";
+import { fmtEur, fmtNum } from "@/lib/stock/format";
 
 // The site's own money and number formats (src/lib/stock/format.ts), here too: one way of writing them everywhere.
 export { fmtEur, fmtNum } from "@/lib/stock/format";
@@ -70,6 +70,18 @@ export function addMonths(day: string, n: number) {
 // `count` months from `from` (YYYY-MM) on, as [value, label] pairs for a drop-down: an empty month box reads "--------- ----" in Chrome.
 export const monthChoices = (from: string, count: number) =>
   Array.from({ length: count }, (_, i) => addMonths(`${from}-01`, i).slice(0, 7)).map((m) => [m, fmtDay(`${m}-01`, "monthYear")] as const);
+// A figure read at a glance (#206): tiles, chart labels, headline totals. Under 1,000 it is the full figure. From 1,000 it is in thousands,
+// and in millions once it would read 1,000k (from 999,500): one decimal below 100 of the unit ("12.4k", "€1.2m"), whole from there ("118k"), never a ".0" ("€1m").
+// Prices, costs, margins, deposits, bills, finance and every table keep fmtEur and fmtNum. Worked from whole numbers, so 9,950 is "10k".
+function compact(n: number, eur: boolean) {
+  const a = Math.abs(n);
+  if (a < 1000 || !Number.isFinite(n)) return eur ? fmtEur(n) : fmtNum(n); // NaN or Infinity: never "NaNm"
+  const at = (size: number) => (a < size * 100 - size / 20 ? Math.round(a / (size / 10)) / 10 : Math.round(a / size));
+  const [v, unit] = at(1e3) < 1000 ? [at(1e3), "k"] : [at(1e6), "m"];
+  return `${n < 0 ? "-" : ""}${eur ? "€" : ""}${fmtNum(v)}${unit}`;
+}
+export const fmtCompact = (n: number) => compact(n, false);
+export const fmtCompactEur = (n: number) => compact(n, true);
 export const fmtPct = (n: number) => `${n.toFixed(1)}%`; // always one decimal, so 20.0% and 20.1% line up
 
 const rtf = new Intl.RelativeTimeFormat("en-IE", { numeric: "auto" });

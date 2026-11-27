@@ -19,7 +19,7 @@ test("a client navigation draws the chart and bars in, and the tiles count to th
   const source = (await sourceFigure(page).textContent())!;
   await page.goto("/");
   const visits = (await visitsFigure(page).textContent())!;
-  expect(visits).toMatch(/^[\d,]+$/);
+  expect(visits).toMatch(/^\d+(\.\d)?[km]?$/); // rounded from 1,000 (#206)
 
   await (await sideLink(page, "Analytics")).click();
   await expect(page).toHaveURL(/\/analytics$/);

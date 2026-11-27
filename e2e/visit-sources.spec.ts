@@ -7,7 +7,7 @@ const noSideways = (page: Page) => page.evaluate(() => document.documentElement.
 async function expectTiles(tiles: Locator) {
   for (const tile of await tiles.all()) {
     await expect(tile.locator("svg").first()).toBeVisible();
-    await expect(tile).toContainText(/\d visits?/);
+    await expect(tile).toContainText(/\d[km]? visits?/); // rounded from 1,000 (#206)
     await expect(tile).toContainText(/\d leads?/);
   }
 }

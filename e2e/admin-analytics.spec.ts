@@ -16,9 +16,9 @@ test("every section is there, and the funnel never grows", async ({ page }) => {
   await page.goto("/analytics");
   for (const name of ["From visit to sale", "Where visits come from", "Most viewed cars"]) await expect(page.getByRole("heading", { name })).toBeVisible();
   await expect(page.getByText("More detail", { exact: true })).toHaveCount(0); // #152: the page ends at the cars
-  // The first text of each number is the count; the share beside it is a second element.
+  // The first text of each number is the count, rounded from 1,000 ("12.4k", #206); the share beside it is a second element.
   const counts = await page.getByRole("region", { name: "From visit to sale" }).locator("li span.font-semibold").evaluateAll((els) => els.map((e) => e.firstChild!.textContent!));
-  const n = counts.map((t) => Number(t.replace(/,/g, "")));
+  const n = counts.map((t) => Number(t.replace(/[km]$/, "")) * (t.endsWith("m") ? 1e6 : t.endsWith("k") ? 1e3 : 1));
   expect(n).toHaveLength(5);
   n.slice(1).forEach((v, i) => expect(v).toBeLessThanOrEqual(n[i]));
 });
