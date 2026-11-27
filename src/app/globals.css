@@ -109,6 +109,8 @@
   --shadow-thumb: 0 0 0 1px rgb(0 0 0 / 0.2), 0 2px 6px rgb(0 0 0 / 0.35);
 
   --ease-sheet: cubic-bezier(0.32, 0.72, 0, 1);
+  /* Stronger than Tailwind's default ease-out (0, 0, 0.2, 1): the ease-out utilities and the CSS below. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 /* Dark, by choice (demo bar toggle, stored in localStorage and set on <html> before first paint). .theme-dark does the same for one
@@ -243,12 +245,6 @@
     background-image: var(--atmosphere);
     background-color: var(--color-surface);
   }
-  /* A car page's call bar (LeadActions) sits above the demo bar below 1024px: room for both, so the footer is never under it. */
-  @media (max-width: 1023.98px) {
-    body:has([data-sticky-actions]) {
-      padding-bottom: calc(var(--demo-bar-h, 0px) + 4rem + env(safe-area-inset-bottom));
-    }
-  }
   /* A car form's Save bar, once it is changed, sits over the foot of the screen: a box scrolled to or focused stops above it. */
   html:has([data-sticky-save]) {
     scroll-padding-bottom: calc(var(--demo-bar-h, 0px) + 9rem + env(safe-area-inset-bottom));
@@ -256,15 +252,6 @@
   @media (min-width: 1024px) {
     html:has([data-sticky-save]) {
       scroll-padding-bottom: calc(var(--demo-bar-h, 0px) + 6rem);
-    }
-  }
-  /* The compare pill floats at the foot of the screen: room for it while it shows, so the last content (the finance warning) is never under it. */
-  body:has([data-compare-bar]) {
-    padding-bottom: calc(var(--demo-bar-h, 0px) + 5rem + env(safe-area-inset-bottom));
-  }
-  @media (max-width: 1023.98px) {
-    body:has([data-sticky-actions]):has([data-compare-bar]) {
-      padding-bottom: calc(var(--demo-bar-h, 0px) + 9rem + env(safe-area-inset-bottom));
     }
   }
   /* Car photos are studio shots on white. On the plinth the white is multiplied away, so the car stands on a lit floor, in both themes.
@@ -307,12 +294,10 @@
   }
 }
 
-/* While a car page's call bar shows on a phone, the toast and compare pill rise above it instead of covering its buttons. Outside any
-   layer, so it beats the stack's own bottom utility. */
-@media (max-width: 1023.98px) {
-  body:has([data-sticky-actions]:not(.invisible)) [data-bottom-stack] {
-    bottom: calc(var(--demo-bar-h, 0px) + 5rem + env(safe-area-inset-bottom));
-  }
+/* A pressable with transition-colors: that utility's property list leaves out scale and filter, so the press and the hover lift above
+   would snap. Outside any layer, so it beats the utility; its duration and easing still apply. */
+[class*="active:scale-"][class*="transition-colors"] {
+  transition-property: color, background-color, border-color, outline-color, text-decoration-color, fill, stroke, scale, filter;
 }
 
 /* The asterisk after a required field's label. Drawn by CSS, so it is not part of the label's text; the field itself says aria-required.
@@ -347,8 +332,7 @@ dialog.sheet[open] {
   flex-direction: column;
 }
 
-body:has(dialog.sheet[open]),
-body:has(dialog.lightbox[open]) {
+body:has(dialog.sheet[open]) {
   overflow: hidden;
 }
 
@@ -439,110 +423,6 @@ dialog.sheet[open]::backdrop {
   }
 }
 
-/* Lead dialog (03-10): the sheet above below 640px. From 640px a centred 520px panel that fades and scales instead,
-   with the same @starting-style and allow-discrete technique. Scroll lock and contrast come from the dialog.sheet rules. */
-@media (min-width: 640px) {
-  dialog.sheet.lead {
-    inset: 0;
-    margin: auto;
-    width: 520px;
-    max-height: min(90dvh, 720px);
-    border-radius: 1rem;
-    box-shadow: var(--shadow-lift);
-    opacity: 0;
-    transform: scale(0.97);
-    transition:
-      opacity 200ms ease-out,
-      transform 200ms ease-out,
-      overlay 200ms allow-discrete,
-      display 200ms allow-discrete;
-  }
-
-  dialog.sheet.lead[open] {
-    opacity: 1;
-    transform: none;
-  }
-
-  @starting-style {
-    dialog.sheet.lead[open] {
-      opacity: 0;
-      transform: scale(0.97);
-    }
-  }
-
-  dialog.sheet.lead::backdrop {
-    transition-duration: 200ms;
-  }
-}
-
-@media (min-width: 640px) and (prefers-reduced-motion: reduce) {
-  dialog.sheet.lead,
-  dialog.sheet.lead[open] {
-    transform: none;
-  }
-
-  dialog.sheet.lead {
-    transition:
-      opacity 150ms linear,
-      overlay 150ms allow-discrete,
-      display 150ms allow-discrete;
-  }
-
-  @starting-style {
-    dialog.sheet.lead[open] {
-      opacity: 0;
-      transform: none;
-    }
-  }
-
-  dialog.sheet.lead::backdrop {
-    transition-duration: 150ms;
-  }
-}
-
-/* Photo lightbox (02-05): a full-viewport modal dialog that fades. A takeover has no edge to slide from. */
-dialog.lightbox {
-  inset: 0;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  width: 100dvw;
-  height: 100dvh;
-  max-width: none;
-  max-height: none;
-  background: var(--color-surface);
-  color: var(--color-text);
-  overflow: hidden;
-  opacity: 0;
-  transition:
-    opacity 200ms ease-out,
-    overlay 200ms allow-discrete,
-    display 200ms allow-discrete;
-}
-
-dialog.lightbox[open] {
-  opacity: 1;
-}
-
-@starting-style {
-  dialog.lightbox[open] {
-    opacity: 0;
-  }
-}
-
-/* Same ink as the surface, so no rim shows. */
-dialog.lightbox::backdrop {
-  background: var(--color-surface);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  dialog.lightbox {
-    transition-duration: 150ms;
-    transition-timing-function: linear;
-  }
-}
-
 /* Interaction (unlayered, so it wins over utilities such as border-control).
    Pointer: anything that acts shows a hand; text fields show a caret; disabled things say no. */
 button:not(:disabled),
@@ -600,80 +480,17 @@ input:is([type="checkbox"], [type="radio"], [type="file"]):not(:disabled) {
   box-shadow: 0 0 0 1px var(--color-destructive);
 }
 
-/* The finance band on the home page: a soft panel with a glow in the accent colour. */
-/* Stock list view (the toggle on /used-cars): one column of wide cards, photo on the left. From 1024px only, where the toggle shows,
-   so a choice made on a desktop never sticks on a tablet with no way back. Unlayered so it beats the grid utilities. */
-@media (min-width: 1024px) {
-  [data-view="list"] [data-grid] {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  [data-view="list"] [data-card] {
-    display: flex;
-    gap: 1.5rem;
-  }
-
-  [data-view="list"] [data-card-photo] {
-    width: 20rem;
-    flex: none;
-    align-self: stretch;
-    aspect-ratio: auto;
-    min-height: 15rem;
-  }
-
-  [data-view="list"] [data-card-body] {
-    flex: 1;
-    min-width: 0;
-    justify-content: space-between;
-    gap: 1rem;
-    padding: 0.5rem 0;
-  }
-
-  [data-view="list"] [data-title] {
-    font-size: var(--text-heading);
-    line-height: 1.25;
-  }
-
-  [data-view="list"] [data-price] {
-    font-size: var(--text-display);
-  }
-
-  [data-view="list"] [data-meta] {
-    display: none;
-  }
-
-  [data-view="list"] [data-list-only] {
-    display: flex;
-  }
-}
-
 /* Subtle motion. Everything here stands still for anyone who asks for reduced motion. */
 @media (prefers-reduced-motion: no-preference) {
-  /* A block fades and rises a little as it scrolls into view, where the browser can tie an animation to scrolling. */
-  @supports (animation-timeline: view()) {
-    .reveal {
-      animation: reveal-in linear both;
-      animation-timeline: view();
-      animation-range: entry 0% entry 40%;
-    }
-  }
   /* The filter groups open with a fade, not a snap (Chrome and Safari; others just open). */
   details::details-content {
     opacity: 0;
     transition:
-      opacity 200ms ease-out,
+      opacity 200ms var(--ease-out),
       content-visibility 200ms allow-discrete;
   }
   details[open]::details-content {
     opacity: 1;
-  }
-  .heart-pop {
-    animation: heart-pop 300ms cubic-bezier(0.23, 1, 0.32, 1);
-  }
-}
-@keyframes heart-pop {
-  40% {
-    transform: scale(1.25);
   }
 }
 /* The bar along the top while a tapped page loads (NavProgress). It waits 150ms, so a quick page never shows it, then creeps toward the end
@@ -693,15 +510,15 @@ input:is([type="checkbox"], [type="radio"], [type="file"]):not(:disabled) {
   opacity: 1;
   transform: scaleX(0.9);
   transition:
-    opacity 150ms ease-out 150ms,
+    opacity 150ms var(--ease-out) 150ms,
     transform 8s cubic-bezier(0.23, 1, 0.32, 1) 150ms;
 }
 .nav-progress[data-phase="done"] {
   opacity: 0;
   transform: scaleX(1);
   transition:
-    transform 200ms ease-out,
-    opacity 200ms ease-out 100ms;
+    transform 200ms var(--ease-out),
+    opacity 200ms var(--ease-out) 100ms;
 }
 @media (prefers-reduced-motion: reduce) {
   .nav-progress[data-phase] {
@@ -709,73 +526,46 @@ input:is([type="checkbox"], [type="radio"], [type="file"]):not(:disabled) {
   }
 }
 
-@keyframes reveal-in {
+/* Content that just arrived in the browser (Fresh in Tween.tsx: a client navigation, a new period), never the server's first paint. It
+   fades in; opacity only, so it stays under reduced motion, gentler rather than gone. Charts inside it draw from the left: clip-path rather
+   than scaleX, so the rounded bar ends do not squash. */
+@keyframes arrive {
   from {
     opacity: 0;
-    transform: translateY(14px);
   }
-  to {
-    opacity: 1;
-    transform: none;
+}
+@keyframes reveal-x {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+}
+[data-fresh] {
+  animation: arrive 150ms var(--ease-out) both;
+}
+@media (prefers-reduced-motion: no-preference) {
+  [data-fresh] [data-chart] {
+    animation: reveal-x 500ms var(--ease-out) both;
+  }
+  [data-fresh] [data-chart-peak] {
+    animation: arrive 150ms var(--ease-out) 400ms both;
+  }
+  [data-fresh] [data-bars] li > [aria-hidden] > span {
+    animation: reveal-x 400ms var(--ease-out) both;
+  }
+}
+/* The monthly report prints: nothing half drawn on paper. */
+@media print {
+  [data-fresh],
+  [data-fresh] * {
+    animation: none !important;
   }
 }
 
-/* The price range: two range inputs laid over each other. The bar is hidden and only the thumbs take a press, so each can be dragged. */
-.price-range {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  margin: 0;
-  appearance: none;
-  background: transparent;
-  pointer-events: none;
+/* A list being searched or filtered (data-list-busy) dims after 150ms, as NavProgress waits, so a quick answer never flickers. */
+main table {
+  transition: opacity 150ms var(--ease-out);
 }
-.price-range::-webkit-slider-runnable-track {
-  appearance: none;
-  background: transparent;
-}
-.price-range::-moz-range-track {
-  background: transparent;
-}
-.price-range::-webkit-slider-thumb {
-  appearance: none;
-  pointer-events: auto;
-  width: 1.75rem;
-  height: 1.75rem;
-  border-radius: 9999px;
-  border: 0;
-  background: var(--color-thumb);
-  box-shadow: var(--shadow-thumb);
-  cursor: grab;
-}
-.price-range::-moz-range-thumb {
-  pointer-events: auto;
-  width: 1.75rem;
-  height: 1.75rem;
-  border-radius: 9999px;
-  border: 0;
-  background: var(--color-thumb);
-  box-shadow: var(--shadow-thumb);
-  cursor: grab;
-}
-.price-range:active::-webkit-slider-thumb {
-  cursor: grabbing;
-  box-shadow: 0 0 0 6px color-mix(in srgb, var(--color-accent) 35%, transparent), var(--shadow-thumb);
-}
-.price-range:active::-moz-range-thumb {
-  cursor: grabbing;
-  box-shadow: 0 0 0 6px color-mix(in srgb, var(--color-accent) 35%, transparent), var(--shadow-thumb);
-}
-/* One thumb: the whole bar takes a press, so a tap on the line moves it. */
-.price-range[data-single] {
-  pointer-events: auto;
-}
-.price-range:focus-visible::-webkit-slider-thumb {
-  outline: 2px solid var(--color-accent);
-  outline-offset: 2px;
-}
-.price-range:focus-visible::-moz-range-thumb {
-  outline: 2px solid var(--color-text);
-  outline-offset: 2px;
+main:has([data-list-busy]) table {
+  opacity: 0.6;
+  transition-delay: 150ms;
 }
