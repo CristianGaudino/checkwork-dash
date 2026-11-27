@@ -108,3 +108,21 @@ direction, the picture beside the title and the order of sections stay.
 - **Choices fit their column.** The contact form's topic buttons go two across only when the form is wide enough (a container query), so a label
   never wraps to three lines.
 - **Footer:** the desktop link columns use 32px rows (above the 24px WCAG target); the phone keeps 44px rows.
+
+## Dashboard visual pass (#213, 2026-11)
+Owner feedback: one big card among equal cards looked odd, too many same-sized cards, a left column with a lonely button beside it, and
+drop-downs inside the Analytics source tiles. The rules (detail in `docs/dashboard-polish.md`, rule 12):
+- **One headline per page.** A page leads with its work (a list) or one large figure, never both at the same size.
+- **Figures are a summary, not tiles.** One panel: the headline large, the other figures as rows (label left, value right, hairlines). The
+  Overview's is "This week": new leads, then to answer, cars for sale, visits and who is on the site.
+- **Rows for supporting facts.** A record's details (a lead's answers, a customer, a booking, a claim, billing details) are rows, not label
+  over value in a grid of boxes.
+- **Cards only for a unit you act on**: a task list, a table, a form, a post, a lead's next step. Small facts beside them share one quiet
+  panel with hairlines (a claim's status, cover and cost), and a message page (not found) sits open on the page.
+- **Actions where the eye starts or ends.** The page's jobs and a person's Call, Email and WhatsApp sit in the header; a form's buttons at its
+  end. Never a box with one button beside a column (Billing's question is the header's Ask about my bill).
+- **Balanced columns.** A record page in two columns from 1280px puts what is read on the left and what is done on the right (a lead: what
+  they asked, their visit and car | next step and notes), with no gap under a short panel; one column in reading order on a phone.
+- **Ranked lists for breakdowns** with the sub-sources shown inline.
+- **Filters read as a filter**: one segmented bar, not a row of figure cards.
+

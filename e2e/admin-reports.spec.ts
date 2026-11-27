@@ -21,7 +21,7 @@ test("owners, managers and finance see the full report with profit; the period f
 
 test("a tile shows a rounded figure with the exact one in its title, and the table under the chart the full figure (#206)", async ({ page }) => {
   await page.goto("/reports");
-  const sales = page.getByRole("main").locator("p.font-display[title]").first(); // the Sales tile's figure
+  const sales = page.getByRole("main").locator("[data-figure] [title]").first(); // the Sales row's figure
   await expect(sales).toHaveText(/^€\d+(\.\d)?[km]$/);
   await expect(sales).toHaveAttribute("title", /^€\d{1,3}(,\d{3})+$/);
   await page.getByText("Sales each month", { exact: true }).click();

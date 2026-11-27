@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { TileBone } from "@/components/admin/Skeleton";
-import { ActionTile, ActionTiles, Columns, EmptyState, PageHeader, Panel, PanelLink, StatCard, StatGrid, TaskList } from "@/components/admin/kit";
-import { CalendarIcon, CarIcon, CheckIcon, InboxIcon, ShareIcon } from "@/components/stock/icons";
+import { Columns, adminButton, adminButtonQuiet, EmptyState, PageHeader, Panel, PanelLink, StatCard, StatGrid, TaskList } from "@/components/admin/kit";
+import { CalendarIcon, CarIcon, CheckIcon, ShareIcon } from "@/components/stock/icons";
 import { can } from "@/lib/permissions";
 import { addDays, dublinDay, fmtCompact, fmtDay, fmtNum, fmtTime, plural } from "@/lib/admin/format";
 import { forSale, isSold } from "@/lib/stock/types";
@@ -34,30 +34,43 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
   const boss = await can("team");
 
   const shown = tasks.slice(0, TOP);
-  // The main jobs; the first is filled and leads (#208): replying to leads, the job a dealer acts on, with its count large. Synced stock is
-  // added on the listing site, so then there is no Add a car.
+  // The main jobs, in the page header (#213): the first filled. Synced stock is added on the listing site, so then there is no Add a car.
   const jobs = [
-    // The same leads as To do and Leads' To answer now (leadsToAnswer).
-    { href: mine ? "/leads?mine=1" : "/leads", icon: <InboxIcon />, label: "Reply to leads", figure: o.answer.length ? fmtNum(o.answer.length) : undefined, text: o.answer.length ? (o.answer.length === 1 ? "lead to answer" : "leads to answer") : "All answered" },
-    !synced && { href: "/stock/new", icon: <CarIcon />, label: "Add a car", text: "Photos, price and details" },
-    drivesOn && { href: "/test-drives/new", icon: <CalendarIcon />, label: "Book a test drive", text: "Pick a car and a time" },
-    mods.has("social") && { href: "/marketing/new", icon: <ShareIcon />, label: "New post", text: "Facebook, Instagram or TikTok" },
+    !synced && { href: "/stock/new", icon: <CarIcon />, label: "Add a car" },
+    drivesOn && { href: "/test-drives/new", icon: <CalendarIcon />, label: "Book a test drive" },
+    mods.has("social") && { href: "/marketing/new", icon: <ShareIcon />, label: "New post" },
   ].filter((j) => j !== false);
   // A drive's day beside its time, when it is not today.
   const day = (t: number) => (dublinDay(t) === today ? null : dublinDay(t) === addDays(today, 1) ? "Tomorrow" : fmtDay(dublinDay(t), "weekday"));
   return (
     <>
-      <PageHeader title="Overview" text={late ? `${plural(late, "to-do")} late or due today` : "Nothing late"} />
-
-      <ActionTiles>
-        {jobs.map((j, i) => (
-          <ActionTile key={j.href} primary={i === 0} {...j} />
+      <PageHeader
+        title="Overview"
+        text={late ? `${plural(late, "to-do")} late or due today` : "Nothing late"}
+        actions={jobs.length > 0 && jobs.map((j, i) => (
+          <Link key={j.href} href={j.href} className={i === 0 ? adminButton : adminButtonQuiet}>
+            <span aria-hidden="true" className="[&>svg]:size-5">{j.icon}</span>
+            {j.label}
+          </Link>
         ))}
-      </ActionTiles>
+      />
 
       <Columns
         aside={
           <>
+              <StatGrid title="This week">
+                {/* This week's leads: Leads has no date filter, Analytics over 7 days does. */}
+                <StatCard lead href={mods.has("analytics") ? "/analytics?range=7" : "/leads"} label="New leads" value={fmtCompact(thisWeek)} hint={`${fmtNum(o.usualWeek)} in a usual week`} tone={thisWeek > o.usualWeek ? "good" : undefined} />
+                <StatCard href={mine ? "/leads?mine=1" : "/leads"} label="To answer" value={fmtCompact(o.answer.length)} hint={o.answer.length ? "Waiting on a first reply" : "All answered"} tone={o.answer.length ? "warn" : undefined} />
+                <StatCard href="/stock" label="Cars for sale" value={fmtCompact(cars.filter(forSale).length)} hint={o.oldStock ? `${o.oldStock} for sale ${rules.oldStockDays} days or more` : undefined} tone={o.oldStock ? "warn" : undefined} />
+                {/* Only the website's tiles wait: the two above are links in the first chunk (#109). Their bones are the grid's own tiles, so the
+                    layout counts them as the tiles they stand for. */}
+                {boss && (
+                  <Suspense fallback={<><TileBone busy />{mods.has("analytics") && <TileBone />}</>}>
+                    <WebsiteTiles leads={leads} analytics={mods.has("analytics")} />
+                  </Suspense>
+                )}
+              </StatGrid>
             {drivesOn && (
               <Panel title="Test drives" action={<PanelLink href="/test-drives">See all</PanelLink>}>
                 {o.nextDrives.length === 0 ? (
@@ -88,20 +101,6 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
                 )}
               </Panel>
             )}
-            <Panel plain title="Numbers">
-              <StatGrid>
-                {/* This week's leads: Leads has no date filter, Analytics over 7 days does. */}
-                <StatCard lead href={mods.has("analytics") ? "/analytics?range=7" : "/leads"} label="Leads this week" value={fmtCompact(thisWeek)} hint={`${fmtNum(o.usualWeek)} in a usual week`} tone={thisWeek > o.usualWeek ? "good" : undefined} />
-                <StatCard href="/stock" label="Cars for sale" value={fmtCompact(cars.filter(forSale).length)} hint={o.oldStock ? `${o.oldStock} for sale ${rules.oldStockDays} days or more` : undefined} tone={o.oldStock ? "warn" : undefined} />
-                {/* Only the website's tiles wait: the two above are links in the first chunk (#109). Their bones are the grid's own tiles, so the
-                    layout counts them as the tiles they stand for. */}
-                {boss && (
-                  <Suspense fallback={<><TileBone busy />{mods.has("analytics") && <TileBone />}</>}>
-                    <WebsiteTiles leads={leads} analytics={mods.has("analytics")} />
-                  </Suspense>
-                )}
-              </StatGrid>
-            </Panel>
           </>
         }
       >

@@ -31,7 +31,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const team = settings.team.map((t) => t.name);
   return (
     <>
-      <PageHeader title={d.name} text={`${d.carTitle}, ${fmtDateTime(d.startsAt)}`} back={{ href: "/test-drives", label: "Test drives" }} />
+      <PageHeader title={d.name} text={`${d.carTitle}, ${fmtDateTime(d.startsAt)}`} back={{ href: "/test-drives", label: "Test drives" }} actions={<ContactButtons phone={d.phone} email={d.email || undefined} />} />
       <div className="grid grid-cols-1 gap-6 wide:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="flex min-w-0 flex-col gap-6">
           {/* Read first; Change time opens the free times in the house dialog (#141). */}
@@ -47,7 +47,6 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
                 ["Booked", fmtDateTime(d.createdAt)],
               ] as const}
             />
-            <ContactButtons phone={d.phone} email={d.email || undefined} />
           </Panel>
         </div>
         <div className="flex min-w-0 flex-col gap-6 narrow:order-first">

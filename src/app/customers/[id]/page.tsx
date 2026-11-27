@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ClaimStatusBadge, CoverBadge, DriveStatusBadge, LeadStatusBadge } from "@/components/admin/badges";
-import { Badge, PageHeader, Panel, Task, TaskList, rowButton } from "@/components/admin/kit";
+import { Badge, Facts, PageHeader, Panel, Task, TaskList, rowButton } from "@/components/admin/kit";
 import { LEAD_TYPE_LABELS, claimOpen, getSettings, claimsStore, coverEnds, customersStore, drivesStore, leadsStore, reservationsStore, salesStore } from "@/lib/admin/collections";
 import { dublinDay, fmtDate, fmtEur, fmtTime } from "@/lib/admin/format";
 import { isOpenDrive } from "@/lib/admin/drives";
@@ -67,19 +67,10 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
 
   return (
     <>
-      <PageHeader title={c.name} text={`Customer since ${fmtDate(c.createdAt)} · ${c.source}`} back={{ href: "/customers", label: "Customers" }} />
-      <Panel title="Contact">
-        <div className="flex min-w-0 flex-col gap-3">
-          <p className="flex flex-col text-body">
-            {c.email && <span className="[overflow-wrap:anywhere]">{c.email}</span>}
-            {c.phone && <span>{c.phone}</span>}
-          </p>
-          <ContactButtons phone={c.phone || undefined} email={c.email || undefined} />
-          <p className="text-meta text-text-2">{c.marketingConsent ? "Agreed to marketing" : "No marketing: do not send offers"}</p>
-        </div>
-      </Panel>
+      {/* Reaching them is in the header (#213); their details are rows beside what they bought. */}
+      <PageHeader title={c.name} text={`Customer since ${fmtDate(c.createdAt)} · ${c.source}`} back={{ href: "/customers", label: "Customers" }} actions={<ContactButtons phone={c.phone || undefined} email={c.email || undefined} />} />
 
-      <div className="grid grid-cols-1 gap-6 wide:grid-cols-2">
+      <div className="grid grid-cols-1 items-start gap-6 wide:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
         <div className="flex min-w-0 flex-col gap-6">
           <Panel title="Purchases">
             {bought.length === 0
@@ -128,6 +119,9 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           )}
         </div>
         <div className="flex min-w-0 flex-col gap-6">
+          <Panel title="Details" quiet>
+            <Facts items={[...(c.email ? [["Email", c.email] as const] : []), ...(c.phone ? [["Phone", c.phone] as const] : []), ["Marketing", c.marketingConsent ? "Agreed" : "No offers"]]} />
+          </Panel>
           <Panel title="Leads" quiet>
             {theirLeads.length === 0
               ? none("No leads from them yet.")

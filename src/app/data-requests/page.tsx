@@ -21,7 +21,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ e
         <div className="flex min-w-0 flex-col gap-6">
           <DataRequest />
         </div>
-        <Panel title="How it works" quiet>
+        <Panel title="How it works" plain>
           <ol className="flex list-decimal flex-col gap-2 pl-5 text-body">
             <li>Find them by the email or phone number they gave you.</li>
             <li>If they asked what you hold, download a copy and send it to them.</li>

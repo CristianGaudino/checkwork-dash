@@ -1,43 +1,53 @@
 import { Tween } from "@/components/Tween";
 import { ChannelIcon } from "@/components/admin/BrandIcon";
-import { ChevronDownIcon } from "@/components/stock/icons";
+import { Meter } from "@/components/admin/kit";
 import { fmtCompact, plural } from "@/lib/admin/format";
 import { sourceGroups, sourceTiles, type ChannelCount, type SourceFigures, type SourceTile } from "@/lib/admin/visit-sources";
 
-// "Where visits come from" (#35), one tile per channel: its mark, visits and the change on the period before, the leads it brought and
-// leads per 100 visits. The channel with the most leads says so in words (an indigo edge read as a chosen filter). The groups (Search, Social, Listing
-// sites...) each open into their networks (Analytics, the monthly report).
-// The panel around it names the period ("Last 30 days, compared with the 30 before"), so a tile says only "Up 6%".
+// "Where visits come from" (#35, #213): a ranked list, most visits first. Each source has its visits, a bar for its share, the change on
+// the period before, the leads it brought and leads per 100 visits. A group's networks (Google and Bing under Search) are always shown as
+// indented rows under it, so the breakdown is on the page with nothing to open. The source with the most leads says so in words.
+// The panel around it names the period ("Compared with the 30 days before"), so a row says only "Up 6%".
 type Props = { now: ChannelCount[]; before: Pick<ChannelCount, "channel" | "visits">[] };
 
 export function VisitSources({ now, before }: Props) {
   const tiles = sourceTiles(now, before);
   if (!tiles.length) return <p className="text-meta text-text-2">No visits in this period.</p>;
+  const groups = sourceGroups(tiles, before);
+  const max = Math.max(...groups.map((g) => g.visits));
   return (
-    // Two across, three when the panel has the room (a container query, so large text gets fewer and wider tiles): six never leave one alone.
+    // A container query: the figures take their own columns once the list is 36rem wide, and sit under the name before that.
     <div className="@container">
-      <div className={GRID}>
-        {sourceGroups(tiles, before).map((g) =>
-          // A group with one network this period is that network's tile: nothing to open.
-          g.channels.length === 1 ? (
-            <Tile key={g.id} f={g.channels[0]} best={g.best} icon={<ChannelIcon channel={g.channels[0].channel} />} />
-          ) : (
-            <details key={g.id} className="group/src flex min-w-0 flex-col open:col-span-full">
-              <summary className="flex-1 cursor-pointer list-none [&::-webkit-details-marker]:hidden">
-                <Tile f={g} best={g.best} icon={<Marks tiles={g.channels} />} more={<OpenLine tiles={g.channels} />} />
-              </summary>
-              <div className={`mt-3 ${GRID}`}>
-                {g.channels.map((t) => <Tile key={t.channel} f={t} best={t.best} icon={<ChannelIcon channel={t.channel} />} />)}
-              </div>
-            </details>
-          ),
-        )}
+      <div aria-hidden="true" className={`hidden border-b border-hairline pb-2 text-meta text-text-2 @xl:grid ${COLS}`}>
+        <span>Source</span>
+        <span className="text-right">Visits</span>
+        <span className="text-right">Change</span>
+        <span className="text-right">Leads</span>
       </div>
+      <ol className="flex flex-col divide-y divide-hairline">
+        {groups.map((g) => {
+          const single = g.channels.length === 1;
+          return (
+            <li key={g.id} className="py-3">
+              <Row f={g} best={g.best} max={max} icon={single ? <ChannelIcon channel={g.channels[0].channel} /> : <Marks tiles={g.channels} />} />
+              {!single && (
+                <ul aria-label={`${g.label}: by site`} className="mt-3 flex flex-col gap-3 @xl:gap-1.5 border-l-2 border-hairline pl-3 ml-2.5">
+                  {g.channels.map((t) => (
+                    <li key={t.channel}>
+                      <Row f={t} best={false} max={max} sub icon={<ChannelIcon channel={t.channel} />} />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </li>
+          );
+        })}
+      </ol>
     </div>
   );
 }
 
-const GRID = "grid grid-cols-1 gap-3 @3xs:grid-cols-2 @lg:grid-cols-3";
+const COLS = "grid-cols-[minmax(0,1fr)_5.5rem_7rem_9rem] gap-x-4"; // the rows repeat it at @xl, written out for Tailwind
 
 const Marks = ({ tiles }: { tiles: SourceTile[] }) => (
   <span className="flex shrink-0 -space-x-1">
@@ -45,37 +55,31 @@ const Marks = ({ tiles }: { tiles: SourceTile[] }) => (
   </span>
 );
 
-// What the group opens into, named, with the chevron that turns as it opens.
-const OpenLine = ({ tiles }: { tiles: SourceTile[] }) => (
-  <span className="mt-1 flex items-center gap-1 text-meta font-medium text-accent-text">
-    <span className="min-w-0 truncate">{tiles.map((t) => t.label).join(", ")}</span>
-    <ChevronDownIcon aria-hidden="true" className="size-4 shrink-0 transition-transform group-open/src:rotate-180" />
-  </span>
-);
-
-function Tile({ f, best, icon, more }: { f: SourceFigures; best: boolean; icon: React.ReactNode; more?: React.ReactNode }) {
+// One source: name and share bar, then its figures. `sub`: a network inside a group, quieter and smaller.
+function Row({ f, best, max, icon, sub = false }: { f: SourceFigures; best: boolean; max: number; icon: React.ReactNode; sub?: boolean }) {
+  const trend = f.trend === "up" ? "text-ok" : f.trend === "down" ? "text-bad" : "text-text-2";
   return (
-    <div data-tile className="@container flex h-full min-w-0 flex-col gap-1 rounded-card border border-hairline/70 bg-card p-4 shadow-panel">
-      <p className="flex min-w-0 items-center gap-2 text-body font-medium">
-        {icon}
-        <span className="min-w-0 truncate">{f.label}</span>
-      </p>
-      <p className="font-display font-semibold leading-[1.1] tracking-[-0.02em] tabular-nums">
-        <span className="text-[min(2rem,20cqi)]"><Tween value={fmtCompact(f.visits)} /></span> <span className="text-meta font-normal text-text-2">{f.visits === 1 ? "visit" : "visits"}</span>
-      </p>
-      <p className={`text-meta ${f.trend === "up" ? "text-ok" : f.trend === "down" ? "text-bad" : "text-text-2"}`}>{f.change}</p>
-      {/* Wraps only at the dot, never inside a half. */}
-      <p className="text-meta text-text-2 tabular-nums">
-        <span className="whitespace-nowrap">{plural(f.leads, "lead")}</span>
-        {f.rate !== null && (
-          <>
-            {" · "}
-            <span className="whitespace-nowrap">{f.rate.toFixed(1)} per 100</span>
-          </>
-        )}
-      </p>
-      {best && <p className="text-meta font-medium text-accent-text">Most leads</p>}
-      {more}
+    <div className={`grid grid-cols-[minmax(0,1fr)_4.5rem] items-start gap-x-4 gap-y-1 @xl:items-center @xl:grid-cols-[minmax(0,1fr)_5.5rem_7rem_9rem]`}>
+      <span className="flex min-w-0 flex-col gap-1.5">
+        <span className={`flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 ${sub ? "text-meta" : "text-body font-medium"}`}>
+          {icon}
+          <span className="min-w-0 break-words">{f.label}</span>
+          {best && <span className="rounded-full bg-accent-soft px-2 text-meta font-medium text-accent-text">Most leads</span>}
+        </span>
+        <Meter value={f.visits} max={max} lead={best} />
+      </span>
+      <span className={`text-right tabular-nums ${sub ? "text-body" : "font-display text-heading font-semibold"}`}>
+        <Tween value={fmtCompact(f.visits)} />
+        <span className="sr-only"> {f.visits === 1 ? "visit" : "visits"}</span>
+      </span>
+      {/* Under the name on a narrow list, its own columns from 36rem. */}
+      <span className="col-span-2 flex flex-wrap gap-x-3 text-meta tabular-nums @xl:contents">
+        <span className={`@xl:text-right ${trend}`}>{f.change}</span>
+        <span className="text-text-2 @xl:text-right">
+          <span className="whitespace-nowrap">{plural(f.leads, "lead")}</span>
+          {f.rate !== null && <span className="whitespace-nowrap">, {f.rate.toFixed(1)} per 100</span>}
+        </span>
+      </span>
     </div>
   );
 }

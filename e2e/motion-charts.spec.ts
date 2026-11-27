@@ -5,8 +5,8 @@ import { sideLink } from "./admin-menu";
 // not move on their own, and no figure counts: it shows its own value from the first frame. Never on the server's first paint.
 const cssAnimations = (l: Locator) =>
   l.evaluate((el) => el.getAnimations({ subtree: true }).filter((a) => a instanceof CSSAnimation).map((a) => (a as CSSAnimation).animationName));
-const sourceFigure = (page: Page) => page.getByRole("region", { name: "Where visits come from" }).locator("[data-tile] p.font-display > span").first();
-const visitsFigure = (page: Page) => page.getByRole("region", { name: "Numbers" }).getByRole("link", { name: /^Visits this week/ }).locator("p.font-display");
+const visitsFigure = (page: Page) => page.getByRole("region", { name: "This week" }).getByRole("link", { name: /^Visits/ }).locator("span.text-heading");
+const sourceFigure = (page: Page) => page.getByRole("region", { name: "Where visits come from" }).locator("ol > li > div span.font-display").first();
 
 test.beforeEach(({ page }) => page.setViewportSize({ width: 1280, height: 900 })); // the sidebar
 

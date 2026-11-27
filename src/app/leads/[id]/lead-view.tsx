@@ -11,7 +11,7 @@ import { stopWhatsAppAction } from "@/app/whatsapp/actions";
 import { LeadStatusBadge } from "@/components/admin/badges";
 import { AITextarea } from "@/components/admin/AIWriter";
 import { IfModule } from "@/components/IfModule";
-import { Badge, PageHeader, Panel, adminButton, adminButtonQuiet, rowButton } from "@/components/admin/kit";
+import { Badge, Facts, PageHeader, Panel, adminButton, adminButtonQuiet, rowButton } from "@/components/admin/kit";
 import { LOST_REASONS, drivesStore, getSettings, leadStatusLabel, leadStatusSteps, leadsStore, statusBack } from "@/lib/admin/collections";
 import { isOpenDrive } from "@/lib/admin/drives";
 import { matchesAny, parsePersonQuery, type PersonQuery } from "@/lib/admin/person-match";
@@ -43,8 +43,8 @@ import { LeadKind, LeadTags, leadChips } from "@/components/admin/LeadKind";
 import { LeadMenu, SpamButton } from "@/components/admin/LeadActions";
 import { readLead } from "@/lib/leads/lead-text";
 
-// One lead, worked from here. At the top: what they asked, and the next step: the ways to reach them, where it stands, who has it, when to
-// get back to them and the reply draft. Below: their visit, their car and the notes. Shown at its own address under Leads, or, for a warranty request, under Aftersales (where it is
+// One lead, worked from here. The ways to reach them in the header; then what they asked, their visit and their car on the left, and the
+// next step (where it stands, who has it, when to get back to them, the reply draft) and the notes on the right. Shown at its own address under Leads, or, for a warranty request, under Aftersales (where it is
 // listed), so the menu marks the right place. The pages around it choose which.
 export async function LeadView({ id }: { id: string }) {
   const [lead, settings, drives, { name: dealer, profile: { siteUrl, rules } }, me] = await Promise.all([leadsStore.get(id), getSettings(), drivesStore.list(), currentDealer(), currentMember()]);
@@ -87,79 +87,72 @@ export async function LeadView({ id }: { id: string }) {
         }
         // A warranty request is aftersales work: it is listed there, so the way back is there.
         back={lead.type === "warranty" && (await hasModule("service")) ? { href: "/aftersales?view=requests", label: "Warranty claims" } : { href: "/leads", label: "Leads" }}
+        // Reaching them is the first job (#213): Call, Email, WhatsApp and the test drive sit in the header, where the eye starts, on a
+        // phone as on a laptop. One child, so the header keeps the buttons' own sizes.
+        actions={
+          <div className="flex flex-wrap gap-2 max-sm:w-full max-sm:*:grow">
+          <ContactButtons phone={lead.phone} email={lead.email} main={main === "reply" ? replyVia(lead) : undefined} whatsapp={lead.whatsappOptIn !== false} reply={lead.status === "new" ? firstReply({ name: lead.name, from: replyFrom(me), dealer, title: lead.carTitle, car, siteUrl, modules }) : undefined} />
+          {/* Booking a drive from the lead carries their car, name and number into the form. */}
+          {lead.type !== "warranty" && isOpenLead(lead) && (
+            <IfModule id="testDrives">
+              {drive ? (
+                <Link href={`/test-drives/${drive.id}`} className={adminButtonQuiet}>
+                  <CalendarIcon className="shrink-0 size-4" />
+                  Test drive {fmtDay(dublinDay(drive.startsAt), "weekday")} {fmtDay(dublinDay(drive.startsAt), "day")} {fmtDay(dublinDay(drive.startsAt), "month")}, {fmtTime(drive.startsAt)}
+                </Link>
+              ) : (
+                // Filled only on a test drive request: elsewhere the reply is the main job.
+                <Link href={`/test-drives/new?lead=${lead.id}`} className={main === "drive" ? adminButton : adminButtonQuiet}>
+                  <CalendarIcon className="shrink-0 size-4" />
+                  Book a test drive
+                </Link>
+              )}
+            </IfModule>
+          )}
+          </div>
+        }
       />
-      {/* The top answers what a call starts with: what they asked, how to reach them, and what happens next. */}
-      <Panel>
-        <div className="grid grid-cols-1 gap-6 wide:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
-          <section aria-labelledby="asked" className="flex min-w-0 flex-col gap-3">
-            <h2 id="asked" className="text-section font-semibold">What they asked</h2>
-            {lead.carTitle && (
-              <p className="flex items-center gap-2 text-heading font-semibold">
-              <CarIcon className="size-5 shrink-0 text-accent-text" />
-                {/* A link only while the car has a page on the site: not hidden, a draft or sold long ago, and its kind on the plan. */}
-                {lead.carSlug && car && siteUrl && onPublicSite(car, rules.soldVisibleDays) && conditionShown(await enabledModules(), car.condition) ? (
-                  <a href={siteCarUrl(siteUrl, car.slug)} {...NEW_TAB} className="underline-offset-4 hover:underline">
-                    {lead.carTitle}
+      {/* One page in two columns from 1280px (#213): on the left what they asked and what they did, read before a call; on the right the
+          next step and the notes. A grid, so a phone reads it in the order of the code: what they asked, the next step and notes, then their
+          visit and car. The right column spans both rows and the second row takes the slack, so what they asked never has a gap under it. */}
+      <div className="grid grid-cols-1 items-start gap-6 wider:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] wider:grid-rows-[auto_1fr]">
+        <Panel title="What they asked" className="wider:col-start-1 wider:row-start-1">
+          {lead.carTitle && (
+            <p className="flex items-center gap-2 text-heading font-semibold">
+            <CarIcon className="size-5 shrink-0 text-accent-text" />
+              {/* A link only while the car has a page on the site: not hidden, a draft or sold long ago, and its kind on the plan. */}
+              {lead.carSlug && car && siteUrl && onPublicSite(car, rules.soldVisibleDays) && conditionShown(await enabledModules(), car.condition) ? (
+                <a href={siteCarUrl(siteUrl, car.slug)} {...NEW_TAB} className="underline-offset-4 hover:underline">
+                  {lead.carTitle}
+                </a>
+              ) : (
+                lead.carTitle
+              )}
+            </p>
+          )}
+          {/* A guided contact form's taps say what they want, often with no words typed: the same tags as the list. */}
+          <LeadTags tags={leadChips(lead.type, lead.topic, lead.answers)} />
+          {/* Their own words, set apart as a quote so they read as the customer's, not the dashboard's. */}
+          {text && <blockquote className="max-w-measure whitespace-pre-line [overflow-wrap:anywhere] rounded-control border-l-4 border-accent bg-row-alt px-4 py-3 text-body">{text}</blockquote>}
+          {carSold && (
+            <p className="rounded-control bg-warn-soft px-4 py-3 text-body text-warn">
+              This car has sold. Offer them something similar
+              {siteUrl ? (
+                <>
+                  :{" "}
+                  <a href={`${siteUrl}/makes/${car.makeSlug}`} {...NEW_TAB} className="font-medium underline">
+                    other {car.make} cars
                   </a>
-                ) : (
-                  lead.carTitle
-                )}
-              </p>
-            )}
-            {/* A guided contact form's taps say what they want, often with no words typed: the same tags as the list. */}
-            <LeadTags tags={leadChips(lead.type, lead.topic, lead.answers)} />
-            {/* Their own words, set apart as a quote so they read as the customer's, not the dashboard's. */}
-            {text && <blockquote className="max-w-measure whitespace-pre-line [overflow-wrap:anywhere] rounded-control border-l-4 border-accent bg-row-alt px-4 py-3 text-body">{text}</blockquote>}
-            {/* The form's other answers, one to a line (#59): never run together into the message. */}
-            {Object.keys(facts).length > 0 && (
-              <dl aria-label="Their answers" className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-body">
-                {Object.entries(facts).map(([label, value]) => (
-                  <div key={label} className="contents">
-                    <dt className="text-text-2">{label}</dt>
-                    <dd className="[overflow-wrap:anywhere]">{value}</dd>
-                  </div>
-                ))}
-              </dl>
-            )}
-            {carSold && (
-              <p className="rounded-control bg-warn-soft px-4 py-3 text-body text-warn">
-                This car has sold. Offer them something similar
-                {siteUrl ? (
-                  <>
-                    :{" "}
-                    <a href={`${siteUrl}/makes/${car.makeSlug}`} {...NEW_TAB} className="font-medium underline">
-                      other {car.make} cars
-                    </a>
-                  </>
-                ) : null}
-                .
-              </p>
-            )}
-            <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-0.5 text-meta">
-              {lead.email && (<><dt className="text-text-2">Email</dt><dd className="[overflow-wrap:anywhere]">{lead.email}</dd></>)}
-              {lead.phone && (<><dt className="text-text-2">Phone</dt><dd className="tabular-nums">{lead.phone}</dd></>)}
-            </dl>
-          </section>
-          <section aria-labelledby="next" className="flex min-w-0 flex-col gap-4 narrow:order-first narrow:border-b narrow:border-hairline narrow:pb-5 wide:border-l wide:border-hairline wide:pl-6">
-            <h2 id="next" className="text-section font-semibold">Next step</h2>
-            <ContactButtons phone={lead.phone} email={lead.email} main={main === "reply" ? replyVia(lead) : undefined} whatsapp={lead.whatsappOptIn !== false} reply={lead.status === "new" ? firstReply({ name: lead.name, from: replyFrom(me), dealer, title: lead.carTitle, car, siteUrl, modules }) : undefined} />
-            {/* Booking a drive from the lead carries their car, name and number into the form. */}
-            {lead.type !== "warranty" && isOpenLead(lead) && (
-              <IfModule id="testDrives">
-                {drive ? (
-                  <Link href={`/test-drives/${drive.id}`} className={adminButtonQuiet}>
-                    <CalendarIcon className="shrink-0 size-4" />
-                    Test drive {fmtDay(dublinDay(drive.startsAt), "weekday")} {fmtDay(dublinDay(drive.startsAt), "day")} {fmtDay(dublinDay(drive.startsAt), "month")}, {fmtTime(drive.startsAt)}
-                  </Link>
-                ) : (
-                  // Filled only on a test drive request: elsewhere the reply is the main job.
-                  <Link href={`/test-drives/new?lead=${lead.id}`} className={main === "drive" ? adminButton : adminButtonQuiet}>
-                    <CalendarIcon className="shrink-0 size-4" />
-                    Book a test drive
-                  </Link>
-                )}
-              </IfModule>
-            )}
+                </>
+              ) : null}
+              .
+            </p>
+          )}
+          {/* The form's other answers, one to a row (#59), never run together into the message; then how to reach them. */}
+          <Facts label="Their answers and how to reach them" items={[...Object.entries(facts), ...(lead.email ? [["Email", lead.email] as const] : []), ...(lead.phone ? [["Phone", <span key="p" className="tabular-nums">{lead.phone}</span>] as const] : [])]} />
+        </Panel>
+        <div className="flex min-w-0 flex-col gap-6 wider:col-start-2 wider:row-span-2 wider:row-start-1">
+          <Panel title="Next step">
             {/* A warranty claim from the website: open it on the sale, with the buyer found from their details. */}
             {main === "claim" && <Link href={`/aftersales/new?lead=${lead.id}`} className={adminButton}>Open a claim</Link>}
             {/* Where it stands (#136): one stage drop-down, as HubSpot's record and its phone app set a deal stage, never a block of chips.
@@ -269,14 +262,11 @@ export async function LeadView({ id }: { id: string }) {
                 <AITextarea label="Reply draft" task="leadReply" rows={6} copy folded request={{ task: "leadReply", leadId: lead.id }} />
               </div>
             </IfModule>
-          </section>
+          </Panel>
+          <Notes notes={lead.notes} action={addNoteAction.bind(null, lead.id)} me={me.name} />
         </div>
-      </Panel>
-
-      {/* Below: what they did on the website and their car on the left, the notes on the right. With neither, the notes alone. */}
-      <div className={`grid grid-cols-1 gap-6 ${lead.journey || hasCar ? "wide:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]" : ""}`}>
         {(lead.journey || hasCar) && (
-          <div className="flex min-w-0 flex-col gap-6">
+          <div className="flex min-w-0 flex-col gap-6 wider:col-start-1 wider:row-start-2">
             {/* What they did on the website before they got in touch, when they sent it: first, as it is read before the call. */}
             {lead.journey && <VisitPanel lead={{ ...lead, journey: lead.journey }} stock={stock} />}
             {/* Selling or trading in: the car read first, with Edit and the plate's Look up, so the dealer knows what it is before calling back. */}
@@ -285,9 +275,6 @@ export async function LeadView({ id }: { id: string }) {
             {(lead.type === "sell" || lead.type === "trade-in") && lead.reg && (await hasModule("history")) && <HistoryPanel reg={lead.reg} history={lead.history} act={checkHistoryAction.bind(null, "lead", lead.id)} />}
           </div>
         )}
-        <div className="min-w-0">
-          <Notes notes={lead.notes} action={addNoteAction.bind(null, lead.id)} me={me.name} />
-        </div>
       </div>
     </>
   );

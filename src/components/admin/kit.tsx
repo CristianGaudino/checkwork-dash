@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { useId } from "react";
-import { NEW_TAB, card, press } from "@/components/ui";
+import { Children, isValidElement, useId } from "react";
+import { card, press } from "@/components/ui";
 import { Tween } from "@/components/Tween";
 import { AppliedFilters, Filters, LiveSearch, SortHeader, type FilterGroup } from "./TableTools";
 import { PER_PAGE_DEFAULT, perPage } from "@/lib/admin/paging";
@@ -90,42 +90,59 @@ export function PanelLink({ href, children }: { href: string; children: React.Re
   );
 }
 
-// With `href` the whole tile is a link to the page behind the number. `tone` colours the hint only when it says something good or to act on.
-// A tile is a number: a chart belongs in its own panel (Analytics).
-// A figure's size from its width. Letters are wider than figures: a word of six or more ("WhatsApp") takes the smaller size and one of
-// nine or more ("Bookmarked") smaller again, so a word fits whole on a phone and never breaks inside. A `lead` tile is two columns wide, so
-// the same shares make its figure about twice the size, up to 3.5rem.
-const FIGURE_SIZES = ["text-[min(2rem,12cqi)]", "text-[min(2rem,15cqi)]", "text-[min(2rem,20cqi)]"];
+// A figure in a summary (#213): one row of a stacked list, label left and value right, the hint under the label, a hairline between rows.
+// `lead`: the page's headline figure instead, set large on its own beside (or, on a phone, above) the rows. One per StatGrid.
+// With `href` the whole row (or the headline) is a link to the page behind the number, with a chevron. `tone` colours the hint only
+// when it says something good or to act on. `title`: the exact figure behind a rounded one (fmtCompactEur).
+// A figure's size from its width (the headline only): a word of six or more letters ("WhatsApp") takes a smaller share of the width.
 const LEAD_SIZES = ["text-[min(3.5rem,12cqi)]", "text-[min(3.5rem,15cqi)]", "text-[min(3.5rem,20cqi)]"];
-export const figureSize = (value: string, lead = false) =>
-  (lead ? LEAD_SIZES : FIGURE_SIZES)[/\p{L}{9}/u.test(value) ? 0 : value.length > 8 || /\p{L}{6}/u.test(value) ? 1 : 2];
-
-// `title`: the exact figure behind a rounded one (fmtCompactEur), for a money figure someone may check.
-// `lead`: the page's headline figure (#208), first in its StatGrid, two columns wide and larger. One per grid.
-export function StatCard({ label, value, title, hint, tone, href, lead = false, className = "" }: { label: string; value: string; title?: string; hint?: string; tone?: "good" | "bad" | "warn"; href?: string; lead?: boolean; className?: string }) {
+export const figureSize = (value: string) => LEAD_SIZES[/\p{L}{9}/u.test(value) ? 0 : value.length > 8 || /\p{L}{6}/u.test(value) ? 1 : 2];
+const HINT_TONE = { good: "text-ok", bad: "text-bad", warn: "text-warn" } as const;
+export function StatCard({ label, value, title, hint, tone, href, lead = false, className = "" }: { label: string; value: string; title?: string; hint?: React.ReactNode; tone?: "good" | "bad" | "warn"; href?: string; lead?: boolean; className?: string }) {
+  const hintClass = `text-meta ${tone ? HINT_TONE[tone] : "text-text-2"}`;
+  if (lead) {
+    const body = (
+      <>
+        <p className="text-body text-text-2">{label}</p>
+        <div className="@container min-w-0">
+          <p title={title} className={`font-display font-semibold leading-[1.05] tracking-[-0.03em] tabular-nums [overflow-wrap:anywhere] ${figureSize(value)}`}>
+            <Tween value={value} />
+          </p>
+        </div>
+        {hint && <p className={hintClass}>{hint}</p>}
+      </>
+    );
+    const frame = `flex min-w-0 flex-col gap-1 ${className}`;
+    return href ? (
+      <Link href={href} data-lead className={`${frame} -m-2 rounded-control p-2 transition-colors hover:bg-surface`}>
+        {body}
+      </Link>
+    ) : (
+      <div data-lead className={frame}>
+        {body}
+      </div>
+    );
+  }
   const body = (
     <>
-      <p className="text-meta text-text-2">{label}</p>
-      {/* Sized from the tile's own width (a container query), so tiles side by side show their figures at the same size, and a
-          half-width tile on a 360px phone still fits €117,565 (a margin, kept full) on one line. Anything longer takes a smaller share,
-          and wraps rather than spills. */}
-      <div className="@container min-w-0">
-        <p title={title} className={`font-display font-semibold leading-[1.1] tracking-[-0.02em] tabular-nums [overflow-wrap:anywhere] ${figureSize(value, lead)}`}>
-          <Tween value={value} />
-        </p>
-      </div>
-      {hint && <p className={`text-meta ${tone === "good" ? "text-ok" : tone === "bad" ? "text-bad" : tone === "warn" ? "text-warn" : "text-text-2"}`}>{hint}</p>}
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="text-body">{label}</span>
+        {hint && <span className={hintClass}>{hint}</span>}
+      </span>
+      {/* Right-aligned and level with the label; a long one ("Not costed", a make) wraps rather than spill with large text. */}
+      <span title={title} className="max-w-[60%] text-right text-heading font-semibold tabular-nums [overflow-wrap:anywhere]">
+        <Tween value={value} />
+      </span>
     </>
   );
-  // Label, figure and hint are rows of the grid around it (subgrid), so tiles side by side keep their figures level when one label wraps,
-  // with no blank line when none does. The container query sits on the figure's wrapper: on the frame it would switch the subgrid off.
-  const frame = `${card} row-span-3 grid min-w-0 grid-rows-subgrid gap-1 p-4 ${lead ? "col-span-2" : ""} ${className}`;
+  const frame = `flex min-h-14 min-w-0 items-center gap-3 py-2.5 ${className}`;
   return href ? (
-    <Link href={href} data-lead={lead || undefined} className={`${frame} transition-colors hover:border-control ${press}`}>
+    <Link href={href} data-figure className={`${frame} transition-colors hover:bg-surface`}>
       {body}
+      <ChevronRightIcon aria-hidden="true" className="-mr-1 size-4 shrink-0 text-text-2" />
     </Link>
   ) : (
-    <div data-lead={lead || undefined} className={frame}>
+    <div data-figure className={frame}>
       {body}
     </div>
   );
@@ -142,17 +159,28 @@ export function Meter({ value, max, lead = false }: { value: number; max: number
   );
 }
 
-// Two to a row on a phone, so an odd last tile takes the whole row rather than sit alone beside a gap. With a lead tile (StatCard `lead`,
-// two columns wide, first): two to a row until the grid itself is 48rem wide, the last tile filling its row when the others are odd, then
-// every tile on one row, the lead twice the others, so no row is left part empty. A container query, as the Overview's grid sits in a column.
-// Tiles are counted "of :not(template)": while a part streams in, React's <template> marker sits in the grid beside its fallback's bones.
-export function StatGrid({ children }: { children: React.ReactNode }) {
+// A group of figures as one panel (#213): the headline (the StatCard with `lead`) large, and the rest as a stacked list beside it once the
+// panel is 42rem wide (a container query, so it holds in a column and with large text), under it before that. Without a headline the
+// rows run in two columns from that width. `title` names the group, inside the panel.
+export function StatGrid({ children, title }: { children: React.ReactNode; title?: string }) {
+  const id = useId();
+  const all = Children.toArray(children);
+  const hero = all.find((c) => isValidElement(c) && (c.props as { lead?: boolean }).lead);
+  const rest = all.filter((c) => c !== hero);
   return (
-    <div className="@container">
-      <div className="grid grid-cols-2 gap-3 max-sm:[&:not(:has(>[data-lead]))>:last-child:nth-child(odd_of_:not(template))]:col-span-2 sm:[&:not(:has(>[data-lead]))]:grid-cols-[repeat(auto-fit,minmax(min(11rem,100%),1fr))] @max-3xl:[&:has(>[data-lead])>:last-child:nth-child(even_of_:not(template))]:col-span-2 @3xl:[&:has(>[data-lead])]:auto-cols-fr @3xl:[&:has(>[data-lead])]:grid-flow-col @3xl:[&:has(>[data-lead])]:grid-cols-none">
-        {children}
+    <section aria-labelledby={title ? id : undefined} className={`${card} @container min-w-0 px-5 py-4`}>
+      {title && (
+        <h2 id={id} className="mb-2 text-section font-semibold">
+          {title}
+        </h2>
+      )}
+      <div className={hero ? "grid gap-x-10 gap-y-3 @2xl:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)] @2xl:items-center" : ""}>
+        {hero && <div className="min-w-0 py-1">{hero}</div>}
+        {rest.length > 0 && (
+          <div className={`grid min-w-0 grid-cols-1 gap-x-10 *:border-t *:border-hairline ${hero ? "@2xl:[&>:first-child]:border-t-0" : "[&>:first-child]:border-t-0 @2xl:grid-cols-2 @2xl:[&>:nth-child(2)]:border-t-0"}`}>{rest}</div>
+        )}
       </div>
-    </div>
+    </section>
   );
 }
 
@@ -251,39 +279,39 @@ export function DataTable<T>({ columns, rows, rowKey, empty, bare = false, linkR
   );
 }
 
-// The summary that is also the filter: one tile per view, its count, and the chosen one filled. The filter lives in the URL, so a filtered
-// list can be shared and the back button works. Never a row of numbers above a separate row of chips. On a phone the tiles scroll sideways
-// (TabRow): the chosen one is scrolled into view and an edge with more past it fades.
-// `lead`: the view acted on (#208), wider with a larger count. It keeps its place in the row (after All), so the reading order is the same.
-// A row with a lead stays one line at every width, scrolling sideways when it does not fit (a wrapped row left one tab alone, stretched).
-// From 640px its tabs grow to fill it, the lead twice the others, and shrink to their words (the lead to its 10rem, wider than any label on one line, so it stays the widest)
-// before it scrolls, so on a laptop (a mouse does not scroll a row sideways) every tab is in view. A row without a lead stays a grid from 640px.
+// The summary that is also the filter: one segment per view with its count, the chosen one filled. The filter lives in the URL, so a
+// filtered list can be shared and the back button works. Never a row of numbers above a separate row of chips. On a phone the bar scrolls
+// sideways (TabRow): the chosen one is scrolled into view and an edge with more past it fades. From 640px the segments share the width
+// equally and shrink to their words before the bar scrolls, so on a laptop (a mouse does not scroll a row sideways) every one is in view.
+// `lead`: the view acted on first (#213): its count in the accent, never a bigger segment, so the bar reads as one control.
 export type SummaryTab = { label: string; href: string; active: boolean; count?: number | string; hint?: string; lead?: boolean };
 export function SummaryTabs({ items, label = "Filter" }: { items: SummaryTab[]; label?: string }) {
-  const led = items.some((i) => i.lead);
+  // One bar of equal segments with hairlines between them (#213): a filter, not a row of figure cards. The chosen one takes the tonal
+  // fill; the one acted on first (`lead`) shows its count in the accent. On a phone the bar scrolls sideways inside its frame.
   return (
-    // A tapped tile takes the chosen look at the tap and the chosen one gives it up (LinkPending), not when the server answers.
-    <TabRow current={items.find((i) => i.active)?.href ?? ""} aria-label={label} className={`group/tabs scrollbar-none -mx-4 -my-1 flex gap-2 overflow-x-auto px-4 py-1 ${led ? "" : "sm:mx-0 sm:grid sm:grid-cols-[repeat(auto-fit,minmax(min(8rem,100%),1fr))] sm:overflow-visible sm:px-0"}`}>
-      {items.map((i) => (
-        <Link
-          key={i.label}
-          href={i.href}
-          aria-current={i.active ? "true" : undefined}
-          data-lead={i.lead || undefined}
-          className={`group/tab flex ${i.lead ? "min-w-40 sm:shrink sm:grow-2 sm:basis-64" : `min-w-28 ${led ? "sm:min-w-auto sm:shrink sm:grow sm:basis-32" : ""}`} shrink-0 flex-col gap-0.5 rounded-card border bg-card px-4 py-3 text-text transition-colors ${i.active ? "border-accent ring-1 ring-inset ring-accent group-has-data-pending/tabs:not-has-data-pending:border-hairline group-has-data-pending/tabs:not-has-data-pending:ring-0" : "border-hairline hover:border-control has-data-pending:border-accent has-data-pending:ring-1 has-data-pending:ring-inset has-data-pending:ring-accent"} ${press}`}
-        >
-          <LinkPending />
-          {/* One line, so the counts of tabs side by side stay level. */}
-          <span className="text-meta text-nowrap text-text-2">{i.label}</span>
-          {i.count !== undefined && (
-            <span className={`${i.lead ? "font-display text-[2.5rem] leading-none tracking-[-0.02em]" : "text-heading"} font-semibold tabular-nums ${i.active ? "text-accent-text group-has-data-pending/tabs:group-not-has-data-pending/tab:text-text" : "group-has-data-pending/tab:text-accent-text"}`}>
-              {typeof i.count === "number" ? <Tween value={fmtNum(i.count)} /> : i.count}
-            </span>
-          )}
-          {i.hint && <span className="text-meta text-text-2">{i.hint}</span>}
-        </Link>
-      ))}
-    </TabRow>
+    <div className="min-w-0 rounded-card border border-hairline/70 bg-card shadow-panel">
+      <TabRow current={items.find((i) => i.active)?.href ?? ""} aria-label={label} className="group/tabs scrollbar-none flex gap-1 overflow-x-auto rounded-card p-1">
+        {items.map((i) => (
+          <Link
+            key={i.label}
+            href={i.href}
+            aria-current={i.active ? "true" : undefined}
+            data-lead={i.lead || undefined}
+            className={`group/tab relative flex min-w-24 shrink-0 grow flex-col sm:min-w-fit sm:shrink sm:basis-0 gap-0.5 rounded-control px-4 py-2.5 transition-colors not-first:before:absolute not-first:before:inset-y-3 not-first:before:-left-0.5 not-first:before:w-px not-first:before:bg-hairline aria-[current]:before:hidden [[aria-current]+&]:before:hidden ${i.active ? "bg-accent-soft group-has-data-pending/tabs:not-has-data-pending:bg-transparent" : "hover:bg-surface has-data-pending:bg-accent-soft"} ${press}`}
+          >
+            <LinkPending />
+            <span className={`text-meta text-nowrap ${i.active ? "text-accent-text" : "text-text-2"}`}>{i.label}</span>
+            {i.count !== undefined && (
+              <span className={`text-heading font-semibold tabular-nums ${i.active || i.lead ? "text-accent-text" : ""}`}>
+                {typeof i.count === "number" ? <Tween value={fmtNum(i.count)} /> : i.count}
+              </span>
+            )}
+            {/* A hint may wrap from 640px, so a full bar shrinks to its labels before it scrolls. */}
+            {i.hint && <span className="text-meta text-nowrap text-text-2 sm:text-wrap">{i.hint}</span>}
+          </Link>
+        ))}
+      </TabRow>
+    </div>
   );
 }
 
@@ -373,17 +401,20 @@ export function Notice({ tone = "good", children }: { tone?: keyof typeof NOTICE
   );
 }
 
-// A record's details as label and value pairs, two across from 640px: an order, a claim, a booking, a deposit.
-export function Facts({ items }: { items: (readonly [string, React.ReactNode, string?])[] }) {
+// A record's details as rows (#213): label left, value right, a hairline between rows, two columns of rows once the panel is 36rem wide (a
+// container query, so a narrow column or large text keeps one). An order, a claim, a booking, a deposit, a profile.
+export function Facts({ items, label }: { items: (readonly [string, React.ReactNode, string?])[]; label?: string }) {
   return (
-    <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
-      {items.map(([label, value, className = ""]) => (
-        <div key={label} className="flex flex-col">
-          <dt className="text-meta text-text-2">{label}</dt>
-          <dd className={`text-body ${className}`}>{value}</dd>
-        </div>
-      ))}
-    </dl>
+    <div className="@container">
+      <dl aria-label={label} className="grid grid-cols-1 gap-x-10 *:border-t *:border-hairline [&>:first-child]:border-t-0 @xl:grid-cols-2 @xl:[&>:nth-child(2)]:border-t-0">
+        {items.map(([label, value, className = ""]) => (
+          <div key={label} className="flex min-h-11 flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 py-2.5">
+            <dt className="text-meta text-text-2">{label}</dt>
+            <dd className={`min-w-0 text-right text-body [overflow-wrap:anywhere] ${className}`}>{value}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
   );
 }
 
@@ -496,50 +527,5 @@ export function Task({ title, detail, href, action, icon, mark, urgency = "info"
       {href && <Link href={href} aria-label={count !== undefined ? `${count} ${title}` : title} className="absolute inset-0" />}
       {action && <span className="relative z-10 flex max-w-full shrink-0 flex-wrap justify-end gap-2 max-sm:basis-full sm:ml-auto sm:shrink">{action}</span>}
     </li>
-  );
-}
-
-// The page's main jobs as big buttons, each an icon, a verb and one line on what it is for: what a person who has never used the dashboard
-// presses first. The first is the page's primary job (#208), filled: StatGrid's lead, so the two rows of tiles on the Overview break alike.
-export function ActionTiles({ children, label = "Quick actions" }: { children: React.ReactNode; label?: string }) {
-  return (
-    <nav aria-label={label}>
-      <StatGrid>{children}</StatGrid>
-    </nav>
-  );
-}
-// `external`: another site (DoneDeal), opened in a new tab and said so to screen readers. `figure`: the primary job's count, large, before
-// `text` ("15" "leads to answer").
-export function ActionTile({ href, icon, label, text, figure, primary = false, external = false }: { href: string; icon: React.ReactNode; label: string; text?: string; figure?: string; primary?: boolean; external?: boolean }) {
-  const className = `flex min-h-24 flex-col justify-between gap-3 rounded-card border p-4 transition-colors ${primary ? "col-span-2 border-accent bg-accent text-on-accent" : `${card} hover:border-control`} ${press}`;
-  const body = (
-    <>
-      <span aria-hidden="true" className={`grid size-10 place-items-center rounded-control [&>svg]:size-5 ${primary ? "bg-card text-accent-text" : "bg-row-alt text-accent-text"}`}>{icon}</span>
-      <span className="flex flex-col">
-        <span className={`font-semibold ${primary ? "text-heading" : ""}`}>
-          {label}
-          {external && <span className="sr-only"> (opens in a new tab)</span>}
-        </span>
-        {figure ? (
-          <span className="mt-1 flex flex-wrap items-baseline gap-x-2">
-            <span className="font-display text-[2.75rem] font-semibold leading-none tracking-[-0.02em] tabular-nums">
-              <Tween value={figure} />
-            </span>{" "}
-            {text}
-          </span>
-        ) : (
-          text && <span className={`text-meta ${primary ? "" : "text-text-2"}`}>{text}</span>
-        )}
-      </span>
-    </>
-  );
-  return external ? (
-    <a href={href} {...NEW_TAB} data-lead={primary || undefined} className={className}>
-      {body}
-    </a>
-  ) : (
-    <Link href={href} data-lead={primary || undefined} className={className}>
-      {body}
-    </Link>
   );
 }

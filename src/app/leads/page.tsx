@@ -75,7 +75,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
   };
 
   // What to answer now, worked down from the top, by the same rule as the Overview's To do (leadsToAnswer). On the plain list, or one
-  // person's: For me (forPerson, as the Overview's, whose Reply to leads opens it so) or Who has it. Any other filter is
+  // person's: For me (forPerson, as the Overview's, whose To answer row opens it so) or Who has it. Any other filter is
   // looking for something else. A search keeps it, so the search box does not jump up under the cursor while typing (#85).
   const filtered = Boolean(f.status || f.type || f.topic || f.due || f.late || f.source || (sp.page && sp.page !== "1"));
   const mine = sp.mine === "1" && Boolean(me.name) && !f.with; // Who has it wins: its pill hides Everyone | For me
