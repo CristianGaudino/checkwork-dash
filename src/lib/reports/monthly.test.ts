@@ -75,6 +75,22 @@ describe("summarise", () => {
   });
 });
 
+// The monthly report's "Cars sold" (page and email) is stock.sold: a synced dealer's cars sold on the listing site count, not only the sales
+// recorded here. A salesperson's own view has no cars, so it is their recorded sales.
+describe("cars sold", () => {
+  const now = Date.parse("2026-11-10T12:00:00Z");
+  const sold = (id: string, soldAt: string) => car(id, { listedAt: "2026-09-01", soldAt });
+  const data: ReportData = { ...empty, cars: [sold("a", "2026-10-12"), sold("b", "2026-10-15"), sold("c", "2026-10-20")], sales: [{ id: "a", priceEur: 9000, soldOn: "2026-10-12" }] as Sale[] };
+  it("counts the cars sold on the listing site, more than the recorded sales", () => {
+    const s = summarise(data, "2026-10-01", "2026-10-31", now, DEMO_PROFILE);
+    expect(s.sales.count).toBe(1);
+    expect(s.stock.sold).toBe(3);
+  });
+  it("is the recorded sales for a salesperson's own view, with no stock", () => {
+    expect(summarise({ ...data, cars: [] }, "2026-10-01", "2026-10-31", now, DEMO_PROFILE).stock.sold).toBe(1);
+  });
+});
+
 describe("compare, median and advice", () => {
   it("will not compare small numbers", () => {
     expect(compare(4, 20)).toBe("Too few to compare");

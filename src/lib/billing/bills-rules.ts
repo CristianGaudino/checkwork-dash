@@ -70,5 +70,8 @@ export function usageLines(counts: { service: Service; kind: string; count: numb
   return PAID.flatMap((service) => c[service].kinds.map(({ kind, count, included }) => ({ service, kind, count, included, unitEur: (UNIT_PRICE_EUR[service] as Record<string, number>)[kind] })));
 }
 
+// What the plan's allowance counts, per paid service, in words: "500 alerts included" (only WhatsApp alerts are, never replies).
+export const INCLUDED: Record<Scope, string> = { lookup: "lookups", history: "checks", whatsapp: "alerts" };
+
 export const fmtMonth = (id: string) => new Intl.DateTimeFormat("en-IE", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${id}-01T12:00:00Z`));
 

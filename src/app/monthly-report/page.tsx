@@ -13,6 +13,7 @@ import { visitorFigures } from "@/lib/admin/visitor-figures";
 import { countsBetween } from "@/lib/owner-api/counters";
 import { counted, monthLabel } from "@/lib/admin/reports";
 import { simulating } from "@/lib/integrations";
+import { reviewPlace } from "@/lib/admin/review-ask";
 import { can, currentMember } from "@/lib/permissions";
 import { roleCan } from "@/lib/permission-rules";
 import { loadReportData } from "@/lib/reports/load";
@@ -87,7 +88,7 @@ function ReportBones() {
 }
 
 async function Report({ month, prevMonth, now, name, whole }: { month: string; prevMonth: string; now: number; name: string; whole: boolean }) {
-  const [all, seeMargins, profile] = await Promise.all([loadReportData(), can("margins"), dealerProfile()]);
+  const [all, seeMargins, profile, place] = await Promise.all([loadReportData(), can("margins"), dealerProfile(), reviewPlace()]);
   const oldDays = profile.rules.oldStockDays;
   const data = whole ? all : { leads: all.leads.filter((l) => l.assignedTo === name), sales: all.sales.filter((x) => x.salesperson === name), cars: [], reviews: [] };
   const { from, to } = monthRange(month);
@@ -129,7 +130,9 @@ async function Report({ month, prevMonth, now, name, whole }: { month: string; p
         <StatCard lead label="Leads" value={fmtCompact(s.leads.total)} hint={compare(s.leads.total, p.leads.total)} />
         {a && <StatCard label="Visitors" value={fmtCompact(a.totals.visitors)} hint={compare(a.totals.visitors, a.previous.visitors)} />}
         {real && <StatCard label="Visits" value={fmtCompact(real.now.totals.visits)} hint={compare(real.now.totals.visits, real.before.totals.visits)} />}
-        <StatCard label="Cars sold" value={fmtCompact(s.sales.count)} hint={compare(s.sales.count, p.sales.count)} />
+        {/* Every car sold, as the email says it: marked sold or gone from the listing site, recorded sales among them. A salesperson's own view
+            has no stock, so it is their recorded sales. */}
+        <StatCard label="Cars sold" value={fmtCompact(s.stock.sold)} hint={compare(s.stock.sold, p.stock.sold)} />
         {topSource && <StatCard label="Most leads from" value={topSource[0]} hint={plural(topSource[1], "lead")} />}
       </StatGrid>
 
@@ -198,7 +201,8 @@ async function Report({ month, prevMonth, now, name, whole }: { month: string; p
             {profit !== undefined && <StatCard label="Profit" value={fmtEur(profit)} hint="Cars with their cost entered" />}
           </StatGrid>
 
-        {whole && (
+        {/* Only with Google reviews connected: with none coming in, "0 new" would read as a bad month. */}
+        {whole && place && (
           <StatGrid title="Reviews">
               <StatCard label="New reviews" value={fmtCompact(s.reviews.count)} hint={compare(s.reviews.count, p.reviews.count)} />
               <StatCard label="Average rating" value={s.reviews.average === null ? "None" : s.reviews.average.toFixed(1)} hint={s.reviews.average === null ? undefined : `From ${plural(s.reviews.count, "review")}`} />

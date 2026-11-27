@@ -44,6 +44,10 @@ test("the owner sets the monthly limits in Settings, never above ours, and Billi
   await page.getByRole("region", { name: "Pay as you go" }).getByRole("link", { name: "Change limits" }).click();
   await expect(page).toHaveURL(/\/settings\?section=limits$/);
   await expect(page.getByRole("navigation", { name: "Settings" }).getByRole("link", { name: "Monthly limits", exact: true })).toHaveAttribute("aria-current", "page");
+  // What the plan includes, in Billing's words: alerts, not every WhatsApp message.
+  const panel = page.getByRole("region", { name: "Monthly limits" });
+  await expect(panel.getByRole("row").filter({ hasText: "WhatsApp" })).toContainText("500 alerts included");
+  await expect(panel.getByRole("row").filter({ hasText: "Registration lookup" })).toContainText("100 lookups included");
   // Read first; Edit opens the limits in the house dialog (#141).
   const limits = page.getByRole("dialog", { name: "Monthly limits" });
   const edit = async () => (await page.getByRole("button", { name: "Edit monthly limits" }).click(), limits);

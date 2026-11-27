@@ -32,7 +32,7 @@ import { columnsFor, eventLabel, eventsFor, reachLine } from "@/lib/notify-rules
 import { people, whatsappOn, type Person } from "@/lib/people";
 import { billingSettings, monthUsage } from "@/lib/billing/usage";
 import { PAID, PLAN, SERVICE_LABELS, capOf, type Scope } from "@/lib/billing/rules";
-import { eur } from "@/lib/billing/bills-rules";
+import { INCLUDED, eur } from "@/lib/billing/bills-rules";
 import { viewFor } from "@/lib/whatsapp/store";
 
 export const metadata = { title: "Settings" };
@@ -390,7 +390,7 @@ async function Limits() {
               <span className="flex flex-col">
                 <span className="font-medium">{SERVICE_LABELS[s]}</span>
                 <span className="text-meta text-text-2">
-                  {eur(usage[s].costEur)} spent this month{PLAN.allowance[s] ? `, ${fmtNum(PLAN.allowance[s])} included` : ""}
+                  {eur(usage[s].costEur)} spent this month{PLAN.allowance[s] ? `, ${fmtNum(PLAN.allowance[s])} ${INCLUDED[s]} included` : ""}
                 </span>
               </span>
             ),

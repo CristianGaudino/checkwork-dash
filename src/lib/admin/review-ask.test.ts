@@ -35,7 +35,7 @@ vi.mock("@/lib/whatsapp/send", () => ({
   sendWhatsApp: async (d: Record<string, unknown>, _k: string, o: { email?: boolean; canEmail?: boolean } = {}) =>
     o.email ? (db.wa.push({ ...d, via: "email" }), { ...d, via: "email" }) : db.channel === "whatsapp" ? (db.wa.push(d), d) : o.canEmail === false ? null : (db.wa.push({ ...d, via: "email" }), { ...d, via: "email" }),
 }));
-const { DEMO_PLACE_ID, REVIEW_OPT_OUT, askForReview, leadsIndex, leadsOf, reviewByWhatsApp, reviewLink, reviewReach } = await import("./review-ask");
+const { DEMO_PLACE_ID, REVIEW_OPT_OUT, askForReview, leadsIndex, leadsOf, reviewByWhatsApp, reviewLink, reviewPlace, reviewReach } = await import("./review-ask");
 
 const lead = (o: Record<string, unknown>) => ({ id: "lead-1", type: "enquiry", status: "won", name: "Pat Byrne", email: "", phone: "+353 83 000 1234", message: "", source: "Website", notes: [], createdAt: 0, ...o });
 beforeEach(() => {
@@ -188,5 +188,18 @@ ${REVIEW_OPT_OUT}`)).toBe(true);
     expect(await askForReview("car-1")).toBeNull();
     expect(db.mail).toEqual([]);
     expect(db.sales.get("car-1")?.reviewAskedOn).toBeUndefined();
+  });
+});
+
+// The monthly report (page and email) shows reviews only when this gives a place: a dealer with Google not connected has none coming in.
+describe("reviewPlace", () => {
+  it("is the dealer's own place, the made-up one on a demo dealer, and none for a dealer with Google not connected", async () => {
+    db.demo = false;
+    db.placeId = "ChIJ1";
+    expect(await reviewPlace()).toBe("ChIJ1");
+    db.placeId = undefined;
+    expect(await reviewPlace()).toBeUndefined();
+    db.demo = true;
+    expect(await reviewPlace()).toBe(DEMO_PLACE_ID);
   });
 });

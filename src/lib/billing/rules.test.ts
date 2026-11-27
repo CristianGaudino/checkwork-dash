@@ -52,6 +52,17 @@ describe("the plan", () => {
 });
 
 describe("limits", () => {
+  it("a EUR 0 limit refuses every paid use, while a lookup the plan includes still goes", () => {
+    const zero: BillingSettings = { ...BILLING_DEFAULT, caps: { history: 0, lookup: 0 } };
+    const none = usageCosts([], PLAN.allowance);
+    expect(capOf(zero, "history")).toBe(0); // a limit, not "no limit"
+    expect(withinCaps(none, zero, "history")).toBe(false);
+    expect(withinCaps(none, zero, "lookup")).toBe(false);
+    expect(inAllowance(none, PLAN.allowance, "history", "dashboard")).toBe(false); // no history check is included
+    expect(inAllowance(none, PLAN.allowance, "lookup", "dashboard")).toBe(true); // so usageAllowed lets it through
+    const used = usageCosts([c("lookup", "dashboard", 100)], PLAN.allowance);
+    expect(inAllowance(used, PLAN.allowance, "lookup", "dashboard")).toBe(false); // the 101st is paid, and the EUR 0 limit stops it
+  });
   const b: BillingSettings = { ...BILLING_DEFAULT, caps: { lookup: 10, whatsapp: 30 }, ceilings: { lookup: 8 } };
   it("uses the lower of the dealer's limit and our ceiling", () => {
     expect(capOf(b, "lookup")).toBe(8);

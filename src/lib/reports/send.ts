@@ -5,6 +5,7 @@ import { monthLabel } from "@/lib/admin/reports";
 import { sendTo } from "@/lib/leads/mail";
 import { appUrl } from "@/lib/site";
 import { currentDealer } from "@/lib/tenancy/current";
+import { reviewPlace } from "@/lib/admin/review-ask";
 import { loadReportData } from "./load";
 import { advice, compare, fmtWait, monthBefore, monthRange, summarise } from "./monthly";
 
@@ -14,7 +15,7 @@ export async function sendMonthlyReport(now = Date.now()): Promise<{ month: stri
   const { team } = await getSettings();
   const to = leaderEmails(team);
   if (!to.length) return { month, sent: 0 };
-  const [data, { name, profile }] = await Promise.all([loadReportData(), currentDealer()]);
+  const [data, { name, profile }, place] = await Promise.all([loadReportData(), currentDealer(), reviewPlace()]);
   const at = (m: string) => summarise(data, monthRange(m).from, monthRange(m).to, now, profile);
   const oldDays = profile.rules.oldStockDays;
   const s = at(month);
@@ -25,7 +26,8 @@ export async function sendMonthlyReport(now = Date.now()): Promise<{ month: stri
     `Leads: ${fmtNum(s.leads.total)} (${compare(s.leads.total, p.leads.total)}), ${fmtNum(s.leads.outOfHours)} out of hours`,
     `First reply, median: ${fmtWait(s.replies.medianInHoursMin)} in hours, ${fmtWait(s.replies.medianOutOfHoursMin)} out of hours; ${fmtNum(s.replies.none)} with no reply in 24 hours`,
     `Cars: ${fmtNum(s.stock.added)} added, ${fmtNum(s.stock.sold)} sold, ${fmtNum(s.stock.oldStock)} for sale ${oldDays} days or more`,
-    `Reviews: ${fmtNum(s.reviews.count)} new`,
+    // Only with Google reviews connected, as the page: with none coming in, "0 new" would read as a bad month.
+    ...(place ? [`Reviews: ${fmtNum(s.reviews.count)} new`] : []),
     "",
     advice(s, oldDays),
     "",

@@ -6,7 +6,7 @@ import { currentDealer } from "@/lib/tenancy/current";
 import { dublinDay, fmtDay, fmtNum, plural } from "@/lib/admin/format";
 import { can, currentMember } from "@/lib/permissions";
 import { billingDetails, listBills } from "@/lib/billing/bills";
-import { eur, fmtMonth, itemise, nextBillDate, type Bill, type BillingDetails } from "@/lib/billing/bills-rules";
+import { INCLUDED, eur, fmtMonth, itemise, nextBillDate, type Bill, type BillingDetails } from "@/lib/billing/bills-rules";
 import { PAID, PLAN, SERVICE_LABELS, VAT_PCT, capOf, planLines, round2, usageEstimate, withVat, type BillingSettings, type Scope } from "@/lib/billing/rules";
 import { billingSettings, monthCounts, monthUsage } from "@/lib/billing/usage";
 import { NotForRole } from "@/components/admin/NotForRole";
@@ -14,7 +14,6 @@ import { NotForRole } from "@/components/admin/NotForRole";
 export const metadata = { title: "Billing" };
 
 const USE_WORD: Record<Scope, [string, string]> = { lookup: ["lookup", "lookups"], history: ["check", "checks"], whatsapp: ["message", "messages"] };
-const INCLUDED: Record<Scope, string> = { lookup: "lookups", history: "checks", whatsapp: "alerts" };
 
 // Owners and managers only (the "billing" permission): without it the page is not there, whatever the menu showed.
 // One page (#147): this month's bill with the one plan (#212), what is paid as you go, and the bills. The limits are in Settings.

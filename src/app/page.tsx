@@ -20,8 +20,8 @@ const TOP = 8;
 const PHONE = 4;
 const row = "relative flex min-h-16 items-center gap-3 px-1 py-3 transition-colors has-[>a:hover]:bg-surface";
 
-// Where the day starts: the main jobs as big buttons, then what needs doing (each with the button that does it; new leads are in it with
-// Call and Reply), the next test drives, and a few numbers last. No chart (docs/dashboard-polish.md #72): Analytics has them.
+// Where the day starts: the main jobs in the page header, then what needs doing (each with the button that does it; new leads are in it
+// with Call and Reply), with this week's figures and the next test drives beside it. No chart (docs/dashboard-polish.md #72): Analytics has them.
 // `mine`: To do's Everyone | For me. See all opens the To do page, so this page never grows under the reader.
 export default async function Page({ searchParams }: { searchParams: Promise<{ mine?: string }> }) {
   const sp = await searchParams;
@@ -72,7 +72,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
               </StatGrid>
             <Panel title="Test drives" action={<PanelLink href="/test-drives">See all</PanelLink>}>
               {o.nextDrives.length === 0 ? (
-                // One line, not a tall empty block beside the busiest panel. Booking one is the tile above.
+                // One line, not a tall empty block beside the busiest panel. Booking one is in the page header.
                 <p className="text-body text-text-2">None booked this week</p>
               ) : (
                 <ul className="-mx-1 flex flex-col divide-y divide-hairline">
