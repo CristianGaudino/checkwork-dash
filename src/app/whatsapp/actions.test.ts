@@ -4,7 +4,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const db = vi.hoisted(() => ({ leads: new Map<string, Record<string, unknown>>(), log: [] as string[], role: "Sales", calls: [] as string[] }));
 vi.mock("server-only", () => ({}));
 vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
-vi.mock("@/lib/modules", () => ({ requireModule: async () => {}, enabledModules: async () => new Set() }));
 vi.mock("@/lib/staff", () => ({ requireStaff: async () => {} }));
 vi.mock("@/lib/permissions", () => ({ currentMember: async () => ({ name: "Aoife", role: db.role }) }));
 vi.mock("@/lib/whatsapp/handle", () => ({ tap: async () => void db.calls.push("tap"), typed: async () => void db.calls.push("typed") }));

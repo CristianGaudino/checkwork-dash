@@ -10,7 +10,6 @@ import { helpGroups } from "@/lib/help/topics";
 import { dealerProfile } from "@/lib/tenancy/current";
 import { OpenFromHash } from "./OpenFromHash";
 import { DEALER_NAV } from "@/lib/admin/nav";
-import { enabledModules } from "@/lib/modules";
 import { listing, stockSource } from "@/lib/stock-source";
 import { NEW_TAB } from "@/components/ui";
 
@@ -23,14 +22,14 @@ const today = () => Date.now();
 const pageName = (from: string) => DEALER_NAV.filter((i) => from === i.href || from.startsWith(`${i.href}/`)).sort((a, b) => b.href.length - a.href.length)[0]?.label ?? "the dashboard";
 
 // Every team member can reach us from here. First a person, one press away; then how to do the everyday jobs (most questions end there),
-// one topic per job, each closed until opened, grouped as the menu is, only those for this person's role and this dealer's plan (src/lib/help/topics.ts),
+// one topic per job, each closed until opened, grouped as the menu is, only those for this person's role (src/lib/help/topics.ts),
 // beside the form; then what they sent, with our replies. `from` is the page they came from, when a link sets it (the Billing page does).
 export default async function Page({ searchParams }: { searchParams: Promise<{ from?: string; type?: string }> }) {
-  const [me, sp, modules, source, { site: listingSite }, { rules }] = await Promise.all([currentMember(), searchParams, enabledModules(), stockSource(), listing(), dealerProfile()]);
+  const [me, sp, source, { site: listingSite }, { rules }] = await Promise.all([currentMember(), searchParams, stockSource(), listing(), dealerProfile()]);
   const types = typesFor(me.role);
   const first = types.find((t) => t === sp.type) ?? types[0];
   const [mine, last] = await Promise.all([requestsOf(me.name), feedbackStore.get(me.name.toLowerCase())]);
-  const groups = helpGroups({ role: me.role, modules, synced: source === "donedeal", listingSite, oldStockDays: rules.oldStockDays });
+  const groups = helpGroups({ role: me.role, synced: source === "donedeal", listingSite, oldStockDays: rules.oldStockDays });
 
   return (
     <>

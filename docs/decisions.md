@@ -17,7 +17,21 @@ What the owner has decided about the dashboard as its own product, and what is s
 | Name | Checkwork, for now. |
 | Repo visibility | Public for now; the owner makes it private when ready (#13). |
 
-## Pricing (owner, 2026-11-24, #147)
+## One plan, everything included (owner, 2026-11-27, #212)
+
+This replaces the plans below. Every dealer gets every part of the dashboard and the website: no modules, no plan picker, no add-ons.
+
+- One price: EUR 249 a month before VAT, for one dealership, everything included (the website, the dashboard, social and ads and every
+  other part). No setup fee. `PLAN` in `src/lib/billing/rules.ts`.
+- Usage and lookups are paid by the dealer, with a small allowance included each month: 100 registration lookups and 500 WhatsApp
+  alerts and confirmations (the amounts the dashboard plans already included). Past that, pay as you go, as before: lookups, history
+  checks and WhatsApp messages. AI writing stays fair use, never billed.
+- The dealer sets a monthly limit per paid service in Settings, Monthly limits; Billing links there. Our ceilings stay as safety caps.
+- Role permissions stay as they are. A service that needs the dealer's own keys says "Not connected" until it is.
+- The owner API's `/api/owner/v1/modules` and `modules` in `/summary` are removed (nothing read them); `/summary` has `plan`.
+- A stored `modules` value in a dealer's profile is ignored; nothing is deleted. Bills already issued keep their lines.
+
+## Pricing (owner, 2026-11-24, #147; replaced by #212 above)
 
 Prices a month before VAT, for one dealership. No dealer had been quoted, so nobody keeps an old price.
 

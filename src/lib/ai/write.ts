@@ -7,7 +7,7 @@ import { mockText } from "./mock";
 import type { AiModel } from "@/lib/billing/rules";
 import type { Adjust, FactsOf, Task } from "./tasks";
 
-// The one place text is written for the dashboard (#179). The caller has already checked the module and the usage cap, and counts the use after.
+// The one place text is written for the dashboard (#179). The caller has already checked the usage cap, and counts the use after.
 // On the demo (simulated) it is the mock in mock.ts, after a short pause so it feels like writing. A failure is a result, never a throw, so the
 // dealer's own text is left alone.
 // With ANTHROPIC_API_KEY set (live) the text comes from Claude, with every prompt in claude.ts.

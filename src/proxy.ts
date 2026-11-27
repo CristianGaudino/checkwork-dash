@@ -32,9 +32,8 @@ const pass = (req: NextRequest) => {
 };
 
 // The gate in front of every page, by SIGN_IN (src/lib/auth/gate.ts, docs/sign-in.md section 7): Cloudflare Access's token (`access`, the
-// default and any unknown value, and `both`), or only that our session cookie is there (`own`). Nothing per dealer: which dealer, and what
-// their plan has, is the server's (src/lib/tenancy): the root layout and each module's layout answer a module that is off
-// (src/components/admin/PlanGate.tsx), and every action checks it again (requireModule). Proxy is not for data fetching (Next 16 docs), so
+// default and any unknown value, and `both`), or only that our session cookie is there (`own`). Nothing per dealer: which dealer is the
+// server's (src/lib/tenancy), and every action checks it again (requireStaff). Proxy is not for data fetching (Next 16 docs), so
 // it reads no directory and no session: the server checks the session (src/lib/staff.ts), and a dead one goes to sign in from dealerAccess.
 export async function proxy(req: NextRequest) {
   // A closed area looks like a page that is not there. Server actions post to the page itself, so this covers them too.

@@ -5,7 +5,6 @@ import { SearchIcon } from "@/components/stock/icons";
 import { adminButtonQuiet } from "@/components/admin/kit";
 import { BUSY } from "@/components/admin/ActButton";
 import { regSummary } from "@/lib/reg";
-import { useModules } from "@/components/DealerFacts";
 import type { CarFound, RegLookup as Found } from "@/lib/reg-lookup";
 
 // The "Look up" beside a registration box, on the dashboard's forms (staff only: the website has none, #182). It asks the server
@@ -15,9 +14,7 @@ import type { CarFound, RegLookup as Found } from "@/lib/reg-lookup";
 // `lookup`: the dashboard's own action (behind Access).
 // Pressing again for the same plate reuses the last answer: a repeat never reaches the server, let alone the paid service.
 const plate = (reg: string) => reg.toUpperCase().replace(/[^A-Z0-9]/g, "");
-// Without the lookupDashboard module (#180) there is no button.
 export function RegLookup({ reg, onFound, lookup, className = "" }: { reg: string; onFound?(found: { year: number; car?: CarFound }): void; lookup: (reg: unknown) => Promise<Found | null>; className?: string }) {
-  const on = useModules().has("lookupDashboard");
   const [said, setSaid] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const last = useRef<{ plate: string; r: Found } | null>(null);
@@ -29,7 +26,6 @@ export function RegLookup({ reg, onFound, lookup, className = "" }: { reg: strin
       onFound?.({ year: r.year, car: r.car });
       setSaid(r.car ? `${r.car.make} ${r.car.model}. ${regSummary(r)}.` : r.limited ? `${regSummary(r)}. Lookups have reached this month's limit, so fill in the rest below.` : `${regSummary(r)}.`);
     });
-  if (!on) return null;
   // Two pieces for the parent's row: the button sits beside the box, and the line under the whole row.
   // `className` sets the height to match the box beside it and the offset past its label.
   return (

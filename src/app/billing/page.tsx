@@ -1,43 +1,35 @@
 import Link from "next/link";
-import { DetailsEdit, LimitsEdit } from "@/components/admin/BillingForms";
+import { DetailsEdit } from "@/components/admin/BillingForms";
 import { Badge, DataTable, Facts, PageHeader, Panel, adminButtonQuiet, tapArea } from "@/components/admin/kit";
 import { listing, stockSource } from "@/lib/stock-source";
 import { currentDealer } from "@/lib/tenancy/current";
 import { dublinDay, fmtDay, fmtNum, plural } from "@/lib/admin/format";
-import { billedModules, enabledModules } from "@/lib/modules";
 import { can, currentMember } from "@/lib/permissions";
 import { billingDetails, listBills } from "@/lib/billing/bills";
-import { eur, fmtMonth, itemise, nextBillDate, billedServices, type Bill, type BillingDetails } from "@/lib/billing/bills-rules";
-import { SERVICE_LABELS, VAT_PCT, allowanceFor, capOf, planFor, planLines, round2, usageEstimate, withVat, type BillingSettings, type Scope } from "@/lib/billing/rules";
+import { eur, fmtMonth, itemise, nextBillDate, type Bill, type BillingDetails } from "@/lib/billing/bills-rules";
+import { PAID, PLAN, SERVICE_LABELS, VAT_PCT, capOf, planLines, round2, usageEstimate, withVat, type BillingSettings, type Scope } from "@/lib/billing/rules";
 import { billingSettings, monthCounts, monthUsage } from "@/lib/billing/usage";
 import { NotForRole } from "@/components/admin/NotForRole";
 
 export const metadata = { title: "Billing" };
 
-const AT_LIMIT: Record<Scope, string> = {
-  lookup: "The lookup button says the limit is reached, and the details are typed in.",
-  history: "Check history says the limit is reached. A plate checked in the last 30 days is checked again free.",
-  whatsapp: "Replies go by email instead and marketing messages are not sent. Alerts your plan includes still go by WhatsApp.",
-};
 const USE_WORD: Record<Scope, [string, string]> = { lookup: ["lookup", "lookups"], history: ["check", "checks"], whatsapp: ["message", "messages"] };
 const INCLUDED: Record<Scope, string> = { lookup: "lookups", history: "checks", whatsapp: "alerts" };
 
 // Owners and managers only (the "billing" permission): without it the page is not there, whatever the menu showed.
-// One page (#147): this month's bill with the plan, one limit per paid service, and the bills.
+// One page (#147): this month's bill with the one plan (#212), what is paid as you go, and the bills. The limits are in Settings.
 export default async function Page() {
   if (!(await can("billing"))) return <NotForRole title="Billing" permission="billing" />;
-  const [modules, b, usage, counts, me, bills, details] = await Promise.all([billedModules(), billingSettings(), monthUsage(), monthCounts(), currentMember(), listBills(), billingDetails()]);
+  const [b, usage, counts, me, bills, details] = await Promise.all([billingSettings(), monthUsage(), monthCounts(), currentMember(), listBills(), billingDetails()]);
   const now = new Date();
   const today = dublinDay(now.getTime());
   const month = today.slice(0, 7);
-  const services = billedServices(await enabledModules(), usage); // every paid service can have a limit before its first charge (#212)
-  const allowance = allowanceFor(modules, b);
-  const p = planFor(modules, b);
-  const plan = planLines(modules, b, month); // the first month free is a line of its own
+  const allowance = PLAN.allowance;
+  const plan = planLines(b, month); // the first month free is a line of its own
   const planEur = round2(plan.reduce((n, l) => n + l.eur, 0));
   const estimate = usageEstimate(counts, allowance, b, today);
   const total = withVat(round2(planEur + estimate));
-  const lines: [string, number][] = [...plan.map((l) => [l.label, l.eur] as [string, number]), ...(services.length ? [["Pay as you go, by month end", estimate] as [string, number]] : []), [`VAT at ${VAT_PCT}%`, round2(total - planEur - estimate)]];
+  const lines: [string, number][] = [...plan.map((l) => [l.label, l.eur] as [string, number]), ["Pay as you go, by month end", estimate], [`VAT at ${VAT_PCT}%`, round2(total - planEur - estimate)]];
   // This month first, as it stands: its bill is issued on the 1st of next month.
   const rows: { id: string; bill?: Bill }[] = [{ id: month }, ...bills.map((bill) => ({ id: bill.id, bill }))];
   return (
@@ -76,47 +68,50 @@ export default async function Page() {
           </div>
         </div>
         <p className="text-meta text-text-2">
-          Everything in your plan is included. {b.term === 2 ? "2-year contract, no setup fee." : `1-year contract${p.setupEur ? `, setup ${eur(p.setupEur)} once` : ""}.`} Prices before VAT.
+          Your website, the dashboard, social and ads and everything else are included. {b.term === 2 ? "2-year" : "1-year"} contract, no setup fee. Prices before VAT.
         </p>
       </Panel>
 
-      {services.length > 0 && (
-        // One limit per paid service, read first; Edit changes them in the house dialog (#141).
-        <Panel title="Monthly limits" action={<LimitsEdit scopes={services} caps={b.caps} ceilings={b.ceilings} />}>
-          <p className="max-w-measure text-body text-text-2">Past what your plan includes, each use is paid. At a limit the service stops for the rest of the month, and you are told.</p>
-          <DataTable
-            bare
-            rows={services}
-            rowKey={(s) => s}
-            columns={[
-              {
-                key: "what",
-                header: "What",
-                cell: (s) => (
-                  <span className="flex flex-col">
-                    <span className="font-medium">{SERVICE_LABELS[s]}</span>
-                    <span className="text-meta text-text-2">
-                      {plural(usage[s].count, USE_WORD[s][0], USE_WORD[s][1])}
-                      {allowance[s] ? `, ${fmtNum(allowance[s])} ${INCLUDED[s]} in your plan` : ""}
-                    </span>
+      {/* Past what the plan includes each month, each use is paid. The limits are set in Settings, Monthly limits. */}
+      <Panel
+        title="Pay as you go"
+        action={
+          <Link href="/settings?section=limits" className={adminButtonQuiet}>
+            Change limits
+          </Link>
+        }
+      >
+        <DataTable
+          bare
+          rows={PAID}
+          rowKey={(s) => s}
+          columns={[
+            {
+              key: "what",
+              header: "What",
+              cell: (s) => (
+                <span className="flex flex-col">
+                  <span className="font-medium">{SERVICE_LABELS[s]}</span>
+                  <span className="text-meta text-text-2">
+                    {plural(usage[s].count, USE_WORD[s][0], USE_WORD[s][1])}
+                    {allowance[s] ? `, ${fmtNum(allowance[s])} ${INCLUDED[s]} included a month` : ""}
                   </span>
-                ),
+                </span>
+              ),
+            },
+            { key: "spent", header: "Spent", align: "right", cell: (s) => eur(usage[s].costEur) },
+            {
+              key: "cap",
+              header: "Limit",
+              align: "right",
+              cell: (s) => {
+                const c = capOf(b, s);
+                return c === undefined ? "None" : eur(c);
               },
-              { key: "spent", header: "Spent", align: "right", cell: (s) => eur(usage[s].costEur) },
-              {
-                key: "cap",
-                header: "Limit",
-                align: "right",
-                cell: (s) => {
-                  const c = capOf(b, s);
-                  return c === undefined ? "None" : eur(c);
-                },
-              },
-              { key: "then", header: "At the limit", hide: "md", cell: (s) => AT_LIMIT[s], className: "max-w-[24rem]" },
-            ]}
-          />
-        </Panel>
-      )}
+            },
+          ]}
+        />
+      </Panel>
 
       <Panel title="Bills">
         <DataTable

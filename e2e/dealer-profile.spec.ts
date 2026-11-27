@@ -37,9 +37,8 @@ test("Test Motors shows its own name and the whole dashboard, and the demo bar's
   await expect(page.getByRole("region", { name: "Business details" })).toContainText("01 555 0101");
 });
 
-// One system (#212): a stored plan with modules off (Test Motors': the dashboard alone) hides nothing. Every menu entry is there, and every
-// page, including the ones a module used to gate, opens as itself.
-test("a dealer whose stored plan has modules off has every menu entry and page", async ({ page, context, baseURL }) => {
+// One system (#212): every dealer has every menu entry, and every page opens as itself.
+test("a dealer that is not a demo has every menu entry and page", async ({ page, context, baseURL }) => {
   test.slow(); // a page load per menu entry
   await page.setViewportSize({ width: 1280, height: 900 });
   await context.addCookies(at("test-motors", baseURL!));
@@ -48,11 +47,11 @@ test("a dealer whose stored plan has modules off has every menu entry and page",
   for (const path of [...DEALER_NAV.map((i) => i.href), "/marketing/new"]) {
     const res = await page.goto(path);
     expect(res?.status(), path).toBe(200);
-    await expect(page.getByRole("heading", { level: 1 }), path).not.toHaveText(/Not in your plan|We couldn't find that page/);
+    await expect(page.getByRole("heading", { level: 1 }), path).not.toHaveText(/We couldn't find that page/);
   }
 });
 
-test("the demo dealer still shows everything: its logo, its website and every module", async ({ page, context, baseURL }) => {
+test("the demo dealer still shows everything: its logo, its website and every menu entry", async ({ page, context, baseURL }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await context.addCookies(at("checkwork-motors", baseURL!));
   await page.goto("/");

@@ -16,10 +16,9 @@ import { listing, stockSource } from "@/lib/stock-source";
 import { currentDealer } from "@/lib/tenancy/current";
 import { isSold } from "@/lib/stock/types";
 import { leadLine, notify } from "@/lib/admin/notifications";
-import { enabledModules } from "@/lib/modules";
 import { sendWhatsApp } from "./send";
 import { addMessage, messagesStore, staffStore, type Msg } from "./store";
-import { BUTTON_LABELS, firstName, moduleOf, parsePrice, type ButtonId } from "./rules";
+import { BUTTON_LABELS, firstName, parsePrice, type ButtonId } from "./rules";
 
 // What happens when someone taps a button under an alert or types a reply (#178). Everything goes through here, so the lead, the activity
 // log and the buyer are always updated the same way, and the dashboard stays the full record. Only a team member with a linked phone can act,
@@ -41,7 +40,6 @@ const ACTS: Partial<Record<ButtonId | "confirm-test-drive", Act>> = {
   ack: { site: (f, by) => `Sent to ${f} by ${by}: we have your application.`, buyer: (f) => `Hi ${f}, we have your finance application and will come back to you soon.`, note: (by) => `Application acknowledged from WhatsApp, told by ${by}.`, status: "contacted", activity: "Acknowledged the application, from WhatsApp" },
 };
 const LINK_FIRST = "Add your mobile phone in Settings, Profile to act from here.";
-const MODULE_OFF = "That part of your plan is off, so I did nothing.";
 
 const RANK: Record<LeadStatus, number> = { new: 0, contacted: 1, appointment: 2, won: 3, lost: 3, closed: 3, spam: 3 };
 // A move only goes forward, and never reopens a lead that is won, lost, closed or spam.
@@ -97,7 +95,6 @@ export async function tap(me: string, msgId: string, button: ButtonId, role: Rol
   const msg = await messagesStore.get(msgId);
   if (!msg || msg.to !== me || !msg.buttons?.includes(button)) return;
   if (!(await linked(me))) return void (await say(me, { text: LINK_FIRST }));
-  if (!(await enabledModules()).has(moduleOf(msg) ?? "whatsapp")) return void (await say(me, { text: MODULE_OFF })); // a Trade-in alert with Trade-in off
   await addMessage({ thread: "staff", from: "staff", to: me, leadId: msg.leadId, text: BUTTON_LABELS[button] });
   const lead = msg.leadId ? await leadsStore.get(msg.leadId) : undefined;
   const first = lead ? firstName(lead.name) : "";
@@ -203,7 +200,6 @@ export async function typed(me: string, raw: string): Promise<void> {
   // An offer or a new time answers the alert the question came from, once for everyone: if another copy was answered meanwhile, stop.
   const alert = (q.expects === "price" || q.expects === "time") && q.ref ? await messagesStore.get(q.ref) : undefined;
   const all = alert ? await copies(alert) : [];
-  if (!(await enabledModules()).has(moduleOf(q, alert) ?? "whatsapp")) return void (await say(me, { text: MODULE_OFF })); // an offer with Trade-in off
   if (all.some((m) => m.done)) {
     await messagesStore.put({ ...q, done: true });
     return void (await say(me, { text: "Already done." }));

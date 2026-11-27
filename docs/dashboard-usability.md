@@ -27,7 +27,7 @@ a page to do one of a few jobs. They should know within five seconds what needs 
    be undone happens at once with Undo in the toast.
 9. **Phone first.** The main content is on the first screen of a 390px phone, under the title (`feedback: mobile-first-screen`). Tap
    targets 44px.
-10. **Keep what works.** Server permission checks, module gates (`hasModule`, `enabledModules`), the DoneDeal synced mode, simulated
+10. **Keep what works.** Server permission checks, the DoneDeal synced mode, simulated
     integrations and every feature stay. This is presentation and flow, not a rewrite of the data layer.
 
 ## Kit

@@ -98,7 +98,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <Suspense fallback={null}>
           <NavProgress />
         </Suspense>
-        <DealerFactsProvider value={factsOf(dealer.name, dealer.profile, "all")}>
+        <DealerFactsProvider value={factsOf(dealer.name, dealer.profile)}>
           <DemoBar demo={dealer.demo} donedeal={source === "donedeal"} />
           <AdminShell title={dealer.name} profile={dealer.profile} subtitle="Dealer dashboard" nav={nav} navLabel="Dealer dashboard" openGroups={parseOpenGroups(jar.get(NAV_COOKIE)?.value)}>
             <DashboardBeacon />

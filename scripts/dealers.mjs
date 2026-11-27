@@ -76,7 +76,7 @@ export const wrangler = (...args) => execFileSync("npx", ["wrangler", ...args], 
 
 // A dealer's profile from a JSON file (src/lib/tenancy/profile.ts has every field): an object whose keys are the profile's, so a typo is
 // caught here rather than ignored by the app. Returned as the JSON text the directory keeps.
-export const PROFILE_KEYS = ["siteUrl", "phone", "email", "address", "hours", "social", "logo", "mark", "modules", "stock", "rules", "placeId", "leadEmail"];
+export const PROFILE_KEYS = ["siteUrl", "phone", "email", "address", "hours", "social", "logo", "mark", "stock", "rules", "placeId", "leadEmail"];
 export function readProfile(path) {
   const p = JSON.parse(readFileSync(path, "utf8"));
   if (!p || typeof p !== "object" || Array.isArray(p)) throw new Error(`${path} is not a JSON object`);

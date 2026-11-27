@@ -6,8 +6,6 @@ import { Badge, DataTable, EmptyState, PageHeader, Panel, SummaryTabs, TableFoot
 import { filterAlerts, filterCustomers } from "@/lib/admin/customer-lists";
 import { ActButton } from "@/components/admin/ActButton";
 import { can } from "@/lib/permissions";
-import { notFound } from "next/navigation";
-import { hasModule } from "@/lib/modules";
 import { ALERT_KINDS, ALERT_KIND_LABELS, alertsStore, claimOpen, claimsStore, customersStore, leadsStore, reservationsStore, salesStore, type Customer, type StockAlert } from "@/lib/admin/collections";
 import { stockSource } from "@/lib/stock-source";
 import { dublinDay, fmtAgo, fmtDate, fmtNum } from "@/lib/admin/format";
@@ -22,32 +20,29 @@ import { BrandName } from "@/components/admin/BrandIcon";
 
 export const metadata = { title: "Customers" };
 
-// The customer list is the sales module; stock alerts are the "newsletter" module (its id kept for stored plans), where visitors sign up (#173).
-const TABS = [["customers", "Customers", "sales"], ["alerts", "Stock alerts", "newsletter"]] as const;
+// The buyers, and the stock alerts visitors sign up for (#173).
+const TABS = [["customers", "Customers"], ["alerts", "Stock alerts"]] as const;
 type Params = { tab?: string; q?: string; source?: string; consent?: string; kind?: string; state?: string; sort?: string; dir?: string; page?: string; per?: string };
 
 export default async function Page({ searchParams }: { searchParams: Promise<Params> }) {
   const sp = await searchParams;
-  const [sales, alertsOn] = await Promise.all([hasModule("sales"), hasModule("newsletter")]);
-  const tabs = TABS.filter(([, , m]) => (m === "sales" ? sales : alertsOn));
-  if (!tabs.length) notFound();
-  const tab = tabs.find(([k]) => k === sp.tab)?.[0] ?? tabs[0][0];
+  const tab = TABS.find(([k]) => k === sp.tab)?.[0] ?? TABS[0][0];
   // The header first; the tabs (their counts are the lists), the reminders and the list stream in under it (#200). Not keyed: a tab change keeps the old list until the new one lands, so the tabs never turn to bones.
   return (
     <>
       <PageHeader title="Customers" text="Buyers, and people who signed up for stock alerts" />
-      <Suspense fallback={<Skeleton><TabBones count={tabs.length} hint /><Bone className="h-11 w-full sm:max-w-sm" /><TableBones /></Skeleton>}>
+      <Suspense fallback={<Skeleton><TabBones count={TABS.length} hint /><Bone className="h-11 w-full sm:max-w-sm" /><TableBones /></Skeleton>}>
         <Fresh className="flex flex-col gap-6">
-          <Lists sp={sp} tab={tab} sales={sales} alertsOn={alertsOn} />
+          <Lists sp={sp} tab={tab} />
         </Fresh>
       </Suspense>
     </>
   );
 }
 
-async function Lists({ sp, tab, sales, alertsOn }: { sp: Params; tab: string; sales: boolean; alertsOn: boolean }) {
+async function Lists({ sp, tab }: { sp: Params; tab: string }) {
   const q = (sp.q ?? "").trim().toLowerCase().slice(0, 60);
-  const [customers, alerts, sold, deposits, claims, service] = await Promise.all([customersStore.list(), alertsStore.list(), salesStore.list(), reservationsStore.list(), claimsStore.list(), hasModule("service")]);
+  const [customers, alerts, sold, deposits, claims] = await Promise.all([customersStore.list(), alertsStore.list(), salesStore.list(), reservationsStore.list(), claimsStore.list()]);
   const synced = (await stockSource()) === "donedeal"; // deposits are our version only
   // What each customer bought last, and what is still open for them (a deposit held, a claim), at a glance in the row.
   const lastBought = new Map<string, { car: string; on: string }>();
@@ -55,10 +50,10 @@ async function Lists({ sp, tab, sales, alertsOn }: { sp: Params; tab: string; sa
   const open = new Map<string, string[]>();
   const add = (id: string | undefined, what: string) => id && open.set(id, [...new Set([...(open.get(id) ?? []), what])]);
   if (!synced) for (const r of deposits) if (r.status === "held") add(r.customerId, "Deposit held");
-  if (service) for (const k of claims) if (claimOpen(k.status)) add(k.customerId, "Warranty claim");
+  for (const k of claims) if (claimOpen(k.status)) add(k.customerId, "Warranty claim");
   const sources = [...new Set(customers.map((c) => c.source))].sort();
   // Owners and managers: the buyers' NCT and service falling due this month (#171), with the reminder sent or why none goes.
-  const due = sales && tab === "customers" && (await can("settings")) ? await remindersPanel(sold, customers) : null;
+  const due = tab === "customers" && (await can("settings")) ? await remindersPanel(sold, customers) : null;
 
   const customerColumns: Column<Customer>[] = [
     {
@@ -169,8 +164,8 @@ async function Lists({ sp, tab, sales, alertsOn }: { sp: Params; tab: string; sa
       <SummaryTabs
         label="Customer lists"
         items={[
-          ...(sales ? [{ label: "Customers", count: fmtNum(customers.length), hint: `${customers.filter((c) => c.marketingConsent).length} agreed to marketing`, href: "/customers", active: tab === "customers" }] : []),
-          ...(alertsOn ? [{ label: "Stock alerts", count: fmtNum(alerts.filter((a) => a.active).length), hint: `${alerts.filter((a) => a.lastSentAt).length} have had an email`, href: "/customers?tab=alerts", active: tab === "alerts" }] : []),
+          { label: "Customers", count: fmtNum(customers.length), hint: `${customers.filter((c) => c.marketingConsent).length} agreed to marketing`, href: "/customers", active: tab === "customers" },
+          { label: "Stock alerts", count: fmtNum(alerts.filter((a) => a.active).length), hint: `${alerts.filter((a) => a.lastSentAt).length} have had an email`, href: "/customers?tab=alerts", active: tab === "alerts" },
         ]}
       />
 

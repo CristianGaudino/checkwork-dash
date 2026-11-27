@@ -9,7 +9,6 @@ import { BUSY } from "@/components/admin/ActButton";
 import { Select } from "@/components/Select";
 import { RegLookup } from "@/components/leads/RegLookup";
 import { showToast } from "@/components/toast";
-import { useModules } from "@/components/DealerFacts";
 import { PencilIcon } from "@/components/stock/icons";
 import { lookupRegStaffAction } from "@/app/reg-action";
 import { CAR_CONDITIONS, type TheirCarFacts } from "./car";
@@ -34,7 +33,6 @@ export function TheirCar({ car, selling, action }: { car: TheirCarFacts; selling
   const router = useRouter();
   const [, start] = useTransition();
   const what = [car.make, car.model].filter(Boolean).join(" ");
-  const lookups = useModules().has("lookupDashboard");
   const all: [string, React.ReactNode][] = [
     ["Registration", car.reg && <span className="inline-block rounded border border-control bg-card px-2 font-semibold tracking-wide">{car.reg}</span>],
     ["Mileage", car.mileage],
@@ -59,8 +57,7 @@ export function TheirCar({ car, selling, action }: { car: TheirCarFacts; selling
           {car.year && <span className="font-normal text-text-2"> · {car.year}</span>}
         </p>
       ) : (
-        car.reg &&
-        lookups && (
+        car.reg && (
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
             <p className="mr-auto text-body text-text-2">Not looked up yet.</p>
             <RegLookup reg={car.reg} lookup={lookupRegStaffAction} className="h-11 text-meta" onFound={({ year, car: found }) => found && start(async () => {

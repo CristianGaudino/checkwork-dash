@@ -11,7 +11,7 @@ import { SCREENSHOT_MAX_BYTES, type HelpStatus, type HelpType } from "./help-rul
 // passed to the owner's program (#174, #62); on the demo it is only saved, so nothing leaves the site.
 export type HelpRequest = {
   id: string;
-  type: HelpType;
+  type: HelpType | "Add to my plan"; // history: a request sent before #212 may be "Add to my plan", still shown as sent
   message: string;
   steps?: string; // for "Something isn't working": what they were doing and what happened
   screenshot?: string; // where the dealer's image is kept: a bucket key, or a data URL with no bucket

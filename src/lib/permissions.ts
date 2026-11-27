@@ -1,7 +1,6 @@
 import "server-only";
 import { cache } from "react";
 import { getSettings } from "@/lib/admin/collections";
-import { hasModule } from "@/lib/modules";
 import { cookies } from "next/headers";
 import { inDealerScope } from "@/lib/tenancy/current";
 import { dealerAccess } from "@/lib/tenancy/membership";
@@ -30,9 +29,8 @@ export const currentMember = cache(async (): Promise<Member> => {
   return { name: m?.name ?? a.email, email: a.email, role: a.role };
 });
 
-// Margins are also a module (#173): without it nobody has the permission, so every cost, margin and profit figure goes in one place.
+// Every cost, margin and profit figure is checked here, on the server, by the person's role.
 export async function can(permission: Permission): Promise<boolean> {
-  if (permission === "margins" && !(await hasModule("margins"))) return false;
   return roleCan((await currentMember()).role, permission);
 }
 

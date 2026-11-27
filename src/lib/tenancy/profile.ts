@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { tooLong } from "@/lib/leads/constants";
 
-// What differs between dealers beyond their records: their facts, their plan (the modules on), where their stock comes from, their business
+// What differs between dealers beyond their records: their facts, where their stock comes from, their business
 // rules and the few service settings that are not secrets. Kept in the directory, one JSON value per dealer (dealers.profile), read with the
 // dealer once a request (src/lib/tenancy). Plain data, so the browser gets the parts it shows (src/components/DealerFacts.tsx).
 // Facts the dealer's owner or manager may change in Settings (FACTS_SCHEMA); the rest is ours to set (docs/new-dealer.md).
@@ -23,7 +23,6 @@ export type DealerProfile = {
   // The wide logo for a light and a dark background: paths on this app (public/brand/), since the content security policy loads images
   // from here only. Without a logo the menu shows the name.
   logo?: { onLight: string; onDark: string };
-  modules: string; // the plan billed (billedModules, #212): a comma list of module ids, or "all" (src/lib/modules-rules.ts)
   stock: { source: "checkwork" | "donedeal"; listingSite: ListingSite; listingUrl: string };
   rules: DealerRules;
   placeId?: string; // the dealer's Google place, for their reviews (the API key is ours, a Worker secret)
@@ -33,7 +32,7 @@ export type DealerProfile = {
 const HOURS_OF = (week: [string | undefined, string | undefined][]): Hours =>
   ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].map((day, i) => (week[i]?.[0] ? { day, opens: week[i][0], closes: week[i][1] } : { day }));
 
-// A dealer with nothing set: the dashboard alone, stock kept here, the usual rules, no website or facts yet.
+// A dealer with nothing set: stock kept here, the usual rules, no website or facts yet.
 export const DEFAULT_PROFILE: DealerProfile = {
   siteUrl: "",
   phone: "",
@@ -41,12 +40,11 @@ export const DEFAULT_PROFILE: DealerProfile = {
   address: { street: "", town: "", county: "", eircode: "" },
   hours: HOURS_OF([]),
   social: [],
-  modules: "dashboard",
   stock: { source: "checkwork", listingSite: "DoneDeal", listingUrl: "https://www.donedeal.ie/" },
   rules: { oldStockDays: 60, slowDropEur: 500, soldVisibleDays: 30, serviceMonths: 12 },
 };
 
-// The demo dealer, a made-up business: every module, and its own website. The phone number is made up; the street is a real one in Dublin
+// The demo dealer, a made-up business with its own website. The phone number is made up; the street is a real one in Dublin
 // and the eircode illustrative.
 export const DEMO_PROFILE: DealerProfile = {
   ...DEFAULT_PROFILE,
@@ -56,14 +54,13 @@ export const DEMO_PROFILE: DealerProfile = {
   address: { street: "Long Mile Road", town: "Dublin 12", county: "Co. Dublin", eircode: "D12 AF77" },
   hours: HOURS_OF([["09:30", "18:00"], ["09:30", "18:00"], ["09:30", "18:00"], ["09:30", "18:00"], ["09:30", "18:00"], ["10:00", "16:00"]]),
   logo: { onLight: "/brand/logo-on-light.svg", onDark: "/brand/logo.svg" },
-  modules: "all",
 };
 export const DEMO_NAME = "Checkwork Motors";
 
 // What the browser needs of the dealer being viewed: the parts of their profile it shows (src/components/DealerFacts.tsx), worked out on
-// the server for each request. `modules` is "all": every dealer has every part (#212). Nothing secret goes in.
-export type DealerFacts = { name: string; siteUrl: string; listingSite: ListingSite; listingUrl: string; hours: Hours; rules: DealerRules; modules: string };
-export const factsOf = (name: string, p: DealerProfile, modules: string): DealerFacts => ({ name, siteUrl: p.siteUrl, listingSite: p.stock.listingSite, listingUrl: p.stock.listingUrl, hours: p.hours, rules: p.rules, modules });
+// the server for each request. Nothing secret goes in.
+export type DealerFacts = { name: string; siteUrl: string; listingSite: ListingSite; listingUrl: string; hours: Hours; rules: DealerRules };
+export const factsOf = (name: string, p: DealerProfile): DealerFacts => ({ name, siteUrl: p.siteUrl, listingSite: p.stock.listingSite, listingUrl: p.stock.listingUrl, hours: p.hours, rules: p.rules });
 
 // The address on one line, for reading: the eircode never splits over two lines.
 export const addressText = (a: DealerProfile["address"]) => [a.street, a.town, a.county, a.eircode].filter(Boolean).join(", ").replace(/ (\S+)$/, " $1");

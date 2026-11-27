@@ -25,7 +25,6 @@ vi.mock("./collections", () => ({ salesStore: store(db.sales), customersStore: s
 vi.mock("./activity", () => ({ logActivity: async (_a: string, text: string) => void db.activity.push(text) }));
 vi.mock("@/lib/tenancy/current", () => ({ currentDealer: async () => ({ name: "Byrne Motors", demo: db.demo, profile: { placeId: db.placeId } }) }));
 vi.mock("@/lib/integrations", () => ({ simulating: async () => db.demo, isUsable: async () => db.whatsapp }));
-vi.mock("@/lib/modules", () => ({ hasModule: async () => true })); // every dealer has every module (#212): the connection decides
 vi.mock("@/lib/leads/mail", () => ({
   leadRecipients: async () => ["sales@byrne.ie"],
   sendTo: async (to: string[], m: { text: string; replyTo?: string }) => void db.mail.push({ to, text: m.text, replyTo: m.replyTo }),
@@ -57,7 +56,7 @@ beforeEach(() => {
 describe("reviewReach", () => {
   it("is WhatsApp for a buyer who opted in, else email, else nobody", () => {
     expect(reviewReach({ email: "a@b.ie" }, [{ id: "l", whatsappOptIn: true, phone: "087 123 4567" }], true)).toEqual({ via: "whatsapp", leadId: "l" });
-    expect(reviewReach({ email: "a@b.ie" }, [{ id: "l", whatsappOptIn: true, phone: "087 123 4567" }], false)).toEqual({ via: "email" }); // not in the plan
+    expect(reviewReach({ email: "a@b.ie" }, [{ id: "l", whatsappOptIn: true, phone: "087 123 4567" }], false)).toEqual({ via: "email" }); // WhatsApp cannot send
     expect(reviewReach({ email: "a@b.ie" }, [], true)).toEqual({ via: "email" });
     expect(reviewReach({ email: "" }, [{ id: "l", phone: "087 123 4567" }], true)).toBeNull();
   });

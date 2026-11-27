@@ -5,14 +5,12 @@ import { dublinDay } from "@/lib/admin/format";
 import { PERIODS, monthsBetween, monthsOf, salesCsv, type Period } from "@/lib/admin/reports";
 import { adminCars } from "@/lib/admin/stock-admin";
 import { can } from "@/lib/permissions";
-import { hasModule } from "@/lib/modules";
 import { dealerAccess } from "@/lib/tenancy/membership";
 
 // The sales of a period as a CSV for the dealer's accountant (#173): Reports' period (?period=3, 6 or 12), or ?from=2026-01&to=2026-03.
 // Costs and margins: the margins roles only, as on Reports. No buyer details.
 export async function GET(req: Request) {
   if (!(await can("margins"))) return new Response(null, { status: 404 }); // as the margins screens answer anyone else
-  if (!(await hasModule("dashboard"))) return new Response(null, { status: 404 }); // as every page answers without the dashboard (src/app/layout.tsx)
   const access = await dealerAccess();
   if (access.state !== "ok") return new Response(null, { status: 404 });
   const sp = new URL(req.url).searchParams;

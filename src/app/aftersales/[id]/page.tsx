@@ -8,7 +8,6 @@ import { CLAIM_STATUSES, CLAIM_STATUS_LABELS, claimsStore, coverEnds, customersS
 import { TimeLeft } from "@/components/admin/charts";
 import { dublinDay, fmtDate } from "@/lib/admin/format";
 import { can, currentMember } from "@/lib/permissions";
-import { hasModule } from "@/lib/modules";
 import { addClaimNoteAction, setClaimCostAction, setClaimStatusAction } from "../actions";
 import { Notes } from "@/components/admin/Notes";
 
@@ -35,7 +34,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             <p className="max-w-measure whitespace-pre-line text-body">{claim.fault}</p>
             <Facts
               items={[
-                ["Customer", buyer ? ((await hasModule("sales")) ? <Link key="b" href={`/customers/${buyer.id}`} className="underline">{buyer.name}</Link> : buyer.name) : "Not on file"],
+                ["Customer", buyer ? <Link key="b" href={`/customers/${buyer.id}`} className="underline">{buyer.name}</Link> : "Not on file"],
                 ["Sold", sale ? day(sale.soldOn) : "Not on file"],
                 // The Cover panel says it when the sale is on file.
                 ...(ends ? [] : [["Cover until", "Not known"] as const]),

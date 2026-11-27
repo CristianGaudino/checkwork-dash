@@ -1,7 +1,6 @@
 import "server-only";
 import { getSettings, type TeamMember } from "@/lib/admin/collections";
 import { modeOf } from "@/lib/integrations";
-import { hasModule } from "@/lib/modules";
 import { prefsOf, type Prefs } from "@/lib/notify-rules";
 import { staffStore, type StaffPhone } from "@/lib/whatsapp/store";
 
@@ -18,5 +17,5 @@ export async function people(): Promise<Person[]> {
   });
 }
 
-// WhatsApp can reach the team: the dealer has the module and it is connected (simulated on a demo dealer).
-export const whatsappOn = async () => (await hasModule("whatsapp")) && (await modeOf("whatsapp")) !== "off";
+// WhatsApp can reach the team: it is connected (simulated on a demo dealer).
+export const whatsappOn = async () => (await modeOf("whatsapp")) !== "off";

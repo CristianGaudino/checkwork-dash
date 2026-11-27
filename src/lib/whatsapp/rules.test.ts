@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { parseModules } from "@/lib/modules-rules";
 import { ROLES } from "@/lib/permission-rules";
-import { BUTTON_LABELS, EVENTS, EVENT_IDS, alertText, channelFor, defaultAlerts, eventList, eventOfLead, eventsFor, firstName, inQuiet, parsePrice, staffErrors } from "./rules";
+import { BUTTON_LABELS, EVENTS, EVENT_IDS, alertText, channelFor, defaultAlerts, eventList, eventOfLead, firstName, inQuiet, parsePrice, staffErrors } from "./rules";
 
 describe("parsePrice", () => {
   it.each([
@@ -17,26 +16,19 @@ describe("parsePrice", () => {
   it.each(["", "abc", "50", "8.5", "9999999", "Saturday at 11", "for the 2019 one, 8,500", "8k or 9k"])("refuses %s", (text) => expect(parsePrice(text)).toBeNull());
 });
 
-describe("templates by module", () => {
-  const some = (v: string) => parseModules(v);
-  it("a trade-in request uses its own template only with the module, else the plain enquiry", () => {
-    expect(eventOfLead("trade-in", some("dashboard,tradeIn,whatsapp"))).toBe("trade-in");
-    expect(eventOfLead("sell", some("dashboard,tradeIn,whatsapp"))).toBe("trade-in");
-    expect(eventOfLead("trade-in", some("dashboard,whatsapp"))).toBe("enquiry");
-    expect(eventOfLead("test-drive", some("dashboard,testDrives,whatsapp"))).toBe("test-drive");
-    expect(eventOfLead("test-drive", some("dashboard,whatsapp"))).toBe("enquiry");
-    expect(eventOfLead("find-a-car", some("all"))).toBe("enquiry");
+describe("templates", () => {
+  it("a website request uses its own template, else the plain enquiry", () => {
+    expect(eventOfLead("trade-in")).toBe("trade-in");
+    expect(eventOfLead("sell")).toBe("trade-in");
+    expect(eventOfLead("test-drive")).toBe("test-drive");
+    expect(eventOfLead("warranty")).toBe("service");
+    expect(eventOfLead("find-a-car")).toBe("enquiry");
   });
-  it("a dealer gets only the events of the modules they have", () => {
-    expect(eventsFor(some("dashboard,whatsapp"))).toEqual(["enquiry", "slow-stock"]);
-    expect(eventsFor(some("all"))).toEqual(EVENT_IDS);
-  });
-  it("the page's list fills in the dealer's old stock days, and puts the plan's alerts first", () => {
-    const list = eventList(some("dashboard,whatsapp"), 60);
-    expect(list.find((e) => e.id === "slow-stock")).toMatchObject({ label: "A car 60 days in stock", on: true });
+  it("the list fills in the dealer's old stock days, for every alert", () => {
+    const list = eventList(60);
+    expect(list.map((e) => e.id)).toEqual(EVENT_IDS);
+    expect(list.find((e) => e.id === "slow-stock")).toMatchObject({ label: "A car 60 days in stock" });
     for (const e of list) expect(`${e.label} ${e.does}`).not.toContain("{");
-    expect(list.map((e) => e.on)).toEqual([true, true, ...Array(EVENT_IDS.length - 2).fill(false)]);
-    expect(eventList(some("dashboard,reviews"), 60).slice(0, 3).map((e) => e.id)).toEqual(["enquiry", "slow-stock", "review"]);
   });
   it("every button of every template has a label, and no text has a dash", () => {
     for (const e of EVENT_IDS) for (const b of EVENTS[e].buttons) expect(BUTTON_LABELS[b]).toBeTruthy();

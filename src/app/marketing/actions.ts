@@ -4,7 +4,6 @@ import { dealerProfile } from "@/lib/tenancy/current";
 import { askedCar } from "@/lib/leads/journey";
 import { revalidatePath } from "next/cache";
 import { AD_PLATFORMS, FORMATS_FOR, FORMAT_LIMITS, POST_FORMATS, POST_LIMITS, PUBLISH_MODE, STORY_LAYOUTS } from "@/lib/admin/networks";
-import { requireModule } from "@/lib/modules";
 import { checkUpload, MEDIA_LIMITS } from "@/lib/admin/media-rules";
 import { dropMedia, storeMedia } from "@/lib/admin/media";
 import { redirect } from "next/navigation";
@@ -54,7 +53,6 @@ const compose = z.object({
 });
 export async function composeAction(data: FormData) {
   await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
-  await requireModule("social");
   const r = compose.safeParse(Object.fromEntries(data));
   const car = r.success ? askedCar(await adminCars(), r.data.carSlug) : undefined;
   if (!r.success || !car) return go("posts", "invalid");
@@ -113,7 +111,6 @@ export async function composeAction(data: FormData) {
 
 export async function publishPostAction(id: string) {
   await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
-  await requireModule("social");
   const post = await postsStore.get(id);
   if (!post || post.status === "posted" || !readyToPost(post)) return go("posts", "invalid"); // a draft or a scheduled post only (never the same post twice), with what its format needs
   const held = PUBLISH_MODE[post.network][post.format ?? "post"] === "prepare";
@@ -127,7 +124,6 @@ export async function publishPostAction(id: string) {
 
 export async function deletePostAction(id: string) {
   await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
-  await requireModule("social");
   const post = await postsStore.get(id);
   await postsStore.remove(id);
   if (post) {
@@ -148,7 +144,6 @@ async function dropUnused(post: SocialPost) {
 
 export async function startAdAction(id: string) {
   await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
-  await requireModule("social");
   const a = await adsStore.get(id);
   if (!a || a.status !== "draft") return go("posts", "invalid"); // a draft only: a running ad is never started again
   const r = await startAd(a);
@@ -161,7 +156,6 @@ export async function startAdAction(id: string) {
 
 export async function deleteAdAction(id: string) {
   await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
-  await requireModule("social");
   const ad = await adsStore.get(id);
   await adsStore.remove(id);
   if (ad) await logActivity("marketing", `Deleted a ${ad.platform} ad`, adRef(ad));
@@ -171,7 +165,6 @@ export async function deleteAdAction(id: string) {
 // The composer asks for a car's photos and suggested text when the dealer picks it, so the page never carries them for the whole stock.
 export async function composerCarAction(slug: string): Promise<ComposerCar | null> {
   await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
-  await requireModule("social");
   const car = askedCar((await adminCars()).filter(forSale), slug);
   if (!car) return null;
   const [{ marketing }, { siteUrl }] = await Promise.all([getSettings(), dealerProfile()]);
@@ -185,7 +178,6 @@ export async function composerCarAction(slug: string): Promise<ComposerCar | nul
 const dim = z.coerce.number().int().min(1).max(8000).optional();
 export async function uploadMediaAction(data: FormData): Promise<{ ok: true; item: MediaItem } | { ok: false; error: string }> {
   await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
-  await requireModule("social");
   const file = data.get("file");
   const bad = { ok: false as const, error: "That file could not be added. Try another." };
   if (!(file instanceof Blob) || file.size === 0 || file.size > MEDIA_LIMITS.videoBytes + 1024) return bad;
@@ -209,7 +201,6 @@ export async function uploadMediaAction(data: FormData): Promise<{ ok: true; ite
 
 export async function deleteMediaAction(id: string) {
   await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
-  await requireModule("social");
   const item = await mediaStore.get(id);
   if (!item) return;
   await mediaStore.remove(id);

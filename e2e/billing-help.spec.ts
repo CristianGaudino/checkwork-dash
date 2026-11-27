@@ -6,15 +6,44 @@ const lastMonth = (() => { const d = new Date(); return new Date(Date.UTC(d.getU
 
 // Billing is for the owner and manager; Help is for everyone. The demo bar's role is a cookie (see admin-margins.spec.ts).
 
-test("the owner sees the plan and this month's bill, sets a limit, and opens a bill", async ({ page }) => {
+// One plan (#212): everything included at EUR 249 a month, the allowance, and pay as you go past it. The limits are set in Settings.
+test("the owner sees the one plan, its allowance and pay as you go, and opens a bill", async ({ page }) => {
   await page.goto("/billing");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Billing");
-  await expect(page.getByText("Website + Dashboard plan").first()).toBeVisible(); // the demo has every module
+  const bill = page.getByRole("region", { name: "This month's bill" });
+  await expect(bill.getByRole("term").filter({ hasText: /^Checkwork plan$/ })).toBeVisible();
+  await expect(bill.getByRole("definition").filter({ hasText: /^€249$/ })).toBeVisible();
+  await expect(bill.getByText("Pay as you go, by month end")).toBeVisible();
+  await expect(bill).toContainText("no setup fee");
+  for (const old of ["Website + Dashboard plan", "Ask us to add", "Add to my plan"]) await expect(page.getByText(old)).toHaveCount(0);
   await expect(page.getByText("Estimate").first()).toBeVisible();
-  // One limit per paid service: nothing for all usage, no alerts and no AI writing price.
-  await expect(page.getByRole("button", { name: "Add an alert" })).toHaveCount(0);
+  // Pay as you go: each paid service with what the plan includes; no AI writing price, no alerts.
+  const payg = page.getByRole("region", { name: "Pay as you go" });
+  await expect(payg.getByRole("row").filter({ hasText: "Registration lookup" })).toContainText("100 lookups included a month");
+  await expect(payg.getByRole("row").filter({ hasText: "WhatsApp" })).toContainText("500 alerts included a month");
+  await expect(payg.getByRole("row").filter({ hasText: "History check" })).not.toContainText("included");
+  await expect(payg.getByRole("row").filter({ hasText: "AI writing" })).toHaveCount(0);
   await expect(page.getByText("80%")).toHaveCount(0);
+  // The limits are not edited here: Change limits goes to Settings.
+  await expect(page.getByRole("button", { name: "Edit monthly limits" })).toHaveCount(0);
+  await expect(payg.getByRole("link", { name: "Change limits" })).toHaveAttribute("href", "/settings?section=limits");
 
+  // The bills, on the same page: this month first, as an estimate; last month is the latest bill.
+  const bills = page.getByRole("region", { name: "Bills" });
+  await expect(bills.getByText("Invoices are emailed as PDFs when each bill is issued.")).toBeVisible();
+  await expect(page.getByRole("link", { name: /download/i })).toHaveCount(0);
+  await expect(bills.getByRole("table").getByText("Estimate")).toBeVisible();
+  await bills.getByRole("table").getByRole("link").first().click();
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("Bill for");
+  await expect(page.getByText("Checkwork plan")).toBeVisible();
+  await expect(page.getByText("VAT at 23%")).toBeVisible();
+});
+
+test("the owner sets the monthly limits in Settings, never above ours, and Billing shows them", async ({ page }) => {
+  await page.goto("/billing");
+  await page.getByRole("region", { name: "Pay as you go" }).getByRole("link", { name: "Change limits" }).click();
+  await expect(page).toHaveURL(/\/settings\?section=limits$/);
+  await expect(page.getByRole("navigation", { name: "Settings" }).getByRole("link", { name: "Monthly limits", exact: true })).toHaveAttribute("aria-current", "page");
   // Read first; Edit opens the limits in the house dialog (#141).
   const limits = page.getByRole("dialog", { name: "Monthly limits" });
   const edit = async () => (await page.getByRole("button", { name: "Edit monthly limits" }).click(), limits);
@@ -34,23 +63,15 @@ test("the owner sees the plan and this month's bill, sets a limit, and opens a b
   page.once("dialog", (d) => d.accept()); // the changes not saved: leave them
   await limits.getByRole("button", { name: "Cancel" }).click();
   await expect(limits).toBeHidden();
-
-  // The bills, on the same page: this month first, as an estimate; last month is the latest bill.
-  const bills = page.getByRole("region", { name: "Bills" });
-  await expect(bills.getByText("Invoices are emailed as PDFs when each bill is issued.")).toBeVisible();
-  await expect(page.getByRole("link", { name: /download/i })).toHaveCount(0);
-  await expect(bills.getByRole("table").getByText("Estimate")).toBeVisible();
-  await bills.getByRole("table").getByRole("link").first().click();
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("Bill for");
-  await expect(page.getByText("VAT at 23%")).toBeVisible();
+  // Billing shows the limit set here, and links back.
+  await page.getByRole("region", { name: "Monthly limits" }).getByRole("link", { name: "Billing", exact: true }).click();
+  await expect(page.getByRole("region", { name: "Pay as you go" }).getByRole("row").filter({ hasText: "WhatsApp" })).toContainText("€12.50");
 });
 
-// One system (#212): every paid service is there to limit before its first charge, even on a stored plan of the dashboard alone (Test
-// Motors'), while the plan and its price stay the stored plan's. A EUR 0 limit is a real choice: nothing paid goes through.
-test("on a stored plan of the dashboard alone, the owner sets a EUR 0 limit on history checks", async ({ page, context, baseURL }) => {
+// A dealer that is not a demo has every paid service to limit, and a EUR 0 limit is a real choice: nothing paid goes through.
+test("at a dealer that is not a demo, the owner sets a EUR 0 limit on history checks in Settings", async ({ page, context, baseURL }) => {
   await context.addCookies([{ name: "checkwork-dealer", value: "test-motors", url: baseURL! }]);
-  await page.goto("/billing");
-  await expect(page.getByText("Website + Dashboard plan")).toHaveCount(0); // the stored plan's price, not every module's
+  await page.goto("/settings?section=limits");
   await page.getByRole("button", { name: "Edit monthly limits" }).click();
   const limits = page.getByRole("dialog", { name: "Monthly limits" });
   await limits.getByLabel("History check limit (€ a month)").fill("0");
@@ -59,7 +80,18 @@ test("on a stored plan of the dashboard alone, the owner sets a EUR 0 limit on h
   await expect(page.getByTestId("toast")).toContainText("Limits saved");
   await page.reload();
   const row = page.getByRole("region", { name: "Monthly limits" }).getByRole("row").filter({ hasText: "History check" });
-  await expect(row.getByRole("cell", { name: "€0", exact: true })).toHaveCount(2); // spent and the limit
+  await expect(row.getByRole("cell", { name: "€0", exact: true })).toBeVisible(); // the limit
+  await page.goto("/billing");
+  await expect(page.getByRole("region", { name: "This month's bill" }).getByText("Checkwork plan")).toBeVisible(); // the same plan as the demo's
+  const billed = page.getByRole("region", { name: "Pay as you go" }).getByRole("row").filter({ hasText: "History check" });
+  await expect(billed.getByRole("cell", { name: "€0", exact: true })).toHaveCount(2); // spent and the limit
+});
+
+test("sales has no Monthly limits in Settings", async ({ page, context }) => {
+  await as(context, "Sales");
+  await page.goto("/settings?section=limits");
+  await expect(page).toHaveURL(/\/settings$/);
+  await expect(page.getByRole("navigation", { name: "Settings" }).getByRole("link", { name: "Monthly limits" })).toHaveCount(0);
 });
 
 test("sales has no Billing page: it says who it is for", async ({ page, context }) => {

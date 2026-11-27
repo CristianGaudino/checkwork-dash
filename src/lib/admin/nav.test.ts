@@ -11,7 +11,7 @@ describe("the sidebar's groups", () => {
     expect(top.length + groups.reduce((n, g) => n + g.items.length, 0)).toBe(DEALER_NAV.length);
   });
   it("keeps a heading when a role filters out its first item", () => {
-    // Reports starts Results; without it (no Margins module) the group still holds the monthly report, so it must still show.
+    // Reports starts Results; without it (no reports permission) the group still holds the monthly report, so it must still show.
     const { groups } = navGroups(DEALER_NAV.filter((i) => i.href !== "/reports"));
     expect(groups.map((g) => g.name)).toContain("Results");
   });

@@ -15,16 +15,13 @@ import { syncStatus } from "@/lib/donedeal/sync";
 import { listing, stockSource } from "@/lib/stock-source";
 import { dealerProfile } from "@/lib/tenancy/current";
 import { isSalesLead, openWarrantyRequests } from "@/lib/admin/leads";
-import { enabledModules } from "@/lib/modules";
 import { readLead } from "@/lib/leads/lead-text";
-import type { ModuleId } from "@/lib/modules-rules";
 
 // To do, for the Overview (its top rows) and the To do page (every row): the records loaded once, and each to-do as a row with the button
 // that does it.
 
 // How many of one kind of to-do are listed one by one; the rest are one row that opens the whole list.
 const EACH = 3;
-const MODULE_OF: Record<string, ModuleId> = { drives: "testDrives", "sold-drives": "testDrives", reviews: "reviews", deposits: "sales", costs: "margins", warranty: "service" };
 // The to-dos that stay one row each: what they count (`noun`), the button's word and the icon.
 const GROUPED: Record<string, { noun: string; verb: string; icon: React.ReactNode }> = {
   warranty: { noun: "request", verb: "Open", icon: <WrenchIcon /> },
@@ -58,7 +55,7 @@ export const WhoseToggle = ({ path, mine }: { path: string; mine: boolean }) => 
 
 // `mine`: the page's ?mine; For me is on by default for Sales (their report counts their own follow-ups).
 export async function loadToDo(mineParam: string | undefined) {
-  const [leads, drives, reviews, all, settings, source, sales, reservations, claims, mods, me, { site: listingSite }, { rules }] = await Promise.all([leadsStore.list(), drivesStore.list(), reviewsStore.list(), adminCars(), getSettings(), stockSource(), salesStore.list(), reservationsStore.list(), claimsStore.list(), enabledModules(), currentMember(), listing(), dealerProfile()]);
+  const [leads, drives, reviews, all, settings, source, sales, reservations, claims, me, { site: listingSite }, { rules }] = await Promise.all([leadsStore.list(), drivesStore.list(), reviewsStore.list(), adminCars(), getSettings(), stockSource(), salesStore.list(), reservationsStore.list(), claimsStore.list(), currentMember(), listing(), dealerProfile()]);
   const reply = await firstReplies(all);
   const mine = Boolean(me.name) && (mineParam ? mineParam === "1" : me.role === "Sales");
   const synced = source === "donedeal";
@@ -66,9 +63,8 @@ export async function loadToDo(mineParam: string | undefined) {
   // Only for staff with the margins permission: the costs are not read without it.
   const costs = (await can("margins")) ? new Set((await carCosts()).keys()) : undefined;
   const o = overview({ leads: leads.filter(isSalesLead), drives, reviews, rules, listingSite, cars: all, costs, sales: new Set(sales.map((s) => s.id)), reservations, warrantyRequests: openWarrantyRequests(leads, claims).length, syncProblem: Boolean(sync?.problem), slaHours: settings.leadSlaHours, mine: mine ? me.name : undefined, drops: await can("settings") });
-  // What a module that is off would show goes with it (#173): its buttons, figures and to-dos.
   // Deposits are our version only: with DoneDeal stock their page is not there, so their to-dos go too.
-  const attention = o.attention.filter((a) => (!MODULE_OF[a.key] || mods.has(MODULE_OF[a.key])) && !(synced && a.key === "deposits"));
+  const attention = o.attention.filter((a) => !(synced && a.key === "deposits"));
   const today = dublinDay();
   // Whose it is, first in the row's detail: a name, You, or Not taken for a new lead or request nobody has yet.
   const who = (name?: string) => (!name ? "Not taken" : name === me.name ? "You" : name);
@@ -120,5 +116,5 @@ export async function loadToDo(mineParam: string | undefined) {
   // The red ones: late or due today. A kind of lead is red when any one is, so its leads are counted one by one.
   const red = (ts: { urgency: string }[]) => ts.filter((t) => t.urgency === "now").length;
   const late = attention.reduce((n, a) => n + (a.key === "reply" ? red(o.reply) : a.key === "follow" ? red(o.due) : a.urgency === "now" ? a.count : 0), 0);
-  return { o, tasks, count, late, mine, me, mods, synced, all, leads, rules };
+  return { o, tasks, count, late, mine, me, synced, all, leads, rules };
 }

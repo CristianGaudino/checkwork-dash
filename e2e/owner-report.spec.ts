@@ -4,7 +4,7 @@ import { expect, test } from "@playwright/test";
 const auth = { authorization: "Bearer e2e-owner-token" };
 
 test("the owner API answers 404 without the token, or with a wrong one, and counts with it, for the dealer named", async ({ request }) => {
-  for (const path of ["summary", "usage", "modules", "dealers"]) {
+  for (const path of ["summary", "usage", "dealers"]) {
     expect((await request.get(`/api/owner/v1/${path}?dealer=checkwork-motors`)).status()).toBe(404);
     expect((await request.get(`/api/owner/v1/${path}?dealer=checkwork-motors`, { headers: { authorization: "Bearer wrong" } })).status()).toBe(404);
   }
@@ -15,10 +15,12 @@ test("the owner API answers 404 without the token, or with a wrong one, and coun
   expect(res.status()).toBe(200);
   const body = await res.json();
   expect(body).toMatchObject({ version: 1, range: { from: "2026-01-01", to: "2026-01-31" } });
-  for (const key of ["leads", "replies", "stock", "sales", "reviews", "features", "dashboard", "modules", "listingSync", "usage", "appVersion"]) expect(body).toHaveProperty(key);
+  for (const key of ["leads", "replies", "stock", "sales", "reviews", "features", "dashboard", "plan", "listingSync", "usage", "appVersion"]) expect(body).toHaveProperty(key);
   expect(body.sales).not.toHaveProperty("valueEur"); // money is off without its own secret
   expect((await request.get("/api/owner/v1/summary?dealer=checkwork-motors&from=nope", { headers: auth })).status()).toBe(400);
-  expect((await (await request.get("/api/owner/v1/modules?dealer=checkwork-motors", { headers: auth })).json()).modules).toContain("dashboard");
+  expect(body).not.toHaveProperty("modules"); // one system (#212): no modules, one plan
+  expect(body.plan).toEqual({ label: "Checkwork plan", eur: 249 });
+  expect((await request.get("/api/owner/v1/modules?dealer=checkwork-motors", { headers: auth })).status()).toBe(404); // the route is gone
   expect((await (await request.get("/api/owner/v1/usage?dealer=checkwork-motors&from=2026-01-01&to=2026-01-31", { headers: auth })).json()).months).toHaveLength(1);
 });
 

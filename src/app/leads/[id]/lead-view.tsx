@@ -1,6 +1,4 @@
-import { enabledModules, hasModule } from "@/lib/modules";
 import { wantsWhatsApp } from "@/lib/phone";
-import { conditionShown } from "@/lib/modules-rules";
 import { onPublicSite } from "@/lib/stock/types";
 import { sourceText } from "@/lib/visit-rules";
 import { NEW_TAB } from "@/components/ui";
@@ -10,7 +8,6 @@ import { ActButton, ChoiceAct } from "@/components/admin/ActButton";
 import { stopWhatsAppAction } from "@/app/whatsapp/actions";
 import { LeadStatusBadge } from "@/components/admin/badges";
 import { AITextarea } from "@/components/admin/AIWriter";
-import { IfModule } from "@/components/IfModule";
 import { Badge, Facts, PageHeader, Panel, adminButton, adminButtonQuiet, rowButton } from "@/components/admin/kit";
 import { LOST_REASONS, drivesStore, getSettings, leadStatusLabel, leadStatusSteps, leadsStore, statusBack } from "@/lib/admin/collections";
 import { isOpenDrive } from "@/lib/admin/drives";
@@ -63,8 +60,7 @@ export async function LeadView({ id }: { id: string }) {
   // `before`: where Reopen went, so Undo of a step on a closed lead keeps it.
   const undoStatus = { status: lead.status, ...(lead.followUpOn && { on: lead.followUpOn }), ...(reason && { reason }), ...(lead.statusBefore && { before: lead.statusBefore }) };
   // The one filled button: the request's own job when it can be done here, else answering them the way they got in touch.
-  const modules = await enabledModules();
-  const main = leadMain(lead.type, { drive: !drive && isOpenLead(lead) && modules.has("testDrives"), claim: modules.has("service") });
+  const main = leadMain(lead.type, { drive: !drive && isOpenLead(lead) });
   const read = readLead(lead);
   const text = read.text;
   // A car to sell or trade in has its own panel with its facts, so the answers here leave them out.
@@ -86,29 +82,26 @@ export async function LeadView({ id }: { id: string }) {
           </span>
         }
         // A warranty request is aftersales work: it is listed there, so the way back is there.
-        back={lead.type === "warranty" && (await hasModule("service")) ? { href: "/aftersales?view=requests", label: "Warranty claims" } : { href: "/leads", label: "Leads" }}
+        back={lead.type === "warranty" ? { href: "/aftersales?view=requests", label: "Warranty claims" } : { href: "/leads", label: "Leads" }}
         // Reaching them is the first job (#213): Call, Email, WhatsApp and the test drive sit in the header, where the eye starts, on a
         // phone as on a laptop. One child, so the header keeps the buttons' own sizes.
         actions={
           <div className="flex flex-wrap gap-2 max-sm:w-full max-sm:*:grow">
-          <ContactButtons phone={lead.phone} email={lead.email} main={main === "reply" ? replyVia(lead) : undefined} whatsapp={lead.whatsappOptIn !== false} reply={lead.status === "new" ? firstReply({ name: lead.name, from: replyFrom(me), dealer, title: lead.carTitle, car, siteUrl, modules }) : undefined} />
+          <ContactButtons phone={lead.phone} email={lead.email} main={main === "reply" ? replyVia(lead) : undefined} whatsapp={lead.whatsappOptIn !== false} reply={lead.status === "new" ? firstReply({ name: lead.name, from: replyFrom(me), dealer, title: lead.carTitle, car, siteUrl }) : undefined} />
           {/* Booking a drive from the lead carries their car, name and number into the form. */}
-          {lead.type !== "warranty" && isOpenLead(lead) && (
-            <IfModule id="testDrives">
-              {drive ? (
-                <Link href={`/test-drives/${drive.id}`} className={adminButtonQuiet}>
-                  <CalendarIcon className="shrink-0 size-4" />
-                  Test drive {fmtDay(dublinDay(drive.startsAt), "weekday")} {fmtDay(dublinDay(drive.startsAt), "day")} {fmtDay(dublinDay(drive.startsAt), "month")}, {fmtTime(drive.startsAt)}
-                </Link>
-              ) : (
-                // Filled only on a test drive request: elsewhere the reply is the main job.
-                <Link href={`/test-drives/new?lead=${lead.id}`} className={main === "drive" ? adminButton : adminButtonQuiet}>
-                  <CalendarIcon className="shrink-0 size-4" />
-                  Book a test drive
-                </Link>
-              )}
-            </IfModule>
-          )}
+          {lead.type !== "warranty" && isOpenLead(lead) &&
+            (drive ? (
+              <Link href={`/test-drives/${drive.id}`} className={adminButtonQuiet}>
+                <CalendarIcon className="shrink-0 size-4" />
+                Test drive {fmtDay(dublinDay(drive.startsAt), "weekday")} {fmtDay(dublinDay(drive.startsAt), "day")} {fmtDay(dublinDay(drive.startsAt), "month")}, {fmtTime(drive.startsAt)}
+              </Link>
+            ) : (
+              // Filled only on a test drive request: elsewhere the reply is the main job.
+              <Link href={`/test-drives/new?lead=${lead.id}`} className={main === "drive" ? adminButton : adminButtonQuiet}>
+                <CalendarIcon className="shrink-0 size-4" />
+                Book a test drive
+              </Link>
+            ))}
           </div>
         }
       />
@@ -120,8 +113,8 @@ export async function LeadView({ id }: { id: string }) {
           {lead.carTitle && (
             <p className="flex items-center gap-2 text-heading font-semibold">
             <CarIcon className="size-5 shrink-0 text-accent-text" />
-              {/* A link only while the car has a page on the site: not hidden, a draft or sold long ago, and its kind on the plan. */}
-              {lead.carSlug && car && siteUrl && onPublicSite(car, rules.soldVisibleDays) && conditionShown(await enabledModules(), car.condition) ? (
+              {/* A link only while the car has a page on the site: not hidden, a draft or sold long ago. */}
+              {lead.carSlug && car && siteUrl && onPublicSite(car, rules.soldVisibleDays) ? (
                 <a href={siteCarUrl(siteUrl, car.slug)} {...NEW_TAB} className="underline-offset-4 hover:underline">
                   {lead.carTitle}
                 </a>
@@ -235,33 +228,25 @@ export async function LeadView({ id }: { id: string }) {
             {isOpenLead(lead) && <FollowUp action={setFollowUpAction.bind(null, lead.id)} on={lead.followUpOn} today={today} due={followUpDue(lead, today)} back={followUpBack} />}
             {/* They ticked the WhatsApp box on the form: the site's messages reach them there until someone stops it. */}
             {lead.whatsappOptIn === false && (
-              <IfModule id="whatsapp">
-                <p className="text-meta text-text-2">WhatsApp updates: off</p>
-              </IfModule>
+              <p className="text-meta text-text-2">WhatsApp updates: off</p>
             )}
             {lead.whatsappOptIn && !wantsWhatsApp(lead) && (
-              <IfModule id="whatsapp">
-                <p className="text-meta text-text-2">WhatsApp updates: off, the number is a landline</p>
-              </IfModule>
+              <p className="text-meta text-text-2">WhatsApp updates: off, the number is a landline</p>
             )}
             {wantsWhatsApp(lead) && (
-              <IfModule id="whatsapp">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-meta text-text-2">WhatsApp updates: on</p>
-                  <ActButton act={stopWhatsAppAction.bind(null, lead.id)} done="WhatsApp updates stopped" confirm={{ title: "Stop WhatsApp?", text: "Nothing more goes to them on WhatsApp. They get email instead, if they gave an address.", yes: "Stop WhatsApp" }} className={`${rowButton} -mx-3`}>
-                    Stop WhatsApp
-                  </ActButton>
-                </div>
-              </IfModule>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-meta text-text-2">WhatsApp updates: on</p>
+                <ActButton act={stopWhatsAppAction.bind(null, lead.id)} done="WhatsApp updates stopped" confirm={{ title: "Stop WhatsApp?", text: "Nothing more goes to them on WhatsApp. They get email instead, if they gave an address.", yes: "Stop WhatsApp" }} className={`${rowButton} -mx-3`}>
+                  Stop WhatsApp
+                </ActButton>
+              </div>
             )}
             {/* A reply to copy into email or WhatsApp: written from their message and the car, never from their phone or email. Only the
                 button until it is used, so a phone is not handed a big empty box. */}
-            <IfModule id="ai">
-              <div className="flex flex-col gap-1">
-                <h3 className="text-meta font-semibold">Draft a reply</h3>
-                <AITextarea label="Reply draft" task="leadReply" rows={6} copy folded request={{ task: "leadReply", leadId: lead.id }} />
-              </div>
-            </IfModule>
+            <div className="flex flex-col gap-1">
+              <h3 className="text-meta font-semibold">Draft a reply</h3>
+              <AITextarea label="Reply draft" task="leadReply" rows={6} copy folded request={{ task: "leadReply", leadId: lead.id }} />
+            </div>
           </Panel>
           <Notes notes={lead.notes} action={addNoteAction.bind(null, lead.id)} me={me.name} />
         </div>
@@ -272,7 +257,7 @@ export async function LeadView({ id }: { id: string }) {
             {/* Selling or trading in: the car read first, with Edit and the plate's Look up, so the dealer knows what it is before calling back. */}
             {hasCar && <TheirCar car={theirCar({ reg: lead.reg, details: read.facts })} selling={lead.type === "sell" || lead.type === "trade-in"} action={saveTheirCarAction.bind(null, lead.id)} />}
             {/* Their car's history check (#170), once it has a plate: finance owed or a write-off changes the offer. */}
-            {(lead.type === "sell" || lead.type === "trade-in") && lead.reg && (await hasModule("history")) && <HistoryPanel reg={lead.reg} history={lead.history} act={checkHistoryAction.bind(null, "lead", lead.id)} />}
+            {(lead.type === "sell" || lead.type === "trade-in") && lead.reg && <HistoryPanel reg={lead.reg} history={lead.history} act={checkHistoryAction.bind(null, "lead", lead.id)} />}
           </div>
         )}
       </div>

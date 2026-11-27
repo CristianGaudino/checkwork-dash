@@ -8,8 +8,6 @@ import { isOpenDrive } from "@/lib/admin/drives";
 import { answerNow, isOpenLead, openWarrantyRequests } from "@/lib/admin/leads";
 import { currentMember } from "@/lib/permissions";
 import { matchesAny, parsePersonQuery, type PersonQuery } from "@/lib/admin/person-match";
-import { hasModule } from "@/lib/modules";
-import { NotInPlan } from "@/components/admin/NotInPlan";
 import { ContactButtons } from "@/components/admin/ContactButtons";
 import { stockSource } from "@/lib/stock-source";
 import { reminderFacts } from "@/lib/admin/reminders";
@@ -30,11 +28,8 @@ const item = "flex flex-wrap items-center justify-between gap-x-4 gap-y-2 py-3";
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  if (!(await hasModule("sales"))) return <NotInPlan id="sales" />; // the customer list is the sales module (src/lib/modules-rules.ts)
   const c = await customersStore.get(id);
   if (!c) notFound();
-  // Claims and test drives are modules of their own: with one off, its records stay but its links go (#173).
-  const [service, drivesOn] = await Promise.all([hasModule("service"), hasModule("testDrives")]);
   // Deposits are our version only: with DoneDeal stock their pages are not there.
   const synced = (await stockSource()) === "donedeal";
   const [sales, reservations, claims, leads, drives, { leadSlaHours }, me] = await Promise.all([salesStore.list(), reservationsStore.list(), claimsStore.list(), leadsStore.list(), drivesStore.list(), getSettings(), currentMember()]);
@@ -54,14 +49,14 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const theirLeads = qs.length ? leads.filter((l) => matchesAny(l, qs)).sort((a, b) => b.createdAt - a.createdAt) : [];
   const theirDrives = qs.length ? drives.filter((d) => matchesAny(d, qs)).sort((a, b) => b.startsAt - a.startsAt) : [];
   const none = (what: string) => <p className="text-body text-text-2">{what}</p>;
-  const leadHref = (l: { id: string; type: string }) => (l.type === "warranty" && service ? `/aftersales/requests/${l.id}` : `/leads/${l.id}`);
+  const leadHref = (l: { id: string; type: string }) => (l.type === "warranty" ? `/aftersales/requests/${l.id}` : `/leads/${l.id}`);
 
   // What is still open for them goes first in its list, marked: red to do now, amber otherwise. A drive coming up is soonest first.
-  const openDrives = drivesOn ? theirDrives.filter((d) => isOpenDrive(d) && dublinDay(d.startsAt) >= today).reverse() : [];
+  const openDrives = theirDrives.filter((d) => isOpenDrive(d) && dublinDay(d.startsAt) >= today).reverse();
   // A warranty request that became a claim is done, as on Aftersales: the claim is what is open.
   const openRequests = new Set(openWarrantyRequests(theirLeads, claims).map((l) => l.id));
-  const openLeads = theirLeads.filter((l) => (l.type === "warranty" ? service && openRequests.has(l.id) : isOpenLead(l)));
-  const openClaims = service ? theirClaims.filter((k) => claimOpen(k.status)) : [];
+  const openLeads = theirLeads.filter((l) => (l.type === "warranty" ? openRequests.has(l.id) : isOpenLead(l)));
+  const openClaims = theirClaims.filter((k) => claimOpen(k.status));
   const held = synced ? [] : deposits.filter((r) => r.status === "held");
   const openFirst = <T,>(all: T[], open: T[]) => [...open, ...all.filter((x) => !open.includes(x))];
 
@@ -91,7 +86,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
                       {!s.returnedOn && (
                         <span className="ml-auto flex flex-wrap items-center justify-end gap-2">
                           <CoverBadge inCover={coverEnds(s) >= today} />
-                          {service && <Link href={`/aftersales/new?sale=${s.id}`} className={rowButton}>Open a claim</Link>}
+                          <Link href={`/aftersales/new?sale=${s.id}`} className={rowButton}>Open a claim</Link>
                         </span>
                       )}
                     </li>
@@ -99,7 +94,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
                 </ul>
               )}
           </Panel>
-          {service && theirClaims.length > 0 && (
+          {theirClaims.length > 0 && (
             <Panel title="Warranty claims">
               <TaskList label="Warranty claims">
                 {openFirst(theirClaims, openClaims).map((k) => (
@@ -139,7 +134,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
               <TaskList label="Test drives">
                 {openFirst(theirDrives, openDrives).map((d) => {
                   const open = openDrives.includes(d);
-                  return <Task key={d.id} href={drivesOn ? `/test-drives/${d.id}` : undefined} urgency={!open ? "info" : dublinDay(d.startsAt) === today ? "now" : "soon"} title={d.carTitle} detail={open ? `${who(d.assignedTo)} · ${fmtDate(d.startsAt)}, ${fmtTime(d.startsAt)}` : fmtDate(d.startsAt)} action={<DriveStatusBadge status={d.status} />} />;
+                  return <Task key={d.id} href={`/test-drives/${d.id}`} urgency={!open ? "info" : dublinDay(d.startsAt) === today ? "now" : "soon"} title={d.carTitle} detail={open ? `${who(d.assignedTo)} · ${fmtDate(d.startsAt)}, ${fmtTime(d.startsAt)}` : fmtDate(d.startsAt)} action={<DriveStatusBadge status={d.status} />} />;
                 })}
               </TaskList>
             </Panel>

@@ -16,8 +16,8 @@ test("on a phone the demo bar is a small pill: the role is on it, the rest opens
   await expect(role).toBeVisible();
 });
 
-// One system (#212): the bar switches the role and the stock source, never a plan or a module.
-test("the demo bar has no plan or module switch, on the narrowest phone or the slim bar", async ({ page }) => {
+// One system (#212): the bar switches the role and the stock source, never a plan.
+test("the demo bar has no plan switch, on the narrowest phone or the slim bar", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 640 });
   await page.goto("/");
   const bar = await demoBar(page);

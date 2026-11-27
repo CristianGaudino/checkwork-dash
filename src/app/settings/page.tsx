@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { LimitsEdit } from "@/components/admin/BillingForms";
 import { AddPersonEdit, BusinessEdit, LeadEmailsEdit, MarketingEdit, NotificationsEdit, PersonEdit, ProfileEdit, TargetsEdit, TestEmail } from "@/components/admin/SettingsForms";
 import { Badge, DataTable, Facts, FormActions, PageHeader, Panel, dangerButton, rowButton, rowDanger, tapArea } from "@/components/admin/kit";
 import { formatHours } from "@/lib/dealer";
@@ -22,8 +23,6 @@ import { currentDealer } from "@/lib/tenancy/current";
 import { NEW_TAB } from "@/components/ui";
 import { currentMember, type Member } from "@/lib/permissions";
 import { roleCan, type Role } from "@/lib/permission-rules";
-import { enabledModules } from "@/lib/modules";
-import { type ModuleId } from "@/lib/modules-rules";
 import { BrandIcon } from "@/components/admin/BrandIcon";
 import { PushPanel } from "@/components/admin/PushPanel";
 import { pushStore, vapid } from "@/lib/push";
@@ -31,7 +30,9 @@ import { staffIdentity } from "@/lib/staff";
 import { signInMode } from "@/lib/auth/gate";
 import { columnsFor, eventLabel, eventsFor, reachLine } from "@/lib/notify-rules";
 import { people, whatsappOn, type Person } from "@/lib/people";
-import { monthUsage } from "@/lib/billing/usage";
+import { billingSettings, monthUsage } from "@/lib/billing/usage";
+import { PAID, PLAN, SERVICE_LABELS, capOf, type Scope } from "@/lib/billing/rules";
+import { eur } from "@/lib/billing/bills-rules";
 import { viewFor } from "@/lib/whatsapp/store";
 
 export const metadata = { title: "Settings" };
@@ -50,23 +51,26 @@ const DEALERSHIP = [
   ["routing", "Lead routing", "Where new leads are emailed"],
   ["services", "Connected services", "The outside services your site uses, WhatsApp among them"],
   ["targets", "Timings", "How fast to reply, and how long a test drive takes"],
+  ["limits", "Monthly limits", "What paid use may cost each month"],
   ["demo", "Start again", "Put the dashboard back as it started"],
 ] as const;
-// The module each outside service belongs to; a service without one is the base site's (lead email, the bot check).
-const SERVICE_MODULE: Partial<Record<IntegrationId, ModuleId | ModuleId[]>> = {
-  reviews: "reviews", gbp: "reviews", social: "social", ads: "social", newsletter: "newsletter", whatsapp: "whatsapp", ai: "ai", reglookup: ["lookupDashboard", "history"],
+// What happens at each paid service's limit (Monthly limits).
+const AT_LIMIT: Record<Scope, string> = {
+  lookup: "The lookup button says the limit is reached, and the details are typed in.",
+  history: "Check history says the limit is reached. A plate checked in the last 30 days is checked again free.",
+  whatsapp: "Replies go by email instead and marketing messages are not sent. Alerts your plan includes still go by WhatsApp.",
 };
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ section?: string }> }) {
   const [s, me, source, sp, resettable, { name, profile }, { site: listingSite, url: listingUrl }, team, waOn] = await Promise.all([getSettings(), currentMember(), stockSource(), searchParams, mayResetDemo(), currentDealer(), listing(), people(), whatsappOn()]);
   const synced = source === "donedeal";
-  const mods = await enabledModules();
   const edit = roleCan(me.role, "settings");
+  const billing = roleCan(me.role, "billing");
   const owner = me.role === "Owner";
-  const voice = mods.has("social");
   // Sales and Finance have Your account only: Dealership is not theirs to see, a link to it goes back to Settings, and each action checks
   // again on the server.
-  const dealership = edit ? DEALERSHIP.filter(([k]) => k !== "demo" || resettable).map(([k, label, line]) => [k, label, k === "business" && !voice ? "Your details and opening hours" : line] as const) : [];
+  // Monthly limits are for whoever sees Billing (owners and managers), as the save checks.
+  const dealership = edit ? DEALERSHIP.filter(([k]) => (k !== "demo" || resettable) && (k !== "limits" || billing)) : [];
   const asked = sp.section === "marketing" ? "business" : sp.section;
   if (!edit && DEALERSHIP.some(([k]) => k === asked)) redirect("/settings");
   const all = [...ACCOUNT, ...dealership];
@@ -75,8 +79,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
   // The signed-in person as the team knows them (none for someone the dealer has not added, as the open app's own person at Test Motors).
   const mine = team.find((t) => (me.email ? t.email.toLowerCase() === me.email.toLowerCase() : t.name === me.name));
   const oldDays = profile.rules.oldStockDays;
-  // Every event the plan has, worded; each grid keeps the rows the person's role may get.
-  const rows = eventsFor("Owner", mods).map((id) => ({ id, label: eventLabel(id, oldDays) }));
+  // Every event, worded; each grid keeps the rows the person's role may get.
+  const rows = eventsFor("Owner").map((id) => ({ id, label: eventLabel(id, oldDays) }));
   const waMode = await modeOf("whatsapp");
   return (
     <>
@@ -144,11 +148,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
                   ))}
                 </dl>
               </Panel>
-              {voice && (
-                <Panel title="How your posts sound" action={<MarketingEdit settings={s} />}>
-                  <Facts items={[["How we sound", s.marketing.voice || "Not set"], ["Hashtags", s.marketing.hashtags || "None", "[overflow-wrap:anywhere]"], ["Sign-off line", s.marketing.signOff || "None"]]} />
-                </Panel>
-              )}
+              <Panel title="How your posts sound" action={<MarketingEdit settings={s} />}>
+                <Facts items={[["How we sound", s.marketing.voice || "Not set"], ["Hashtags", s.marketing.hashtags || "None", "[overflow-wrap:anywhere]"], ["Sign-off line", s.marketing.signOff || "None"]]} />
+              </Panel>
               {/* The plan and what we set for you (stock, the old stock and sold car rules) are in Billing, beside what it costs. */}
               <p className="text-meta text-text-2">
                 Your plan, and what we set up for you, are in{" "}
@@ -163,6 +165,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
             </Panel>
           )}
 
+          {section === "limits" && <Limits />}
+
           {section === "team" && <Team team={team} me={me} owner={owner} rows={rows} waOn={waOn} />}
 
           {section === "routing" && (
@@ -172,7 +176,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
             </Panel>
           )}
 
-          {section === "services" && <Services synced={synced} listingSite={listingSite} listingUrl={listingUrl} name={name} profileLeadEmail={Boolean(profile.leadEmail)} mods={mods} team={team.length} phones={team.filter((t) => t.phone && t.role !== "Finance").length} billing={roleCan(me.role, "billing")} />}
+          {section === "services" && <Services synced={synced} listingSite={listingSite} listingUrl={listingUrl} name={name} profileLeadEmail={Boolean(profile.leadEmail)} team={team.length} phones={team.filter((t) => t.phone && t.role !== "Finance").length} billing={billing} />}
 
           {section === "demo" && (
             <Panel title="Start again">
@@ -201,7 +205,7 @@ async function Notifications({ mine, rows, waOn, waMode }: { mine: Mine; rows: R
   const devices = who.ok ? (await pushStore.list()).filter((d) => d.email === who.email).sort((a, b) => a.addedAt - b.addedAt).map((d) => ({ id: d.id, label: d.label, added: fmtDate(d.addedAt) })) : [];
   const columns = mine ? columnsFor(mine.role, { on: waOn, phone: mine.phone }) : [];
   const wa = columns.includes("whatsapp");
-  const view = wa && waMode === "simulated" ? await viewFor(mine!.name, await enabledModules()) : null;
+  const view = wa && waMode === "simulated" ? await viewFor(mine!.name) : null;
   return (
     <>
       {mine && (
@@ -301,16 +305,16 @@ async function Team({ team, me, owner, rows, waOn }: { team: Person[]; me: Membe
 
 // Dealership, Connected services: the listing site for a synced dealer, WhatsApp (#142: its business number, whether it is connected, and
 // this month's use), then every outside service and whether it is on.
-async function Services({ synced, listingSite, listingUrl, name, profileLeadEmail, mods, team, phones, billing }: { synced: boolean; listingSite: string; listingUrl: string; name: string; profileLeadEmail: boolean; mods: Set<ModuleId>; team: number; phones: number; billing: boolean }) {
+async function Services({ synced, listingSite, listingUrl, name, profileLeadEmail, team, phones, billing }: { synced: boolean; listingSite: string; listingUrl: string; name: string; profileLeadEmail: boolean; team: number; phones: number; billing: boolean }) {
   const sync = synced ? await syncStatus() : null;
-  // The listing site is a service only for a dealer whose stock comes from there; the others only with their module (#173).
-  const services = INTEGRATIONS.filter((i) => (i.id !== "donedeal" || synced) && (!SERVICE_MODULE[i.id] || [SERVICE_MODULE[i.id]!].flat().some((m) => mods.has(m)))).map((i) => integrationText(i, { name, site: listingSite }));
+  // The listing site is a service only for a dealer whose stock comes from there.
+  const services = INTEGRATIONS.filter((i) => i.id !== "donedeal" || synced).map((i) => integrationText(i, { name, site: listingSite }));
   // Lead email is ours to connect: the dealer's fallback address in their profile (leadEmail), as LEAD_TO_EMAIL was for one site.
   const modes = new Map(await Promise.all(INTEGRATIONS.map(async (i) => [i.id, i.id === "email" ? (profileLeadEmail ? "live" : "off") : await modeOf(i.id)] as const)));
   const mode = (id: IntegrationId) => modes.get(id)!;
   const status = (id: IntegrationId) => (mode(id) !== "off" ? <Badge tone="good">Connected</Badge> : <Badge>Not connected</Badge>);
   const account = (id: IntegrationId) => (mode(id) === "simulated" ? integrationText(INTEGRATIONS.find((i) => i.id === id)!, { name, site: listingSite }).demoAccount : null);
-  const wa = mods.has("whatsapp") ? (await monthUsage()).whatsapp.count : null;
+  const wa = (await monthUsage()).whatsapp.count;
   return (
     <>
       {sync && (
@@ -334,24 +338,22 @@ async function Services({ synced, listingSite, listingUrl, name, profileLeadEmai
           <p className="max-w-measure text-meta text-text-2">Cars are added, changed and sold on {listingSite}, and your stock here follows every 15 minutes.</p>
         </Panel>
       )}
-      {wa !== null && (
-        <Panel title="WhatsApp">
-          <Facts
-            items={[
-              ["Business number", account("whatsapp") ?? (mode("whatsapp") === "off" ? "Not connected yet" : "Your WhatsApp Business number")],
-              ["Status", status("whatsapp")],
-              ["Messages this month", fmtNum(wa)],
-              ["People with a phone for alerts", `${phones} of ${team}`],
-            ]}
-          />
-          <p className="max-w-measure text-meta text-text-2">
-            Each person chooses their alerts in Settings, Notifications, once their phone is in their Profile.{billing && " What it costs is in "}
-            {billing && (
-              <Link href="/billing" className={`font-medium text-accent-text underline underline-offset-2 ${tapArea}`}>Billing</Link>
-            )}
-          </p>
-        </Panel>
-      )}
+      <Panel title="WhatsApp">
+        <Facts
+          items={[
+            ["Business number", account("whatsapp") ?? (mode("whatsapp") === "off" ? "Not connected yet" : "Your WhatsApp Business number")],
+            ["Status", status("whatsapp")],
+            ["Messages this month", fmtNum(wa)],
+            ["People with a phone for alerts", `${phones} of ${team}`],
+          ]}
+        />
+        <p className="max-w-measure text-meta text-text-2">
+          Each person chooses their alerts in Settings, Notifications, once their phone is in their Profile.{billing && " What it costs is in "}
+          {billing && (
+            <Link href="/billing" className={`font-medium text-accent-text underline underline-offset-2 ${tapArea}`}>Billing</Link>
+          )}
+        </p>
+      </Panel>
       <Panel title="Connected services" text="We connect these for you">
         <DataTable
           bare
@@ -366,5 +368,49 @@ async function Services({ synced, listingSite, listingUrl, name, profileLeadEmai
         />
       </Panel>
     </>
+  );
+}
+
+// Dealership, Monthly limits (#212): one limit per paid service, read first and changed in the house dialog (#141). Past what the plan
+// includes, each use is paid; our ceilings stay the most a limit can be. What is spent and billed is in Billing.
+async function Limits() {
+  const [b, usage] = await Promise.all([billingSettings(), monthUsage()]);
+  return (
+    <Panel title="Monthly limits" action={<LimitsEdit scopes={PAID} caps={b.caps} ceilings={b.ceilings} />}>
+      <p className="max-w-measure text-body text-text-2">Past what your plan includes, each use is paid. At a limit the service stops for the rest of the month, and you are told.</p>
+      <DataTable
+        bare
+        rows={PAID}
+        rowKey={(s) => s}
+        columns={[
+          {
+            key: "what",
+            header: "What",
+            cell: (s) => (
+              <span className="flex flex-col">
+                <span className="font-medium">{SERVICE_LABELS[s]}</span>
+                <span className="text-meta text-text-2">
+                  {eur(usage[s].costEur)} spent this month{PLAN.allowance[s] ? `, ${fmtNum(PLAN.allowance[s])} included` : ""}
+                </span>
+              </span>
+            ),
+          },
+          {
+            key: "cap",
+            header: "Limit",
+            align: "right",
+            cell: (s) => {
+              const c = capOf(b, s);
+              return c === undefined ? "None" : eur(c);
+            },
+          },
+          { key: "then", header: "At the limit", hide: "md", cell: (s) => AT_LIMIT[s], className: "max-w-[24rem]" },
+        ]}
+      />
+      <p className="text-meta text-text-2">
+        What you have spent is in{" "}
+        <Link href="/billing" className={`font-medium text-accent-text underline underline-offset-2 ${tapArea}`}>Billing</Link>
+      </p>
+    </Panel>
   );
 }

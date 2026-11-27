@@ -13,7 +13,7 @@ import { dealerProfile } from "@/lib/tenancy/current";
 
 // What a dealer does with one car, the same on the stock list and on the car's own page, and the warnings that say what a car needs.
 
-// A post for this car on Facebook, Instagram or TikTok. Posts are for cars in stock: never a sold car. The caller checks the social module.
+// A post for this car on Facebook, Instagram or TikTok. Posts are for cars in stock: never a sold car.
 export function PostToSocial({ car, className }: { car: Car; className: string }) {
   if (!forSale(car)) return null; // the composer offers only cars for sale: a hidden car, a draft or a sold one would be dropped there
   return (
@@ -25,10 +25,9 @@ export function PostToSocial({ car, className }: { car: Car; className: string }
 }
 
 // The car as a customer sees it, in a new tab. A hidden car or a draft has no page on the website.
-// `shown`: the car's kind (commercial) is on the site with the dealer's modules (conditionShown).
-export async function ViewOnSite({ car, shown, className }: { car: Car; shown: boolean; className: string }) {
+export async function ViewOnSite({ car, className }: { car: Car; className: string }) {
   const { siteUrl, rules } = await dealerProfile();
-  if (!shown || !siteUrl || !onPublicSite(car, rules.soldVisibleDays)) return null; // no link to a page that answers "gone" or not found, nor with no website
+  if (!siteUrl || !onPublicSite(car, rules.soldVisibleDays)) return null; // no link to a page that answers "gone" or not found, nor with no website
   return (
     <a href={siteCarUrl(siteUrl, car.slug)} {...NEW_TAB} title="Open the car's page on your website" aria-label={`View on the website: ${carName(car)} (opens in a new tab)`} className={className}>
       <ExternalIcon className="size-4 shrink-0" />

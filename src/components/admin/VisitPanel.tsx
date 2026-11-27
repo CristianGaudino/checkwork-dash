@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { card } from "@/components/ui";
 import { CarIcon } from "@/components/stock/icons";
-import { IfModule } from "@/components/IfModule";
 import { AIBrief } from "./AIWriter";
 import { CarThumb } from "./CarThumb";
 import { VisitFold } from "./VisitFold";
@@ -69,11 +68,9 @@ export function VisitPanel({ lead, stock }: { lead: { id: string; journey: Journ
             </ul>
           </section>
         )}
-        <IfModule id="ai">
-          <div className="border-t border-hairline pt-4">
-            <AIBrief leadId={lead.id} />
-          </div>
-        </IfModule>
+        <div className="border-t border-hairline pt-4">
+          <AIBrief leadId={lead.id} />
+        </div>
       </VisitFold>
     </section>
   );

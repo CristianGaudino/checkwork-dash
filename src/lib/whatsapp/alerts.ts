@@ -5,7 +5,6 @@ import { addMessage, isStaffAlert, lastWeek, messagesStore, staffStore, type Msg
 import { isUsable, modeOf } from "@/lib/integrations";
 import { recordUsage, usageAllowed } from "@/lib/billing/usage";
 import { EVENTS, alertText, eventOfLead, firstName, inQuiet, type EventId, type Facts } from "./rules";
-import { enabledModules } from "@/lib/modules";
 import { mayGet } from "@/lib/notify-rules";
 import { roleCan } from "@/lib/permission-rules";
 import { TIME_ZONE } from "@/lib/site";
@@ -51,8 +50,7 @@ async function deliver(drafts: Draft[], kind: "alert" | "marketing", canEmail: (
 export async function alertStaffOnWhatsApp(lead: Lead): Promise<void> {
   try {
     if (!(await isUsable("whatsapp"))) return;
-    const modules = await enabledModules();
-    const event = eventOfLead(lead.type, modules);
+    const event = eventOfLead(lead.type);
     const { text: words, facts } = readLead(lead);
     const text = alertText(event, { first: firstName(lead.name), car: lead.carTitle, reg: lead.reg, text: words, when: facts["Test drive"], sell: lead.type === "sell", warranty: lead.type === "warranty" });
     const drafts = await staffCopies(event, text, { leadId: lead.id, ref: lead.id, ...(event === "enquiry" && !lead.carTitle && { buttons: ["call", "handled"] }) });
@@ -68,8 +66,7 @@ export async function alertStaffOnWhatsApp(lead: Lead): Promise<void> {
 // WhatsApp connected. Best effort, as above: the action that caused it has already happened. Returns how many went.
 export async function alertStaff(event: EventId, facts: Facts, extra: Partial<Draft> = {}): Promise<number> {
   try {
-    const modules = await enabledModules();
-    if (!(await isUsable("whatsapp")) || !modules.has(EVENTS[event].module)) return 0;
+    if (!(await isUsable("whatsapp"))) return 0;
     const plain = event === "slow-stock" ? alertText(event, { ...facts, dropEur: undefined }) : undefined;
     return await deliver(await staffCopies(event, alertText(event, facts), extra, plain), EVENTS[event].kind);
   } catch {

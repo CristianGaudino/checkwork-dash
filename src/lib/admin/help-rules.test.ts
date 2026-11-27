@@ -4,9 +4,9 @@ import { feedbackDue, parseRequest, safeFrom, typesFor } from "./help-rules";
 const form = (v: Record<string, string>) => (k: string) => v[k] ?? "";
 
 describe("help rules", () => {
-  it("keeps Billing and Add to my plan for the owner and manager", () => {
+  it("keeps Billing for the owner and manager, and has no plan requests (#212)", () => {
     expect(typesFor("Sales")).not.toContain("Billing");
-    expect(typesFor("Finance")).not.toContain("Add to my plan");
+    expect(typesFor("Owner")).not.toContain("Add to my plan");
     expect(typesFor("Manager")).toContain("Billing");
   });
   it("needs a type the role may use and a message", () => {

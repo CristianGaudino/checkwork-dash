@@ -1,25 +1,24 @@
 # Dealer dashboard
 
-This app is the dealer dashboard, at the root of https://www.dash.checkwork.ie (`/` is the overview, `/leads` the leads and so on). It came out of checkwork-demo, where it lived under `/dashboard` (history). The dealer's website (Showroom) is a separate app made from checkwork-demo: where the dashboard links to a car or a page there it uses the full address (the dealer's website, `siteUrl` in their profile) in a new tab. Parts below that describe the website's pages (`/contact`, `/reviews`, `/warranty` and so on) are kept because the dashboard works on what they send. The demo bar at the foot of every page holds the theme switch, and for a demo dealer the role, plan and DoneDeal switches. There is no login of our own: on a deployed app Cloudflare Access is the login (see below). One app serves every dealer, each in a store of its own (see "Dealers kept apart"). There is no superuser role and no platform area.
+This app is the dealer dashboard, at the root of https://www.dash.checkwork.ie (`/` is the overview, `/leads` the leads and so on). It came out of checkwork-demo, where it lived under `/dashboard` (history). The dealer's website (Showroom) is a separate app made from checkwork-demo: where the dashboard links to a car or a page there it uses the full address (the dealer's website, `siteUrl` in their profile) in a new tab. Parts below that describe the website's pages (`/contact`, `/reviews`, `/warranty` and so on) are kept because the dashboard works on what they send. The demo bar at the foot of every page holds the theme switch, and for a demo dealer the role and DoneDeal switches. There is no login of our own: on a deployed app Cloudflare Access is the login (see below). One app serves every dealer, each in a store of its own (see "Dealers kept apart"). There is no superuser role and no platform area.
 
-## Modules
+## One system
 
-A dealer has the base site plus the modules they pay for (#173, `src/lib/modules-rules.ts`): their plan, `modules` in their profile
-(see "Each dealer's profile"). A module that is off has its pages show the not-in-plan screen (each module's folder has a `layout.tsx`
-with `PlanGate`, checked on the server on every load), its links leave the menus and pages (`IfModule`), and its server actions refuse
-(`requireModule`, a 404). Without the dashboard module every page is the not found screen (the root layout). The proxy only checks the
-Access token: it reads no directory. On a demo dealer the bar's Plan switch chooses them instead (a cookie); for any other dealer a cookie
-never can. Data is never deleted when a module goes off. Stock kept in the dashboard is not a module switch: it follows where the stock
-comes from.
+Every dealer has every part of the dashboard (#212, owner): no plan picker, no parts switched on or off, no "not in your plan" screen.
+What still differs between dealers is what they connect and what their role allows: a service that needs the dealer's own keys (social
+and ads, WhatsApp, review replies, stock alert emails) says "Not connected" where it is used until Checkwork connects it (Settings,
+Connected services; simulated on a demo dealer), and permissions are checked on the server by role (`src/lib/permissions.ts`). Our own
+paid services (the registration lookup, history checks, AI writing) work for every dealer within their monthly limits. Stock kept in the
+dashboard or synced from a listing site follows where the stock comes from. The proxy only checks the Access token: it reads no
+directory. Before #212 a dealer's plan was `modules` in their profile: a stored value is ignored, and nothing was deleted.
 
 ## Usage billed per use
 
 Registration lookups, history checks and WhatsApp messages cost the dealer per use, on top of the plan, past the plan's monthly allowance
-(#147, #181, #170; no plan includes a history check). The registration lookup is for staff in the dashboard only (module
-`lookupDashboard`, #182): the website has none, so a buyer types their registration and staff look the car up when they work the lead.
+(#147, #181, #170; the plan includes no history check). The registration lookup is for staff in the dashboard only (#182): the website has none, so a buyer types their registration and staff look the car up when they work the lead.
 AI writing is fair use: counted the same way, never billed, and stopped at our ceiling (`AI_FAIR_USE` actions a month). The code that
 makes a use counts it with `recordUsage` and asks `usageAllowed` first (`src/lib/billing/usage.ts`): past a monthly limit (the dealer's,
-one per paid service, set by the Owner or Manager on Billing, or our ceiling) the service stops for the month and falls back (a lookup
+one per paid service, set by the Owner or Manager in Settings, Monthly limits, or our ceiling) the service stops for the month and falls back (a lookup
 gives the plate's own facts, a history check says the limit is reached, AI leaves the text alone, a WhatsApp reply or alert goes by email, or nothing if the buyer gave none, and a
 marketing message is not sent; an alert the plan still includes always goes). Our default limits are `DEFAULT_CEILINGS` (EUR 15 of
 lookups, EUR 25 of history checks, EUR 20 of WhatsApp past the allowance). When a limit is reached the owners and managers get one notice in the bell, once a month. Counts are one record per month per line of the bill. Prices are in `src/lib/billing/rules.ts`.
@@ -91,11 +90,11 @@ What differs between dealers beyond their records is in their profile (#5): one 
   since images load from here only). The name is the directory's `name` column. Owners and managers change the name, website, phone,
   email, address and hours in Settings, Your business (`saveBusinessAction`, in the activity history); it merges into the profile, never
   over what is ours.
-- **Ours to set** (shown read only in Billing: the plan, and "What we set for you"): `modules` (the plan), `stock` (`source` "checkwork" or "donedeal",
+- **Ours to set** (shown read only in Billing, "What we set for you"): `stock` (`source` "checkwork" or "donedeal",
   `listingSite`, `listingUrl`), `rules` (`oldStockDays`, `slowDropEur`, `soldVisibleDays`, `serviceMonths`), `placeId` (Google reviews)
   and `leadEmail` (where leads go when Settings has no address). How to set them: `docs/new-dealer.md`.
-- **Defaults:** a dealer with nothing set has the dashboard alone, stock kept here, the usual rules, no website and no logo (the menu
-  shows the name). A demo dealer's base is the made-up demo business (`DEMO_PROFILE`: every module, its facts and logo); the demo reset
+- **Defaults:** a dealer with nothing set has stock kept here, the usual rules, no website and no logo (the menu
+  shows the name). A demo dealer's base is the made-up demo business (`DEMO_PROFILE`: its facts and logo); the demo reset
   puts its profile back to that.
 - **Billing settings** (term, first month free, ceilings, caps) were already per dealer: the settings record in the dealer's own store.
 - **Not per dealer yet:** the time zone (Europe/Dublin for all), the finance terms (`src/lib/finance/`) and the services' keys (Worker
@@ -157,13 +156,13 @@ code path reaches another dealer's (#3, #4, #6; `src/lib/tenancy/`).
 - **Every dashboard action checks the login itself.** Next runs a server action on a POST to any page, so the proxy's gate on `/`
   paths is not enough: each action starts with `requireStaff()` (`src/lib/staff.ts`), which verifies the Access token and that the person
   has a dealer open (the directory), and who the person is comes from that token, never from a header. Open where the dashboard is open (development, `NEXT_PUBLIC_ADMIN_OPEN=1`).
-- **Real visitor records only appear behind Cloudflare Access.** The admin shows seeded records plus what visitors send (leads, test drives, stock alerts). That is personal data, so on a deployed site the admin only answers with a valid Access token (checked in `src/proxy.ts`). `NEXT_PUBLIC_ADMIN_OPEN=1` skips the check and is for CI only: never set it on a deploy (where the directory is bound it counts for nothing, `src/lib/staff.ts` and `src/proxy.ts`). Only `next dev` is open without it. Any build, even one that forgot `APP_ENV`, is closed, and the demo bar's cookies (role, plan, stock sync) only count for a demo dealer (`demoCookie` in `src/lib/tenancy/current.ts`).
+- **Real visitor records only appear behind Cloudflare Access.** The admin shows seeded records plus what visitors send (leads, test drives, stock alerts). That is personal data, so on a deployed site the admin only answers with a valid Access token (checked in `src/proxy.ts`). `NEXT_PUBLIC_ADMIN_OPEN=1` skips the check and is for CI only: never set it on a deploy (where the directory is bound it counts for nothing, `src/lib/staff.ts` and `src/proxy.ts`). Only `next dev` is open without it. Any build, even one that forgot `APP_ENV`, is closed, and the demo bar's cookies (role, stock sync) only count for a demo dealer (`demoCookie` in `src/lib/tenancy/current.ts`).
 - **A demo dealer simulates the outward services, keys or not, except AI writing.** Posts, ads, review replies, WhatsApp, the registration lookup and history check, DoneDeal stock and AI writing go through `modeOf` (`src/lib/integrations.ts`; posting through `src/lib/admin/publishers.ts`). For a demo dealer each is simulated: it reports success marked `simulated`, and the admin records made-up figures so the flow can be shown. For any other dealer, with no keys they say "not connected"; with keys they say "not switched on" until the real adapter replaces the marked line. The one exception is AI writing (owner, 2026-11-22): with `ANTHROPIC_API_KEY` set a demo dealer's AI is real Claude (`modeOf("ai")` is "live", Settings shows it connected), and with no key (`next dev`, tests, E2E) it is the mock. Nothing else about the demo changes: it still never posts, advertises, sends or messages anyone. Lead email, the bot check and reviews are never simulated: Settings shows their true state. Unit tests pin all three modes.
 - **What visitors send reaches the admin.** A test drive booking and a stock alert are lead types in the one lead pipeline (consent, bot check, rate limit, retention). After a lead is stored, `src/lib/admin/real-leads.ts` copies it into the admin's collections (ids start `real-`) so the dealer can work it. The daily purge deletes the copies with the lead.
 - **Lead emails are a setting.** Settings, Lead routing: up to five addresses, a test button, and the dealer's profile `leadEmail` as the fallback.
 - **What reaches each person, and how** (#142, `src/lib/notify-rules.ts`): one row per event, one column per channel, only where the channel
   really sends it. Push: the website requests (enquiry, trade-in, test drive, service, finance) and a lead or booking given to you. Email:
-  your follow-ups due, each morning. WhatsApp: every WhatsApp alert. A role gets the plan's events, the Monday summary only with the full
+  your follow-ups due, each morning. WhatsApp: every WhatsApp alert. A role gets every event, the Monday summary only with the full
   reports, and Finance never WhatsApp; every sender checks this again whatever is stored (`mayGet`). A record from before keeps its WhatsApp
   alerts and reads push (every request, as push always went) and email (the dealer's old morning switch, `notifications.followUps`) from the
   role until the person saves; someone with no record gets their role's. An owner's old choice for a new person (`notifyDefaults`, before
@@ -250,7 +249,7 @@ with no D1). The actor is the signed-in person (`currentMember`), or a named one
   first lead email. Once per sale (`reviewAskedOn`), never for a sale undone, never to a buyer who stopped WhatsApp on any lead, and a demo
   dealer sends nothing outside. A failed ask never stops the sale: it logs the car's id and `review-ask-failed` (never the buyer) and Stock
   says "The review request did not go". The car's page and the customer show the day it was asked; Activity records it against the car.
-- **NCT and service reminders** (#171, `src/lib/admin/reminders.ts`, the sales module): a sale has its NCT due (typed on the sale form, else
+- **NCT and service reminders** (#171, `src/lib/admin/reminders.ts`): a sale has its NCT due (typed on the sale form, else
   the car's history check's NCT expiry, only while the check is for the car's plate and not run out before the sale; correcting a car's
   reg drops its check) and its service due (typed, else the dealer's `serviceMonths` after the sale, 12 by default, then every
   `serviceMonths` after; 0 means none unless typed). The NCT reminder goes once for its date: a date more than a week past is no longer
@@ -309,9 +308,7 @@ with no D1). The actor is the signed-in person (`currentMember`), or a named one
 A warranty message sent from the website is aftersales work, not a sale: it waits in Aftersales under Requests (left out of Leads, its counts,
 the overview and the reports) until a claim is opened from it or it is set aside. Aftersales opens on Requests while any wait.
 
-Customers has two lists: the customers (the Sales module) and the stock alerts (the Stock alerts module, id `newsletter` so stored plans
-keep working; visitors sign up on the website). Each list, its actions and its export answer only with its module on; the page answers with
-either. The newsletter was taken out (#149): its subscriber and newsletter records stay in each dealer's store, but nothing reads, exports,
+Customers has two lists: the customers and the stock alerts (visitors sign up on the website). The newsletter was taken out (#149): its subscriber and newsletter records stay in each dealer's store, but nothing reads, exports,
 erases or sends them any more.
 
 
@@ -330,7 +327,7 @@ erases or sends them any more.
 
 ## No new cars (#168)
 
-Checkwork is for independent used-car dealers: franchise dealers use the maker's systems. The dashboard has no new cars module, no
+Checkwork is for independent used-car dealers: franchise dealers use the maker's systems. The dashboard has no new cars section, no
 Orders pages and no factory orders.
 
 - **A new car order a website still sends** (lead type `order` at `/api/site/v1/leads`) is taken and filed as a car enquiry, its
@@ -375,8 +372,7 @@ Orders pages and no factory orders.
 - **On the site** (`/reviews`, and the strip on the home page): the reviews Google's Places API gives (up to five, most relevant first),
   as Google gives them, with the rating, the count and the way to every review on Google Maps. None are chosen or hidden by us (owner's
   decision, 2026-11-11): selecting reviews would mislead, and Irish consumer law asks traders to be open about how reviews are shown.
-- **Without the dashboard** (#224) the site still shows them: the Reviews module needs nothing else, and only the dashboard page (the
-  replies) also needs the dashboard. Showing needs the dealer's `placeId` (their profile) and our `GOOGLE_PLACES_API_KEY` (a Places API key from Google
+- Showing needs the dealer's `placeId` (their profile) and our `GOOGLE_PLACES_API_KEY` (a Places API key from Google
   Cloud: the dealer's public listing, no sign-in by the dealer). Replying and the full list need `GOOGLE_BUSINESS_LOCATION` and
   `GOOGLE_BUSINESS_REFRESH_TOKEN` (the Business Profile API, signed in once as the profile's owner or a manager).
 - **In the dashboard** a reply goes to Google first, through the Business Profile API (`postReviewReply` in `publishers.ts`, simulated on
@@ -396,8 +392,7 @@ kept, and the plate is never logged.
   for its recorded sale's trade-in. The answer is kept on the record (a car's beside it in `car-history`, so the sync never overwrites it;
   a lead's on the lead; a trade-in's on the sale) and shown as a short summary in plain words ("Finance owed", "Written off, category B",
   "Mileage does not add up", "Imported from the UK"), with Check again. A check kept for another plate is not shown.
-- **Who:** everyone on the dashboard, as the lookup. Module `history` (in the Dashboard plan); without it the panels are gone and the action
-  refuses (`requireModule`). Code: `src/lib/history.ts` (cache, meter, modes), `src/lib/history-rules.ts` (summary, mock),
+- **Who:** everyone on the dashboard, as the lookup. Code: `src/lib/history.ts` (cache, meter, modes), `src/lib/history-rules.ts` (summary, mock),
   `src/app/history-action.ts`, `src/components/admin/HistoryPanel.tsx`.
 - **Billing:** service `history` (`recordUsage("history", "dashboard")`, `usageAllowed("history")`), shown on Billing with its limit.
   The same plate within 30 days (`HISTORY_CACHE_DAYS`, the lookup's `REG_CACHE_DAYS`) is answered from the cache, free, even past the
@@ -421,13 +416,12 @@ A dealer whose stock is on DoneDeal (`stock.source` "donedeal" in their profile,
 source of truth:
 cars are added, changed and sold on DoneDeal only. The dashboard never edits them; it holds only the dealer's own figures (cost).
 - **The sync** (`src/lib/donedeal/sync.ts`, rules in `plan.ts`): every 15 minutes the Worker's cron calls `/api/donedeal/sync` with the
-  `CRON_KEY` secret, for every dealer whose stock comes from a listing site, with or without the dashboard module (a website-only dealer
-  has no dashboard pages, but still has the sync); Refresh stock on Stock runs the same. The dealer's website reads the synced stock from
+  `CRON_KEY` secret, for every dealer whose stock comes from a listing site; Refresh stock on Stock runs the same. The dealer's website reads the synced stock from
   here (`GET /api/site/v1/stock`, `docs/site-api.md`), so only this app calls the listing site's API. New ads are added and changed ones updated. A car DoneDeal no longer
   lists is hidden (its link is not found), because DoneDeal does not say why an ad came down: Stock and Overview ask the dealer whether it
   sold (the sale form, which marks it sold so its page shows Sold for a while) or did not (it stays hidden). If the ad goes up again the car
   comes back. Each change is in the activity history as "DoneDeal sync".
-- **The Description panel (Edit, then Write with AI)** (#225, #138, with the AI module): a car opens on its dashboard page, which shows the feed's description
+- **The Description panel (Edit, then Write with AI)** (#225, #138): a car opens on its dashboard page, which shows the feed's description
   (read first, scrolling when long). Edit opens the house dialog, where AI rewrites it from the car's facts (an AI action like any draft:
   the monthly cap and usage). Done keeps the new text on the page only, with a notice that DoneDeal and the website still have the old one
   and "Copy for DoneDeal" to paste it into the ad. Nothing is stored: the site's text changes only when the ad does, at the next sync.
@@ -475,43 +469,38 @@ Until both are set every page answers 404 for everyone. The Worker checks Access
 
 ## Billing and Help
 
-The plans (#147, `PLANS` in `src/lib/billing/rules.ts`; the decision is in `docs/decisions.md`, Pricing), a month before VAT, for one
-dealership:
+One plan for every dealer (#212, `PLAN` in `src/lib/billing/rules.ts`; the decision is in `docs/decisions.md`, Pricing): EUR 249 a
+month before VAT, for one dealership, with everything included (the website, the dashboard, social and ads and every other part). No
+setup fee and no add-ons. Each month includes 100 registration lookups and 500 WhatsApp alerts and confirmations (the amounts the
+dashboard plans already included); past that, usage is pay as you go, paid by the dealer.
 
-| Plan | Modules | Monthly | Setup | Included each month |
-|---|---|---|---|---|
-| Website | Trade-in, finance, car finder, commercial vehicles, reviews | EUR 149 | EUR 500 | none (no paid service) |
-| Dashboard | The dashboard and every module in it: test drives, sales and customers, margins, service, reviews, stock alerts, analytics, WhatsApp, AI writing, lookup in the dashboard, vehicle history check | EUR 149 | none | 100 lookups, 500 WhatsApp alerts and confirmations |
-| Website + Dashboard | Both | EUR 249 | EUR 500 | 100 lookups, 500 WhatsApp alerts and confirmations |
-
-- The plans still turn modules on and off (Modules, above): a dealer's plan is the cheapest that holds their modules (`planFor`), so no
-  modules is Website and the dashboard with any website-only module is Website + Dashboard. Everything in a plan is included.
-- **Add-on**: Social and ads (module id `social`), EUR 99 a month and EUR 150 at setup, until marketing is priced (#148).
 - **Over the allowance** each use is billed: lookup EUR 0.30, history check EUR 2.50 (a placeholder, to confirm against One Auto's
   price), WhatsApp alert EUR 0.05, reply EUR 0.03, marketing message EUR 0.12.
   Replies and marketing messages are never included. AI writing is never billed.
-- **Term** (`term`): a 1-year or 2-year contract; no setup fee on 2 years. **First month free** (`freeMonth`, "YYYY-MM"): that month's bill
+- **Term** (`term`): a 1-year or 2-year contract. **First month free** (`freeMonth`, "YYYY-MM"): that month's bill
   has a "First month free" line that takes the plan off. Both are billing settings Checkwork sets with the owner API (`PUT /api/owner/v1/dealers/<id>/billing`, #177).
   The 12-month price lock for first dealers is in the contract, not in the app.
 - A record from before #147 still reads: "monthly" and "annual" are a 1-year term, "twoYear" a 2-year one, and its branches, brands,
-  alerts, 80% switch and "all usage" limit are ignored. The plan follows the modules, so an old Showroom dealer is now Website, Dealer
-  is Website + Dashboard, and Group is Website + Dashboard with Social and ads.
+  alerts, 80% switch and "all usage" limit are ignored. A bill issued before #212 keeps its lines as issued (its plan lines stored as
+  `modules`, read by `itemise`); only a demo dealer's bills are rebuilt on today's plan.
 
 `/billing` is for the Owner and Manager (`can("billing")`; anyone else gets a 404, and so does every action). It is one page: this
-month's bill (the plan's lines, pay as you go estimated to the month end, VAT and the total, with the term and the setup fee under it),
-the monthly limits (one per paid service the dealer has: what was used, what the allowance covers, what it cost, the limit, never above
-ours), the bills (this month as an "Estimate", then each past bill, opening on `/billing/<month>`), the billing details and what we set
+month's bill (the plan, pay as you go estimated to the month end, VAT and the total, with the term under it), pay as you go (each paid
+service: what was used, what the plan includes, what it cost and its limit, with Change limits to Settings), the bills (this month as an "Estimate", then each past bill, opening on `/billing/<month>`), the billing details and what we set
 for the dealer. Every change is written to the activity log. Rules and maths: `src/lib/billing/bills-rules.ts` (unit tested); the bills
 are a seeded collection, `src/lib/billing/bills.ts`. There is no PDF and no download: invoices come from the payment provider chosen at
 clone time and are emailed when issued. Billing details (company, VAT number, address, email) are the Owner's, stored in settings as
-`billingDetails`. A module the plan lacks shows its not-in-plan screen with what it would add and "Ask us to add", which sends a Help
-request of type "Add to my plan"; it switches nothing on. AI writing uses the model in the billing settings (`aiModel`, Premium by
+`billingDetails`. AI writing uses the model in the billing settings (`aiModel`, Premium by
 default); the dealer no longer chooses it, as it changes nothing they pay.
 
+Settings, Monthly limits (`/settings?section=limits`, the Owner and Manager, `saveLimitsAction`) sets a monthly limit per paid service
+(lookups, history checks, WhatsApp), EUR 0 included, never above our ceiling; at a limit the service stops for the month and the bell
+says so. Our ceilings stay as safety caps (EUR 15 lookups, EUR 25 history checks, EUR 20 WhatsApp by default, set per dealer by us).
+
 `/help` is for every team member: our phone, email and WhatsApp, how-to topics (#143: one job per row that opens in place, grouped
-as the menu is, each shown only to the roles it is for and with its module, `src/lib/help/topics.ts`; `/help#<topic>` opens one; WhatsApp's
+as the menu is, each shown only to the roles it is for, `src/lib/help/topics.ts`; `/help#<topic>` opens one; WhatsApp's
 how it works and its alerts are here under Your account and team, for every role but Finance; the live demo is under Settings, Notifications), a message form (Question, Something isn't working with steps
-and an optional screenshot, Request a change, Feedback or an idea, Billing and Add to my plan for the Owner and Manager), their own requests
+and an optional screenshot, Request a change, Feedback or an idea, and Billing for the Owner and Manager; an old "Add to my plan" request still shows as sent), their own requests
 with our status and reply, and a quarterly one-question feedback. The "Need help?" link in the menu foot passes `?from=<page>`, which is
 saved with the request (a dashboard path only, `safeFrom`). Requests are the `help-requests` collection (`src/lib/admin/help.ts`). On
 the demo nothing is sent outside (`ADAPTER GOES HERE`: the email to support and the owner's program, #174). Screenshots are checked by
@@ -519,18 +508,17 @@ their bytes and kept in the private bucket under `help/`, or as a data URL with 
 
 ## Monthly report and the owner API
 
-- **Analytics** (`/analytics`, the Site analytics module): on the demo, generated sample figures (`src/lib/admin/analytics.ts`): visitors, leads, cars sold, where visits come from, visit to sale, visitors each day and the most viewed cars. On a real site, the site's own anonymous counts (`src/lib/admin/visitor-figures.ts`): visits by channel and the website leads each brought, searches with no cars to show by make, price bands and filters used, calculator use against finance applications, and active alerts per car. A visit's channel (Google, Facebook, DoneDeal, a tagged link's `utm_source` and so on, `src/lib/visit-rules.ts`) is worked out on its first page and kept in the tab's sessionStorage for that visit only, so a lead form can send it: the lead shows "Website, from Facebook", and the dealer's email shows "Came from". No cookie, no visitor id, and what a buyer types in the search box is never stored, only a make from the fixed list. Where visits come from (`src/components/admin/VisitSources.tsx`, the maths in `src/lib/admin/visit-sources.ts`) shows one tile per channel with visits, the change ("Up 6%", or "Too few to compare" under 5; the panel names the period), leads and leads per 100 visits, the channel and the group with the most leads marked; the Overview's Visits this week tile shows the top 3 channels, for owners and managers only; the groups (Search, Social, Listing sites, Email, Typed in, Other) opening into their networks on Analytics and in the monthly report. Paid and organic are not split: the site does not count a paid visit yet.
-- **Monthly report** (`/monthly-report`, the Monthly view of Reports; in the menu as Reports for a dealer without the Margins module): last month by default, any of the twelve before it from the picker. Each section shows only for the modules on (Leads and Stock always, Visitors with Site analytics: sample figures on the demo, the site's own visit counts on a real site, Sales, Reviews). Each figure says how it compares with the month before, or "Too few to compare" under 5. Sales value and profit show only to staff with the margins permission. As on Reports, staff without it (Sales) see their own leads and sales only, with no stock, visitors or reviews. One "What to do" line comes from fixed rules. The arrows under the views move a month back or on; Print (print or save as PDF) uses the browser's print, with the menu left out.
+- **Analytics** (`/analytics`): on the demo, generated sample figures (`src/lib/admin/analytics.ts`): visitors, leads, cars sold, where visits come from, visit to sale, visitors each day and the most viewed cars. On a real site, the site's own anonymous counts (`src/lib/admin/visitor-figures.ts`): visits by channel and the website leads each brought, searches with no cars to show by make, price bands and filters used, calculator use against finance applications, and active alerts per car. A visit's channel (Google, Facebook, DoneDeal, a tagged link's `utm_source` and so on, `src/lib/visit-rules.ts`) is worked out on its first page and kept in the tab's sessionStorage for that visit only, so a lead form can send it: the lead shows "Website, from Facebook", and the dealer's email shows "Came from". No cookie, no visitor id, and what a buyer types in the search box is never stored, only a make from the fixed list. Where visits come from (`src/components/admin/VisitSources.tsx`, the maths in `src/lib/admin/visit-sources.ts`) shows one tile per channel with visits, the change ("Up 6%", or "Too few to compare" under 5; the panel names the period), leads and leads per 100 visits, the channel and the group with the most leads marked; the Overview's Visits this week tile shows the top 3 channels, for owners and managers only; the groups (Search, Social, Listing sites, Email, Typed in, Other) opening into their networks on Analytics and in the monthly report. Paid and organic are not split: the site does not count a paid visit yet.
+- **Monthly report** (`/monthly-report`, the Monthly view of Reports): last month by default, any of the twelve before it from the picker. Its sections: Leads, Visitors (sample figures on the demo, the site's own visit counts on a real site), Stock, Sales and Reviews. Each figure says how it compares with the month before, or "Too few to compare" under 5. Sales value and profit show only to staff with the margins permission. As on Reports, staff without it (Sales) see their own leads and sales only, with no stock, visitors or reviews. One "What to do" line comes from fixed rules. The arrows under the views move a month back or on; Print (print or save as PDF) uses the browser's print, with the menu left out.
 - **Email**: `/api/reports/monthly` (CRON_KEY, scheduled `0 7 1 * *` in `worker.mjs` and `wrangler.jsonc`) emails last month's summary to the owners and managers: counts only. On the demo it goes to the lead inbox like the follow-up digest.
-- **Owner API** and the anonymous feature counters: see `docs/owner-api.md`. The figures for the report and the API are one module, `src/lib/reports/monthly.ts`.
+- **Owner API** and the anonymous feature counters: see `docs/owner-api.md`. The figures for the report and the API are one file, `src/lib/reports/monthly.ts`.
 
 ## The contact form (guided)
 
 The public `/contact` form asks what the buyer needs, then a few taps, then how to reach them (#176). The topics, their tap answers and
 the words for them are in `src/lib/leads/contact-topics.ts`; the steps and cards in `src/components/leads/GeneralFields.tsx`.
 
-- Cards follow the modules: no Service card without `service`, no Selling card without `tradeIn`, no Finance card without `finance`. That
-  need goes to "Something else".
+- Every card is there for every dealer (#212).
 - The server (`general` in `src/lib/leads/schema.ts`) takes the topic and answers as optional fields. With no topic, or with "Something
   else", the message is still required, so the old free-text path stays valid.
 - A lead keeps `topic` and `answers`. The leads list shows them as tags ("Buying · this week · trade-in"), filters by topic, and puts
@@ -538,11 +526,11 @@ the words for them are in `src/lib/leads/contact-topics.ts`; the steps and cards
   ("Service: warning light, this week"), built from fixed words only, never the registration.
 - A "A car I bought from you" message is filed as a warranty request (Aftersales), and "Service or repair" as a Service lead, like the
   pages they come from. `/service` and `/warranty` open the same form on their topic.
-- The optional "Send me updates on WhatsApp" switch (with the `whatsapp` module) is stored on the lead as `whatsappOptIn`.
+- The optional "Send me updates on WhatsApp" switch is stored on the lead as `whatsappOptIn`.
 
 ## WhatsApp (#178)
 
-The `whatsapp` module. A way alerts reach a person, not a page (#142): each person's WhatsApp column in Settings, Notifications (once their
+A way alerts reach a person, not a page (#142): each person's WhatsApp column in Settings, Notifications (once their
 phone is in their Profile and WhatsApp is connected; never for Finance), and the dealership's number, connection and this month's messages in
 Connected services. `/whatsapp` redirects there (owners and managers) or to Notifications (everyone else). On the demo it is simulated
 (integration `whatsapp`): Notifications has Try WhatsApp, the dealer's WhatsApp as a phone beside a smaller buyer's phone, and nothing leaves
@@ -551,11 +539,11 @@ the site.
 - Each alert is answered once for everyone it went to: one offer, one decline, one confirm ("Already done." after). Asking for more
   photos keeps it open for the offer. A closed lead takes no more buyer messages, and a question expires after an hour.
 - Messages are kept 30 days (the daily purge), and go with their lead or an erasure. Removing someone from the team removes their phone.
-- Each new website request is added to the conversation of every team member who has that alert on, may get it (`mayGet`) and has a phone, outside their quiet hours (`alertStaffOnWhatsApp`, called once from `real-leads.ts`). The template is the request's own module's, or the plain enquiry when the dealer lacks that module (`eventOfLead`). A buyer who ticked the WhatsApp box (`whatsappOptIn` on the lead, read from the form's detail of the same name) gets a confirmation.
-- The other alerts go the same way (`alertStaff`, also checking the alert's own module): Deposit taken from Reserve (`reserveAction`), A new car in stock when a car first goes on the website (added live, or a draft published), and from the morning cron (`/api/whatsapp/daily`, after the follow-up digest in `worker.mjs`) each car old stock (`DEALER_RULES.oldStockDays`, 60 days by default), each review from the last two days (each once while its alert is kept), and on a Monday last week's leads, test drives taken and cars sold, from the report's own sums. The demo's seeded alerts use the seed's own figures.
+- Each new website request is added to the conversation of every team member who has that alert on, may get it (`mayGet`) and has a phone, outside their quiet hours (`alertStaffOnWhatsApp`, called once from `real-leads.ts`). The template is the request's own, or the plain enquiry (`eventOfLead`). A buyer who ticked the WhatsApp box (`whatsappOptIn` on the lead, read from the form's detail of the same name) gets a confirmation.
+- The other alerts go the same way (`alertStaff`): Deposit taken from Reserve (`reserveAction`), A new car in stock when a car first goes on the website (added live, or a draft published), and from the morning cron (`/api/whatsapp/daily`, after the follow-up digest in `worker.mjs`) each car old stock (`DEALER_RULES.oldStockDays`, 60 days by default), each review from the last two days (each once while its alert is kept), and on a Monday last week's leads, test drives taken and cars sold, from the report's own sums. The demo's seeded alerts use the seed's own figures.
 - A tap or a typed reply goes through `src/lib/whatsapp/handle.ts`: it writes the lead (status, note), the activity log (never a name), and the buyer's message. Notes and replies say how the buyer was told (WhatsApp or email). Reply with a price reads "8,500", "€8.5k", "8500" (`parsePrice`), sends the offer, and the buyer's simulated answer lands six seconds later on both phones and the lead.
 - Call back is not a reply: it sets the follow-up to today and gives the lead to whoever tapped, and leaves the status. Its note and a buyer's answer are marked `auto`, so the report's first reply skips them. Confirm on a deposit records it in the activity log against the car. Suggest another time sends the buyer the time and leaves the alert open: the booking moves in Test drives once they agree. A test drive confirmed with its booking tells the buyer the day and time.
-- Only a team member with a phone in their Profile can act, in their own conversation (one without is told to add it). With an alert's module off, its alert and questions are hidden and acting on them is refused. Margins are never in a message.
+- Only a team member with a phone in their Profile can act, in their own conversation (one without is told to add it). Margins are never in a message.
 - The lead page shows "WhatsApp updates: on" for a buyer who ticked the box, with Stop WhatsApp, which clears `whatsappOptIn` (logged, without the buyer): nothing more goes to them on WhatsApp. Their own STOP reply comes with the adapter.
 - Every message to a phone or a buyer checks `usageAllowed("whatsapp")` and records `alert`, `reply` or `marketing`. Past the cap an alert or reply is stored as "Sent by email instead" and not counted, unless the plan's alerts still cover it (`inAllowance`); marketing is not sent. A buyer without the opt-in gets email, also uncounted. The site's acknowledgements to the dealer inside a conversation are free replies and not counted.
 - Messages about a lead are removed once the lead is gone (purge, data request), on the next read of the page.
@@ -616,8 +604,8 @@ app store and no outside service.
 - **Media library** (`mediaStore`, tab Media): photos (JPEG, PNG, WebP; shrunk to 1,600px on the device) and videos (MP4, MOV, up to 15 MB and 90 seconds on the demo; length read in the browser and checked loosely on the server), optionally tagged to a car. Stored in R2 under `media/` in the `LEAD_PHOTOS` bucket and served by `/media-files`; with no bucket a data URL is kept in memory. Rules in `src/lib/admin/media-rules.ts`. No range requests yet, so add them before real video use.
 - **Calendar**: a week of scheduled and posted posts and started ads (`calendarWeek`); drafts are not on it. A post on it opens its page.
 - **Drafts** (#93): a post's page is `/marketing/posts/[id]`. A draft or a scheduled post opens there in the composer, filled in from what was saved, and saving, posting or scheduling updates the same post (`composeAction` with `id`, under the same checks as a new one). A post that went out is shown read-only with its figures. Post now (from a row too) needs what the post's format needs (`readyToPost`).
-- **Modules**: Marketing (posts, calendar and media) is the Social and ads module; without it the page is a 404 and not in the menu. Stock alerts are on Customers.
-- **AI writing** (#179): `writeAction` (`src/lib/ai/actions.ts`) checks the `ai` module, then the monthly cap, builds the facts from the records (the browser sends ids only), writes with the model in the billing settings, then counts the action under that model. With no `ANTHROPIC_API_KEY` (local `next dev`, tests, E2E) `writeWithAI` is the mock in `src/lib/ai/mock.ts` (deterministic, facts only, dashes stripped, 700 ms pause). With `ANTHROPIC_API_KEY` set as a Worker secret (`npx wrangler secret put ANTHROPIC_API_KEY`) it is real Claude instead (`src/lib/ai/claude.ts`, every prompt in one place), for the demo dealer too, under the same module check, monthly cap, ceiling and `AI_LIMITER` as any dealer. The demo's AI usage is a `real-` record that the demo reset keeps (the seeded lines still reset), so its fair use is a real monthly one, not a daily one. A refusal, a cut-off answer or an error is a failed write, not counted, and the facts and text are never logged. Limits: our fair use of `AI_FAIR_USE` actions a month (AI writing is never billed, so the dealer sets no limit on it), `AI_LIMITER` of 10 calls a minute per dealer (wrangler.jsonc, namespace 3003, 4003 on dev; Cloudflare counts it per location), short prompts (a message or review is cut to 600 characters; phone numbers and emails are taken out of the facts and the draft, and the dealer's own are put back in the answer) and `max_tokens` 2048. Set a spend limit on the Claude Console workspace too. `AIWriter` / `AITextarea` show the button, adjust chips, Undo and an "AI draft" label, and hide with the module off. Used in the post composer, the car description, the lead page (Draft a reply) and review replies.
+- **Social and ads**: Marketing (posts, calendar and media) is there for every dealer; posting needs the dealer's accounts connected (Settings, Connected services). Stock alerts are on Customers.
+- **AI writing** (#179): `writeAction` (`src/lib/ai/actions.ts`) checks the monthly cap, builds the facts from the records (the browser sends ids only), writes with the model in the billing settings, then counts the action under that model. With no `ANTHROPIC_API_KEY` (local `next dev`, tests, E2E) `writeWithAI` is the mock in `src/lib/ai/mock.ts` (deterministic, facts only, dashes stripped, 700 ms pause). With `ANTHROPIC_API_KEY` set as a Worker secret (`npx wrangler secret put ANTHROPIC_API_KEY`) it is real Claude instead (`src/lib/ai/claude.ts`, every prompt in one place), for the demo dealer too, under the same monthly cap, ceiling and `AI_LIMITER` as any dealer. The demo's AI usage is a `real-` record that the demo reset keeps (the seeded lines still reset), so its fair use is a real monthly one, not a daily one. A refusal, a cut-off answer or an error is a failed write, not counted, and the facts and text are never logged. Limits: our fair use of `AI_FAIR_USE` actions a month (AI writing is never billed, so the dealer sets no limit on it), `AI_LIMITER` of 10 calls a minute per dealer (wrangler.jsonc, namespace 3003, 4003 on dev; Cloudflare counts it per location), short prompts (a message or review is cut to 600 characters; phone numbers and emails are taken out of the facts and the draft, and the dealer's own are put back in the answer) and `max_tokens` 2048. Set a spend limit on the Claude Console workspace too. `AIWriter` / `AITextarea` show the button, adjust chips, Undo and an "AI draft" label. Used in the post composer, the car description, the lead page (Draft a reply) and review replies.
 
 ## Where things are
 
@@ -625,7 +613,7 @@ app store and no outside service.
 |---|---|
 | AI writing (Claude with a key, the mock without), media library | `src/lib/ai/`, `src/lib/admin/media.ts` |
 | Dealers kept apart: the directory, the current dealer, `runAsDealer`, the bucket prefix, jobs | `src/lib/tenancy/`, `src/lib/db/directory-schema.ts`, `docs/new-dealer.md` |
-| Each dealer's profile (facts, plan, stock source, rules), the demo switches' cookies | `src/lib/tenancy/profile.ts`, `current.ts` (`dealerProfile`, `demoCookie`), `src/components/DealerFacts.tsx` (the browser's copy) |
+| Each dealer's profile (facts, stock source, rules), the demo switches' cookies | `src/lib/tenancy/profile.ts`, `current.ts` (`dealerProfile`, `demoCookie`), `src/components/DealerFacts.tsx` (the browser's copy) |
 | Record store (one D1 table, `admin_docs`, in the dealer's database; memory with no D1) | `src/lib/admin/docs.ts` |
 | The dealer's collections, types and seeds | `src/lib/admin/collections.ts`, `seed-data.ts` |
 | WhatsApp: templates, price parser, sender, handlers, conversation | `src/lib/whatsapp/`, `src/app/whatsapp/` |

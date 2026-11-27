@@ -8,7 +8,7 @@ vi.mock("@/lib/admin/seed-data", () => ({ carTitleOf: () => "" }));
 const { viewFor } = await import("./store");
 
 describe("viewFor", () => {
-  it("hides an alert, and the questions asked from it, while its module is off", async () => {
+  it("shows every alert and the questions asked from it, and nothing not yet due", async () => {
     const staff = (id: string, o: Record<string, unknown>) => ({ id, at: 1, thread: "staff", from: "site", to: "Aoife", text: id, ...o });
     msgs.push(
       staff("trade", { event: "trade-in", buttons: ["price"] }),
@@ -18,8 +18,7 @@ describe("viewFor", () => {
       staff("enquiry", { event: "enquiry" }),
       staff("note", { text: "Already done." }),
     );
-    const shown = async (mods: string[]) => (await viewFor("Aoife", new Set(mods) as never, 2)).staff.map((m) => m.id);
-    expect(await shown(["dashboard", "whatsapp", "tradeIn", "reviews"])).toEqual(["trade", "price-q", "review", "review-q", "enquiry", "note"]);
-    expect(await shown(["dashboard", "whatsapp"])).toEqual(["enquiry", "note"]);
+    expect((await viewFor("Aoife", 2)).staff.map((m) => m.id)).toEqual(["trade", "price-q", "review", "review-q", "enquiry", "note"]);
+    expect((await viewFor("Aoife", 0)).staff).toEqual([]); // each at 1, after now
   });
 });

@@ -38,7 +38,7 @@ test.describe("on a 390px phone", () => {
   test("small controls have a 44px hit area: activity links, the limits Edit, the notifications Edit, the pager", async ({ page }) => {
     const controls: [string, (p: typeof page) => Locator][] = [
       ["/activity", (p) => p.locator("main section[aria-label='Changes'] li a").first()],
-      ["/billing", (p) => p.getByRole("button", { name: "Edit monthly limits" })],
+      ["/settings?section=limits", (p) => p.getByRole("button", { name: "Edit monthly limits" })],
       ["/settings?section=emails", (p) => p.getByRole("button", { name: "Edit your notifications" })],
       ["/leads?per=10", (p) => p.getByRole("navigation", { name: "Pages" }).getByRole("link", { name: "Next" })],
       ["/leads?per=10&page=2", (p) => p.getByRole("navigation", { name: "Pages" }).getByRole("link", { name: "Previous" })],

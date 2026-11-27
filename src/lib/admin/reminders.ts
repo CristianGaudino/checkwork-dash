@@ -1,7 +1,6 @@
 import "server-only";
 import { carHistoryStore } from "@/lib/history";
 import type { VehicleHistory } from "@/lib/history-rules";
-import { hasModule } from "@/lib/modules";
 import { parseIrishReg } from "@/lib/reg";
 import { currentDealer } from "@/lib/tenancy/current";
 import { whatsappChannel } from "@/lib/whatsapp/send";
@@ -12,7 +11,7 @@ import { adminCars } from "./stock-admin";
 import { leadsIndex, messageBuyer, reviewReach, type Reach } from "./review-ask";
 
 // Reminding past buyers when their car's NCT or service is due (#171), so the customer list brings repeat business. A daily job
-// (worker.mjs, /api/reminders) sends each one once per due date, to buyers who agreed to marketing only. The sales module.
+// (worker.mjs, /api/reminders) sends each one once per due date, to buyers who agreed to marketing only.
 
 export type ReminderKind = SentReminder["kind"];
 // Days before the due date the reminder goes: the NCT a month ahead (time to book a test), the service on its day.
@@ -53,8 +52,8 @@ export const remindersDue = (s: Sale, car: SoldCar | undefined, months: number, 
 // someone who stopped WhatsApp on any lead).
 export const reminderReach = (c: Pick<Customer, "email" | "marketingConsent">, theirLeads: Pick<Lead, "id" | "whatsappOptIn" | "phone">[], whatsapp: boolean): Reach =>
   c.marketingConsent ? reviewReach(c, theirLeads, whatsapp) : null;
-// Whether a reminder would go by WhatsApp now: in the plan, and a marketing message can really go (simulated and under the cap).
-export const reminderByWhatsApp = async () => (await hasModule("whatsapp")) && (await whatsappChannel("marketing")) === "whatsapp";
+// Whether a reminder would go by WhatsApp now: a marketing message can really go (simulated and under the cap).
+export const reminderByWhatsApp = async () => (await whatsappChannel("marketing")) === "whatsapp";
 
 // The message goes within a month of the day, so the day and month say it ("12 December").
 export function reminderText(kind: ReminderKind, first: string, car: string, due: string, dealer: string, phone: string) {
@@ -99,7 +98,6 @@ export function dueThisMonth(sales: Sale[], customers: Customer[], carOf: (id: s
 // The daily job, for the current dealer. A demo dealer sends nothing outside (WhatsApp is simulated there, email skipped) but records each
 // as sent. WhatsApp counts as marketing usage; when it cannot go, email. Returns counts only; nothing about a buyer is logged.
 export async function sendReminders(now = Date.now()): Promise<{ sent: number; failed: number }> {
-  if (!(await hasModule("sales"))) return { sent: 0, failed: 0 };
   const today = dublinDay(now);
   const { name: dealer, profile } = await currentDealer();
   const [sales, customers, leads, carOf] = await Promise.all([salesStore.list(), customersStore.list(), leadsStore.list(), soldCars()]);

@@ -14,12 +14,12 @@ const { patchDealer } = await import("@/lib/tenancy/directory");
 const B = "test-motors";
 const call = () => POST(new Request(`https://x.test/api/donedeal/sync?dealer=${B}`, { method: "POST", headers: { authorization: "Bearer k" } }));
 
-describe("the listing site sync for a website-only dealer", () => {
-  it("runs for a dealer whose stock is synced, whatever its stored plan, and not for one whose stock is kept here", async () => {
+describe("the listing site sync", () => {
+  it("runs for a dealer whose stock is synced, and not for one whose stock is kept here", async () => {
     vi.stubEnv("CRON_KEY", "k");
     try {
       expect((await call()).status).toBe(404); // stock kept here
-      await patchDealer(B, "Test Motors", { modules: "tradeIn", stock: { source: "donedeal", listingSite: "DoneDeal", listingUrl: "https://www.donedeal.ie/" } });
+      await patchDealer(B, "Test Motors", { stock: { source: "donedeal", listingSite: "DoneDeal", listingUrl: "https://www.donedeal.ie/" } });
       const res = await call();
       expect(res.status).toBe(200);
       expect(await res.json()).toMatchObject({ ok: false, held: false }); // it ran: no listing site key here, so it changed nothing

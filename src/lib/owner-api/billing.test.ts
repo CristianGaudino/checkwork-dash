@@ -7,7 +7,7 @@ const { runAsDealer } = await import("@/lib/tenancy/current");
 const { listActivity } = await import("@/lib/admin/activity");
 const { billingSettings } = await import("@/lib/billing/usage");
 const { addMonths, dublinDay } = await import("@/lib/admin/format");
-const { planFor, planLines } = await import("@/lib/billing/rules");
+const { PLAN, planLines } = await import("@/lib/billing/rules");
 
 const call = (method: string, dealer: string, body?: unknown, token = "right") =>
   ownerBilling(new Request("https://x.test/api/owner/v1/x", { method, headers: token ? { authorization: `Bearer ${token}` } : {}, body: body === undefined ? undefined : JSON.stringify(body) }), dealer);
@@ -40,9 +40,8 @@ describe("owner API billing terms (#177)", () => {
     expect(await put.json()).toEqual({ version: 1, term: 2, freeMonth: free });
     const b = await stored();
     expect(b).toMatchObject({ term: 2, freeMonth: free });
-    // What the Billing page shows from it: no setup fee, and that month's plan taken off.
-    expect(planFor(["tradeIn"], b).setupEur).toBe(0);
-    expect(planLines(["tradeIn"], b, free).at(-1)).toEqual({ label: "First month free", eur: -planFor(["tradeIn"], b).eur });
+    // What the Billing page shows from it: that month's plan taken off.
+    expect(planLines(b, free).at(-1)).toEqual({ label: "First month free", eur: -PLAN.eur });
     const log = await runAsDealer("test-motors", () => listActivity({ area: "settings" }, 1, 2));
     expect(log.rows.map((r) => [r.actor, r.summary])).toEqual([
       ["Checkwork", expect.stringMatching(/^Set the first month free to /)],
@@ -50,7 +49,6 @@ describe("owner API billing terms (#177)", () => {
     ]);
     expect((await call("PUT", "test-motors", { term: 1 })).status).toBe(200);
     expect(await (await call("GET", "test-motors")).json()).toEqual({ version: 1, term: 1, freeMonth: free });
-    expect(planFor(["tradeIn"], await stored()).setupEur).toBeGreaterThan(0);
     expect((await call("PUT", "test-motors", { term: 1, freeMonth: null })).status).toBe(200);
     expect((await stored()).freeMonth).toBeUndefined();
     expect((await runAsDealer("test-motors", () => listActivity({ area: "settings" }, 1, 1))).rows[0].summary).toBe("Removed the first month free");

@@ -6,7 +6,6 @@ const db = vi.hoisted(() => ({
   msgs: [] as Record<string, unknown>[],
   phones: [] as Record<string, unknown>[],
   team: [] as { id: string; role: string }[],
-  modules: new Set<string>(),
   connected: true,
   allowed: true,
   used: 0,
@@ -22,7 +21,6 @@ vi.mock("./store", () => ({
 }));
 vi.mock("@/lib/integrations", () => ({ modeOf: () => "simulated", isUsable: async () => db.connected }));
 vi.mock("@/lib/billing/usage", () => ({ usageAllowed: async () => db.allowed, recordUsage: async (_s: string, _k: string, n = 1) => void (db.used += n) }));
-vi.mock("@/lib/modules", () => ({ enabledModules: async () => db.modules }));
 vi.mock("@/lib/admin/collections", () => ({
   getSettings: async () => ({ team: db.team }),
   leadsStore: { list: async () => [] },
@@ -44,7 +42,6 @@ beforeEach(() => {
   db.msgs = [];
   db.team = [{ id: "a", role: "Owner" }, { id: "b", role: "Owner" }, { id: "c", role: "Owner" }, { id: "d", role: "Owner" }];
   db.phones = [phone("a"), phone("b", { quietFrom: "11:00", quietTo: "13:00" }), phone("c", { phone: "" }), phone("d", { alerts: ["enquiry"] }), phone("gone")];
-  db.modules = new Set(["dashboard", "whatsapp", "sales", "social", "reviews", "margins"]);
   db.connected = true;
   db.allowed = true;
   db.used = 0;

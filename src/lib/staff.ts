@@ -7,7 +7,6 @@ import { PATH_HEADER, appOpen, signInMode, signInPath } from "@/lib/auth/gate";
 import { currentSession } from "@/lib/auth/session";
 import { DEV_EMAIL } from "@/lib/tenancy/directory";
 import { dealerAccess } from "@/lib/tenancy/membership";
-import { hasModule } from "@/lib/modules";
 
 // Who the dashboard is talking to, checked here and not trusted from a header. A server action runs on a POST to any page (Next 16), so
 // the proxy's gate on the pages is not enough on its own: every dashboard action asks requireStaff() first. Who it is depends on SIGN_IN
@@ -72,9 +71,7 @@ export async function pageGate(): Promise<"bare" | "frame"> {
 // nothing, as if the action were not there (a 404, never a redirect: the caller is script, not a person on a page). Which dealer is checked
 // against the directory (src/lib/tenancy/membership.ts).
 // "choosing": the one action that runs before a dealer is open, the chooser's (src/app/dealers/actions.ts).
-// A dealer whose plan has no dashboard (#173) has no action here either: their pages are the not found screen (src/app/layout.tsx).
 export async function requireStaff(choosing?: "choosing"): Promise<void> {
   const { state } = await dealerAccess();
   if (state !== "ok" && !(choosing && state === "choose")) notFound();
-  if (state === "ok" && !choosing && !(await hasModule("dashboard"))) notFound();
 }
