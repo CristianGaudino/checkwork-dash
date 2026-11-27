@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { SearchIcon } from "@/components/stock/icons";
 import { adminButtonQuiet } from "@/components/admin/kit";
+import { BUSY } from "@/components/admin/ActButton";
 import { regSummary } from "@/lib/reg";
 import { useModules } from "@/components/DealerFacts";
 import type { CarFound, RegLookup as Found } from "@/lib/reg-lookup";
@@ -33,7 +34,7 @@ export function RegLookup({ reg, onFound, lookup, className = "" }: { reg: strin
   // `className` sets the height to match the box beside it and the offset past its label.
   return (
     <>
-      <button type="button" onClick={look} disabled={pending || !reg.trim()} className={`inline-flex shrink-0 items-center justify-center gap-2 px-5 disabled:opacity-60 ${adminButtonQuiet} ${className}`}>
+      <button type="button" onClick={look} disabled={pending || !reg.trim()} aria-busy={pending || undefined} className={`inline-flex shrink-0 items-center justify-center gap-2 px-5 disabled:opacity-60 ${adminButtonQuiet} ${BUSY} ${className}`}>
         <SearchIcon className="size-5" />
         {pending ? "Looking up" : "Look up"}
       </button>

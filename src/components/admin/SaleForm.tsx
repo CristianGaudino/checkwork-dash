@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useKeptForm } from "@/components/admin/useKeptForm";
 import { Select } from "@/components/Select";
 import { Field, adminButton, adminInput } from "@/components/admin/kit";
+import { BUSY } from "@/components/admin/ActButton";
 import { BuyerFields } from "@/components/admin/BuyerFields";
 import { PersonPicker } from "@/components/admin/PersonPicker";
 import { recordSaleAction } from "@/app/stock/actions";
@@ -69,7 +70,7 @@ export function SaleForm({ carId, defaults, today, team, me, customers, leads, s
         </Field>
       )}
       <div className="flex justify-end sm:col-span-2 lg:col-span-3">
-        <button type="submit" disabled={pending} className={adminButton}>
+        <button type="submit" disabled={pending} aria-busy={pending || undefined} className={`${adminButton} ${BUSY}`}>
           {pending ? "Saving" : submit}
         </button>
       </div>

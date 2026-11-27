@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useRef } from "react";
 import { adminButton, adminInput } from "@/components/admin/kit";
+import { BUSY } from "@/components/admin/ActButton";
 import { requestCode } from "./actions";
 import { SITE_KEY, useTurnstile } from "./useTurnstile";
 
@@ -26,7 +27,7 @@ export function EmailForm({ next }: { next: string }) {
           {state?.error ?? "We could not run the check. Reload the page and try again."}
         </p>
       )}
-      <button type="submit" disabled={pending || (!!SITE_KEY && !token)} className={`${adminButton} w-full`}>
+      <button type="submit" disabled={pending || (!!SITE_KEY && !token)} aria-busy={pending || undefined} className={`${adminButton} w-full ${BUSY}`}>
         Email me a code
       </button>
     </form>
