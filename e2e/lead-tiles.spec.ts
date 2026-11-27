@@ -109,6 +109,32 @@ for (const width of [1024, 1263]) {
   });
 }
 
+// A full row: Closed shows as a seventh tab once it is open (as it does for a dealer with a closed lead). The lead stays the widest tab
+// when the row is crowded, and at 1263px every count on the row sits level (a label that wrapped pushed its count a line down).
+for (const width of [1024, 1263]) {
+  test(`on a full Leads row the lead stays the widest tab, and the counts level, at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    for (const path of ["/leads", "/leads?status=closed"]) {
+      await page.goto(path);
+      const row = page.getByRole("navigation", { name: "Lead status" });
+      await expect(row.getByRole("link").first()).toBeVisible();
+      const m = await row.evaluate((nav) => {
+        const tabs = [...nav.querySelectorAll("a")];
+        const lead = tabs.find((a) => a.hasAttribute("data-lead"))!;
+        return {
+          tabs: tabs.length,
+          lead: lead.getBoundingClientRect().width,
+          widest: Math.max(...tabs.filter((a) => a !== lead).map((a) => a.getBoundingClientRect().width)),
+          counts: tabs.map((a) => a.querySelector(":scope > span.tabular-nums")!.getBoundingClientRect().top),
+        };
+      });
+      if (path.includes("closed")) expect(m.tabs, "Closed shows").toBeGreaterThanOrEqual(7); // and Spam, when another spec has marked one
+      expect(m.lead, `${path} @${width}px: the lead is the widest`).toBeGreaterThanOrEqual(m.widest - 1);
+      if (width === 1263) expect(Math.max(...m.counts) - Math.min(...m.counts), `${path}: counts level`).toBeLessThanOrEqual(1);
+    }
+  });
+}
+
 test("the tabs with a lead still filter, and the lead keeps the chosen look when picked", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto("/leads");

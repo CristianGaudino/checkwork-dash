@@ -256,8 +256,8 @@ export function DataTable<T>({ columns, rows, rowKey, empty, bare = false, linkR
 // (TabRow): the chosen one is scrolled into view and an edge with more past it fades.
 // `lead`: the view acted on (#208), wider with a larger count. It keeps its place in the row (after All), so the reading order is the same.
 // A row with a lead stays one line at every width, scrolling sideways when it does not fit (a wrapped row left one tab alone, stretched).
-// From 640px its tabs grow to fill it, the lead twice the others, and shrink to their words before it scrolls, so on a laptop (a mouse
-// does not scroll a row sideways) every tab is in view. A row without a lead stays a grid from 640px.
+// From 640px its tabs grow to fill it, the lead twice the others, and shrink to their words (the lead to its 10rem, wider than any label on one line, so it stays the widest)
+// before it scrolls, so on a laptop (a mouse does not scroll a row sideways) every tab is in view. A row without a lead stays a grid from 640px.
 export type SummaryTab = { label: string; href: string; active: boolean; count?: number | string; hint?: string; lead?: boolean };
 export function SummaryTabs({ items, label = "Filter" }: { items: SummaryTab[]; label?: string }) {
   const led = items.some((i) => i.lead);
@@ -270,10 +270,11 @@ export function SummaryTabs({ items, label = "Filter" }: { items: SummaryTab[]; 
           href={i.href}
           aria-current={i.active ? "true" : undefined}
           data-lead={i.lead || undefined}
-          className={`group/tab flex ${i.lead ? "min-w-40 sm:min-w-auto sm:shrink sm:grow-2 sm:basis-64" : `min-w-28 ${led ? "sm:min-w-auto sm:shrink sm:grow sm:basis-32" : ""}`} shrink-0 flex-col gap-0.5 rounded-card border bg-card px-4 py-3 text-text transition-colors ${i.active ? "border-accent ring-1 ring-inset ring-accent group-has-data-pending/tabs:not-has-data-pending:border-hairline group-has-data-pending/tabs:not-has-data-pending:ring-0" : "border-hairline hover:border-control has-data-pending:border-accent has-data-pending:ring-1 has-data-pending:ring-inset has-data-pending:ring-accent"} ${press}`}
+          className={`group/tab flex ${i.lead ? "min-w-40 sm:shrink sm:grow-2 sm:basis-64" : `min-w-28 ${led ? "sm:min-w-auto sm:shrink sm:grow sm:basis-32" : ""}`} shrink-0 flex-col gap-0.5 rounded-card border bg-card px-4 py-3 text-text transition-colors ${i.active ? "border-accent ring-1 ring-inset ring-accent group-has-data-pending/tabs:not-has-data-pending:border-hairline group-has-data-pending/tabs:not-has-data-pending:ring-0" : "border-hairline hover:border-control has-data-pending:border-accent has-data-pending:ring-1 has-data-pending:ring-inset has-data-pending:ring-accent"} ${press}`}
         >
           <LinkPending />
-          <span className="text-meta text-text-2">{i.label}</span>
+          {/* One line, so the counts of tabs side by side stay level. */}
+          <span className="text-meta text-nowrap text-text-2">{i.label}</span>
           {i.count !== undefined && (
             <span className={`${i.lead ? "font-display text-[2.5rem] leading-none tracking-[-0.02em]" : "text-heading"} font-semibold tabular-nums ${i.active ? "text-accent-text group-has-data-pending/tabs:group-not-has-data-pending/tab:text-text" : "group-has-data-pending/tab:text-accent-text"}`}>
               {typeof i.count === "number" ? <Tween value={fmtNum(i.count)} /> : i.count}
