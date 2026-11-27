@@ -1,6 +1,6 @@
 import { EmptyState, Meter } from "@/components/admin/kit";
 import { BrandIcon, brandsIn } from "@/components/admin/BrandIcon";
-import { fmtNum } from "@/lib/admin/format";
+import { fmtCompact } from "@/lib/admin/format";
 
 // Charts drawn by hand in SVG and HTML: no library, nothing to load. Colours come from the tokens, so both themes work. Each chart
 // carries its numbers as text for a screen reader, and never relies on colour alone.
@@ -8,9 +8,10 @@ import { fmtNum } from "@/lib/admin/format";
 type Point = { label: string; value: number };
 
 // A filled line over time. The line keeps a constant width however the box is stretched (non-scaling-stroke).
-// `format` writes a value (euros on Reports, a plain count on Analytics), in the caption and the table read aloud.
+// `format` writes a value (euros on Reports, a plain count on Analytics), in the caption and the table read aloud. Rounded by default:
+// a chart is read at a glance (fmtCompact).
 // `empty`: what a period with nothing in it says, in place of a flat line.
-export function AreaChart({ data, summary, format = fmtNum, empty = "No sales in this period" }: { data: Point[]; summary: string; format?: (n: number) => string; empty?: string }) {
+export function AreaChart({ data, summary, format = fmtCompact, empty = "No sales in this period" }: { data: Point[]; summary: string; format?: (n: number) => string; empty?: string }) {
   if (!data.some((d) => d.value)) return <EmptyState compact title={empty} />;
   const W = 600;
   const H = 180;
@@ -64,7 +65,7 @@ export function AreaChart({ data, summary, format = fmtNum, empty = "No sales in
 }
 
 // Horizontal bars with the number beside each. `of` is what a full bar means (the biggest value by default).
-export function BarList({ items, of, format = fmtNum }: { items: { label: string; value: number; note?: string }[]; of?: number; format?: (n: number) => string }) {
+export function BarList({ items, of, format = fmtCompact }: { items: { label: string; value: number; note?: string }[]; of?: number; format?: (n: number) => string }) {
   const full = of ?? Math.max(1, ...items.map((i) => i.value));
   // A list with any network's mark keeps a mark's room on every row, so Website and Phone start where WhatsApp does.
   const marks = items.some((i) => brandsIn(i.label).length > 0);

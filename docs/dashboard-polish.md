@@ -22,6 +22,7 @@ audit at the end of each.
 8. **Copy:** short. Labels, buttons and subheads end without a period. No helper sentence where the label already says it. One primary action per page.
 9. **Motion:** color, background, opacity and transform only (and clip-path for a chart drawing in, so rounded bar ends do not squash), one easing, no looping, nothing that moves on hover by more than a few pixels.
 10. **Clickable means clickable:** a number, a badge or a row that looks like a link is one.
+11. **Round what is read at a glance** (#206): tiles, chart labels and headline totals use `fmtCompact` / `fmtCompactEur` (`src/lib/admin/format.ts`): under 1,000 in full, then "12.4k", "118k", "€1.2m", one decimal below 100 of the unit, never ".0". Prices, costs, margins and profit, deposits, bills, finance and every table keep the full figure; a rounded money tile carries the exact one in its `title`.
 
 ## Spec by issue
 | # | What |

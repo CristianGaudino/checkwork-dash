@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addMonths, daysSince, isIsoDay, isIsoMonth, fmtAgo, fmtAgoOn, fmtDateTime, fmtDay, fmtEur, fmtPct, fmtTime, monthChoices, plural, threeLetter } from "./format";
+import { addMonths, daysSince, fmtCompact, fmtCompactEur, isIsoDay, isIsoMonth, fmtAgo, fmtAgoOn, fmtDateTime, fmtDay, fmtEur, fmtPct, fmtTime, monthChoices, plural, threeLetter } from "./format";
 
 describe("admin format", () => {
   const now = new Date("2026-11-10T12:00:00Z").getTime();
@@ -23,6 +23,29 @@ describe("admin format", () => {
     expect(fmtEur(12500)).toBe("€12,500");
     expect(fmtPct(12.345)).toBe("12.3%");
     expect(fmtPct(8)).toBe("8.0%");
+  });
+  it("rounds a figure read at a glance, never one under 1,000, with a decimal only below 100 of the unit", () => {
+    const cases: [number, string, string][] = [
+      [0, "0", "€0"],
+      [999, "999", "€999"],
+      [1000, "1k", "€1k"],
+      [1234, "1.2k", "€1.2k"],
+      [9950, "10k", "€10k"],
+      [12400, "12.4k", "€12.4k"],
+      [99949, "99.9k", "€99.9k"],
+      [99950, "100k", "€100k"],
+      [117565, "118k", "€118k"],
+      [999499, "999k", "€999k"],
+      [999950, "1m", "€1m"],
+      [1050000, "1.1m", "€1.1m"],
+      [5864950, "5.9m", "€5.9m"],
+      [-999, "-999", "-€999"],
+      [-1050000, "-1.1m", "-€1.1m"],
+    ];
+    for (const [n, count, eur] of cases) {
+      expect(fmtCompact(n)).toBe(count);
+      expect(fmtCompactEur(n)).toBe(eur);
+    }
   });
   it("writes September in full, and short as Sep", () => {
     expect(fmtDay("2027-09-01", "monthYear")).toBe("September 2027");

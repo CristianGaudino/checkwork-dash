@@ -10,7 +10,7 @@ import { ReportViews } from "./views";
 import { getSettings, leadsStore, prepStore, salesStore } from "@/lib/admin/collections";
 import { isSalesLead } from "@/lib/admin/leads";
 import { carCosts } from "@/lib/admin/costs";
-import { fmtEur, fmtNum, plural } from "@/lib/admin/format";
+import { fmtCompact, fmtCompactEur, fmtEur, fmtNum, plural } from "@/lib/admin/format";
 import { PERIODS, fullReport, monthLabel, personalReport, type Period } from "@/lib/admin/reports";
 import { adminCars } from "@/lib/admin/stock-admin";
 import { can, currentMember } from "@/lib/permissions";
@@ -88,13 +88,13 @@ async function Full({ period }: { period: Period }) {
     <>
       {/* The answer first, in words. */}
       <p className="max-w-measure text-body">
-        You sold {plural(r.totals.sold, "car")} for {fmtEur(r.totals.value)}
-        {r.totals.costed > 0 && (r.totals.costed === r.totals.sold ? <>, {fmtEur(r.totals.profit)} of it profit</> : <>, with {fmtEur(r.totals.profit)} profit on the {r.totals.costed} with a cost entered</>)}.{best && best.value > 0 && ` Your best month was ${monthLabel(best.month)}, at ${fmtEur(best.value)}.`}
+        You sold {plural(r.totals.sold, "car")} for {fmtCompactEur(r.totals.value)}
+        {r.totals.costed > 0 && (r.totals.costed === r.totals.sold ? <>, {fmtEur(r.totals.profit)} of it profit</> : <>, with {fmtEur(r.totals.profit)} profit on the {r.totals.costed} with a cost entered</>)}.{best && best.value > 0 && ` Your best month was ${monthLabel(best.month)}, at ${fmtCompactEur(best.value)}.`}
       </p>
       <StatGrid>
-        <StatCard label="Cars sold" value={fmtNum(r.totals.sold)} />
+        <StatCard label="Cars sold" value={fmtCompact(r.totals.sold)} />
         {/* Returns are a line under Sales, not a tile of their own: a fifth tile sat alone on its row. */}
-        <StatCard label="Sales" value={fmtEur(r.totals.value)} hint={r.returns.count > 0 ? `Not counting ${plural(r.returns.count, "return")}, ${fmtEur(r.returns.refundEur)} refunded` : undefined} />
+        <StatCard label="Sales" value={fmtCompactEur(r.totals.value)} title={fmtEur(r.totals.value)} hint={r.returns.count > 0 ? `Not counting ${plural(r.returns.count, "return")}, ${fmtEur(r.returns.refundEur)} refunded` : undefined} />
         <StatCard label="Profit" value={fmtEur(r.totals.profit)} hint={r.totals.costed < r.totals.sold ? `On ${r.totals.costed} of ${r.totals.sold} cars with their cost entered` : "Less cost, prep and warranty repairs, before VAT"} />
         <StatCard label="Days to sell" value={r.totals.avgDaysToSell === null ? "None" : fmtNum(r.totals.avgDaysToSell)} hint="On average, from listing to sale" />
       </StatGrid>
@@ -107,8 +107,8 @@ async function Full({ period }: { period: Period }) {
             <>
               <AreaChart
                 data={r.months.map((m) => ({ label: monthLabel(m.month), value: m.value }))}
-                format={fmtEur}
-                summary={`Sales each month over the last ${period} months, the most in ${monthLabel(best.month)} at ${fmtEur(best.value)}.`}
+                format={fmtCompactEur}
+                summary={`Sales each month over the last ${period} months, the most in ${monthLabel(best.month)} at ${fmtCompactEur(best.value)}.`}
               />
               {/* The chart is the answer; the figures behind it are one tap away. */}
               <details className="group rounded-control border border-hairline px-3">
@@ -162,7 +162,7 @@ async function Full({ period }: { period: Period }) {
             {r.lost.length ? <BarList items={r.lost.map((x) => ({ label: x.reason, value: x.leads, note: `${Math.round((x.leads / r.lost.reduce((n, y) => n + y.leads, 0)) * 100)}% of lost leads` }))} /> : <p className="text-body text-text-2">No lost leads in this period.</p>}
           </Panel>
           <Panel title="Stock by age" quiet>
-            <BarList items={r.stockAge.map((b) => ({ label: b.band, value: b.cars, note: fmtEur(b.value) }))} />
+            <BarList items={r.stockAge.map((b) => ({ label: b.band, value: b.cars, note: fmtCompactEur(b.value) }))} />
           </Panel>
           <Panel title="Prep spend" quiet>
             {r.prep.length ? <BarList format={fmtEur} items={r.prep.map((p) => ({ label: p.kind, value: p.eur, note: p.lines === 1 ? "1 job" : `${p.lines} jobs` }))} /> : <p className="text-body text-text-2">No prep costs in this period.</p>}
@@ -181,10 +181,10 @@ async function Personal({ period }: { period: Period }) {
   return (
     <>
       <StatGrid>
-        <StatCard label="Cars sold" value={fmtNum(r.totals.sold)} />
-        <StatCard label="Leads" value={fmtNum(r.totals.leads)} />
-        <StatCard label="Leads won" value={fmtNum(r.totals.won)} hint={`${r.totals.winRate}% of your leads`} />
-        <StatCard href={`/leads?due=1&with=${encodeURIComponent(me.name)}`} label="Follow-ups due" value={fmtNum(r.totals.followUpsDue)} />
+        <StatCard label="Cars sold" value={fmtCompact(r.totals.sold)} />
+        <StatCard label="Leads" value={fmtCompact(r.totals.leads)} />
+        <StatCard label="Leads won" value={fmtCompact(r.totals.won)} hint={`${r.totals.winRate}% of your leads`} />
+        <StatCard href={`/leads?due=1&with=${encodeURIComponent(me.name)}`} label="Follow-ups due" value={fmtCompact(r.totals.followUpsDue)} />
       </StatGrid>
       <Panel title="By month">
         <DataTable

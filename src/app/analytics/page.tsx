@@ -11,7 +11,7 @@ import type { Range } from "@/lib/admin/analytics";
 import { AreaChart, BarList } from "@/components/admin/charts";
 import { DataTable, PageHeader, Panel, Segmented, StatCard, StatGrid } from "@/components/admin/kit";
 import { RANGES, buildAnalytics, changeText, changeTone, parseRange } from "@/lib/admin/analytics";
-import { fmtNum, fmtPct, plural, threeLetter } from "@/lib/admin/format";
+import { fmtCompact, fmtNum, fmtPct, plural, threeLetter } from "@/lib/admin/format";
 import { leadsStore } from "@/lib/admin/collections";
 import { adminCars } from "@/lib/admin/stock-admin";
 import { simulating } from "@/lib/integrations";
@@ -103,14 +103,14 @@ async function Figures({ range, demo }: { range: Range; demo: boolean }) {
     <>
       {/* The answer first, in words; the figures behind it follow. */}
       <p className="max-w-measure text-body">
-        {fmtNum(a.totals.visitors)} people visited your site in the last {range} days, {changeText(a.totals.visitors, a.previous.visitors).toLowerCase()}. {fmtNum(a.totals.leads)} got in touch{whole ? ` and ${fmtNum(sold)} bought a car.` : `, and you sold ${fmtNum(sold)}.`}
+        {fmtCompact(a.totals.visitors)} people visited your site in the last {range} days, {changeText(a.totals.visitors, a.previous.visitors).toLowerCase()}. {fmtCompact(a.totals.leads)} got in touch{whole ? ` and ${fmtCompact(sold)} bought a car.` : `, and you sold ${fmtCompact(sold)}.`}
         {best && ` Most leads came from ${best.channel === "direct" ? "people who typed in your address" : best.label}.`}
       </p>
 
       <StatGrid>
-        <StatCard label="Visitors" value={fmtNum(a.totals.visitors)} hint={changeText(a.totals.visitors, a.previous.visitors)} tone={changeTone(a.totals.visitors, a.previous.visitors)} />
-        <StatCard label="Leads" value={fmtNum(a.totals.leads)} hint={changeText(a.totals.leads, a.previous.leads)} tone={changeTone(a.totals.leads, a.previous.leads)} />
-        <StatCard label="Cars sold" value={fmtNum(sold)} hint={whole ? "Sales you recorded" : "Your own sales"} />
+        <StatCard label="Visitors" value={fmtCompact(a.totals.visitors)} hint={changeText(a.totals.visitors, a.previous.visitors)} tone={changeTone(a.totals.visitors, a.previous.visitors)} />
+        <StatCard label="Leads" value={fmtCompact(a.totals.leads)} hint={changeText(a.totals.leads, a.previous.leads)} tone={changeTone(a.totals.leads, a.previous.leads)} />
+        <StatCard label="Cars sold" value={fmtCompact(sold)} hint={whole ? "Sales you recorded" : "Your own sales"} />
         <StatCard label="Visitors who got in touch" value={fmtPct(a.totals.conversion)} hint={changeText(a.totals.conversion, convBefore, true)} tone={changeTone(a.totals.conversion, convBefore, true)} />
       </StatGrid>
 
@@ -123,7 +123,7 @@ async function Figures({ range, demo }: { range: Range; demo: boolean }) {
       </Panel>
 
       <Panel title="Visitors each day">
-        <AreaChart data={a.days.map((d) => ({ label: threeLetter(shortDate.format(new Date(d.date))), value: d.visitors }))} format={(n) => `${fmtNum(n)} visitors`} empty="No visitors in this period" summary={`Visitors each day over the last ${range} days, from ${fmtNum(Math.min(...a.days.map((d) => d.visitors)))} to ${fmtNum(Math.max(...a.days.map((d) => d.visitors)))}.`} />
+        <AreaChart data={a.days.map((d) => ({ label: threeLetter(shortDate.format(new Date(d.date))), value: d.visitors }))} format={(n) => `${fmtCompact(n)} visitors`} empty="No visitors in this period" summary={`Visitors each day over the last ${range} days, from ${fmtCompact(Math.min(...a.days.map((d) => d.visitors)))} to ${fmtCompact(Math.max(...a.days.map((d) => d.visitors)))}.`} />
       </Panel>
 
       <Panel title="Most viewed cars">
@@ -171,8 +171,8 @@ async function RealAnalytics({ range }: { range: Range }) {
   return (
     <>
       <StatGrid>
-        <StatCard label="Visits" value={fmtNum(f.totals.visits)} />
-        <StatCard label="Website leads" value={fmtNum(f.totals.leads)} />
+        <StatCard label="Visits" value={fmtCompact(f.totals.visits)} />
+        <StatCard label="Website leads" value={fmtCompact(f.totals.leads)} />
         <StatCard label="Visits that became leads" value={fmtPct(f.totals.conversion)} />
       </StatGrid>
 

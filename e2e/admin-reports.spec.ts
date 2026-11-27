@@ -19,6 +19,16 @@ test("owners, managers and finance see the full report with profit; the period f
   expect((await page.request.get("/reports?period=7")).status()).toBe(200); // a bad period falls back
 });
 
+test("a tile shows a rounded figure with the exact one in its title, and the table under the chart the full figure (#206)", async ({ page }) => {
+  await page.goto("/reports");
+  const sales = page.getByRole("main").locator("p.font-display[title]").first(); // the Sales tile's figure
+  await expect(sales).toHaveText(/^€\d+(\.\d)?[km]$/);
+  await expect(sales).toHaveAttribute("title", /^€\d{1,3}(,\d{3})+$/);
+  await page.getByText("Sales each month", { exact: true }).click();
+  const month = page.getByRole("region", { name: "Sales by month" }).getByRole("table").last().getByRole("row").nth(1);
+  await expect(month.getByRole("cell", { name: /^€/ }).first()).toHaveText(/^€[\d,]+$/); // never "k" or "m"
+});
+
 test("the monthly report is Reports' Monthly view: one menu entry, marked on both, and the menu's way in without Reports", async ({ page, context, baseURL }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto("/reports");

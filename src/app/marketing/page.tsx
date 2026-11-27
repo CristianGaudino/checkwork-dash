@@ -14,7 +14,7 @@ import { notFound } from "next/navigation";
 import { TIME_ZONE } from "@/lib/site";
 import { AD_PLATFORM_LABELS } from "@/lib/admin/networks";
 import { PostNow, postLabel, postName, prepared } from "@/components/admin/PostNow";
-import { addDays, dublinDay, fmtDate, fmtDateTime, fmtEur, fmtNum, isIsoDay, plural, threeLetter } from "@/lib/admin/format";
+import { addDays, dublinDay, fmtCompact, fmtDate, fmtDateTime, fmtEur, fmtNum, isIsoDay, plural, threeLetter } from "@/lib/admin/format";
 import Link from "next/link";
 import { calendarWeek, newestForSale, readyToPost, weekDays, worthPosting } from "@/lib/admin/marketing";
 import { adminCars } from "@/lib/admin/stock-admin";
@@ -233,14 +233,14 @@ async function Marketing({ sp, tab }: { sp: Params; tab: string }) {
           {/* How the posts did, after what needs doing: the few numbers a dealer asks about. One plain row of figures on a laptop, not tiles
               that look like the filters; on a phone one line, so the list is not pushed a screen down. */}
           <p className="text-meta text-text-2 sm:hidden">
-            Last 30 days: {fmtNum(recent.length)} posted, {fmtNum(seen)} saw them, {plural(clicks, "click")}, {plural(adLeads, "lead")} from ads
+            Last 30 days: {fmtCompact(recent.length)} posted, {fmtCompact(seen)} saw them, {plural(clicks, "click")}, {plural(adLeads, "lead")} from ads
           </p>
           <Panel plain title="Last 30 days" className="max-sm:hidden">
             <dl className="flex flex-wrap gap-x-10 gap-y-3">
               {([[recent.length, "Posted"], [seen, "Saw them"], [clicks, "Clicks to your site"], [adLeads, "Leads from ads"]] as const).map(([n, label]) => (
                 <div key={label} className="flex flex-col">
                   <dt className="order-2 text-meta text-text-2">{label}</dt>
-                  <dd className="text-heading font-semibold tabular-nums">{fmtNum(n)}</dd>
+                  <dd className="text-heading font-semibold tabular-nums">{fmtCompact(n)}</dd>
                 </div>
               ))}
             </dl>
@@ -433,7 +433,7 @@ function Results({ items }: { items: [number, string][] }) {
       {items.map(([n, label]) => (
         <div key={label} className="flex flex-col">
           <dt className="order-2 text-meta text-text-2">{label}</dt>
-          <dd className="text-body font-semibold tabular-nums">{fmtNum(n)}</dd>
+          <dd className="text-body font-semibold tabular-nums">{fmtCompact(n)}</dd>
         </div>
       ))}
     </dl>

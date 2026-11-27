@@ -25,4 +25,18 @@ describe("tween-number", () => {
     expect(figureAt(from, to, 0.5)).toMatch(/^€1,1\d\d$/);
     expect(figureAt(parseFigure("4.1")!, parseFigure("4.6")!, 1)).toBe("4.6");
   });
+
+  it("counts a rounded figure by its number, keeping the k or m", () => {
+    expect(parseFigure("€118k")).toEqual({ before: "€", n: 118, decimals: 0, grouped: false, after: "k" });
+    expect(parseFigure("-€1.2m")).toEqual({ before: "-€", n: 1.2, decimals: 1, grouped: false, after: "m" });
+    expect(countable(parseFigure("12.4k"), parseFigure("13k"))).toBe(true);
+    expect(countable(parseFigure("€950"), parseFigure("€1.2k"))).toBe(false);
+    expect(countable(parseFigure("€999k"), parseFigure("€1m"))).toBe(false);
+    const from = parseFigure("12.4k")!;
+    const to = parseFigure("13k")!;
+    expect(figureAt(from, to, 0)).toBe("12.4k");
+    expect(figureAt(from, to, 1)).toBe("13k");
+    expect(figureAt({ ...to, n: 0 }, to, 0.5)).toMatch(/^\d+k$/);
+    expect(figureAt({ ...parseFigure("€1.2m")!, n: 0 }, parseFigure("€1.2m")!, 0.5)).toMatch(/^€\d\.\dm$/);
+  });
 });

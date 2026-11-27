@@ -4,7 +4,7 @@ import { Skeleton, TileBone } from "@/components/admin/Skeleton";
 import { ActionTile, ActionTiles, Columns, EmptyState, PageHeader, Panel, PanelLink, StatCard, StatGrid, TaskList } from "@/components/admin/kit";
 import { CalendarIcon, CarIcon, CheckIcon, InboxIcon, ShareIcon } from "@/components/stock/icons";
 import { can } from "@/lib/permissions";
-import { addDays, dublinDay, fmtDay, fmtNum, fmtTime, plural } from "@/lib/admin/format";
+import { addDays, dublinDay, fmtCompact, fmtDay, fmtNum, fmtTime, plural } from "@/lib/admin/format";
 import { forSale, isSold } from "@/lib/stock/types";
 import { WhoseToggle, loadToDo } from "@/components/admin/ToDo";
 import { VisitsTile } from "@/components/admin/VisitsTile";
@@ -90,8 +90,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
             <Panel plain title="Numbers">
               <StatGrid>
                 {/* This week's leads: Leads has no date filter, Analytics over 7 days does. */}
-                <StatCard href={mods.has("analytics") ? "/analytics?range=7" : "/leads"} label="Leads this week" value={fmtNum(thisWeek)} hint={`${fmtNum(o.usualWeek)} in a usual week`} tone={thisWeek > o.usualWeek ? "good" : undefined} />
-                <StatCard href="/stock" label="Cars for sale" value={fmtNum(cars.filter(forSale).length)} hint={o.oldStock ? `${o.oldStock} for sale ${rules.oldStockDays} days or more` : undefined} tone={o.oldStock ? "warn" : undefined} />
+                <StatCard href={mods.has("analytics") ? "/analytics?range=7" : "/leads"} label="Leads this week" value={fmtCompact(thisWeek)} hint={`${fmtNum(o.usualWeek)} in a usual week`} tone={thisWeek > o.usualWeek ? "good" : undefined} />
+                <StatCard href="/stock" label="Cars for sale" value={fmtCompact(cars.filter(forSale).length)} hint={o.oldStock ? `${o.oldStock} for sale ${rules.oldStockDays} days or more` : undefined} tone={o.oldStock ? "warn" : undefined} />
                 {/* Only the website's tiles wait: the two above are links in the first chunk (#109). */}
                 {boss && (
                   <Suspense fallback={<Skeleton className="contents"><TileBone />{mods.has("analytics") && <TileBone />}</Skeleton>}>
@@ -129,7 +129,7 @@ async function WebsiteTiles({ leads, analytics }: { leads: Lead[]; analytics: bo
   return (
     <>
       {visits && <VisitsTile now={visits.now} before={visits.before} />}
-      {active !== null && <StatCard href="/analytics" label="On your site" value={fmtNum(active)} hint="Last 30 minutes" />}
+      {active !== null && <StatCard href="/analytics" label="On your site" value={fmtCompact(active)} hint="Last 30 minutes" />}
     </>
   );
 }
