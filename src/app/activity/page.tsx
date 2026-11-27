@@ -37,7 +37,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
   return (
     <>
       <PageHeader title="Activity" text="Every change in the dashboard, kept for 12 months" />
-      <Suspense key={area ?? ""} fallback={<ChangesBones />}>
+      <Suspense fallback={<ChangesBones />}>
         <Fresh className="flex flex-col gap-6">
           <Changes sp={sp} area={area} />
         </Fresh>

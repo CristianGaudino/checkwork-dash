@@ -68,7 +68,7 @@ const STATUS: Record<string, { tone: Tone; label: string }> = {
 
 type Params = { tab?: string; notice?: string; show?: string; status?: string; page?: string; per?: string; week?: string };
 
-// The header and any notice first; the tabs (their counts are the records) and the tab stream in under them, keyed by the tab (#200).
+// The header and any notice first; the tabs (their counts are the records) and the tab stream in under them (#200). Not keyed: a tab change keeps the old list until the new one lands, so the tabs never turn to bones.
 export default async function Page({ searchParams }: { searchParams: Promise<Params> }) {
   const sp = await searchParams;
   if (!(await hasModule("social"))) notFound();
@@ -90,7 +90,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
       {notice && (
         <Notice tone={notice.tone}>{notice.text}</Notice>
       )}
-      <Suspense key={tab} fallback={<MarketingBones tab={tab} />}>
+      <Suspense fallback={<MarketingBones tab={tab} />}>
         <Fresh className="flex flex-col gap-6">
           <Marketing sp={sp} tab={tab} />
         </Fresh>

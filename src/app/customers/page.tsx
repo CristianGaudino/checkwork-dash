@@ -36,7 +36,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
   return (
     <>
       <PageHeader title="Customers" text="Buyers, and people who signed up for stock alerts" />
-      <Suspense key={tab} fallback={<Skeleton><TabBones count={tabs.length} hint /><Bone className="h-11 w-full sm:max-w-sm" /><TableBones /></Skeleton>}>
+      <Suspense fallback={<Skeleton><TabBones count={tabs.length} hint /><Bone className="h-11 w-full sm:max-w-sm" /><TableBones /></Skeleton>}>
         <Fresh className="flex flex-col gap-6">
           <Lists sp={sp} tab={tab} sales={sales} alertsOn={alertsOn} />
         </Fresh>
