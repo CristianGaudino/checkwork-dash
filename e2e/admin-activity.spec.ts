@@ -17,7 +17,7 @@ test("sales and finance have no Activity page; owners and managers do", async ({
     await page.goto("/");
     await (await sideLink(page, "Activity")).click();
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Activity");
-    expect(await page.getByRole("region", { name: "Changes" }).getByRole("listitem").count()).toBeGreaterThan(10); // the demo's history, not empty
+    await expect.poll(() => page.getByRole("region", { name: "Changes" }).getByRole("listitem").count()).toBeGreaterThan(10); // the demo's history, not empty; it streams in under the header (#200)
   }
 });
 

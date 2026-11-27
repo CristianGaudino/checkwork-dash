@@ -14,7 +14,8 @@ import { FormActions, adminButton, rowButton, rowButtonStrong } from "@/componen
 export function ReplyForm({ action, id, author, review, reply, filter }: { action: (data: FormData) => Promise<void>; id: string; author: string; review: string; reply?: string; filter: string }) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState("");
-  const [asking, setAsking] = useState<Confirm>();
+  const [asking, setAsking] = useState(false);
+  const [confirm, setConfirm] = useState<Confirm>();
   const form = useRef<HTMLFormElement>(null);
   const sure = useRef(false);
   const onSubmit = (ev: React.FormEvent<HTMLFormElement>) => {
@@ -24,7 +25,8 @@ export function ReplyForm({ action, id, author, review, reply, filter }: { actio
     if (text === (reply ?? "")) return void (ev.preventDefault(), setOpen(false)); // nothing changed: nothing to send
     ev.preventDefault();
     setError("");
-    setAsking(
+    setAsking(true);
+    setConfirm(
       !text
         ? { title: "Remove your reply from Google?", text: "Customers will no longer see it.", yes: "Remove reply" }
         : { title: reply ? "Update your reply on Google?" : "Post this reply on Google?", text: `Anyone can read it: "${text}"`, yes: reply ? "Update reply" : "Post reply", safe: true },
@@ -47,7 +49,7 @@ export function ReplyForm({ action, id, author, review, reply, filter }: { actio
             <SubmitButton className={adminButton}>{reply ? "Update reply" : "Post reply"}</SubmitButton>
           </FormActions>
           <WhenSent onSent={() => setOpen(false)} />
-          {asking && <ConfirmDialog confirm={asking} yesClassName={asking.safe ? adminButton : undefined} onYes={() => ((sure.current = true), form.current?.requestSubmit())} onClose={() => setAsking(undefined)} />}
+          {confirm && <ConfirmDialog open={asking} confirm={confirm} yesClassName={confirm.safe ? adminButton : undefined} onYes={() => ((sure.current = true), form.current?.requestSubmit())} onClose={() => setAsking(false)} />}
         </form>
       </Dialog>
     </>

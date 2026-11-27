@@ -1,5 +1,8 @@
 import { Badge, EmptyState, Notice, PageHeader, Panel, SummaryTabs, TableFooter, TableToolbar, Task, TaskList, pageOf, adminButton, adminButtonQuiet, rowButton, rowButtonStrong, rowDanger, type FilterGroup, type Tone } from "@/components/admin/kit";
 import { PencilIcon, PlusIcon, TrashIcon } from "@/components/stock/icons";
+import { Suspense } from "react";
+import { Bone, LineBone, PanelBones, Skeleton, TabBones } from "@/components/admin/Skeleton";
+import { Fresh } from "@/components/Tween";
 import { DAY } from "@/lib/time";
 import { ActButton } from "@/components/admin/ActButton";
 import { RowMenu } from "@/components/admin/RowMenu";
@@ -63,11 +66,74 @@ const STATUS: Record<string, { tone: Tone; label: string }> = {
   ended: { tone: "neutral", label: "Ended" },
 };
 
-export default async function Page({ searchParams }: { searchParams: Promise<{ tab?: string; notice?: string; show?: string; status?: string; page?: string; per?: string; week?: string }> }) {
+type Params = { tab?: string; notice?: string; show?: string; status?: string; page?: string; per?: string; week?: string };
+
+// The header and any notice first; the tabs (their counts are the records) and the tab stream in under them (#200). Not keyed: a tab change keeps the old list until the new one lands, so the tabs never turn to bones.
+export default async function Page({ searchParams }: { searchParams: Promise<Params> }) {
   const sp = await searchParams;
   if (!(await hasModule("social"))) notFound();
   const tab = TABS.includes(sp.tab ?? "") ? sp.tab! : TABS[0];
   const notice = sp.notice ? NOTICES[sp.notice] : undefined;
+  return (
+    <>
+      <PageHeader
+        title="Marketing"
+        text={TAB_TEXT[tab]}
+        actions={
+          // On every tab, so the header does not change shape when the tab does.
+          <Link href="/marketing/new" className={adminButton}>
+            <PlusIcon className="shrink-0 size-4" />
+            New post
+          </Link>
+        }
+      />
+      {notice && (
+        <Notice tone={notice.tone}>{notice.text}</Notice>
+      )}
+      <Suspense fallback={<MarketingBones tab={tab} />}>
+        <Fresh className="flex flex-col gap-6">
+          <Marketing sp={sp} tab={tab} />
+        </Fresh>
+      </Suspense>
+    </>
+  );
+}
+
+// The tabs, then the first panels of the tab.
+function MarketingBones({ tab }: { tab: string }) {
+  return (
+    <Skeleton>
+      <TabBones count={3} hint />
+      {tab === "posts" && <PanelBones title="Waiting on you" />}
+      {tab === "calendar" && (
+        <div className="flex flex-col gap-4">
+          <Bone className="h-11 w-72 max-w-full" />
+          <div className="grid grid-cols-1 gap-3 wide:grid-cols-7">
+            {Array.from({ length: 7 }, (_, i) => (
+              <div key={i} className="flex flex-col gap-2 rounded-card border border-hairline bg-card p-3">
+                <LineBone className="h-3.5 w-20" />
+                <LineBone className="h-3.5 w-24" />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {tab === "media" && (
+        <>
+          <PanelBones title="Add photos and videos">
+            <div className="flex flex-col gap-3">
+              <Bone className="h-[4.5rem] max-w-sm" />
+              <Bone className="h-[7.75rem] sm:h-12" />
+            </div>
+          </PanelBones>
+          <PanelBones title="Your library" />
+        </>
+      )}
+    </Skeleton>
+  );
+}
+
+async function Marketing({ sp, tab }: { sp: Params; tab: string }) {
   await sendDuePosts(); // posts whose time has come go out before the list is read
   const [posts, ads, cars, library] = await Promise.all([postsStore.list(), adsStore.list(), adminCars(), mediaStore.list()]);
   const onSale = newestForSale(cars);
@@ -97,20 +163,6 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
 
   return (
     <>
-      <PageHeader
-        title="Marketing"
-        text={TAB_TEXT[tab]}
-        actions={
-          // On every tab, so the header does not change shape when the tab does.
-          <Link href="/marketing/new" className={adminButton}>
-            <PlusIcon className="shrink-0 size-4" />
-            New post
-          </Link>
-        }
-      />
-      {notice && (
-        <Notice tone={notice.tone}>{notice.text}</Notice>
-      )}
       <SummaryTabs
         label="Marketing"
         items={[
@@ -205,7 +257,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
                 action={sp.show || sp.status ? undefined : <Link href="/marketing/new" className={adminButton}><PlusIcon className="shrink-0 size-4" />New post</Link>}
               />
             ) : (
-              <ul aria-label="Posts and ads" className="-mx-5 flex flex-col divide-y divide-hairline">
+              <ul aria-label="Posts and ads" data-list className="-mx-5 flex flex-col divide-y divide-hairline">
                 {paged.rows.map((item) =>
                   item.kind === "post" ? (
                     <li key={item.p.id} className="relative flex flex-wrap items-center gap-3 px-5 py-3 transition-colors has-[>a:hover]:bg-surface">

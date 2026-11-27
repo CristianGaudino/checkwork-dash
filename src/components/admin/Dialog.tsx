@@ -22,7 +22,13 @@ export function Dialog({ open, onClose, title, text, children }: { open: boolean
   const from = useRef<Element | null>(null);
   const opened = useRef("");
   const downOnBackdrop = useRef(false);
+  // The body is drawn afresh as it opens, not as it closes, so it keeps what it showed while it slides away.
   const [round, setRound] = useState(0);
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) setRound((r) => r + 1);
+  }
   const titleId = useId();
   const textId = useId();
   useEffect(() => {
@@ -48,7 +54,6 @@ export function Dialog({ open, onClose, title, text, children }: { open: boolean
       onPointerDown={(e) => (downOnBackdrop.current = e.target === e.currentTarget)}
       onClick={(e) => e.target === e.currentTarget && downOnBackdrop.current && dismiss()}
       onClose={() => {
-        setRound((r) => r + 1);
         if (from.current instanceof HTMLElement) from.current.focus();
         onClose();
       }}

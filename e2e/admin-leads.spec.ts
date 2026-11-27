@@ -75,6 +75,7 @@ test("the list opens with what to answer now, and a lead moves on a step from it
   const before = await status().inputValue();
   await mark.click();
   await expect(page.getByTestId("toast")).toContainText(new RegExp(to, "i"));
+  await page.getByTestId("toast").hover(); // held, as a person does, so its six seconds cannot run out before Undo
   await lead.reload();
   await expect(status()).toHaveValue(new RegExp(`^${to}$`, "i"));
   // The step takes it off the list: the row stays where it was, saying what it became, its buttons gone.
@@ -126,6 +127,7 @@ test("a lead marked spam from To answer now stays in place as Spam until reload,
   await row.getByRole("button", { name: /^More for / }).click();
   await row.getByRole("button", { name: /^Spam: / }).click();
   await expect(page.getByTestId("toast")).toContainText(": Spam");
+  await page.getByTestId("toast").hover(); // held, as a person does, so its six seconds cannot run out before Undo
   // It stays where it was, saying Spam, with no buttons, until the page is loaded again.
   await expect(row.getByText("Spam", { exact: true })).toBeVisible();
   await expect(row.getByRole("button")).toHaveCount(0);

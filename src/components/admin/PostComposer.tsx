@@ -4,12 +4,12 @@ import { useEffect, useState } from "react";
 import { Field, adminButton, adminButtonQuiet, adminInput } from "@/components/admin/kit";
 import { CarPicker } from "@/components/admin/CarPicker";
 import { Select } from "@/components/Select";
-import { Stepper, useStepHeading } from "@/components/leads/Stepper";
+import { Stepper, useStepFade, useStepHeading } from "@/components/leads/Stepper";
 import { CalendarIcon, CheckIcon } from "@/components/stock/icons";
 import { CropIcon, PhotoEditor } from "@/components/admin/PhotoEditor";
 import type { CarCard } from "@/lib/admin/car-cards";
 import { AD_PLATFORMS, AD_PLATFORM_LABELS, FORMATS_FOR, FORMAT_LABELS, FORMAT_LIMITS, LAYOUT_LABELS, NETWORKS, POST_LIMITS, PUBLISH_MODE, STORY_LAYOUTS, type Network, type PostFormat, type StoryLayout } from "@/lib/admin/networks";
-import { AIWriter } from "@/components/admin/AIWriter";
+import { AIWriter, WRITING } from "@/components/admin/AIWriter";
 import { MediaUpload } from "@/components/admin/MediaUpload";
 import { PostPreview } from "@/components/admin/PostPreview";
 import type { MediaItem } from "@/lib/admin/collections";
@@ -79,6 +79,7 @@ export function PostComposer({ cars, initialSlug, initialFormat = "post", initia
   const picked = cars.find((c) => c.slug === slug);
 
   const heading = useStepHeading(step);
+  const fade = useStepFade(step);
 
   const canNext = step === 0 ? Boolean(slug) : step === 2 ? Boolean(car && text.trim() && (format === "reel" ? clip : photos.length >= limits.photos[0])) : true;
   const pick = (n: Network, f: PostFormat) => {
@@ -117,7 +118,7 @@ export function PostComposer({ cars, initialSlug, initialFormat = "post", initia
           </div>
         )}
 
-        <section hidden={step !== 0}>
+        <section hidden={step !== 0} className={fade}>
           <CarPicker
             cars={cars}
             value={slug}
@@ -133,7 +134,7 @@ export function PostComposer({ cars, initialSlug, initialFormat = "post", initia
           />
         </section>
 
-        <section hidden={step !== 1} className="flex flex-col gap-3">
+        <section hidden={step !== 1} className={`flex flex-col gap-3 ${fade}`}>
           <div role="radiogroup" aria-label="Where" className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             {NETWORKS.map((n) => (
               <button key={n} type="button" role="radio" aria-checked={network === n} onClick={() => pick(n, format)} className={`${card(network === n)} flex min-h-14 items-center justify-between gap-3 px-4 text-body font-medium`}>
@@ -151,7 +152,7 @@ export function PostComposer({ cars, initialSlug, initialFormat = "post", initia
           </div>
         </section>
 
-        <section hidden={step !== 2} className="flex flex-col gap-4">
+        <section hidden={step !== 2} className={`flex flex-col gap-4 ${fade}`}>
           {format === "story" && (
             <div role="radiogroup" aria-label="Story layout" className="flex flex-wrap gap-2">
               {STORY_LAYOUTS.map((l) => (
@@ -162,7 +163,7 @@ export function PostComposer({ cars, initialSlug, initialFormat = "post", initia
             </div>
           )}
           <Field label="Text">
-            <textarea name="text" rows={7} maxLength={POST_LIMITS.text} required value={text} placeholder={car ? undefined : "Loading the suggested text"} onChange={(e) => setTyped(e.target.value)} className={`${adminInput} h-auto py-2`} />
+            <textarea name="text" rows={7} maxLength={POST_LIMITS.text} required value={text} placeholder={car ? undefined : "Loading the suggested text"} aria-busy={busy || undefined} onChange={(e) => setTyped(e.target.value)} className={`${adminInput} h-auto py-2 ${WRITING}`} />
           </Field>
           <AIWriter key={writer} task="post" format={format} text={text} request={() => (slug ? { task: "post", carSlug: slug, network, format, ...(format === "story" && { layout }) } : null)} onText={(t) => setTyped(t)} onBusy={setBusy} />
           {!busy && typed !== null && typed !== suggestion && suggestion && (
@@ -253,7 +254,7 @@ export function PostComposer({ cars, initialSlug, initialFormat = "post", initia
 
       {/* Step 1 has no buttons (picking a car moves on), so nothing here either. */}
       <div className={`${step > 0 ? "flex" : "hidden"} min-w-0 flex-col gap-5 self-start wide:col-start-1`}>
-        <section hidden={step !== 3} className="flex flex-col gap-4">
+        <section hidden={step !== 3} className={`flex flex-col gap-4 ${fade}`}>
           <div role="radiogroup" aria-label="When" className="grid grid-cols-[repeat(auto-fit,minmax(min(8rem,100%),1fr))] gap-3">
             {([[false, "Post now"], [true, "Schedule post"]] as const).map(([on, label]) => (
               <button key={label} type="button" role="radio" aria-checked={later === on} onClick={() => setLater(on)} className={`${card(later === on)} flex min-h-14 items-center gap-2 whitespace-nowrap px-3 text-body font-medium sm:px-4`}>

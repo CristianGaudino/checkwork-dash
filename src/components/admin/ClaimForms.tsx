@@ -27,7 +27,7 @@ export function OpenClaimForm({ sales, today, defaults }: { sales: { id: string;
         <input name="openedOn" type="date" max={today} defaultValue={today} className={adminInput} />
       </Field>
       <div className="flex justify-end sm:col-span-2">
-        <button type="submit" disabled={pending} className={adminButton}>{pending ? "Saving" : "Open the claim"}</button>
+        <button type="submit" disabled={pending} aria-busy={pending || undefined} className={`${adminButton} ${BUSY}`}>{pending ? "Saving" : "Open the claim"}</button>
       </div>
     </form>
   );

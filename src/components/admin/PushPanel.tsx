@@ -5,6 +5,7 @@ import { turnOffPushAction, turnOnPushAction } from "@/app/settings/push-actions
 import { pushId, unb64u } from "@/lib/push/webpush";
 import { adminButton, adminButtonQuiet, rowButton } from "./kit";
 import { registerSw } from "./ServiceWorker";
+import { BUSY } from "./ActButton";
 
 export type Device = { id: string; label: string; added: string };
 type Here = "checking" | "not-set-up" | "add-to-home" | "unsupported" | "ready";
@@ -69,7 +70,7 @@ export function PushPanel({ publicKey, devices }: { publicKey: string | null; de
       {here === "ready" && (
         <div className="flex flex-col items-start gap-3">
           <p className="max-w-measure text-body">{on ? "On. What you tick under Push comes here." : "Get what you tick under Push on this phone or computer."}</p>
-          <button type="button" disabled={pending} onClick={() => (on ? turnOff(thisId!) : turnOn())} className={on ? adminButtonQuiet : adminButton}>
+          <button type="button" disabled={pending} aria-busy={pending || undefined} onClick={() => (on ? turnOff(thisId!) : turnOn())} className={`${on ? adminButtonQuiet : adminButton} ${BUSY}`}>
             {on ? "Turn off" : "Turn on"}
           </button>
         </div>
@@ -85,7 +86,7 @@ export function PushPanel({ publicKey, devices }: { publicKey: string | null; de
                   {d.label}
                   {d.id === thisId ? " (this one)" : ""} <span className="text-meta text-text-2">Added {d.added}</span>
                 </span>
-                <button type="button" disabled={pending} onClick={() => turnOff(d.id)} className={rowButton}>
+                <button type="button" disabled={pending} aria-busy={pending || undefined} onClick={() => turnOff(d.id)} className={`${rowButton} ${BUSY}`}>
                   Turn off
                 </button>
               </li>

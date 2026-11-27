@@ -138,6 +138,7 @@ test("a draft is published, its website link opens the dealer's site in a new ta
   await page.getByRole("row", { name: new RegExp(MAKE) }).getByRole("button", { name: /^More for/ }).click();
   await page.getByRole("row", { name: new RegExp(MAKE) }).getByRole("button", { name: "Hide" }).click();
   await expect(page.getByTestId("toast")).toContainText("Hid 2020 Zztest Draft");
+  await page.getByTestId("toast").hover(); // held, as a person does, so its six seconds cannot run out before Undo
   await page.getByTestId("toast").getByRole("button", { name: "Undo" }).click();
   await page.getByRole("row", { name: new RegExp(MAKE) }).getByRole("button", { name: /^More for/ }).click();
   await expect(page.getByRole("row", { name: new RegExp(MAKE) }).getByRole("button", { name: "Hide" })).toBeVisible();

@@ -153,7 +153,7 @@ export function TestEmail() {
   const t = useSave(sendTestEmailAction as Action);
   return (
     <form {...t.run} className="flex flex-wrap items-center gap-x-4 gap-y-2">
-      <button type="submit" disabled={t.pending} className={adminButtonQuiet}>
+      <button type="submit" disabled={t.pending} aria-busy={t.pending || undefined} className={`${adminButtonQuiet} ${BUSY}`}>
         {t.pending ? "Sending" : "Send a test email"}
       </button>
       {t.state?.saved && !t.pending && <p role="status" className="text-meta text-ok">Sent</p>}

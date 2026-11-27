@@ -7,6 +7,7 @@ import { PER_PAGE_DEFAULT, perPage } from "@/lib/admin/paging";
 import { fmtNum } from "@/lib/admin/format";
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/stock/icons";
 import { TabRow } from "./TabRow";
+import { LinkPending } from "./LinkPending";
 export { TableFooter, type FilterGroup } from "./TableTools";
 
 // The admin kit: the few pieces every admin page is made of. Same tokens as the site, denser and calmer.
@@ -202,7 +203,7 @@ export function DataTable<T>({ columns, rows, rowKey, empty, bare = false, linkR
     <div tabIndex={0} aria-label={label} className={`${frame} overflow-x-auto`}>
       {/* 18rem at least, so a column is never squeezed to a word a line, but never wider than its card for that alone: a two-column
           table (stock, leads, margins) fits a 320px phone. A table whose columns need more scrolls inside its card. */}
-      <table className="w-full min-w-[min(18rem,100%)] border-collapse text-left text-body">
+      <table data-list className="w-full min-w-[min(18rem,100%)] border-collapse text-left text-body">
         <thead>
           <tr className="text-meta text-text-2">
             {columns.map((c) => (
@@ -240,16 +241,22 @@ export function DataTable<T>({ columns, rows, rowKey, empty, bare = false, linkR
 export type SummaryTab = { label: string; href: string; active: boolean; count?: number | string; hint?: string };
 export function SummaryTabs({ items, label = "Filter" }: { items: SummaryTab[]; label?: string }) {
   return (
-    <TabRow current={items.find((i) => i.active)?.href ?? ""} aria-label={label} className="scrollbar-none -mx-4 -my-1 flex gap-2 overflow-x-auto px-4 py-1 sm:mx-0 sm:grid sm:grid-cols-[repeat(auto-fit,minmax(min(8rem,100%),1fr))] sm:overflow-visible sm:px-0">
+    // A tapped tile takes the chosen look at the tap and the chosen one gives it up (LinkPending), not when the server answers.
+    <TabRow current={items.find((i) => i.active)?.href ?? ""} aria-label={label} className="group/tabs scrollbar-none -mx-4 -my-1 flex gap-2 overflow-x-auto px-4 py-1 sm:mx-0 sm:grid sm:grid-cols-[repeat(auto-fit,minmax(min(8rem,100%),1fr))] sm:overflow-visible sm:px-0">
       {items.map((i) => (
         <Link
           key={i.label}
           href={i.href}
           aria-current={i.active ? "true" : undefined}
-          className={`flex min-w-28 shrink-0 flex-col gap-0.5 rounded-card border bg-card px-4 py-3 text-text transition-colors ${i.active ? "border-accent ring-1 ring-inset ring-accent" : "border-hairline hover:border-control"} ${press}`}
+          className={`group/tab flex min-w-28 shrink-0 flex-col gap-0.5 rounded-card border bg-card px-4 py-3 text-text transition-colors ${i.active ? "border-accent ring-1 ring-inset ring-accent group-has-data-pending/tabs:not-has-data-pending:border-hairline group-has-data-pending/tabs:not-has-data-pending:ring-0" : "border-hairline hover:border-control has-data-pending:border-accent has-data-pending:ring-1 has-data-pending:ring-inset has-data-pending:ring-accent"} ${press}`}
         >
+          <LinkPending />
           <span className="text-meta text-text-2">{i.label}</span>
-          {i.count !== undefined && <span className={`text-heading font-semibold tabular-nums ${i.active ? "text-accent-text" : ""}`}>{typeof i.count === "number" ? fmtNum(i.count) : i.count}</span>}
+          {i.count !== undefined && (
+            <span className={`text-heading font-semibold tabular-nums ${i.active ? "text-accent-text group-has-data-pending/tabs:group-not-has-data-pending/tab:text-text" : "group-has-data-pending/tab:text-accent-text"}`}>
+              {typeof i.count === "number" ? <Tween value={fmtNum(i.count)} /> : i.count}
+            </span>
+          )}
           {i.hint && <span className="text-meta text-text-2">{i.hint}</span>}
         </Link>
       ))}
@@ -299,9 +306,11 @@ export const tapArea = "relative inline-block after:absolute after:left-1/2 afte
 // Too many for a small phone (Reports' four at 320px), it scrolls sideways as a tab row does, with the fade.
 export function Segmented({ items, label }: { items: { label: string; href: string; active: boolean }[]; label: string }) {
   return (
-    <TabRow current={items.find((i) => i.active)?.href ?? ""} aria-label={label} className="scrollbar-none inline-flex max-w-full sm:self-start overflow-x-auto rounded-control bg-hairline p-1 dark:bg-surface dark:ring-1 dark:ring-inset dark:ring-hairline">
+    // As SummaryTabs: the tapped view is chosen at the tap (LinkPending).
+    <TabRow current={items.find((i) => i.active)?.href ?? ""} aria-label={label} className="group/tabs scrollbar-none inline-flex max-w-full sm:self-start overflow-x-auto rounded-control bg-hairline p-1 dark:bg-surface dark:ring-1 dark:ring-inset dark:ring-hairline">
       {items.map((i) => (
-        <Link key={i.label} href={i.href} aria-current={i.active ? "page" : undefined} className={`inline-flex min-h-11 shrink-0 items-center justify-center whitespace-nowrap rounded-[calc(var(--radius-control)-4px)] px-4 text-meta max-sm:flex-1 max-sm:px-3 font-medium ${i.active ? "bg-card text-text shadow-[0_1px_3px_rgb(22_26_51/0.18)] dark:bg-hairline" : "text-text-2 hover:text-text"} ${press}`}>
+        <Link key={i.label} href={i.href} aria-current={i.active ? "page" : undefined} className={`inline-flex min-h-11 shrink-0 items-center justify-center whitespace-nowrap rounded-[calc(var(--radius-control)-4px)] px-4 text-meta max-sm:flex-1 max-sm:px-3 font-medium ${i.active ? "bg-card text-text shadow-[0_1px_3px_rgb(22_26_51/0.18)] dark:bg-hairline group-has-data-pending/tabs:not-has-data-pending:bg-transparent group-has-data-pending/tabs:not-has-data-pending:text-text-2 group-has-data-pending/tabs:not-has-data-pending:shadow-none" : "text-text-2 hover:text-text has-data-pending:bg-card has-data-pending:text-text has-data-pending:shadow-[0_1px_3px_rgb(22_26_51/0.18)] dark:has-data-pending:bg-hairline"} ${press}`}>
+          <LinkPending />
           {i.label}
         </Link>
       ))}
@@ -314,15 +323,17 @@ export function Segmented({ items, label }: { items: { label: string; href: stri
 // hairline, so it still reads as raised.
 export function WhoseSwitch({ label, everyone, forMe, mine }: { label: string; everyone: string; forMe: string; mine: boolean }) {
   const half = (text: string, href: string, on: boolean) => (
-    <Link href={href} aria-current={on ? "page" : undefined} className={`relative z-10 inline-flex h-8 min-w-0 items-center justify-center whitespace-nowrap rounded-full px-[max(4px,calc(28px-0.875rem))] text-meta font-medium transition-colors after:absolute after:inset-x-0 after:-inset-y-1.5 motion-reduce:transition-none ${on ? "text-text" : "text-text-2 hover:text-text"}`}>
+    <Link href={href} aria-current={on ? "page" : undefined} className={`relative z-10 inline-flex h-8 min-w-0 items-center justify-center whitespace-nowrap rounded-full px-[max(4px,calc(28px-0.875rem))] text-meta font-medium transition-colors after:absolute after:inset-x-0 after:-inset-y-1.5 motion-reduce:transition-none ${on ? "text-text group-has-data-pending/whose:not-has-data-pending:text-text-2" : "text-text-2 hover:text-text has-data-pending:text-text"}`}>
+      <LinkPending />
       <span className="truncate">{text}</span>
     </Link>
   );
   // With large text the padding gives way first (14px at normal size, less as the text grows), so the words still fit a phone. Still too
   // wide for its line (320px at 150%), it shrinks with its panel rather than run off the screen, and the words end in "…".
+  // The thumb starts its slide at the tap, toward the half whose link is on its way (LinkPending), so the slide is the answer to the tap.
   return (
-    <nav aria-label={label} className="relative inline-grid max-w-full shrink-0 grid-cols-2 rounded-full bg-hairline p-0.5 dark:bg-surface dark:ring-1 dark:ring-inset dark:ring-hairline">
-      <span aria-hidden="true" className={`absolute inset-y-0.5 left-0.5 w-[calc(50%-2px)] rounded-full bg-card shadow-[0_1px_3px_rgb(22_26_51/0.18)] transition-transform duration-200 ease-out motion-reduce:transition-none dark:bg-hairline ${mine ? "translate-x-full" : ""}`} />
+    <nav aria-label={label} className="group/whose relative inline-grid max-w-full shrink-0 grid-cols-2 rounded-full bg-hairline p-0.5 dark:bg-surface dark:ring-1 dark:ring-inset dark:ring-hairline">
+      <span aria-hidden="true" className={`absolute inset-y-0.5 left-0.5 w-[calc(50%-2px)] rounded-full bg-card shadow-[0_1px_3px_rgb(22_26_51/0.18)] transition-transform duration-200 ease-out motion-reduce:transition-none dark:bg-hairline ${mine ? "translate-x-full group-has-[a:first-of-type_[data-pending]]/whose:translate-x-0" : "group-has-[a:last-of-type_[data-pending]]/whose:translate-x-full"}`} />
       {half("Everyone", everyone, !mine)}
       {half("For me", forMe, mine)}
     </nav>

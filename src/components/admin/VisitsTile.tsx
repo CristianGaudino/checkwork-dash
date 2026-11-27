@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Tween } from "@/components/Tween";
 import { ChannelIcon } from "@/components/admin/BrandIcon";
 import { figureSize } from "@/components/admin/kit";
 import { card, press } from "@/components/ui";
@@ -13,7 +14,9 @@ export function VisitsTile({ now, before }: { now: ChannelCount[]; before: Pick<
     <Link href="/analytics?range=7" className={`${card} row-span-3 grid min-w-0 grid-rows-subgrid gap-1 p-4 transition-colors hover:border-control ${press}`}>
       <p className="text-meta text-text-2">Visits this week</p>
       <div className="@container min-w-0">
-        <p className={`font-display font-semibold leading-[1.1] tracking-[-0.02em] tabular-nums ${figureSize(total)}`}>{total}</p>
+        <p className={`font-display font-semibold leading-[1.1] tracking-[-0.02em] tabular-nums ${figureSize(total)}`}>
+          <Tween value={total} />
+        </p>
       </div>
       <ul className="flex min-w-0 flex-col gap-1 text-meta">
         {sourceTiles(now, before)

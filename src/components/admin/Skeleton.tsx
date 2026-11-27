@@ -9,6 +9,15 @@ export function Bone({ className = "" }: { className?: string }) {
   return <span className={`block rounded-control bg-hairline motion-safe:animate-pulse ${className}`} />;
 }
 
+// A bone the height of one line of `text` (its line height), so a line of words and its bone stand the same height.
+export function LineBone({ text = "text-meta", className = "" }: { text?: string; className?: string }) {
+  return (
+    <span className={`flex h-[1lh] items-center ${text}`}>
+      <Bone className={className} />
+    </span>
+  );
+}
+
 // The region a fallback fills: busy until the content replaces it. `className` lays out the bones as the content will be.
 export function Skeleton({ children, className = "flex flex-col gap-6" }: { children: React.ReactNode; className?: string }) {
   return (
@@ -42,9 +51,9 @@ export function TileBone() {
 // A line or two of words: the answer in words at the top of a report.
 export function TextBones({ lines = 2 }: { lines?: number }) {
   return (
-    <div className="flex max-w-measure flex-col gap-2">
+    <div className="flex max-w-measure flex-col">
       {Array.from({ length: lines }, (_, i) => (
-        <Bone key={i} className={`h-4 ${i === lines - 1 ? "w-2/3" : "w-full"}`} />
+        <LineBone key={i} text="text-body" className={`h-4 ${i === lines - 1 ? "w-2/3" : "w-full"}`} />
       ))}
     </div>
   );
@@ -65,12 +74,31 @@ export function RowBones({ rows = 3 }: { rows?: number }) {
 }
 
 // A titled panel (Panel): its title, then `children` (list rows by default; a chart is <Bone className="h-48" />). `plain` has no frame.
-export function PanelBones({ title, plain = false, children = <RowBones /> }: { title?: string; plain?: boolean; children?: React.ReactNode }) {
+// `text`: the panel has a line of helper text under its title.
+export function PanelBones({ title, text = false, plain = false, children = <RowBones /> }: { title?: string; text?: boolean; plain?: boolean; children?: React.ReactNode }) {
   return (
     <section className={`${plain ? "" : `${card} p-5`} flex min-w-0 flex-col gap-4`}>
-      {title ? <h2 className="text-section font-semibold">{title}</h2> : <Bone className="h-5 w-36" />}
+      <div className="flex flex-col gap-0.5">
+        {title ? <h2 className="text-section font-semibold">{title}</h2> : <Bone className="h-5 w-36" />}
+        {text && <LineBone className="h-4 w-56 max-w-full" />}
+      </div>
       {children}
     </section>
+  );
+}
+
+// A row of tabs with their counts (SummaryTabs): a label, a figure and, with `hint`, a line under it. The same row and tile classes.
+export function TabBones({ count, hint = false }: { count: number; hint?: boolean }) {
+  return (
+    <div className="scrollbar-none -mx-4 -my-1 flex gap-2 overflow-x-auto px-4 py-1 sm:mx-0 sm:grid sm:grid-cols-[repeat(auto-fit,minmax(min(8rem,100%),1fr))] sm:overflow-visible sm:px-0">
+      {Array.from({ length: count }, (_, i) => (
+        <div key={i} className="flex min-w-28 shrink-0 flex-col gap-0.5 rounded-card border border-hairline bg-card px-4 py-3">
+          <LineBone className="h-3.5 w-16" />
+          <LineBone text="text-heading" className="h-5 w-10" />
+          {hint && <LineBone className="h-3.5 w-24" />}
+        </div>
+      ))}
+    </div>
   );
 }
 

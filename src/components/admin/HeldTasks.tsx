@@ -65,7 +65,7 @@ export function HeldTasks({ rows, label, empty }: { rows: Row[]; label: string; 
       {rows.length === 0 && empty}
       {ids.length > 0 && (
         // A held row is faded; its words say what it became.
-        <div className="[&_li:has([data-held])]:opacity-60">
+        <div className="[&_li]:transition-[opacity,background-color] [&_li]:duration-200 [&_li:has([data-held])]:opacity-60">
           <TaskList label={label}>
             {ids.map((id) => (
               <RowState.Provider key={id} value={{ held: live.has(id) ? undefined : then[id], press: (l) => { const o = outcomeOf(l); if (o) setAsked((a) => [...a, { id, outcome: o, since: toast?.id ?? 0 }]); } }}>

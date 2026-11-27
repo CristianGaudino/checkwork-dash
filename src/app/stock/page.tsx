@@ -25,6 +25,7 @@ import { FEW_PHOTOS, stockViews, parseStockList, stockList, type StockView } fro
 import { salesStore, type Sale } from "@/lib/admin/collections";
 import type { DealerRules } from "@/lib/tenancy/profile";
 import { Suspense } from "react";
+import { Fresh } from "@/components/Tween";
 import { Skeleton, TableBones } from "@/components/admin/Skeleton";
 import { syncStatus } from "@/lib/donedeal/sync";
 import { dropPriceAction, syncNowAction, toggleSoldAction, undoDropAction, withdrawnAction } from "./actions";
@@ -204,7 +205,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sto
       {/* The cars stream in under the views and the search, so a tap on a view works from the first paint (#109).
           Keyed by the view only: a new view shows the bones, a search, sort or page keeps the old rows until the new ones come. */}
       <Suspense key={view} fallback={<Skeleton><TableBones /></Skeleton>}>
-        <StockTable sp={sp} matching={matching} sales={sales} view={view} q={q} synced={synced} social={social} canUndo={canUndo} deposits={deposits} siteUrl={siteUrl} rules={rules} listingSite={listingSite} listingUrl={listingUrl} oldDays={OLD_DAYS} />
+        <Fresh className="flex flex-col gap-6">
+          <StockTable sp={sp} matching={matching} sales={sales} view={view} q={q} synced={synced} social={social} canUndo={canUndo} deposits={deposits} siteUrl={siteUrl} rules={rules} listingSite={listingSite} listingUrl={listingUrl} oldDays={OLD_DAYS} />
+        </Fresh>
       </Suspense>
     </>
   );

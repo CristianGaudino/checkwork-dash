@@ -10,6 +10,7 @@ import { press } from "@/components/ui";
 import { PlusIcon } from "@/components/stock/icons";
 import { Select } from "@/components/Select";
 import { Field } from "./kit";
+import { BUSY } from "./ActButton";
 import { CropIcon, EditPhoto, type Jpeg, type Shape } from "./PhotoEditor";
 
 // Adds photos and videos from this device to the media library (#177). A photo is shrunk here to a 1,600px JPEG (which also drops its
@@ -97,13 +98,13 @@ export function MediaUpload({ accept = MEDIA_ACCEPT, carSlug = "", label = "Add 
         <EditPhoto key={`${editing.name} ${editing.lastModified}`} src={editing} shapes={LIBRARY_SHAPES} saveLabel="Add photo" onSave={addEdited} onCancel={() => setEditing(null)} />
       ) : (
         <div className="flex flex-wrap gap-3">
-          <label className={`${pick} ${pending ? "opacity-50" : ""}`}>
+          <label aria-busy={pending || undefined} className={`${pick} ${BUSY}`}>
             <PlusIcon className="shrink-0 size-4" />
             {label}
             <input ref={input} type="file" accept={accept} multiple disabled={pending} aria-label={label} onChange={(e) => add([...(e.target.files ?? [])])} className="sr-only" />
           </label>
           {edit && (
-            <label className={`${pick} ${pending ? "opacity-50" : ""}`}>
+            <label aria-busy={pending || undefined} className={`${pick} ${BUSY}`}>
               <CropIcon className="shrink-0 size-4" />
               Crop and add a photo
               <input type="file" accept="image/jpeg,image/png,image/webp" disabled={pending} aria-label="Crop and add a photo" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) { setSaid(""); setEditing(f); } }} className="sr-only" />

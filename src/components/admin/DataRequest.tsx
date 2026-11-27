@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Field, FormActions, Panel, adminButton, adminButtonQuiet, adminInput, dangerButton } from "@/components/admin/kit";
 import { eraseAction, exportAction, findAction, type FindState } from "@/app/data-requests/actions";
 import { SubmitButton } from "@/components/admin/SubmitButton";
+import { BUSY } from "@/components/admin/ActButton";
 
 // Find what is held about a person, then send them a copy or erase it. The email or phone stays in the page, never in the address.
 export function DataRequest() {
@@ -21,7 +22,7 @@ export function DataRequest() {
             <input name="q" defaultValue={state?.q ?? ""} autoComplete="off" className={adminInput} />
           </Field>
           <div className="sm:pt-6">
-            <button type="submit" disabled={pending} className={adminButton}>
+            <button type="submit" disabled={pending} aria-busy={pending || undefined} className={`${adminButton} ${BUSY}`}>
               {pending ? "Looking" : "Find"}
             </button>
           </div>

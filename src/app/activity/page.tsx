@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { Suspense } from "react";
+import { Bone, LineBone, RowBones, Skeleton, TabBones } from "@/components/admin/Skeleton";
+import { Fresh } from "@/components/Tween";
 import { Avatar, EmptyState, PageHeader, Segmented, SummaryTabs, TableFooter, tapArea, type FilterGroup } from "@/components/admin/kit";
 import { AppliedFilters, Filters } from "@/components/admin/TableTools";
 import { card } from "@/components/ui";
@@ -30,6 +33,36 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
   if (!(await can("activity"))) return <NotForRole title="Activity" permission="activity" />;
   const sp = await searchParams;
   const area = (ACTIVITY_AREAS as readonly string[]).includes(sp.area ?? "") ? (sp.area as ActivityArea) : undefined;
+  // The header first; the areas (their counts are the history) and the changes stream in under it (#200). Not keyed: a tab change keeps the old list until the new one lands, so the tabs never turn to bones.
+  return (
+    <>
+      <PageHeader title="Activity" text="Every change in the dashboard, kept for 12 months" />
+      <Suspense fallback={<ChangesBones />}>
+        <Fresh className="flex flex-col gap-6">
+          <Changes sp={sp} area={area} />
+        </Fresh>
+      </Suspense>
+    </>
+  );
+}
+
+// The area tabs, the When switch, then a day of changes.
+function ChangesBones() {
+  return (
+    <Skeleton>
+      <TabBones count={ACTIVITY_AREAS.length + 1} />
+      <Bone className="h-[3.25rem] w-80 max-w-full" />
+      <div className="flex flex-col gap-2">
+        <LineBone text="text-section" className="h-5 w-24" />
+        <div className={`${card} px-4`}>
+          <RowBones rows={6} />
+        </div>
+      </div>
+    </Skeleton>
+  );
+}
+
+async function Changes({ sp, area }: { sp: Params; area?: ActivityArea }) {
   const period = PERIODS.find(([k]) => k === sp.period) ?? PERIODS[3];
   const askedPage = Math.max(1, Number.parseInt(sp.page ?? "1", 10) || 1);
   const size = perPage(sp.per);
@@ -62,7 +95,6 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
   };
   return (
     <>
-      <PageHeader title="Activity" text="Every change in the dashboard, kept for 12 months" />
       <SummaryTabs
         label="Area"
         items={[
@@ -76,7 +108,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
       </div>
       {filters.length > 0 && <AppliedFilters groups={filters} />}
       {/* The changes by day, each a plain line: what was done, then who, when and to what. */}
-      <section aria-label="Changes" className="flex flex-col gap-6">
+      <section aria-label="Changes" data-list className="flex flex-col gap-6">
         {days.length === 0 ? (
           <div className={card}>
             <EmptyState title="No changes" text={area || actor || since ? "Nothing matches these filters." : "Changes made in the dashboard show here."} />

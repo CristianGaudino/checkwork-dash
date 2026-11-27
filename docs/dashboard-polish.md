@@ -20,7 +20,7 @@ audit at the end of each.
 6. **Spacing** on the 4px grid; equal things equal sizes.
 7. **Icons:** one line set (the existing one), 16 or 20px, 1.5 stroke, text color. No emoji anywhere.
 8. **Copy:** short. Labels, buttons and subheads end without a period. No helper sentence where the label already says it. One primary action per page.
-9. **Motion:** color, background, opacity and transform only, one easing, no looping, nothing that moves on hover by more than a few pixels.
+9. **Motion:** color, background, opacity and transform only (and clip-path for a chart drawing in, so rounded bar ends do not squash), one easing, no looping, nothing that moves on hover by more than a few pixels.
 10. **Clickable means clickable:** a number, a badge or a row that looks like a link is one.
 
 ## Spec by issue

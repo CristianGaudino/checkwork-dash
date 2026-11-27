@@ -8,7 +8,7 @@ import { PRICE_DROP_MAX_PCT } from "@/lib/admin/stock-admin-pure";
 import { fmtEur } from "@/lib/admin/format";
 import { adminButton, adminInput, choicePill, dangerButton, rowButton } from "./kit";
 import { CheckIcon, PercentIcon, TrashIcon } from "@/components/stock/icons";
-import { ConfirmDialog } from "./ActButton";
+import { ConfirmDialog, type Confirm } from "./ActButton";
 
 // Several cars at once (#104), for our own stock. Each row has a tick box (StockPick) tied to this bar by the `form` attribute, so the
 // table stays a server component. Until a car is ticked a line says what ticking does; then the bar names the cars ticked and offers
@@ -58,6 +58,7 @@ export function StockBulk({ canDelete }: { canDelete: boolean }) {
   const [unit, setUnit] = useState<"eur" | "pct">("eur");
   const [amount, setAmount] = useState("");
   const [asking, setAsking] = useState(false);
+  const [confirm, setConfirm] = useState<Confirm>();
   const [error, setError] = useState("");
   const [pending, start] = useTransition();
 
@@ -75,9 +76,14 @@ export function StockBulk({ canDelete }: { canDelete: boolean }) {
   };
   const cars = count === 1 ? "1 car" : `${count} cars`;
   const drop = unit === "eur" ? fmtEur(Number(amount)) : `${amount}%`;
-  const question = op === "price" ? `Drop the price of ${cars} by ${drop}?` : op === "sold" ? `Mark ${cars} sold?` : `Delete ${cars}?`;
-  const text =
-    op === "price" ? "The earlier price shows beside each new one on the website. Sold cars keep their price." : op === "sold" ? "They show as Sold on the website. Record each sale from its row. A car with a deposit held is left as it is." : "This cannot be undone. A car with a deposit held is left as it is.";
+  // The question, taken when it is asked, so it holds still as the dialog fades out after the list has changed.
+  const confirmOf = (o: Op): Confirm => ({
+    title: o === "price" ? `Drop the price of ${cars} by ${drop}?` : o === "sold" ? `Mark ${cars} sold?` : `Delete ${cars}?`,
+    text: o === "price" ? "The earlier price shows beside each new one on the website. Sold cars keep their price." : o === "sold" ? "They show as Sold on the website. Record each sale from its row. A car with a deposit held is left as it is." : "This cannot be undone. A car with a deposit held is left as it is.",
+    yes: o === "price" ? "Drop the price" : o === "sold" ? "Mark sold" : "Delete",
+    safe: o === "price",
+  });
+  const askOf = (o: Op) => (setConfirm(confirmOf(o)), setAsking(true));
 
   const run = () =>
     start(async () => {
@@ -99,7 +105,7 @@ export function StockBulk({ canDelete }: { canDelete: boolean }) {
   const ask = (o: Op) => {
     setError("");
     setOp(o);
-    if (o !== "price") setAsking(true);
+    if (o !== "price") askOf(o);
   };
   const amountOk = /^\d+$/.test(amount) && Number(amount) >= 1 && (unit === "eur" || Number(amount) <= PRICE_DROP_MAX_PCT);
 
@@ -113,7 +119,7 @@ export function StockBulk({ canDelete }: { canDelete: boolean }) {
 
   return (
     <>
-      <form id={FORM} onSubmit={(e) => (e.preventDefault(), amountOk && setAsking(true))} hidden={count === 0} className="z-30 sm:sticky sm:top-2 flex flex-col gap-3 rounded-card border border-accent bg-card p-4 shadow-lift lg:top-[5.5rem]">
+      <form id={FORM} onSubmit={(e) => (e.preventDefault(), amountOk && askOf("price"))} hidden={count === 0} className="z-30 sm:sticky sm:top-2 flex flex-col gap-3 rounded-card border border-accent bg-card p-4 shadow-lift lg:top-[5.5rem]">
       <div className="flex flex-wrap items-center gap-2">
         <p aria-live="polite" className="mr-auto flex min-w-0 flex-col">
           <span className="font-semibold">{count > 0 && `${cars} selected`}</span>
@@ -147,10 +153,11 @@ export function StockBulk({ canDelete }: { canDelete: boolean }) {
         </div>
       )}
       {error && <p role="alert" className="text-meta text-destructive">{error}</p>}
-      {asking && (
+      {confirm && (
         <ConfirmDialog
-          confirm={{ title: question, text, yes: op === "price" ? "Drop the price" : op === "sold" ? "Mark sold" : "Delete" }}
-          yesClassName={op === "price" ? adminButton : dangerButton}
+          open={asking}
+          confirm={confirm}
+          yesClassName={confirm.safe ? adminButton : dangerButton}
           onYes={run}
           onClose={() => setAsking(false)}
         />

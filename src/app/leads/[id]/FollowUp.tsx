@@ -66,7 +66,7 @@ export function FollowUp({ action, on, today, due, back }: { action: (data: Form
           </ul>
           <FormActions>
             {on && (
-              <button type="button" disabled={pending} onClick={() => save({ clear: "1" }, "Follow-up cleared")} className={`${rowDanger} mr-auto`}>
+              <button type="button" disabled={pending} aria-busy={pending || undefined} onClick={() => save({ clear: "1" }, "Follow-up cleared")} className={`${rowDanger} mr-auto ${BUSY}`}>
                 Clear
               </button>
             )}

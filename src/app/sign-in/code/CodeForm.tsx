@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { adminButton, adminInput } from "@/components/admin/kit";
+import { BUSY } from "@/components/admin/ActButton";
 import { submitCode } from "../actions";
 
 export function CodeForm({ next }: { next: string }) {
@@ -18,7 +19,7 @@ export function CodeForm({ next }: { next: string }) {
           {state.error}
         </p>
       )}
-      <button type="submit" disabled={pending} className={`${adminButton} w-full`}>
+      <button type="submit" disabled={pending} aria-busy={pending || undefined} className={`${adminButton} w-full ${BUSY}`}>
         Sign in
       </button>
     </form>
