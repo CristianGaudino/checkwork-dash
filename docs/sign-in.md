@@ -654,8 +654,8 @@ Between the two halves of the right order the app is stricter, never looser: wit
 1. Merge the build plan's steps 1 to 6 (each changes nothing while `SIGN_IN` is `access`).
 2. Owner: `npx wrangler secret put SIGN_IN_SECRET` (dev), a random 32-byte value, and the bot check (section 3, "The bot check"): the
    Turnstile widget, the repo variable `TURNSTILE_SITE_KEY` and `npx wrangler secret put TURNSTILE_SECRET_KEY` (dev). Set up `noreply@checkwork.ie` as a sending address
-   (open question 3). Dev's `EMAIL` binding can only send to `contact@checkwork.ie` today: add our own team's addresses to its
-   `allowed_destination_addresses`. If the zone's Web Analytics is on, also exclude `/sign-in/*` there (the CSP already blocks it).
+   (open question 3). Dev's `EMAIL` binding has no allowed list, so it sends only to the account's verified Email
+   Routing destinations: verify our own team's addresses there (no addresses in `wrangler.jsonc`: the repo is public). If the zone's Web Analytics is on, also exclude `/sign-in/*` there (the CSP already blocks it).
 3. PR: dev's `SIGN_IN` to `both`. Deploy. Each of us signs in through Access, then through our sign-in (email code; a passkey once step 5 is built) on
    a laptop, an iPhone (the browser and the home screen app) and an Android phone.
 4. PR: dev's `SIGN_IN` to `own`. Deploy. Then the owner: on dev's Access application, add a policy **Bypass, Everyone** at the top (Access
