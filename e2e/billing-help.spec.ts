@@ -45,6 +45,23 @@ test("the owner sees the plan and this month's bill, sets a limit, and opens a b
   await expect(page.getByText("VAT at 23%")).toBeVisible();
 });
 
+// One system (#212): every paid service is there to limit before its first charge, even on a stored plan of the dashboard alone (Test
+// Motors'), while the plan and its price stay the stored plan's. A EUR 0 limit is a real choice: nothing paid goes through.
+test("on a stored plan of the dashboard alone, the owner sets a EUR 0 limit on history checks", async ({ page, context, baseURL }) => {
+  await context.addCookies([{ name: "checkwork-dealer", value: "test-motors", url: baseURL! }]);
+  await page.goto("/billing");
+  await expect(page.getByText("Website + Dashboard plan")).toHaveCount(0); // the stored plan's price, not every module's
+  await page.getByRole("button", { name: "Edit monthly limits" }).click();
+  const limits = page.getByRole("dialog", { name: "Monthly limits" });
+  await limits.getByLabel("History check limit (€ a month)").fill("0");
+  await limits.getByRole("button", { name: "Save" }).click();
+  await expect(limits).toBeHidden();
+  await expect(page.getByTestId("toast")).toContainText("Limits saved");
+  await page.reload();
+  const row = page.getByRole("region", { name: "Monthly limits" }).getByRole("row").filter({ hasText: "History check" });
+  await expect(row.getByRole("cell", { name: "€0", exact: true })).toHaveCount(2); // spent and the limit
+});
+
 test("sales has no Billing page: it says who it is for", async ({ page, context }) => {
   await as(context, "Sales");
   await notForRole(page, "/billing", "Your plan, this month");

@@ -2,7 +2,6 @@ import "server-only";
 import { wantsWhatsApp } from "@/lib/phone";
 import { isUsable, simulating } from "@/lib/integrations";
 import { leadRecipients, sendTo } from "@/lib/leads/mail";
-import { hasModule } from "@/lib/modules";
 import { currentDealer } from "@/lib/tenancy/current";
 import { sendWhatsApp, whatsappChannel } from "@/lib/whatsapp/send";
 import { firstName } from "@/lib/whatsapp/rules";
@@ -33,8 +32,8 @@ export function leadsOf(c: Pick<Customer, "email" | "phone">, leads: Lead[], lea
   return leads.filter((l) => l.id === leadId || (qs.length > 0 && matchesAny(l, qs)));
 }
 
-// Whether a WhatsApp review ask would really go by WhatsApp now: in the plan, and the channel sendWhatsApp would pick (simulated and under the cap).
-export const reviewByWhatsApp = async () => (await hasModule("whatsapp")) && (await whatsappChannel("reply")) === "whatsapp";
+// Whether a WhatsApp review ask would really go by WhatsApp now: connected, and the channel sendWhatsApp would pick (simulated and under the cap).
+export const reviewByWhatsApp = async () => (await isUsable("whatsapp")) && (await whatsappChannel("reply")) === "whatsapp";
 
 // leadsOf for many customers at once (the sale page): the leads indexed once by email and phone, then each customer looked up.
 export function leadsIndex(leads: Lead[]): (c: Pick<Customer, "email" | "phone">) => Lead[] {

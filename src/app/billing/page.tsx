@@ -4,7 +4,7 @@ import { Badge, DataTable, Facts, FormActions, PageHeader, Panel, adminButtonQui
 import { listing, stockSource } from "@/lib/stock-source";
 import { currentDealer } from "@/lib/tenancy/current";
 import { dublinDay, fmtDay, fmtNum, plural } from "@/lib/admin/format";
-import { billedModules } from "@/lib/modules";
+import { billedModules, enabledModules } from "@/lib/modules";
 import { can, currentMember } from "@/lib/permissions";
 import { billingDetails, listBills } from "@/lib/billing/bills";
 import { eur, fmtMonth, itemise, nextBillDate, billedServices, type Bill, type BillingDetails } from "@/lib/billing/bills-rules";
@@ -30,7 +30,7 @@ export default async function Page() {
   const now = new Date();
   const today = dublinDay(now.getTime());
   const month = today.slice(0, 7);
-  const services = billedServices(modules, usage);
+  const services = billedServices(await enabledModules(), usage); // every paid service can have a limit before its first charge (#212)
   const allowance = allowanceFor(modules, b);
   const p = planFor(modules, b);
   const plan = planLines(modules, b, month); // the first month free is a line of its own

@@ -25,7 +25,7 @@ vi.mock("./collections", () => ({ salesStore: store(db.sales), customersStore: s
 vi.mock("./activity", () => ({ logActivity: async (_a: string, text: string) => void db.activity.push(text) }));
 vi.mock("@/lib/tenancy/current", () => ({ currentDealer: async () => ({ name: "Byrne Motors", demo: db.demo, profile: { placeId: db.placeId } }) }));
 vi.mock("@/lib/integrations", () => ({ simulating: async () => db.demo, isUsable: async () => db.whatsapp }));
-vi.mock("@/lib/modules", () => ({ hasModule: async () => db.whatsapp }));
+vi.mock("@/lib/modules", () => ({ hasModule: async () => true })); // every dealer has every module (#212): the connection decides
 vi.mock("@/lib/leads/mail", () => ({
   leadRecipients: async () => ["sales@byrne.ie"],
   sendTo: async (to: string[], m: { text: string; replyTo?: string }) => void db.mail.push({ to, text: m.text, replyTo: m.replyTo }),
@@ -131,6 +131,14 @@ ${REVIEW_OPT_OUT}`)).toBe(true);
     expect(await askForReview("car-1")).toBe("email");
     expect(db.mail).toEqual([{ to: ["pat@mail.ie"], text: expect.any(String), replyTo: "sales@byrne.ie" }]);
     expect(db.wa).toMatchObject([{ leadId: "lead-1", via: "email" }]);
+  });
+
+  it("goes by email alone, with nothing in a WhatsApp conversation, while the dealer's WhatsApp is not connected (#212)", async () => {
+    db.leads = [lead({ whatsappOptIn: true })];
+    db.whatsapp = false;
+    expect(await askForReview("car-1")).toBe("email");
+    expect(db.mail).toHaveLength(1);
+    expect(db.wa).toEqual([]);
   });
 
   it("never says it went by email in their conversation when the email failed", async () => {
