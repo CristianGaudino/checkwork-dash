@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { Skeleton, TileBone } from "@/components/admin/Skeleton";
+import { TileBone } from "@/components/admin/Skeleton";
 import { ActionTile, ActionTiles, Columns, EmptyState, PageHeader, Panel, PanelLink, StatCard, StatGrid, TaskList } from "@/components/admin/kit";
 import { CalendarIcon, CarIcon, CheckIcon, InboxIcon, ShareIcon } from "@/components/stock/icons";
 import { can } from "@/lib/permissions";
@@ -34,13 +34,14 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
   const boss = await can("team");
 
   const shown = tasks.slice(0, TOP);
-  // The main jobs; the first is filled. Synced stock is added on the listing site, so then there is no Add a car.
+  // The main jobs; the first is filled and leads (#208): replying to leads, the job a dealer acts on, with its count large. Synced stock is
+  // added on the listing site, so then there is no Add a car.
   const jobs = [
+    // The same leads as To do and Leads' To answer now (leadsToAnswer).
+    { href: mine ? "/leads?mine=1" : "/leads", icon: <InboxIcon />, label: "Reply to leads", figure: o.answer.length ? fmtNum(o.answer.length) : undefined, text: o.answer.length ? (o.answer.length === 1 ? "lead to answer" : "leads to answer") : "All answered" },
     !synced && { href: "/stock/new", icon: <CarIcon />, label: "Add a car", text: "Photos, price and details" },
     drivesOn && { href: "/test-drives/new", icon: <CalendarIcon />, label: "Book a test drive", text: "Pick a car and a time" },
     mods.has("social") && { href: "/marketing/new", icon: <ShareIcon />, label: "New post", text: "Facebook, Instagram or TikTok" },
-    // The same leads as To do and Leads' To answer now (leadsToAnswer).
-    { href: mine ? "/leads?mine=1" : "/leads", icon: <InboxIcon />, label: "Reply to leads", text: o.answer.length ? `${plural(o.answer.length, "lead")} to answer` : "All answered" },
   ].filter((j) => j !== false);
   // A drive's day beside its time, when it is not today.
   const day = (t: number) => (dublinDay(t) === today ? null : dublinDay(t) === addDays(today, 1) ? "Tomorrow" : fmtDay(dublinDay(t), "weekday"));
@@ -90,11 +91,12 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
             <Panel plain title="Numbers">
               <StatGrid>
                 {/* This week's leads: Leads has no date filter, Analytics over 7 days does. */}
-                <StatCard href={mods.has("analytics") ? "/analytics?range=7" : "/leads"} label="Leads this week" value={fmtCompact(thisWeek)} hint={`${fmtNum(o.usualWeek)} in a usual week`} tone={thisWeek > o.usualWeek ? "good" : undefined} />
+                <StatCard lead href={mods.has("analytics") ? "/analytics?range=7" : "/leads"} label="Leads this week" value={fmtCompact(thisWeek)} hint={`${fmtNum(o.usualWeek)} in a usual week`} tone={thisWeek > o.usualWeek ? "good" : undefined} />
                 <StatCard href="/stock" label="Cars for sale" value={fmtCompact(cars.filter(forSale).length)} hint={o.oldStock ? `${o.oldStock} for sale ${rules.oldStockDays} days or more` : undefined} tone={o.oldStock ? "warn" : undefined} />
-                {/* Only the website's tiles wait: the two above are links in the first chunk (#109). */}
+                {/* Only the website's tiles wait: the two above are links in the first chunk (#109). Their bones are the grid's own tiles, so the
+                    layout counts them as the tiles they stand for. */}
                 {boss && (
-                  <Suspense fallback={<Skeleton className="contents"><TileBone />{mods.has("analytics") && <TileBone />}</Skeleton>}>
+                  <Suspense fallback={<><TileBone busy />{mods.has("analytics") && <TileBone />}</>}>
                     <WebsiteTiles leads={leads} analytics={mods.has("analytics")} />
                   </Suspense>
                 )}

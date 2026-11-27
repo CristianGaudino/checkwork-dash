@@ -51,6 +51,8 @@ describe("a stat tile's figure size", () => {
     expect(figureSize("WhatsApp")).toBe("text-[min(2rem,15cqi)]"); // at 20cqi it broke as "WhatsAp / p"
     expect(figureSize("€5,864,950")).toBe("text-[min(2rem,15cqi)]");
     expect(figureSize("Bookmarked")).toBe("text-[min(2rem,12cqi)]");
+    expect(figureSize("€117,565", true)).toBe("text-[min(3.5rem,20cqi)]"); // a lead tile: the same share of twice the width, up to 3.5rem
+    expect(figureSize("€5,864,950", true)).toBe("text-[min(3.5rem,15cqi)]");
   });
 });
 

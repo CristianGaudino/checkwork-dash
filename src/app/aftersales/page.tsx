@@ -65,7 +65,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
       <SummaryTabs
         label="Claims"
         items={[
-          { label: "Requests", count: requests.length, href: "/aftersales?view=requests", active: view === "requests" },
+          { label: "Requests", count: requests.length, href: "/aftersales?view=requests", active: view === "requests", lead: true },
           ...(Object.keys(VIEWS) as (keyof typeof VIEWS)[]).map((v) => ({ label: VIEWS[v].label, count: claims.filter(VIEWS[v].test).length, href: `/aftersales?view=${v}`, active: view === v })),
         ]}
       />

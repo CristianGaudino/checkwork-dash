@@ -57,7 +57,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ f
           </ul>
         </section>
       )}
-      <SummaryTabs label="Reviews" items={REVIEW_FILTERS.map(([k, label]) => ({ label, href: `/reviews?filter=${k}`, active: filter === k, count: filterReviews(all, k).length }))} />
+      <SummaryTabs label="Reviews" items={REVIEW_FILTERS.map(([k, label]) => ({ label, href: `/reviews?filter=${k}`, active: filter === k, count: filterReviews(all, k).length, lead: k === "unreplied" }))} />
       {paged.total === 0 ? (
         <Panel>
           <EmptyState title={filter === "unreplied" ? "Every review has a reply" : "No reviews here"} />

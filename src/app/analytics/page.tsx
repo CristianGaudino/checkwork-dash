@@ -57,7 +57,7 @@ function FiguresBones({ demo }: { demo: boolean }) {
   if (!demo) {
     return (
       <Skeleton>
-        <TileBones count={3} />
+        <TileBones count={3} lead />
         {sources}
         <div className="grid grid-cols-1 gap-6 wide:grid-cols-2">
           {["Searches with no cars to show", "Prices people look at", "Filters people use", "Finance"].map((t) => <PanelBones key={t} title={t} />)}
@@ -68,7 +68,7 @@ function FiguresBones({ demo }: { demo: boolean }) {
   return (
     <Skeleton>
       <TextBones />
-      <TileBones />
+      <TileBones lead />
       {sources}
       <PanelBones title="From visit to sale" />
       <PanelBones title="Visitors each day">
@@ -108,8 +108,8 @@ async function Figures({ range, demo }: { range: Range; demo: boolean }) {
       </p>
 
       <StatGrid>
+        <StatCard lead label="Leads" value={fmtCompact(a.totals.leads)} hint={changeText(a.totals.leads, a.previous.leads)} tone={changeTone(a.totals.leads, a.previous.leads)} />
         <StatCard label="Visitors" value={fmtCompact(a.totals.visitors)} hint={changeText(a.totals.visitors, a.previous.visitors)} tone={changeTone(a.totals.visitors, a.previous.visitors)} />
-        <StatCard label="Leads" value={fmtCompact(a.totals.leads)} hint={changeText(a.totals.leads, a.previous.leads)} tone={changeTone(a.totals.leads, a.previous.leads)} />
         <StatCard label="Cars sold" value={fmtCompact(sold)} hint={whole ? "Sales you recorded" : "Your own sales"} />
         <StatCard label="Visitors who got in touch" value={fmtPct(a.totals.conversion)} hint={changeText(a.totals.conversion, convBefore, true)} tone={changeTone(a.totals.conversion, convBefore, true)} />
       </StatGrid>
@@ -171,8 +171,8 @@ async function RealAnalytics({ range }: { range: Range }) {
   return (
     <>
       <StatGrid>
+        <StatCard lead label="Website leads" value={fmtCompact(f.totals.leads)} />
         <StatCard label="Visits" value={fmtCompact(f.totals.visits)} />
-        <StatCard label="Website leads" value={fmtCompact(f.totals.leads)} />
         <StatCard label="Visits that became leads" value={fmtPct(f.totals.conversion)} />
       </StatGrid>
 
