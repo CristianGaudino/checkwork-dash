@@ -85,8 +85,7 @@ test("a search waiting on the list says so", async ({ page }) => {
   await expect(page.locator("main [data-list-busy]")).toHaveCount(1);
 });
 
-// fixme: the dim is globals.css from #199, not in this branch yet.
-test.fixme("a search waiting on the list dims the table", async ({ page }) => {
+test("a search waiting on the list dims the table", async ({ page }) => {
   await searchHeld(page);
   await expect.poll(() => page.locator("main table").evaluate((t) => getComputedStyle(t).opacity)).toBe("0.6");
 });
