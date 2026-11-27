@@ -4,6 +4,7 @@ import { PanelBones, Skeleton, TextBones, TileBones } from "@/components/admin/S
 import { BarList } from "@/components/admin/charts";
 import { DataTable, PageHeader, Panel, StatCard, StatGrid, rowButton } from "@/components/admin/kit";
 import Link from "next/link";
+import { card } from "@/components/ui";
 import { LEAD_TYPE_LABELS, type LeadType } from "@/lib/admin/collections";
 import { buildAnalytics } from "@/lib/admin/analytics";
 import { carCosts } from "@/lib/admin/costs";
@@ -138,21 +139,21 @@ async function Report({ month, prevMonth, now, name, whole, hasMargins }: { mont
         {topSource && <StatCard label="Most leads from" value={topSource[0]} hint={plural(topSource[1], "lead")} />}
       </StatGrid>
 
-      <h2 className="text-heading font-semibold">Leads</h2>
-      <StatGrid>
+      <StatGrid title="Leads">
         <StatCard label="Out of hours" value={fmtCompact(s.leads.outOfHours)} hint={s.leads.total ? `${Math.round((s.leads.outOfHours / s.leads.total) * 100)}% of leads` : undefined} />
         <StatCard label="First reply, when open" value={fmtWait(s.replies.medianInHoursMin)} hint="Typical" />
         <StatCard label="First reply, when closed" value={fmtWait(s.replies.medianOutOfHoursMin)} hint="Typical" />
         <StatCard label="No reply in 24 hours" value={fmtCompact(s.replies.none)} tone={s.replies.none ? "warn" : undefined} />
       </StatGrid>
-      <div className="grid grid-cols-1 gap-6 wide:grid-cols-2 wider:grid-cols-3">
-        <Panel title="Where they came from">
+      {/* Three short ranked lists in one panel, hairlines between them, rather than three equal cards (#213). */}
+      <div className={`${card} grid grid-cols-1 gap-x-8 gap-y-6 p-5 wide:grid-cols-2 wider:grid-cols-3`}>
+        <Panel plain title="Where they came from">
           {sources.length ? <BarList items={sources.map(([name, n]) => ({ label: name, value: n }))} /> : <p className="text-meta text-text-2">No leads this month.</p>}
         </Panel>
-        <Panel title="What they asked about">
+        <Panel plain title="What they asked about">
           {topTypes.length ? <BarList items={topTypes.map(([t, n]) => ({ label: LEAD_TYPE_LABELS[t as LeadType] ?? t, value: n }))} /> : <p className="text-meta text-text-2">No leads this month.</p>}
         </Panel>
-        <Panel title="By day of the week">
+        <Panel plain title="By day of the week">
           {s.leads.total ? <BarList items={DAYS.map((d, i) => ({ label: d, value: s.leads.byWeekday[i] }))} /> : <p className="text-meta text-text-2">No leads this month.</p>}
         </Panel>
       </div>
@@ -160,7 +161,7 @@ async function Report({ month, prevMonth, now, name, whole, hasMargins }: { mont
       {a && (
         <>
           <h2 className="text-heading font-semibold">Visitors</h2>
-          <Panel plain title="Where visits came from">
+          <Panel title="Where visits came from">
             <VisitSources now={a.channels} before={a.previous.channels} />
           </Panel>
           <Panel title="Top 5 cars viewed">
@@ -174,11 +175,10 @@ async function Report({ month, prevMonth, now, name, whole, hasMargins }: { mont
 
       {real && (
         <>
-          <h2 className="text-heading font-semibold">Visitors</h2>
-          <StatGrid>
+          <StatGrid title="Visitors">
             <StatCard label="Visits that became leads" value={fmtPct(real.now.totals.conversion)} />
           </StatGrid>
-          <Panel plain title="Where visits came from">
+          <Panel title="Where visits came from">
             <VisitSources now={real.now.channels} before={real.before.channels} />
             {real.now.unknownLeads > 0 && <p className="text-meta text-text-2">{plural(real.now.unknownLeads, "website lead")} came with no source known.</p>}
           </Panel>
@@ -187,8 +187,7 @@ async function Report({ month, prevMonth, now, name, whole, hasMargins }: { mont
 
       {whole && (
         <>
-          <h2 className="text-heading font-semibold">Stock</h2>
-          <StatGrid>
+          <StatGrid title="Stock">
             <StatCard label="Cars added" value={fmtCompact(s.stock.added)} hint={compare(s.stock.added, p.stock.added)} />
             <StatCard label="Days in stock" value={s.stock.avgDaysInStock === null ? "None" : fmtNum(s.stock.avgDaysInStock)} hint="Average, cars for sale now" />
             <StatCard href="/stock?view=old" label={`${oldDays} days or more`} value={fmtCompact(s.stock.oldStock)} tone={s.stock.oldStock ? "warn" : undefined} hint="Cars for sale now" />
@@ -199,25 +198,19 @@ async function Report({ month, prevMonth, now, name, whole, hasMargins }: { mont
       {/* Sales and reviews side by side on a wide screen: each is two or three figures, too few to fill the width alone. */}
       <div className="grid grid-cols-1 gap-6 wider:grid-cols-2">
         {hasSales && (
-          <section className="flex flex-col gap-4">
-            <h2 className="text-heading font-semibold">Sales</h2>
-            <StatGrid>
+          <StatGrid title="Sales">
               {/* Cars sold is in the month in short at the top; here it shows only when there is no money to show beside it. */}
               {s.sales.valueEur === undefined && profit === undefined && <StatCard label="Cars sold" value={fmtCompact(s.sales.count)} hint={compare(s.sales.count, p.sales.count)} />}
               {s.sales.valueEur !== undefined && <StatCard label="Sales" value={fmtCompactEur(s.sales.valueEur)} hint={fmtCompactEur(s.sales.valueEur) === fmtEur(s.sales.valueEur) ? undefined : fmtEur(s.sales.valueEur)} />}
               {profit !== undefined && <StatCard label="Profit" value={fmtEur(profit)} hint="Cars with their cost entered" />}
             </StatGrid>
-          </section>
         )}
 
         {whole && hasReviews && (
-          <section className="flex flex-col gap-4">
-            <h2 className="text-heading font-semibold">Reviews</h2>
-            <StatGrid>
+          <StatGrid title="Reviews">
               <StatCard label="New reviews" value={fmtCompact(s.reviews.count)} hint={compare(s.reviews.count, p.reviews.count)} />
               <StatCard label="Average rating" value={s.reviews.average === null ? "None" : s.reviews.average.toFixed(1)} hint={s.reviews.average === null ? undefined : `From ${plural(s.reviews.count, "review")}`} />
             </StatGrid>
-          </section>
         )}
       </div>
     </>
