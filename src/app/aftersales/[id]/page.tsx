@@ -29,7 +29,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   return (
     <>
       <PageHeader title={claim.carTitle} text={`Opened ${day(claim.openedOn)}`} back={{ href: "/aftersales", label: "Warranty claims" }} />
-      <div className="grid grid-cols-1 gap-6 wide:grid-cols-[minmax(0,1fr)_22rem]">
+      <div className="grid grid-cols-1 items-start gap-6 wide:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="flex min-w-0 flex-col gap-6">
           <Panel title="The fault" action={<CoverBadge inCover={claim.inCover} />}>
             <p className="max-w-measure whitespace-pre-line text-body">{claim.fault}</p>
@@ -45,19 +45,20 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           </Panel>
           <Notes notes={claim.notes} action={addClaimNoteAction.bind(null, claim.id)} me={me.name} />
         </div>
-        <div className="flex min-w-0 flex-col gap-6">
+        {/* Status, cover and cost are sections of one quiet panel, hairlines between them (#213), not three small cards. */}
+        <div className="flex min-w-0 flex-col divide-y divide-hairline rounded-card border border-hairline bg-row-alt px-5 *:py-5">
           {/* Where it stands: one drop-down of the six stages, as the lead's stage (#136), never a block of chips. The only place it is set (#169):
               it reaches Declined and goes back, which a row's next step could not. */}
-          <Panel title="Status" quiet>
+          <Panel title="Status" plain>
             <ActSelect label="Status" value={claim.status} options={CLAIM_STATUSES.map((s) => [s, CLAIM_STATUS_LABELS[s]] as const)} action={setClaimStatusAction.bind(null, claim.id)} field="status" extra={{ from: claim.status }} back={{ status: claim.status }} done="Claim: " />
           </Panel>
           {sale && ends && (
-            <Panel title="Cover" quiet>
+            <Panel title="Cover" plain>
               <TimeLeft from={Date.parse(`${sale.soldOn}T12:00:00Z`)} to={Date.parse(`${ends}T12:00:00Z`)} now={now} text={coverText} />
             </Panel>
           )}
           {margins && (
-            <CostPanel title="Repair cost" act={setClaimCostAction.bind(null, claim.id)} label="Repair cost to us (€)" hint="Counts against the car's margin. Leave empty to clear it." costEur={claim.costEur} />
+            <CostPanel title="Repair cost" act={setClaimCostAction.bind(null, claim.id)} label="Repair cost to us (€)" hint="Counts against the car's margin. Leave empty to clear it." costEur={claim.costEur} plain />
           )}
         </div>
       </div>
