@@ -29,7 +29,7 @@ test("a tile shows a rounded figure with the exact one in its title, and the tab
   await expect(month.getByRole("cell", { name: /^€/ }).first()).toHaveText(/^€[\d,]+$/); // never "k" or "m"
 });
 
-test("the monthly report is Reports' Monthly view: one menu entry, marked on both, and the menu's way in without Reports", async ({ page, context, baseURL }) => {
+test("the monthly report is Reports' Monthly view: one menu entry, marked on both", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto("/reports");
   await page.getByRole("navigation", { name: "Period" }).getByRole("link", { name: "Monthly" }).click();
@@ -37,12 +37,6 @@ test("the monthly report is Reports' Monthly view: one menu entry, marked on bot
   await expect(page.getByRole("navigation", { name: "Period" }).getByRole("link", { name: "Monthly" })).toHaveAttribute("aria-current", "page");
   await expect(await sideLink(page, "Reports")).toHaveAttribute("aria-current", "page");
   await expect((await sideLink(page, "Reports")).locator("xpath=..").getByRole("link")).toHaveText(["Reports", "Analytics", "Margins"]);
-  // Without the Margins module there is no /reports: the same entry opens the monthly report, with no views to switch to.
-  await context.addCookies([{ name: "checkwork-demo-modules", value: "dashboard", url: baseURL! }]);
-  await page.goto("/");
-  await (await sideLink(page, "Reports")).click();
-  await expect(page).toHaveURL(/\/monthly-report$/);
-  await expect(page.getByRole("navigation", { name: "Period" })).toHaveCount(0);
 });
 
 test("a salesperson sees only their own counts: no money, no one else", async ({ page, context }) => {

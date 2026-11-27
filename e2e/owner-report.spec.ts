@@ -22,16 +22,10 @@ test("the owner API answers 404 without the token, or with a wrong one, and coun
   expect((await (await request.get("/api/owner/v1/usage?dealer=checkwork-motors&from=2026-01-01&to=2026-01-31", { headers: auth })).json()).months).toHaveLength(1);
 });
 
-test("the monthly report shows a section for each module on, and none for a module off", async ({ page, context, baseURL }) => {
+test("the monthly report shows a section for each part of the dashboard", async ({ page }) => {
   await page.goto("/monthly-report");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Monthly report");
   for (const h of ["Leads", "Visitors", "Stock", "Sales", "Reviews"]) await expect(page.getByRole("heading", { level: 2, name: h, exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Print or save as PDF" })).toBeVisible();
   await expect(page.getByRole("link", { name: /Download/ })).toHaveCount(0);
-
-  await context.addCookies([{ name: "checkwork-demo-modules", value: "dashboard", url: baseURL! }]);
-  await page.goto("/monthly-report");
-  await expect(page.getByRole("heading", { level: 2, name: "Leads", exact: true })).toBeVisible();
-  await expect(page.getByRole("heading", { level: 2, name: "Stock", exact: true })).toBeVisible();
-  for (const h of ["Visitors", "Sales", "Reviews"]) await expect(page.getByRole("heading", { level: 2, name: h, exact: true })).toHaveCount(0);
 });

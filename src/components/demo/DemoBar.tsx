@@ -4,10 +4,9 @@ import { useRouter } from "next/navigation";
 import { useCallback, useId, useState, useSyncExternalStore } from "react";
 import { THEME_KEY, type Theme } from "@/lib/demo";
 import { setDealerRole, setDemoStockSource, useDealerRole } from "@/lib/demo-role";
-import { useDealerFacts, useModules } from "@/components/DealerFacts";
+import { useDealerFacts } from "@/components/DealerFacts";
 import { ROLES, type Role } from "@/lib/permission-rules";
 import { ChevronDownIcon, SlidersIcon } from "@/components/stock/icons";
-import { ModuleSwitches } from "./ModuleSwitches";
 import { popIn, press } from "@/components/ui";
 
 // The theme lives on <html data-theme>; this watches that attribute, so the button is right on first paint and after any change.
@@ -44,14 +43,12 @@ function useRoomFor(extra: number) {
   );
 }
 
-// The demo's own controls: the role and where the stock comes from, the plan, and the theme. A dealer that is not a demo (`demo` false,
+// The demo's own controls: the role, where the stock comes from, and the theme. A dealer that is not a demo (`demo` false,
 // the directory's flag) gets the theme only: the server ignores the other switches' cookies for them anyway. `donedeal`: the stock source
 // the server worked out for this request. On a phone and tablet it folds into a small pill at the bottom right that opens the controls above it; from
 // 1024px it is one slim line at the foot of the screen (docs/mobile-navigation.md).
 export function DemoBar({ demo, donedeal }: { demo: boolean; donedeal: boolean }) {
   const router = useRouter();
-  // A plan without the dashboard (Website) has nothing to show here, so only the Plan switch and the theme stay, to go back.
-  const dashboard = useModules().has("dashboard");
   const { listingSite } = useDealerFacts();
   const theme = useSyncExternalStore(subscribe, read, () => "light" as Theme);
   const dealerRole = useDealerRole();
@@ -81,10 +78,10 @@ export function DemoBar({ demo, donedeal }: { demo: boolean; donedeal: boolean }
     </select>
   );
   const chip = "flex h-9 shrink-0 items-center rounded-full border px-3 text-meta";
-  // `phone`: the controls in the pill's panel, where the row wraps and the module list opens in place; else the slim bar.
+  // `phone`: the controls in the pill's panel, where the row wraps; else the slim bar.
   const controls = (phone: boolean) => (
     <>
-      {dashboard && demo && (
+      {demo && (
         <div className={`flex items-center gap-2 ${phone ? "w-full flex-wrap" : ""}`}>
           {!phone && roleSelect(`${chip} border-hairline`)}
           {/* Where the stock comes from: added here, or synced from a listing site (DoneDeal or CarsIreland) and read only here (src/lib/stock-source.ts). */}
@@ -101,8 +98,6 @@ export function DemoBar({ demo, donedeal }: { demo: boolean; donedeal: boolean }
           </button>
         </div>
       )}
-      {/* Which modules the dealer has (#173), so a smaller site can be shown. One switch in one place, so choosing a plan keeps it open. */}
-      {demo && <ModuleSwitches chip={chip} inline={phone} />}
       <button type="button" aria-pressed={theme === "dark"} onClick={() => setTheme(theme === "dark" ? "light" : "dark")} className={`flex h-11 items-center px-2 text-text-2 ${press}`}>
         {/* From <html data-theme> in CSS, not the hook: the server cannot know the theme, so the first paint would say Light on a dark page. */}
         <span className="[[data-theme=dark]_&]:hidden">Light</span>
@@ -125,15 +120,15 @@ export function DemoBar({ demo, donedeal }: { demo: boolean; donedeal: boolean }
         >
           {controls(true)}
         </div>
-        {/* The pill: the role select alone (with the dashboard), and a sliders button that opens the rest. A dealer that is not a demo gets the theme only. */}
+        {/* The pill: the role select alone and a sliders button that opens the rest. A dealer that is not a demo gets the theme only. */}
         <div ref={pillRoom} className="flex h-10 items-center rounded-full border border-hairline bg-band shadow-panel">
-          {dashboard && demo && roleSelect("h-full rounded-l-full pl-4 pr-2 text-meta font-semibold")}
+          {demo && roleSelect("h-full rounded-l-full pl-4 pr-2 text-meta font-semibold")}
           <button
             type="button"
             aria-expanded={open}
             aria-label={demo ? "Demo controls" : undefined}
             popoverTarget={panelId}
-            className={`flex h-full items-center gap-1.5 rounded-full pr-3 ${dashboard && demo ? "border-l border-hairline pl-2.5" : "pl-4"} ${press}`}
+            className={`flex h-full items-center gap-1.5 rounded-full pr-3 ${demo ? "border-l border-hairline pl-2.5" : "pl-4"} ${press}`}
           >
             {/* Beside the select's own arrow, a chevron would read as a second one: the rest of the controls get their own icon. */}
             {demo ? (

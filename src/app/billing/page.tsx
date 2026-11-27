@@ -4,7 +4,7 @@ import { Badge, DataTable, Facts, PageHeader, Panel, adminButtonQuiet, tapArea }
 import { listing, stockSource } from "@/lib/stock-source";
 import { currentDealer } from "@/lib/tenancy/current";
 import { dublinDay, fmtDay, fmtNum, plural } from "@/lib/admin/format";
-import { enabledModules } from "@/lib/modules";
+import { billedModules, enabledModules } from "@/lib/modules";
 import { can, currentMember } from "@/lib/permissions";
 import { billingDetails, listBills } from "@/lib/billing/bills";
 import { eur, fmtMonth, itemise, nextBillDate, billedServices, type Bill, type BillingDetails } from "@/lib/billing/bills-rules";
@@ -26,11 +26,11 @@ const INCLUDED: Record<Scope, string> = { lookup: "lookups", history: "checks", 
 // One page (#147): this month's bill with the plan, one limit per paid service, and the bills.
 export default async function Page() {
   if (!(await can("billing"))) return <NotForRole title="Billing" permission="billing" />;
-  const [modules, b, usage, counts, me, bills, details] = await Promise.all([enabledModules(), billingSettings(), monthUsage(), monthCounts(), currentMember(), listBills(), billingDetails()]);
+  const [modules, b, usage, counts, me, bills, details] = await Promise.all([billedModules(), billingSettings(), monthUsage(), monthCounts(), currentMember(), listBills(), billingDetails()]);
   const now = new Date();
   const today = dublinDay(now.getTime());
   const month = today.slice(0, 7);
-  const services = billedServices(modules, usage);
+  const services = billedServices(await enabledModules(), usage); // every paid service can have a limit before its first charge (#212)
   const allowance = allowanceFor(modules, b);
   const p = planFor(modules, b);
   const plan = planLines(modules, b, month); // the first month free is a line of its own

@@ -66,13 +66,6 @@ describe("who the dashboard is talking to", () => {
     expect(await staffIdentity()).toEqual({ ok: true, email: "owner@dealer.example" });
   });
 
-  it("refuses every action of a dealer whose plan has no dashboard, but still lets the person switch dealer", async () => {
-    vi.stubEnv("NEXT_PUBLIC_ADMIN_OPEN", "1");
-    jar = { "checkwork-demo-modules": "reviews" }; // the demo dealer, shown as a plan without the dashboard
-    await expect(requireStaff()).rejects.toThrow(/NEXT_HTTP_ERROR_FALLBACK;404/);
-    await expect(requireStaff("choosing")).resolves.toBeUndefined();
-  });
-
   it("refuses an action from someone Access let in who works at no dealer", async () => {
     access();
     verify.mockResolvedValueOnce({ email: "stranger@dealer.example" });

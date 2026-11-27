@@ -1,9 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
-// The demo bar's plan switch (a cookie): it counts here because the tests' dealer is the demo dealer (src/lib/tenancy/current.ts demoCookie).
-let plan: string | undefined;
-vi.mock("next/headers", () => ({ cookies: async () => ({ get: (n: string) => (n === "checkwork-demo-modules" && plan ? { value: plan } : undefined) }), headers: async () => ({ get: () => null }) }));
+vi.mock("next/headers", () => ({ cookies: async () => ({ get: () => undefined }), headers: async () => ({ get: () => null }) }));
 vi.mock("next/navigation", () => ({ notFound: () => { throw new Error("not-found"); } }));
 const { writeAction } = await import("./actions");
 const { saveBilling, monthCounts, recordUsage, usageStore } = await import("@/lib/billing/usage");
@@ -20,7 +18,6 @@ describe("writeWithAI behind the dashboard", () => {
   afterEach(async () => {
     await saveBilling({ caps: {} });
     await useModel("opus");
-    plan = undefined;
   });
 
   it("writes a post from the car, counted under the dealer's model, and an adjust the same way", async () => {
@@ -66,11 +63,5 @@ describe("writeWithAI behind the dashboard", () => {
     expect(r.ok && r.text.split("\n").length).toBeGreaterThanOrEqual(3);
     expect(await count("opus")).toBe(before + 1);
     expect(await writeAction({ task: "leadBrief", leadId: lead.id }, "shorter")).toEqual({ ok: false, reason: "failed" });
-  });
-
-  it("does not exist for a dealer without the AI module", async () => {
-    plan = "dashboard";
-    await expect(writeAction({ task: "leadReply", leadId: "lead-4000" })).rejects.toThrow("not-found");
-    await expect(writeAction({ task: "leadBrief", leadId: "lead-4000" })).rejects.toThrow("not-found");
   });
 });

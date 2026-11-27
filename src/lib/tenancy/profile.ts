@@ -23,7 +23,7 @@ export type DealerProfile = {
   // The wide logo for a light and a dark background: paths on this app (public/brand/), since the content security policy loads images
   // from here only. Without a logo the menu shows the name.
   logo?: { onLight: string; onDark: string };
-  modules: string; // the plan: a comma list of module ids, or "all" (src/lib/modules-rules.ts)
+  modules: string; // the plan billed (billedModules, #212): a comma list of module ids, or "all" (src/lib/modules-rules.ts)
   stock: { source: "checkwork" | "donedeal"; listingSite: ListingSite; listingUrl: string };
   rules: DealerRules;
   placeId?: string; // the dealer's Google place, for their reviews (the API key is ours, a Worker secret)
@@ -61,7 +61,7 @@ export const DEMO_PROFILE: DealerProfile = {
 export const DEMO_NAME = "Checkwork Motors";
 
 // What the browser needs of the dealer being viewed: the parts of their profile it shows (src/components/DealerFacts.tsx), worked out on
-// the server for each request. `modules` is the plan in force, the demo bar's choice included on a demo dealer. Nothing secret goes in.
+// the server for each request. `modules` is "all": every dealer has every part (#212). Nothing secret goes in.
 export type DealerFacts = { name: string; siteUrl: string; listingSite: ListingSite; listingUrl: string; hours: Hours; rules: DealerRules; modules: string };
 export const factsOf = (name: string, p: DealerProfile, modules: string): DealerFacts => ({ name, siteUrl: p.siteUrl, listingSite: p.stock.listingSite, listingUrl: p.stock.listingUrl, hours: p.hours, rules: p.rules, modules });
 

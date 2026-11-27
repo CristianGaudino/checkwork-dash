@@ -5,10 +5,9 @@ vi.mock("server-only", () => ({}));
 vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
 beforeEach(() => vi.stubEnv("APP_ENV", "demo"));
 let role = "Owner";
-let modules: string | undefined; // the demo bar's module switches; unset is every module
 vi.mock("react", async (orig) => ({ ...(await orig<typeof import("react")>()), cache: <T,>(fn: T) => fn }));
 vi.mock("next/headers", () => ({
-  cookies: async () => ({ get: (n: string) => (n === "checkwork-demo-role" ? { value: role } : n === "checkwork-demo-modules" && modules ? { value: modules } : undefined) }),
+  cookies: async () => ({ get: (n: string) => (n === "checkwork-demo-role" ? { value: role } : undefined) }),
   headers: async () => ({ get: () => null }),
 }));
 const stock = await import("./stock/export/route");
@@ -22,14 +21,6 @@ const get = async (route: { GET: (r: Request) => Promise<Response> }, path: stri
 const lines = async (r: Response) => (await r.text()).replace(/^﻿/, "").trim().split("\r\n");
 
 describe("the CSV exports", () => {
-  it("are not there without the dashboard module, like every page", async () => {
-    role = "Owner";
-    modules = "finance"; // a plan with the website's finance page and no dashboard
-    for (const [route, path] of [[leads, "/leads/export"], [customers, "/customers/export"], [stock, "/stock/export"], [sales, "/reports/export"]] as const) expect((await get(route, path)).status).toBe(404);
-    modules = undefined;
-    expect((await get(stock, "/stock/export")).status).toBe(200);
-  });
-
   it("leads and customers are personal data: owners and managers only", async () => {
     for (const r of ["Sales", "Finance"]) {
       role = r;
