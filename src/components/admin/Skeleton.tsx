@@ -3,11 +3,12 @@ import { StatGrid, figureSize } from "./kit";
 
 // The loading kit (#109): the shape of a slow part of a page while its records load, in a <Suspense> inside the page. Never loading.tsx
 // (NavProgress.tsx says why), never around the page's header, tabs or a notFound(). Bones in the hairline colour, rows on the row-alt fill,
-// a gentle pulse that stands still under reduced motion. Screen readers hear one "Loading" per region and none of the bones.
+// standing still (#214): they fade in once after 150ms (globals.css, data-bones), so a quick answer never flashes them. Screen readers
+// hear one "Loading" per region and none of the bones.
 
 // One grey block: a word, a figure, a button.
 export function Bone({ className = "" }: { className?: string }) {
-  return <span className={`block rounded-control bg-hairline motion-safe:animate-pulse ${className}`} />;
+  return <span className={`block rounded-control bg-hairline ${className}`} />;
 }
 
 // A bone the height of one line of `text` (its line height), so a line of words and its bone stand the same height.
@@ -22,7 +23,7 @@ export function LineBone({ text = "text-meta", className = "" }: { text?: string
 // The region a fallback fills: busy until the content replaces it. `className` lays out the bones as the content will be.
 export function Skeleton({ children, className = "flex flex-col gap-6" }: { children: React.ReactNode; className?: string }) {
   return (
-    <div aria-busy="true" data-skeleton className={className}>
+    <div aria-busy="true" data-skeleton data-bones className={className}>
       <p className="sr-only">Loading</p>
       <div aria-hidden="true" className="contents">{children}</div>
     </div>
@@ -39,7 +40,7 @@ export function TileBones({ count = 4, lead = false }: { count?: number; lead?: 
 // bone of a fallback made of bones alone (the Overview's website tiles), which then says "Loading" as Skeleton does.
 export function TileBone({ lead = false, busy = false }: { lead?: boolean; busy?: boolean }) {
   return (
-    <div aria-busy={busy || undefined} data-skeleton={busy || undefined} data-lead={lead || undefined} className={`${card} row-span-3 flex min-w-0 flex-col gap-1 p-4 ${lead ? "col-span-2" : ""}`}>
+    <div aria-busy={busy || undefined} data-skeleton={busy || undefined} data-bones data-lead={lead || undefined} className={`${card} row-span-3 flex min-w-0 flex-col gap-1 p-4 ${lead ? "col-span-2" : ""}`}>
       {busy && <p className="sr-only">Loading</p>}
       <LineBone className="h-3.5 w-24 max-w-full" />
       <div className="@container min-w-0">

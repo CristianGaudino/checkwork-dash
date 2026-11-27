@@ -507,36 +507,23 @@ input:is([type="checkbox"], [type="radio"], [type="file"]):not(:disabled) {
 }
 
 /* Content that just arrived in the browser (Fresh in Tween.tsx: a client navigation, a new period), never the server's first paint. It
-   fades in; opacity only, so it stays under reduced motion, gentler rather than gone. Charts inside it draw from the left: clip-path rather
-   than scaleX, so the rounded bar ends do not squash. 300ms, as Tween counts the tiles beside them, so all of it lands together. */
+   fades in once, as one thing: its charts, bars and figures do not move on their own (#214). Opacity only, so it stays under reduced motion.
+   Loading bones (Skeleton.tsx, data-bones) wait 150ms before they fade in, as NavProgress waits, so a quick answer never flashes them. */
 @keyframes arrive {
   from {
     opacity: 0;
   }
 }
-@keyframes reveal-x {
-  from {
-    clip-path: inset(0 100% 0 0);
-  }
-}
 [data-fresh] {
   animation: arrive 150ms var(--ease-out) both;
 }
-@media (prefers-reduced-motion: no-preference) {
-  [data-fresh] [data-chart] {
-    animation: reveal-x 300ms var(--ease-out) both;
-  }
-  [data-fresh] [data-chart-peak] {
-    animation: arrive 150ms var(--ease-out) 250ms both;
-  }
-  [data-fresh] [data-bars] li > [aria-hidden] > span {
-    animation: reveal-x 300ms var(--ease-out) both;
-  }
+[data-bones]:not([data-bones] *) {
+  animation: arrive 150ms var(--ease-out) 150ms both;
 }
-/* The monthly report prints: nothing half drawn on paper. */
+/* The monthly report prints: nothing half faded on paper. */
 @media print {
   [data-fresh],
-  [data-fresh] * {
+  [data-bones] {
     animation: none !important;
   }
 }

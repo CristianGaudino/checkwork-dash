@@ -31,18 +31,19 @@ test("a client navigation to /reports eases the new content in", async ({ page, 
   expect(await fresh.evaluate((el) => el.getAnimations().length)).toBeGreaterThan(0);
 });
 
-// The CSS alone, on a chart put on the page by hand, so it holds before any page uses [data-chart] (#202).
-const chartAnimations = (page: Page) =>
+// Loading bones (Skeleton.tsx) stand still and wait 150ms before they fade in, so a quick answer never flashes them (#214). Opacity only,
+// so reduced motion keeps it. The CSS alone, on bones (a tile's inside a region's) put on the page by hand.
+const bones = (page: Page) =>
   page.evaluate(() => {
-    const wrap = Object.assign(document.createElement("div"), { innerHTML: "<div data-chart></div>" });
-    wrap.setAttribute("data-fresh", "");
+    const wrap = Object.assign(document.createElement("div"), { innerHTML: '<div data-bones><div data-bones><span class="block h-4 bg-hairline"></span></div></div>' });
     document.querySelector("main")!.append(wrap);
-    return wrap.querySelector("[data-chart]")!.getAnimations().length;
+    const s = getComputedStyle(wrap.firstElementChild!);
+    return { name: s.animationName, delay: s.animationDelay, inner: wrap.firstElementChild!.getAnimations({ subtree: true }).length - 1 }; // one fade: a tile's bones inside a region's do not fade again
   });
 
-test("a fresh chart draws in, and stands still with reduced motion", async ({ page }) => {
+test("loading bones wait, then fade in once, and still do under reduced motion", async ({ page }) => {
   await page.goto("/reports");
-  expect(await chartAnimations(page)).toBeGreaterThan(0);
+  expect(await bones(page)).toEqual({ name: "arrive", delay: "0.15s", inner: 0 });
   await page.emulateMedia({ reducedMotion: "reduce" });
-  expect(await chartAnimations(page)).toBe(0);
+  expect(await bones(page)).toEqual({ name: "arrive", delay: "0.15s", inner: 0 });
 });
