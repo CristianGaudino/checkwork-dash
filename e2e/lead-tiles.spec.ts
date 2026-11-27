@@ -69,7 +69,8 @@ for (const width of WIDTHS) {
 }
 
 // The Overview's website tiles stream in after the first paint. With scripts off the loading tiles stay, as on a slow connection: they
-// take the places of the tiles they stand for, with no gap and none stacked under another.
+// take the places of the tiles they stand for, with no gap and none stacked under another. If the tiles were ready before the first HTML
+// went out there are no bones, and the loaded row is held to the same rules.
 test.describe("while the Overview's website tiles load", () => {
   test.use({ javaScriptEnabled: false });
   for (const width of WIDTHS) {
@@ -77,7 +78,8 @@ test.describe("while the Overview's website tiles load", () => {
       await page.setViewportSize({ width, height: 900 });
       await page.goto("/");
       const lead = page.getByRole("main").locator("[data-lead]").filter({ hasText: "Leads this week" });
-      await expect(page.getByRole("main").locator("[data-skeleton]")).toHaveCount(1);
+      const bones = page.getByRole("main").locator("[data-skeleton]");
+      if ((await bones.count()) > 0) await expect(bones).toHaveText("Loading"); // one region, said once
       const m = await measure(lead);
       expect(m.index).toBe(0);
       expect(m.lead, "wider than the others").toBeGreaterThan(Math.max(...m.paired) + 1);
@@ -86,6 +88,26 @@ test.describe("while the Overview's website tiles load", () => {
     });
   }
 });
+
+// On a laptop the tab rows shrink their tabs to fit before they scroll: at 1024px, and at 1263px (a 1280px window less a 17px scrollbar),
+// every tab on Leads and Stock is wholly in view.
+for (const width of [1024, 1263]) {
+  test(`every tab on Leads and Stock is in view at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    for (const [path, name] of [["/leads", "Lead status"], ["/stock", "Stock views"]]) {
+      await page.goto(path);
+      const row = page.getByRole("navigation", { name });
+      await expect(row.getByRole("link").first()).toBeVisible();
+      const out = await row.evaluate((nav) => {
+        // Inside the row's padding, where its edge fades when it scrolls.
+        const [n, css] = [nav.getBoundingClientRect(), getComputedStyle(nav)];
+        const [left, right] = [n.left + parseFloat(css.paddingLeft), n.right - parseFloat(css.paddingRight)];
+        return [...nav.querySelectorAll("a")].filter((a) => a.getBoundingClientRect().left < left - 1 || a.getBoundingClientRect().right > right + 1).map((a) => a.textContent);
+      });
+      expect(out, `${path} @${width}px: tabs out of view`).toEqual([]);
+    }
+  });
+}
 
 test("the tabs with a lead still filter, and the lead keeps the chosen look when picked", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
