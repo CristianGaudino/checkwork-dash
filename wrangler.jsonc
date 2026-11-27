@@ -30,13 +30,16 @@
 	"vars": {
 		"CF_ACCESS_TEAM_DOMAIN": "plain-tree-3979.cloudflareaccess.com",
 		"CF_ACCESS_AUD": "0433f1e74c24f6f5c996f8ed8dc3eaa764633a385f9c7d4624e2538d79f9787a",
-		"APP_URL": "https://dev.dash.checkwork.ie"
+		"APP_URL": "https://dev.dash.checkwork.ie",
+		// docs/sign-in.md, step 3: our sign-in on top of Access. Each of us signs in through both before dev goes to "own".
+		"SIGN_IN": "both"
 	},
 	// Not here: the Turnstile site key is a build input (NEXT_PUBLIC_TURNSTILE_SITE_KEY, deploy.yml) and TURNSTILE_SECRET_KEY a Worker secret per
 	// environment (docs/sign-in.md, section 7).
 	// Lead emails to the dealer. No "remote": a local wrangler dev has no Cloudflare credentials, so it uses the local simulator.
-	// Dev never emails real people: only our own inbox (a verified Email Routing destination, or dev sends nothing at all).
-	"send_email": [{ "name": "EMAIL", "allowed_destination_addresses": ["contact@checkwork.ie"] }],
+	// Dev never emails real people: with no allowed list, Cloudflare sends only to the account's verified Email Routing destinations, which are
+	// our own team's inboxes (lead emails and sign-in codes). No addresses here: the repo is public.
+	"send_email": [{ "name": "EMAIL" }],
 	// AI_LIMITER: AI writing, per dealer.
 	// SITE_LIMITER: the site API, 60 requests a minute per website key and route (`<keyId>:<route>`, src/lib/site-api/request.ts), and per visitor IP for
 	// the unsubscribe change, POST only (`unsub:<ip>`). SIGN_IN_LIMITER: sign-in, 30 a minute per hashed IP (src/app/sign-in/actions.ts). Namespace ids are account-wide: Cloudflare shares one
@@ -62,7 +65,9 @@
 			"vars": {
 				"CF_ACCESS_TEAM_DOMAIN": "plain-tree-3979.cloudflareaccess.com",
 				"CF_ACCESS_AUD": "be46642c44cd0d9b5c4908298ec8ba421dec4a9f718f27cea5216fb747a0f786",
-				"APP_URL": "https://www.dash.checkwork.ie"
+				"APP_URL": "https://www.dash.checkwork.ie",
+				// Access only until docs/sign-in.md step 7.
+				"SIGN_IN": "access"
 			},
 			"send_email": [{ "name": "EMAIL" }],
 			"ratelimits": [{ "name": "AI_LIMITER", "namespace_id": "3003", "simple": { "limit": 10, "period": 60 } }, { "name": "SITE_LIMITER", "namespace_id": "3004", "simple": { "limit": 60, "period": 60 } }, { "name": "SIGN_IN_LIMITER", "namespace_id": "3005", "simple": { "limit": 30, "period": 60 } }],

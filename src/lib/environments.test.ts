@@ -77,7 +77,8 @@ describe("wrangler.jsonc keeps dev and production apart", () => {
     expect(list(prod, "ratelimits", "name")).toEqual(list(cfg, "ratelimits", "name"));
     expect(Object.keys(prod.vars)).toEqual(Object.keys(cfg.vars));
     expect(list(prod, "send_email", "name")).toEqual(list(cfg, "send_email", "name"));
-    expect(cfg.send_email[0].allowed_destination_addresses).toEqual(["contact@checkwork.ie"]); // dev never emails real people
+    // Dev never emails real people: no list and no fixed address, so Cloudflare sends only to the verified Email Routing destinations (our team).
+    expect(cfg.send_email[0]).toEqual({ name: "EMAIL" });
     expect(prod.send_email[0].allowed_destination_addresses).toBeUndefined();
     expect(prod.triggers).toEqual(cfg.triggers);
     for (const [key, field] of [["d1_databases", "database_id"], ["d1_databases", "database_name"], ["r2_buckets", "bucket_name"], ["ratelimits", "namespace_id"], ["routes", "pattern"]]) {
