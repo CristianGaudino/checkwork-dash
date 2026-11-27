@@ -8,6 +8,7 @@ import { Sheet, leaveSheet } from "@/components/Sheet";
 import { CalendarIcon, CarIcon, ChartIcon, ChevronDownIcon, CogIcon, HistoryIcon, ReportIcon, ReceiptIcon, HelpIcon, ShieldCheckIcon, SwapIcon, WrenchIcon, HomeIcon, InboxIcon, MegaphoneIcon, MenuIcon, PercentIcon, StarIcon, UsersIcon } from "@/components/stock/icons";
 import { NEW_TAB, press } from "@/components/ui";
 import { useDealerFacts } from "@/components/DealerFacts";
+import { LinkPending } from "./LinkPending";
 
 const ICONS: Record<NavIcon, typeof HomeIcon> = { home: HomeIcon, inbox: InboxIcon, car: CarIcon, calendar: CalendarIcon, users: UsersIcon, megaphone: MegaphoneIcon, chart: ChartIcon, percent: PercentIcon, star: StarIcon, cog: CogIcon, history: HistoryIcon, report: ReportIcon, shield: ShieldCheckIcon, wrench: WrenchIcon, receipt: ReceiptIcon, help: HelpIcon, swap: SwapIcon };
 
@@ -56,7 +57,7 @@ export function AdminNav({ items, label, openGroups }: { items: NavItem[]; label
       {/* Overview and the everyday places stay put; on a short screen (a 1280x800 laptop) only the groups under them scroll. On a very short
           one (under about 460px) the groups keep 6rem and the whole sidebar scrolls instead (AdminShell). contain-size: the groups'
           own height never counts toward the nav's, so the nav fills the space left and only grows past it for that 6rem. */}
-      <nav ref={nav} aria-label={label} className="hidden flex-1 flex-col px-3 lg:flex">
+      <nav ref={nav} aria-label={label} className="group/nav hidden flex-1 flex-col px-3 lg:flex">
         <div className="flex shrink-0 flex-col gap-0.5">
           {top.map((it) => (
             <NavLink key={it.href} item={it} on={current(it)} />
@@ -74,14 +75,16 @@ export function AdminNav({ items, label, openGroups }: { items: NavItem[]; label
   );
 }
 
+// The tapped place is marked at the tap and the current one unmarked (LinkPending), colour only, as in the tab bar.
 function NavLink({ item, on }: { item: NavItem; on: boolean }) {
   const Icon = ICONS[item.icon];
   return (
     <Link
       href={item.href}
       aria-current={on ? "page" : undefined}
-      className={`flex min-h-9 items-center gap-3 whitespace-nowrap rounded-control px-3 text-meta font-medium transition-colors ${on ? "bg-card text-text ring-1 ring-inset ring-hairline" : "text-text-2 hover:bg-card hover:text-text"} ${press}`}
+      className={`flex min-h-9 items-center gap-3 whitespace-nowrap rounded-control px-3 text-meta font-medium transition-colors ${on ? "bg-card text-text ring-1 ring-inset ring-hairline group-has-data-pending/nav:not-has-data-pending:bg-transparent group-has-data-pending/nav:not-has-data-pending:text-text-2 group-has-data-pending/nav:not-has-data-pending:ring-0 group-has-data-pending/nav:not-has-data-pending:[&>svg]:text-current" : "text-text-2 hover:bg-card hover:text-text has-data-pending:bg-card has-data-pending:text-text has-data-pending:ring-1 has-data-pending:ring-inset has-data-pending:ring-hairline has-data-pending:[&>svg]:text-accent-text"} ${press}`}
     >
+      <LinkPending />
       <Icon className={`size-4.5 shrink-0 ${on ? "text-accent-text" : ""}`} />
       {item.label}
     </Link>
@@ -120,13 +123,13 @@ function TabBar({ items, label, current }: { items: NavItem[]; label: string; cu
   const more = items.map((it) => ({ ...it, section: it.group ?? "Daily work" })).filter((i) => !TABS.includes(i.href));
   const inMore = more.some(current);
   const { siteUrl } = useDealerFacts();
-  const tab = (on: boolean) => `flex min-h-14 min-w-0 flex-col items-center justify-center gap-0.5 text-[0.75rem] font-medium leading-tight ${on ? "text-accent-text" : "text-text-2"} ${press}`;
+  const tab = (on: boolean) => `flex min-h-14 min-w-0 flex-col items-center justify-center gap-0.5 text-[0.75rem] font-medium leading-tight ${on ? "text-accent-text group-has-data-pending/nav:not-has-data-pending:text-text-2" : "text-text-2 has-data-pending:text-accent-text"} ${press}`;
   return (
     <Sheet
       title="More"
       closeLabel="Close"
       trigger={(open) => (
-        <nav aria-label={label} className="fixed inset-x-0 bottom-0 z-30 border-t border-hairline bg-surface/90 pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] backdrop-blur-xl reduce-transparency:bg-surface reduce-transparency:backdrop-blur-none lg:hidden">
+        <nav aria-label={label} className="group/nav fixed inset-x-0 bottom-0 z-30 border-t border-hairline bg-surface/90 pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] backdrop-blur-xl reduce-transparency:bg-surface reduce-transparency:backdrop-blur-none lg:hidden">
           <ul className="mx-auto grid max-w-xl grid-cols-5">
             {tabs.map((it) => {
               const Icon = ICONS[it.icon];
@@ -134,6 +137,7 @@ function TabBar({ items, label, current }: { items: NavItem[]; label: string; cu
               return (
                 <li key={it.href} className="min-w-0">
                   <Link href={it.href} aria-current={on ? "page" : undefined} className={tab(on)}>
+                    <LinkPending />
                     <Icon className="size-6 shrink-0" />
                     <span className="max-w-full truncate">{it.label}</span>
                   </Link>
