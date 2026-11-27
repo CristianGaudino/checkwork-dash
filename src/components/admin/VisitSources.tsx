@@ -1,3 +1,4 @@
+import { Tween } from "@/components/Tween";
 import { ChannelIcon } from "@/components/admin/BrandIcon";
 import { ChevronDownIcon } from "@/components/stock/icons";
 import { fmtNum, plural } from "@/lib/admin/format";
@@ -60,7 +61,7 @@ function Tile({ f, best, icon, more }: { f: SourceFigures; best: boolean; icon: 
         <span className="min-w-0 truncate">{f.label}</span>
       </p>
       <p className="font-display font-semibold leading-[1.1] tracking-[-0.02em] tabular-nums">
-        <span className="text-[min(2rem,20cqi)]">{fmtNum(f.visits)}</span> <span className="text-meta font-normal text-text-2">{f.visits === 1 ? "visit" : "visits"}</span>
+        <span className="text-[min(2rem,20cqi)]"><Tween value={fmtNum(f.visits)} /></span> <span className="text-meta font-normal text-text-2">{f.visits === 1 ? "visit" : "visits"}</span>
       </p>
       <p className={`text-meta ${f.trend === "up" ? "text-ok" : f.trend === "down" ? "text-bad" : "text-text-2"}`}>{f.change}</p>
       {/* Wraps only at the dot, never inside a half. */}
