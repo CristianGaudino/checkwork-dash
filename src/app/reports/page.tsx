@@ -88,7 +88,7 @@ async function Full({ period }: { period: Period }) {
     <>
       {/* The answer first, in words. */}
       <p className="max-w-measure text-body">
-        You sold {plural(r.totals.sold, "car")} for {fmtCompactEur(r.totals.value)}
+        You sold {fmtCompact(r.totals.sold)} {r.totals.sold === 1 ? "car" : "cars"} for {fmtCompactEur(r.totals.value)}
         {r.totals.costed > 0 && (r.totals.costed === r.totals.sold ? <>, {fmtEur(r.totals.profit)} of it profit</> : <>, with {fmtEur(r.totals.profit)} profit on the {r.totals.costed} with a cost entered</>)}.{best && best.value > 0 && ` Your best month was ${monthLabel(best.month)}, at ${fmtCompactEur(best.value)}.`}
       </p>
       <StatGrid>
