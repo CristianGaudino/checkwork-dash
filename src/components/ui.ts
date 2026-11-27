@@ -1,5 +1,7 @@
 // Class strings shared by buttons and links, so a restyle is one edit.
 export const press = "active:scale-[0.97] motion-reduce:active:scale-100";
+// A small popover (a row's menu, the demo bar's): fades and drops in, and back out. Only the fade under reduced motion.
+export const popIn = "transition-[opacity,translate,overlay,display] transition-discrete duration-150 ease-out opacity-0 -translate-y-1 open:opacity-100 open:translate-y-0 starting:open:opacity-0 starting:open:-translate-y-1 motion-reduce:translate-y-0!";
 // The accent call to action, 48px tall. Callers add layout (width, display) beside it.
 export const accentButton = `h-12 rounded-control bg-accent px-6 font-semibold text-on-accent ${press}`;
 export const textLink = "inline-flex min-h-11 items-center underline";

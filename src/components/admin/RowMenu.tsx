@@ -3,6 +3,7 @@
 import { useId, useRef } from "react";
 import { MoreIcon } from "@/components/stock/icons";
 import { rowButton } from "./kit";
+import { popIn } from "@/components/ui";
 
 // A row's other actions (#95: a row shows only its next step and this menu), behind an icon named "More for <name>", so a row keeps one
 // button and fits its width. A native popover: it sits above the
@@ -35,7 +36,7 @@ export function RowMenu({ label, children }: { label: string; children: React.Re
         id={id}
         popover="auto"
         onClick={(e) => (e.target as HTMLElement).closest("a,button") && menu.current?.hidePopover()}
-        className="fixed inset-auto m-0 min-w-44 flex-col gap-1 rounded-control border border-hairline bg-card p-1 text-text shadow-lift transition-[opacity,translate,overlay,display] transition-discrete duration-150 ease-out opacity-0 -translate-y-1 open:opacity-100 open:translate-y-0 starting:open:opacity-0 starting:open:-translate-y-1 motion-reduce:translate-y-0! [&:popover-open]:flex *:w-full *:justify-start *:border-0 *:not-[.text-bad]:text-text"
+        className={`fixed inset-auto m-0 min-w-44 flex-col gap-1 rounded-control border border-hairline bg-card p-1 text-text shadow-lift ${popIn} [&:popover-open]:flex *:w-full *:justify-start *:border-0 *:not-[.text-bad]:text-text`}
       >
         {children}
       </div>

@@ -3,7 +3,8 @@ import { as } from "./open";
 
 // Loading (#109). The slow part of a page streams in under a <Suspense> inside it, never a route loading.tsx: a page that streams from the
 // top answers 200 even when it ends in notFound(), and a tap on a link inside a part still streaming started no navigation. So: unknown
-// records stay 404s, and the header and the tabs come in the first chunk, where a tap at once always goes.
+// records stay 404s, and the header comes in the first chunk with the tabs, where a tap at once always goes. Marketing, activity and
+// customers stream their tabs with the list (their counts are the records), and a tap on those goes as soon as they are there.
 
 test("an unknown record answers 404, and sign-in answers as before", async ({ request }) => {
   for (const path of ["/leads/no-such-lead", "/stock/no-such-car", "/test-drives/no-such-booking", "/customers/no-such-customer", "/aftersales/no-such-claim", "/billing/1999-01"]) {

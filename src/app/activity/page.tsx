@@ -33,7 +33,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
   if (!(await can("activity"))) return <NotForRole title="Activity" permission="activity" />;
   const sp = await searchParams;
   const area = (ACTIVITY_AREAS as readonly string[]).includes(sp.area ?? "") ? (sp.area as ActivityArea) : undefined;
-  // The header first; the areas (their counts are the history) and the changes stream in under it, keyed by the area (#200).
+  // The header first; the areas (their counts are the history) and the changes stream in under it (#200). Not keyed: a tab change keeps the old list until the new one lands, so the tabs never turn to bones.
   return (
     <>
       <PageHeader title="Activity" text="Every change in the dashboard, kept for 12 months" />
@@ -108,7 +108,7 @@ async function Changes({ sp, area }: { sp: Params; area?: ActivityArea }) {
       </div>
       {filters.length > 0 && <AppliedFilters groups={filters} />}
       {/* The changes by day, each a plain line: what was done, then who, when and to what. */}
-      <section aria-label="Changes" className="flex flex-col gap-6">
+      <section aria-label="Changes" data-list className="flex flex-col gap-6">
         {days.length === 0 ? (
           <div className={card}>
             <EmptyState title="No changes" text={area || actor || since ? "Nothing matches these filters." : "Changes made in the dashboard show here."} />

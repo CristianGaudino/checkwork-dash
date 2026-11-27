@@ -5,7 +5,7 @@ import { driveTimes } from "@/lib/leads/constants";
 import { useKeptForm } from "@/components/admin/useKeptForm";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Stepper, useStepHeading } from "@/components/leads/Stepper";
+import { Stepper, useStepFade, useStepHeading } from "@/components/leads/Stepper";
 import { showToast } from "@/components/toast";
 import { Field, FormActions, adminButton, adminButtonQuiet, adminInput } from "@/components/admin/kit";
 import { BUSY } from "@/components/admin/ActButton";
@@ -61,6 +61,7 @@ export function BookDriveForm({ cars, team, me, slots, initialCar, person }: { c
   const [when, setWhen] = useState(() => firstFor(start));
 
   const heading = useStepHeading(step);
+  const fade = useStepFade(step);
 
   const picked = cars.find((c) => c.slug === car);
   return (
@@ -69,7 +70,7 @@ export function BookDriveForm({ cars, team, me, slots, initialCar, person }: { c
       <input type="hidden" name="carSlug" value={car} />
       {person?.leadId && <input type="hidden" name="leadId" value={person.leadId} />}
 
-      <section hidden={step !== 0} className="transition-opacity duration-200 ease-out starting:opacity-0">
+      <section hidden={step !== 0} className={fade}>
         <CarPicker
           cars={cars}
           value={car}
@@ -82,12 +83,12 @@ export function BookDriveForm({ cars, team, me, slots, initialCar, person }: { c
         {e.carSlug && <p className="mt-2 text-meta text-destructive">{e.carSlug}</p>}
       </section>
 
-      <section hidden={step !== 1} className="flex flex-col gap-4 transition-opacity duration-200 ease-out starting:opacity-0">
+      <section hidden={step !== 1} className={`flex flex-col gap-4 ${fade}`}>
         {picked && <p className="text-body text-text-2">{picked.title}</p>}
         <SlotPicker key={car} days={slots.days} taken={slots.taken[slugId(car)] ?? []} windowMin={slots.windowMin} now={slots.now} date={when.date} time={when.time} onChange={(date, time) => setWhen({ date, time })} errors={{ date: e.date, time: e.time }} />
       </section>
 
-      <section hidden={step !== 2} onChange={recheck} className="grid grid-cols-1 gap-4 sm:grid-cols-2 transition-opacity duration-200 ease-out starting:opacity-0">
+      <section hidden={step !== 2} onChange={recheck} className={`grid grid-cols-1 gap-4 sm:grid-cols-2 ${fade}`}>
         <Field label="Name" error={e.name}>
           <input name="name" defaultValue={person?.name} className={adminInput} autoComplete="off" maxLength={DRIVE_LIMITS.name} />
         </Field>

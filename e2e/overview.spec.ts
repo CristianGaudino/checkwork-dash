@@ -14,6 +14,7 @@ test("the overview opens with the main jobs, and a test drive is confirmed from 
   await confirm.click();
   const toast = page.getByTestId("toast");
   await expect(toast).toContainText(`${name}: Confirmed`);
+  await toast.hover(); // held, as a person does, so its six seconds cannot run out before Undo
   await expect(todo.getByRole("button", { name: `Confirm: ${name}` })).toHaveCount(0);
   await toast.getByRole("button", { name: "Undo" }).click(); // back as it was, for the other specs
   await expect(todo.getByRole("button", { name: `Confirm: ${name}` })).toBeVisible();

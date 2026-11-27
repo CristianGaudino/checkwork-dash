@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CheckIcon } from "@/components/stock/icons";
 
 // The heading of a stepped form takes focus when the step changes (not on the first render), so a screen reader hears where it is. For the
@@ -11,6 +11,13 @@ export function useStepHeading(step: number) {
     moved.current = true;
   }, [step]);
   return heading;
+}
+
+// A step's section eases in when the step changes, but not the one first shown: on a hard load it is the server's first paint (as Fresh).
+export function useStepFade(step: number) {
+  const [first, setFirst] = useState<number | null>(step);
+  if (first !== null && step !== first) setFirst(null);
+  return first === null ? "transition-opacity duration-200 ease-out starting:opacity-0" : "";
 }
 
 // The progress of a stepped form: a row, a numbered dot per step joined by a line. The current step's heading follows (it takes focus when the

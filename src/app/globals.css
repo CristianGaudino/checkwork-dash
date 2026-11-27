@@ -21,9 +21,6 @@
   --text-hero: 2.25rem;
   --text-hero--line-height: 1.05;
   --text-hero--letter-spacing: -0.04em;
-  --text-hero-lg: 3.5rem;
-  --text-hero-lg--line-height: 1.02;
-  --text-hero-lg--letter-spacing: -0.04em;
   /* The dashboard's three levels: a page title, a section, the rows (text-body). */
   --text-title: 1.5rem;
   --text-title--line-height: 1.2;
@@ -80,7 +77,6 @@
   --color-info: #4338ca;
   --color-info-soft: #e4e5fb;
   --color-scrim: rgb(11 15 31 / 0.55);
-  --color-thumb: #ffffff;
   --color-whatsapp: #25d366; /* WhatsApp's own green, for its icon only */
   /* The networks' own colours, for their marks only (BrandIcon), so Facebook, Instagram and Google tell apart at a glance */
   --color-facebook: #1877f2;
@@ -106,7 +102,6 @@
   --atmosphere: linear-gradient(180deg, #f6f7fc 0%, #f4f6fb 40%, #eef1f8 100%);
   /* The lit plinth a car photo sits on. The photo's white studio background is multiplied away, so the car stands on this. */
   --plinth: radial-gradient(90% 80% at 50% 38%, #ffffff 0%, #eef0f7 55%, #d8dce8 100%);
-  --shadow-thumb: 0 0 0 1px rgb(0 0 0 / 0.2), 0 2px 6px rgb(0 0 0 / 0.35);
 
   --ease-sheet: cubic-bezier(0.32, 0.72, 0, 1);
   /* Stronger than Tailwind's default ease-out (0, 0, 0.2, 1): the ease-out utilities and the CSS below. */
@@ -159,7 +154,6 @@
   --shadow-panel: none; /* in dark, depth is the surface step and the hairline, not a shadow and not a highlight */
   --atmosphere: linear-gradient(180deg, #0b0f1f 0%, #0d1225 100%);
   --plinth: radial-gradient(90% 80% at 50% 38%, #f3f4f9 0%, #dcdfea 60%, #c2c6d6 100%);
-  --shadow-thumb: 0 0 0 1px rgb(0 0 0 / 0.2), 0 2px 6px rgb(0 0 0 / 0.55);
 }
 
 /* No scrollbar at all, for the swipe rows and strips (photos, featured cars): Firefox's way, beside the ::-webkit-scrollbar rule the
@@ -269,7 +263,6 @@
   }
   /* Headings and the big numbers (prices, figures) in Sora, as on the company site. */
   .text-hero,
-  .text-hero-lg,
   .text-display,
   h1,
   h2,
@@ -298,19 +291,6 @@
    would snap. Outside any layer, so it beats the utility; its duration and easing still apply. */
 [class*="active:scale-"][class*="transition-colors"] {
   transition-property: color, background-color, border-color, outline-color, text-decoration-color, fill, stroke, scale, filter;
-}
-
-/* The asterisk after a required field's label. Drawn by CSS, so it is not part of the label's text; the field itself says aria-required.
-   The second declaration gives it an empty spoken alternative where that is supported. */
-.required-mark::after,
-.required-lead::before {
-  content: " *";
-  content: " *" / "";
-  color: var(--color-destructive);
-}
-.required-lead::before {
-  content: "* ";
-  content: "* " / "";
 }
 
 /* Filter sheet (01-08): a native modal dialog docked to the bottom edge. Header and footer stay put, the body scrolls. */
@@ -511,7 +491,7 @@ input:is([type="checkbox"], [type="radio"], [type="file"]):not(:disabled) {
   transform: scaleX(0.9);
   transition:
     opacity 150ms var(--ease-out) 150ms,
-    transform 8s cubic-bezier(0.23, 1, 0.32, 1) 150ms;
+    transform 8s var(--ease-out) 150ms;
 }
 .nav-progress[data-phase="done"] {
   opacity: 0;
@@ -561,11 +541,11 @@ input:is([type="checkbox"], [type="radio"], [type="file"]):not(:disabled) {
   }
 }
 
-/* A list being searched or filtered (data-list-busy) dims after 150ms, as NavProgress waits, so a quick answer never flickers. */
-main table {
+/* A list (data-list) being searched or filtered (data-list-busy) dims after 150ms, as NavProgress waits, so a quick answer never flickers. */
+main [data-list] {
   transition: opacity 150ms var(--ease-out);
 }
-main:has([data-list-busy]) table {
+main:has([data-list-busy]) [data-list] {
   opacity: 0.6;
   transition-delay: 150ms;
 }

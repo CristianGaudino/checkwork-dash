@@ -75,6 +75,7 @@ test("the list opens with what to answer now, and a lead moves on a step from it
   const before = await status().inputValue();
   await mark.click();
   await expect(page.getByTestId("toast")).toContainText(new RegExp(to, "i"));
+  await page.getByTestId("toast").hover(); // held, as a person does, so its six seconds cannot run out before Undo
   await lead.reload();
   await expect(status()).toHaveValue(new RegExp(`^${to}$`, "i"));
   // The step takes it off the list: the row stays where it was, saying what it became, its buttons gone.

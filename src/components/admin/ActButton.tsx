@@ -53,11 +53,11 @@ export function ActButton({ act, undo, done, confirm, label, pressed, className,
 }
 
 // The question asked before something that cannot be taken back: the house dialog, in the page's body. Escape or Cancel does nothing.
-// `yesClassName`: the yes button, the danger one unless the action is not destructive. `open`: for an opener that keeps it mounted, so its
-// exit plays; one that mounts it only while asking leaves it out.
+// `yesClassName`: the yes button, the danger one unless the action is not destructive. The opener keeps it mounted after the first ask and
+// passes `open`, so its exit plays.
 // The wrapper stops cancel and close here: React passes them up its own tree, through the portal, so Escape would also close a dialog
 // this one was asked from (a review's reply, e2e/motion-actions.spec.ts).
-export function ConfirmDialog({ open = true, confirm, onYes, onClose, yesClassName = danger }: { open?: boolean; confirm: Confirm; onYes: () => void; onClose: () => void; yesClassName?: string }) {
+export function ConfirmDialog({ open, confirm, onYes, onClose, yesClassName = danger }: { open: boolean; confirm: Confirm; onYes: () => void; onClose: () => void; yesClassName?: string }) {
   const stop = (e: React.SyntheticEvent) => e.stopPropagation();
   return createPortal(
     <div className="contents" {...{ onCancel: stop, onClose: stop }}>

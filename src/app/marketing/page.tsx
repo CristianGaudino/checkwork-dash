@@ -257,7 +257,7 @@ async function Marketing({ sp, tab }: { sp: Params; tab: string }) {
                 action={sp.show || sp.status ? undefined : <Link href="/marketing/new" className={adminButton}><PlusIcon className="shrink-0 size-4" />New post</Link>}
               />
             ) : (
-              <ul aria-label="Posts and ads" className="-mx-5 flex flex-col divide-y divide-hairline">
+              <ul aria-label="Posts and ads" data-list className="-mx-5 flex flex-col divide-y divide-hairline">
                 {paged.rows.map((item) =>
                   item.kind === "post" ? (
                     <li key={item.p.id} className="relative flex flex-wrap items-center gap-3 px-5 py-3 transition-colors has-[>a:hover]:bg-surface">

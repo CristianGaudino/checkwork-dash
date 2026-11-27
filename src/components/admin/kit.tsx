@@ -203,7 +203,7 @@ export function DataTable<T>({ columns, rows, rowKey, empty, bare = false, linkR
     <div tabIndex={0} aria-label={label} className={`${frame} overflow-x-auto`}>
       {/* 18rem at least, so a column is never squeezed to a word a line, but never wider than its card for that alone: a two-column
           table (stock, leads, margins) fits a 320px phone. A table whose columns need more scrolls inside its card. */}
-      <table className="w-full min-w-[min(18rem,100%)] border-collapse text-left text-body">
+      <table data-list className="w-full min-w-[min(18rem,100%)] border-collapse text-left text-body">
         <thead>
           <tr className="text-meta text-text-2">
             {columns.map((c) => (
@@ -248,12 +248,12 @@ export function SummaryTabs({ items, label = "Filter" }: { items: SummaryTab[]; 
           key={i.label}
           href={i.href}
           aria-current={i.active ? "true" : undefined}
-          className={`flex min-w-28 shrink-0 flex-col gap-0.5 rounded-card border bg-card px-4 py-3 text-text transition-colors ${i.active ? "border-accent ring-1 ring-inset ring-accent group-has-data-pending/tabs:not-has-data-pending:border-hairline group-has-data-pending/tabs:not-has-data-pending:ring-0" : "border-hairline hover:border-control has-data-pending:border-accent has-data-pending:ring-1 has-data-pending:ring-inset has-data-pending:ring-accent"} ${press}`}
+          className={`group/tab flex min-w-28 shrink-0 flex-col gap-0.5 rounded-card border bg-card px-4 py-3 text-text transition-colors ${i.active ? "border-accent ring-1 ring-inset ring-accent group-has-data-pending/tabs:not-has-data-pending:border-hairline group-has-data-pending/tabs:not-has-data-pending:ring-0" : "border-hairline hover:border-control has-data-pending:border-accent has-data-pending:ring-1 has-data-pending:ring-inset has-data-pending:ring-accent"} ${press}`}
         >
           <LinkPending />
           <span className="text-meta text-text-2">{i.label}</span>
           {i.count !== undefined && (
-            <span className={`text-heading font-semibold tabular-nums ${i.active ? "text-accent-text [nav:has([data-pending])>a:not(:has([data-pending]))>&]:text-text" : "[a:has([data-pending])>&]:text-accent-text"}`}>
+            <span className={`text-heading font-semibold tabular-nums ${i.active ? "text-accent-text group-has-data-pending/tabs:group-not-has-data-pending/tab:text-text" : "group-has-data-pending/tab:text-accent-text"}`}>
               {typeof i.count === "number" ? <Tween value={fmtNum(i.count)} /> : i.count}
             </span>
           )}

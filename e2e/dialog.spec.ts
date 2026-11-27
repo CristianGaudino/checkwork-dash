@@ -75,7 +75,7 @@ for (const reducedMotion of ["no-preference", "reduce"] as const) {
 async function searchHeld(page: import("@playwright/test").Page) {
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto("/stock");
-  await expect(page.locator("main table")).toBeVisible();
+  await expect(page.locator("main [data-list]")).toBeVisible();
   await page.route("**/stock?*", (route) => (route.request().headers()["rsc"] ? new Promise(() => {}) : route.continue()));
   await page.getByRole("textbox", { name: "Search stock" }).fill("zzz");
 }
@@ -87,5 +87,16 @@ test("a search waiting on the list says so", async ({ page }) => {
 
 test("a search waiting on the list dims the table", async ({ page }) => {
   await searchHeld(page);
-  await expect.poll(() => page.locator("main table").evaluate((t) => getComputedStyle(t).opacity)).toBe("0.6");
+  await expect.poll(() => page.locator("main [data-list]").evaluate((t) => getComputedStyle(t).opacity)).toBe("0.6");
+});
+
+// The same dim on a list that is not a table: Activity's changes, filtered.
+test("a filter waiting on the list dims Activity's list", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/activity");
+  await expect(page.locator("main [data-list]")).toBeVisible();
+  await page.route("**/activity?*", (route) => (route.request().headers()["rsc"] ? new Promise(() => {}) : route.continue()));
+  await page.getByRole("button", { name: "Filters" }).click();
+  await page.getByRole("radio", { name: "Conor Doyle" }).check();
+  await expect.poll(() => page.locator("main [data-list]").evaluate((t) => getComputedStyle(t).opacity)).toBe("0.6");
 });

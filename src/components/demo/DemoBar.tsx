@@ -8,7 +8,7 @@ import { useDealerFacts, useModules } from "@/components/DealerFacts";
 import { ROLES, type Role } from "@/lib/permission-rules";
 import { ChevronDownIcon, SlidersIcon } from "@/components/stock/icons";
 import { ModuleSwitches } from "./ModuleSwitches";
-import { press } from "@/components/ui";
+import { popIn, press } from "@/components/ui";
 
 // The theme lives on <html data-theme>; this watches that attribute, so the button is right on first paint and after any change.
 function subscribe(cb: () => void) {
@@ -121,7 +121,7 @@ export function DemoBar({ demo, donedeal }: { demo: boolean; donedeal: boolean }
           id={panelId}
           popover="auto"
           onToggle={(e) => setOpen(e.newState === "open")}
-          className={`fixed inset-auto right-[max(0.75rem,env(safe-area-inset-right))] m-0 w-[min(20rem,calc(100vw-1.5rem))] flex-col items-start gap-1 rounded-card border border-hairline bg-band p-2 text-text shadow-panel transition-[opacity,translate,overlay,display] transition-discrete duration-150 ease-out opacity-0 -translate-y-1 open:opacity-100 open:translate-y-0 starting:open:opacity-0 starting:open:-translate-y-1 motion-reduce:translate-y-0! bottom-[calc(7rem+env(safe-area-inset-bottom))] max-lg:[&:popover-open]:flex lg:hidden`}
+          className={`fixed inset-auto right-[max(0.75rem,env(safe-area-inset-right))] m-0 w-[min(20rem,calc(100vw-1.5rem))] flex-col items-start gap-1 rounded-card border border-hairline bg-band p-2 text-text shadow-panel ${popIn} bottom-[calc(7rem+env(safe-area-inset-bottom))] max-lg:[&:popover-open]:flex lg:hidden`}
         >
           {controls(true)}
         </div>

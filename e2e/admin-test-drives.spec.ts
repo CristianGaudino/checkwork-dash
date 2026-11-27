@@ -15,6 +15,7 @@ test("a request is confirmed from the list, and Undo puts it back", async ({ pag
   await page.keyboard.press("Escape");
   await first.getByRole("button", { name: "Confirm" }).click();
   await expect(page.getByText(`${who}: Confirmed`)).toBeVisible();
+  await page.getByTestId("toast").hover(); // held, as a person does, so its six seconds cannot run out before Undo
   await expect(waiting.getByText(who, { exact: true })).toHaveCount(0);
   await page.getByTestId("toast").getByRole("button", { name: "Undo" }).click();
   await expect(waiting.getByText(who, { exact: true })).toBeVisible();

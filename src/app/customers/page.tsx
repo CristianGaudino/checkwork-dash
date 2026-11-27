@@ -32,7 +32,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
   const tabs = TABS.filter(([, , m]) => (m === "sales" ? sales : alertsOn));
   if (!tabs.length) notFound();
   const tab = tabs.find(([k]) => k === sp.tab)?.[0] ?? tabs[0][0];
-  // The header first; the tabs (their counts are the lists), the reminders and the list stream in under it, keyed by the tab (#200).
+  // The header first; the tabs (their counts are the lists), the reminders and the list stream in under it (#200). Not keyed: a tab change keeps the old list until the new one lands, so the tabs never turn to bones.
   return (
     <>
       <PageHeader title="Customers" text="Buyers, and people who signed up for stock alerts" />

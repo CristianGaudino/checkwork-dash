@@ -23,6 +23,12 @@ export function Toaster() {
     const timer = setTimeout(dismissToast, SHOW_MS);
     return () => clearTimeout(timer);
   }, [toast, held]);
+  // The leaving toast goes once its 150ms fade is done. A timer, not transitionend: no fade runs if it is dismissed as it is shown.
+  useEffect(() => {
+    if (!leaving) return;
+    const timer = setTimeout(() => setLast(null), 200);
+    return () => clearTimeout(timer);
+  }, [leaving]);
 
   return (
     <div aria-live="polite" className="flex w-full justify-center">
@@ -36,8 +42,6 @@ export function Toaster() {
           onMouseLeave={() => setHeldId(null)}
           onFocus={() => setHeldId(shown.id)}
           onBlur={() => setHeldId(null)}
-          // Its own fade only, not a button's inside it.
-          onTransitionEnd={(e) => leaving && e.target === e.currentTarget && setLast(null)}
           className="pointer-events-auto flex max-w-full items-center gap-3 rounded-control border border-hairline bg-card py-1 pl-4 pr-1 text-meta shadow-lift transition-[opacity,translate] duration-200 ease-out starting:translate-y-2 starting:opacity-0 data-leaving:pointer-events-none data-leaving:translate-y-2 data-leaving:opacity-0 data-leaving:duration-150 motion-reduce:transition-opacity motion-reduce:translate-y-0!"
         >
           <p className="min-w-0 font-semibold">{shown.message}</p>
