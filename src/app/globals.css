@@ -528,7 +528,7 @@ input:is([type="checkbox"], [type="radio"], [type="file"]):not(:disabled) {
 
 /* Content that just arrived in the browser (Fresh in Tween.tsx: a client navigation, a new period), never the server's first paint. It
    fades in; opacity only, so it stays under reduced motion, gentler rather than gone. Charts inside it draw from the left: clip-path rather
-   than scaleX, so the rounded bar ends do not squash. */
+   than scaleX, so the rounded bar ends do not squash. 300ms, as Tween counts the tiles beside them, so all of it lands together. */
 @keyframes arrive {
   from {
     opacity: 0;
@@ -544,13 +544,13 @@ input:is([type="checkbox"], [type="radio"], [type="file"]):not(:disabled) {
 }
 @media (prefers-reduced-motion: no-preference) {
   [data-fresh] [data-chart] {
-    animation: reveal-x 500ms var(--ease-out) both;
+    animation: reveal-x 300ms var(--ease-out) both;
   }
   [data-fresh] [data-chart-peak] {
-    animation: arrive 150ms var(--ease-out) 400ms both;
+    animation: arrive 150ms var(--ease-out) 250ms both;
   }
   [data-fresh] [data-bars] li > [aria-hidden] > span {
-    animation: reveal-x 400ms var(--ease-out) both;
+    animation: reveal-x 300ms var(--ease-out) both;
   }
 }
 /* The monthly report prints: nothing half drawn on paper. */
