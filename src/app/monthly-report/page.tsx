@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { Fresh } from "@/components/Tween";
 import { PanelBones, Skeleton, TextBones, TileBones } from "@/components/admin/Skeleton";
 import { BarList } from "@/components/admin/charts";
 import { DataTable, PageHeader, Panel, StatCard, StatGrid, rowButton } from "@/components/admin/kit";
@@ -65,7 +66,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
       </div>
       {/* The report itself streams in under the controls, so a tap on another month or view works from the first paint (#109). */}
       <Suspense key={month} fallback={<ReportBones />}>
-        <Report month={month} prevMonth={prevMonth} now={now} name={me.name} whole={whole} hasMargins={hasMargins} />
+        <Fresh className="flex flex-col gap-6">
+          <Report month={month} prevMonth={prevMonth} now={now} name={me.name} whole={whole} hasMargins={hasMargins} />
+        </Fresh>
       </Suspense>
     </>
   );

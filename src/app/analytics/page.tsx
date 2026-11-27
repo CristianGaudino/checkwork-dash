@@ -1,5 +1,6 @@
 import { Suspense } from "react";
-import { Bone, PanelBones, Skeleton, TileBones } from "@/components/admin/Skeleton";
+import { Bone, LineBone, PanelBones, Skeleton, TextBones, TileBones } from "@/components/admin/Skeleton";
+import { Fresh } from "@/components/Tween";
 import { counted } from "@/lib/admin/reports";
 import { bounds } from "@/lib/reports/monthly";
 import { alertsStore, salesStore } from "@/lib/admin/collections";
@@ -32,34 +33,57 @@ const shortDate = new Intl.DateTimeFormat("en-IE", { day: "numeric", month: "sho
 // The header and the period first, so a tap on another period works from the first paint; the figures stream in under them (#109).
 export default async function Page({ searchParams }: { searchParams: Promise<{ range?: string }> }) {
   const range = parseRange((await searchParams).range);
+  const demo = await simulating(); // the directory's flag, already read for this request: which of the two pages the bones are
   return (
     <>
       <PageHeader title="Analytics" />
       <Segmented label="Period" items={RANGES.map((r) => ({ label: `${r} days`, href: `/analytics?range=${r}`, active: range === r }))} />
-      <Suspense key={range} fallback={<FiguresBones />}>
-        <Figures range={range} />
+      <Suspense key={range} fallback={<FiguresBones demo={demo} />}>
+        <Fresh className="flex flex-col gap-6">
+          <Figures range={range} demo={demo} />
+        </Fresh>
       </Suspense>
     </>
   );
 }
 
-function FiguresBones() {
+// The shape of Figures (the demo's generated figures) or of RealAnalytics, so nothing moves when it lands.
+function FiguresBones({ demo }: { demo: boolean }) {
+  const sources = (
+    <PanelBones plain title="Where visits come from" text>
+      <TileBones />
+    </PanelBones>
+  );
+  if (!demo) {
+    return (
+      <Skeleton>
+        <TileBones count={3} />
+        {sources}
+        <div className="grid grid-cols-1 gap-6 wide:grid-cols-2">
+          {["Searches with no cars to show", "Prices people look at", "Filters people use", "Finance"].map((t) => <PanelBones key={t} title={t} />)}
+        </div>
+      </Skeleton>
+    );
+  }
   return (
     <Skeleton>
+      <TextBones />
       <TileBones />
-      <PanelBones plain title="Where visits come from">
-        <TileBones />
-      </PanelBones>
-      <PanelBones>
-        <Bone className="h-48" />
+      {sources}
+      <PanelBones title="From visit to sale" />
+      <PanelBones title="Visitors each day">
+        <div className="flex flex-col gap-2">
+          <Bone className="h-44" />
+          <LineBone className="h-3.5 w-full" />
+        </div>
       </PanelBones>
     </Skeleton>
   );
 }
 
-async function Figures({ range }: { range: Range }) {
+async function Figures({ range, demo }: { range: Range; demo: boolean }) {
   // The demo shows generated figures; a dealer's own site shows what its visitors really did.
-  if (!(await simulating())) return <RealAnalytics range={range} />;
+  if (!demo) return <RealAnalytics range={range} />;
   const [all, leads, allSales, me, { siteUrl }] = await Promise.all([adminCars(), leadsStore.list(), salesStore.list(), currentMember(), dealerProfile()]);
   // As on Reports (owner's decision): the roles allowed margins see the dealership's sales; a salesperson sees their own.
   const whole = roleCan(me.role, "margins");

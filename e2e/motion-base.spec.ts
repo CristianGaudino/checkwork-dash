@@ -19,8 +19,8 @@ test("a hard load of /reports has nothing fresh on it", async ({ page, context }
   await expect(page.locator("[data-fresh]")).toHaveCount(0);
 });
 
-// Fresh is put on /reports by #200 (streaming): until then nothing on the page uses it.
-test.fixme("a client navigation to /reports eases the new content in", async ({ page, context }) => {
+// The figures on /reports stream in under a Fresh (#200).
+test("a client navigation to /reports eases the new content in", async ({ page, context }) => {
   await as(context, "Owner");
   await page.setViewportSize({ width: 1280, height: 900 }); // the sidebar
   await page.goto("/");

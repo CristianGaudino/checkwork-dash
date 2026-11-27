@@ -1,5 +1,6 @@
 import { Suspense } from "react";
-import { Bone, PanelBones, Skeleton, TextBones, TileBones } from "@/components/admin/Skeleton";
+import { Bone, LineBone, PanelBones, Skeleton, TextBones, TileBones } from "@/components/admin/Skeleton";
+import { Fresh } from "@/components/Tween";
 import { dealerProfile } from "@/lib/tenancy/current";
 import { AreaChart, BarList } from "@/components/admin/charts";
 import { ChevronDownIcon } from "@/components/stock/icons";
@@ -41,21 +42,38 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ p
         }
       />
       <ReportViews period={period} />
-      <Suspense key={period} fallback={<FiguresBones />}>
-        {whole ? <Full period={period} /> : <Personal period={period} />}
+      <Suspense key={period} fallback={<FiguresBones whole={whole} />}>
+        <Fresh className="flex flex-col gap-6">{whole ? <Full period={period} /> : <Personal period={period} />}</Fresh>
       </Suspense>
     </>
   );
 }
 
-function FiguresBones() {
+// The shape of Full (the answer, the tiles, the two columns from 1280px) or of Personal (the tiles, By month), so nothing moves when it lands.
+function FiguresBones({ whole }: { whole: boolean }) {
+  if (!whole) {
+    return (
+      <Skeleton>
+        <TileBones />
+        <PanelBones title="By month" />
+      </Skeleton>
+    );
+  }
   return (
     <Skeleton>
       <TextBones />
       <TileBones />
-      <PanelBones title="Sales by month">
-        <Bone className="h-48" />
-      </PanelBones>
+      <div className="grid grid-cols-1 items-start gap-6 wider:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+        <PanelBones title="Sales by month">
+          {/* The chart and its caption (AreaChart), then the "Sales each month" fold: 44px and its border. */}
+          <div className="flex flex-col gap-2">
+            <Bone className="h-44" />
+            <LineBone className="h-3.5 w-full" />
+          </div>
+          <Bone className="h-11.5" />
+        </PanelBones>
+        <PanelBones title="Where the won leads came from" />
+      </div>
     </Skeleton>
   );
 }
