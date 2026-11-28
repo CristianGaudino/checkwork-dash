@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 test("customers and stock alerts each have a table, and an alert can be stopped", async ({ page }) => {
   await page.goto("/customers");
-  expect((await page.getByRole("row").count()) - 1).toBeGreaterThan(5);
+  await expect.poll(async () => (await page.getByRole("row").count()) - 1).toBeGreaterThan(5); // the table streams in after the page (#200)
   await page.getByRole("link", { name: "Stock alerts" }).click();
   const active = page.getByRole("row").filter({ hasText: "Active" }).first();
   await active.getByRole("button", { name: /^More for / }).click(); // Stop and Remove are under the row's menu (#95)

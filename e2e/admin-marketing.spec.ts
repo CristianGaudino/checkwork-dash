@@ -89,6 +89,7 @@ test("the ad switch adds a budget, and publishing starts the ad with the post", 
 
 test("an idea starts the composer on its car, and the list filters to ads", async ({ page }) => {
   await page.goto("/marketing");
+  await page.getByRole("link", { name: /^Posts and ads/ }).waitFor(); // the tabs and ideas stream in after the header (#200)
   const idea = page.getByRole("link", { name: "Write a post" }).first();
   if (await idea.count()) {
     await idea.click();

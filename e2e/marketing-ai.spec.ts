@@ -121,6 +121,7 @@ test("a post that goes out shows on the calendar's week, and the week can move",
 
 test("an idea offers a story as well as a post", async ({ page }) => {
   await page.goto("/marketing");
+  await page.getByRole("link", { name: /^Posts and ads/ }).waitFor(); // the tabs and ideas stream in after the header (#200)
   const story = page.getByRole("link", { name: "Make a story" }).first();
   if (await story.count()) {
     await story.click();
