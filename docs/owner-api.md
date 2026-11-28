@@ -78,7 +78,7 @@ curl -X PUT -H "Authorization: Bearer $OWNER_API_TOKEN" -H "Content-Type: applic
   "reviews": { "count": 3, "average": 4.7 },
   "features": { "saved": 120, "compare": 31, "finance": 18, "units": 9, "no-results": 14, "filter:fuel": 52 },
   "dashboard": { "leads": 88, "stock": 40, "monthly-report": 2 },
-  "plan": { "label": "Checkwork plan", "eur": 249 },
+  "plan": { "id": "both", "label": "Website + Dashboard", "eur": 249 },
   "listingSync": { "lastRunAt": 1760000000000, "lastOkAt": 1760000000000, "result": { "added": 0, "changed": 0, "takenDown": 0 }, "ok": true },
   "usage": [{ "month": "2026-10", "totalEur": 12.4, "services": { "lookup": { "count": 40, "costEur": 12, "kinds": [{ "kind": "dashboard", "count": 30, "costEur": 9 }] } } }]
 }
@@ -88,7 +88,7 @@ curl -X PUT -H "Authorization: Bearer $OWNER_API_TOKEN" -H "Content-Type: applic
 - `replies`: minutes from a lead arriving to the first note on it, by when it arrived. `none`: leads with no note within 24 hours, once those 24 hours have passed. `null` when there are none.
 - `stock`: `added` and `sold` are in the range. `inStock`, `avgDaysInStock`, `oldStock` (for sale the dealer's `rules.oldStockDays` or more, 60 by default) and `priceDrops` are the stock now (the site keeps no daily history).
 - `sales.valueEur` appears only with `OWNER_API_MONEY=1`. Orders and deposits are not counted yet.
-- `plan`: the one plan every dealer is on (#212), a month before VAT. `/api/owner/v1/modules` and `modules` here were removed with the modules.
+- `plan`: the plan the dealer pays for (`website`, `dashboard` or `both`, #212), with its price a month before VAT (the list price: a free first month is on the bill). `/api/owner/v1/modules` and `modules` here were removed with the modules.
 - `features`: anonymous daily counters (`saved`, `compare`, `finance`, `units` for km or miles, `no-results`, `contact-topic`, `filter:<make|model|body|fuel|price|year|km|gearbox>`; `visit:<channel>`, one per visit by where it came from; `band:<price band>`; `missed:<make>` for a search with no cars to show). The lists are in `src/lib/visit-rules.ts`. `dashboard`: page opens per dashboard area, counted by the dashboard itself behind Access. Neither says who.
 - Visits are the `visit:*` counts in `features`. Errors in the last 24 hours are not included yet.
 

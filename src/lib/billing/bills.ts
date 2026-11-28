@@ -2,9 +2,9 @@ import "server-only";
 import { defineCollection } from "@/lib/admin/docs";
 import { dublinDay } from "@/lib/admin/format";
 import { getSettings } from "@/lib/admin/collections";
-import { billingSettings } from "./usage";
+import { billingSettings, currentPlan } from "./usage";
 import { usageLines, type Bill, type BillingDetails } from "./bills-rules";
-import { BILLING_DEFAULT, PLAN, planLines, type Service } from "./rules";
+import { BILLING_DEFAULT, PLANS, planLines, type Service } from "./rules";
 import { currentDealer } from "@/lib/tenancy/current";
 import { addressText } from "@/lib/tenancy/profile";
 
@@ -21,11 +21,11 @@ export async function getBill(id: string): Promise<Bill | undefined> {
   const bill = await billsStore.get(id);
   return bill && (await asShown())(bill);
 }
-// A demo dealer's bills follow today's plan, as this month's does. A real dealer's are as issued.
+// A demo dealer's bills follow its plan today, as this month's does. A real dealer's are as issued.
 async function asShown(): Promise<(bill: Bill) => Bill> {
   if (!(await currentDealer()).demo) return (bill) => bill;
-  const b = await billingSettings();
-  return ({ modules: _, ...bill }) => ({ ...bill, plan: planLines(b, bill.id), usage: usageLines(bill.usage, PLAN.allowance) });
+  const [b, plan] = await Promise.all([billingSettings(), currentPlan()]);
+  return ({ modules: _, ...bill }) => ({ ...bill, plan: planLines(plan, b, bill.id), usage: usageLines(bill.usage, PLANS[plan].allowance) });
 }
 
 export async function billingDetails(): Promise<BillingDetails> {
@@ -50,6 +50,6 @@ function seedBills(): Bill[] {
       { service: "whatsapp", kind: "reply", count: 40 + grow * 5 },
       { service: "whatsapp", kind: "marketing", count: i % 3 === 0 ? 40 : 0 },
     ];
-    return { id, issuedOn, dueOn: issuedOn, status: issuedOn < today ? "paid" : "due", plan: planLines(BILLING_DEFAULT, id), usage: usageLines(counts, PLAN.allowance) };
+    return { id, issuedOn, dueOn: issuedOn, status: issuedOn < today ? "paid" : "due", plan: planLines("both", BILLING_DEFAULT, id), usage: usageLines(counts, PLANS.both.allowance) }; // the demo's plan
   });
 }

@@ -3,13 +3,20 @@ import { expect, test } from "@playwright/test";
 // The inbox shows made-up leads only (never the real lead table), filters through the URL, and a lead can be worked.
 test("filters by status and search, and keeps the filter in the link", async ({ page }) => {
   await page.goto("/leads");
-  // How many the list holds, from its footer (a page shows 25 at most).
-  const total = async () => Number((await page.getByText(/^Showing 1 to /).textContent())!.match(/of ([\d,]+)$/)![1].replace(/,/g, ""));
+  // How many the list holds, from its footer (a page shows 25 at most). The page has one footer; while a tab's rows replace the last ones
+  // (a tap as the page hydrates) both can be in the page for a moment, so a count is read only once one is left.
+  const footer = page.getByText(/^Showing 1 to /);
+  const total = async () => {
+    const texts = await footer.allTextContents();
+    return texts.length === 1 ? Number(texts[0].match(/of ([\d,]+)$/)![1].replace(/,/g, "")) : NaN;
+  };
+  await expect(footer).toHaveCount(1);
   const all = await total();
   expect(all).toBeGreaterThan(10);
   await page.getByRole("link", { name: /^Won/ }).click(); // one tap, even as the page hydrates: TabRow leaves a swiped row where it is
   await expect(page).toHaveURL(/status=won/);
   await expect.poll(total).toBeLessThan(all);
+  await expect(footer).toHaveCount(1); // settled: one list, one footer
   await page.getByLabel("Search leads").fill("zzzz-nobody");
   await page.getByLabel("Search leads").press("Enter");
   await expect(page.getByText("No leads match")).toBeVisible();

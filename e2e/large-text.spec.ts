@@ -36,6 +36,22 @@ for (const path of PAGES) {
   });
 }
 
+// The pages with jobs in their header (Overview, a lead, a customer, a test drive, Billing, Help): at 320px with text at 150% and 200% the
+// buttons wrap onto more rows rather than run off the screen, and each is whole on screen.
+for (const path of ["/", "/leads/lead-4000", "/customers/cust-300", "/test-drives/drive-232", "/billing", "/help"]) {
+  test(`${path}: the header's buttons stay on screen at 320px with large text`, async ({ page }) => {
+    for (const scale of [1.5, 2]) {
+      await textAt(page, scale);
+      await page.setViewportSize({ width: 320, height: 800 });
+      expect((await page.goto(path))?.status(), `${path} answers`).toBe(200);
+      expect(await overflow(page), `${path}, text ${scale * 100}%`).toBeLessThanOrEqual(0);
+      const cw = await page.evaluate(() => document.documentElement.clientWidth);
+      for (const r of await page.getByRole("main").locator("header").first().locator("a, button").evaluateAll((els) => els.map((e) => e.getBoundingClientRect()).filter((b) => b.width > 0).map((b) => [b.left, b.right])))
+        expect(r[0] >= 0 && r[1] <= cw, `${path}, text ${scale * 100}%: a header button at ${r} in ${cw}px`).toBe(true);
+    }
+  });
+}
+
 test("the text setting grows the root font and the breakpoints", async ({ page }) => {
   await textAt(page, 2);
   await page.setViewportSize({ width: 1280, height: 800 });

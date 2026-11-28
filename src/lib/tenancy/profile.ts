@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { tooLong } from "@/lib/leads/constants";
+import { isPlanId, type PlanId } from "@/lib/billing/rules";
 
-// What differs between dealers beyond their records: their facts, where their stock comes from, their business
+// What differs between dealers beyond their records: their facts, the plan they pay for, where their stock comes from, their business
 // rules and the few service settings that are not secrets. Kept in the directory, one JSON value per dealer (dealers.profile), read with the
 // dealer once a request (src/lib/tenancy). Plain data, so the browser gets the parts it shows (src/components/DealerFacts.tsx).
 // Facts the dealer's owner or manager may change in Settings (FACTS_SCHEMA); the rest is ours to set (docs/new-dealer.md).
@@ -23,6 +24,7 @@ export type DealerProfile = {
   // The wide logo for a light and a dark background: paths on this app (public/brand/), since the content security policy loads images
   // from here only. Without a logo the menu shows the name.
   logo?: { onLight: string; onDark: string };
+  plan: PlanId; // what they pay for (src/lib/billing/rules.ts PLANS): a billing fact only, every dealer sees every part (#212)
   stock: { source: "checkwork" | "donedeal"; listingSite: ListingSite; listingUrl: string };
   rules: DealerRules;
   placeId?: string; // the dealer's Google place, for their reviews (the API key is ours, a Worker secret)
@@ -32,7 +34,7 @@ export type DealerProfile = {
 const HOURS_OF = (week: [string | undefined, string | undefined][]): Hours =>
   ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].map((day, i) => (week[i]?.[0] ? { day, opens: week[i][0], closes: week[i][1] } : { day }));
 
-// A dealer with nothing set: stock kept here, the usual rules, no website or facts yet.
+// A dealer with nothing set: the dashboard plan, stock kept here, the usual rules, no website or facts yet.
 export const DEFAULT_PROFILE: DealerProfile = {
   siteUrl: "",
   phone: "",
@@ -40,6 +42,7 @@ export const DEFAULT_PROFILE: DealerProfile = {
   address: { street: "", town: "", county: "", eircode: "" },
   hours: HOURS_OF([]),
   social: [],
+  plan: "dashboard",
   stock: { source: "checkwork", listingSite: "DoneDeal", listingUrl: "https://www.donedeal.ie/" },
   rules: { oldStockDays: 60, slowDropEur: 500, soldVisibleDays: 30, serviceMonths: 12 },
 };
@@ -54,6 +57,7 @@ export const DEMO_PROFILE: DealerProfile = {
   address: { street: "Long Mile Road", town: "Dublin 12", county: "Co. Dublin", eircode: "D12 AF77" },
   hours: HOURS_OF([["09:30", "18:00"], ["09:30", "18:00"], ["09:30", "18:00"], ["09:30", "18:00"], ["09:30", "18:00"], ["10:00", "16:00"]]),
   logo: { onLight: "/brand/logo-on-light.svg", onDark: "/brand/logo.svg" },
+  plan: "both",
 };
 export const DEMO_NAME = "Checkwork Motors";
 
@@ -67,6 +71,19 @@ export const addressText = (a: DealerProfile["address"]) => [a.street, a.town, a
 
 // A stored value over `base` (DEFAULT_PROFILE; DEMO_PROFILE for a demo dealer), one level down for the grouped parts, so a value saved
 // before a field existed still gets it. Anything that is not a JSON object is the base: a broken value never stops the dealer's dashboard.
+// The plan a stored profile pays for. One saved before `plan` existed is read from its old `modules` (history, #173 to #212): a comma
+// list of ids or "all". The dashboard with any website part is both, the dashboard alone is the dashboard, no dashboard is the website.
+// Nothing is written back: the old value stays, and a `plan` set later wins.
+const WEBSITE_PARTS = ["tradeIn", "finance", "carFinder", "commercial"];
+export function planOf(v: { plan?: unknown; modules?: unknown }, fallback: PlanId): PlanId {
+  if (isPlanId(v.plan)) return v.plan;
+  if (typeof v.modules !== "string") return fallback;
+  if (v.modules.trim() === "all") return "both";
+  const ids = v.modules.split(",").map((m) => m.trim());
+  const site = ids.some((m) => WEBSITE_PARTS.includes(m));
+  return ids.includes("dashboard") ? (site ? "both" : "dashboard") : "website";
+}
+
 export function parseProfile(raw: string | null | undefined, base: DealerProfile = DEFAULT_PROFILE): DealerProfile {
   let v: Partial<DealerProfile> = {};
   try {
@@ -76,7 +93,7 @@ export function parseProfile(raw: string | null | undefined, base: DealerProfile
     // stays the defaults
   }
   const d = base;
-  return { ...d, ...v, address: { ...d.address, ...v.address }, stock: { ...d.stock, ...v.stock }, rules: { ...d.rules, ...v.rules } };
+  return { ...d, ...v, plan: planOf(v, d.plan), address: { ...d.address, ...v.address }, stock: { ...d.stock, ...v.stock }, rules: { ...d.rules, ...v.rules } };
 }
 
 // What an owner or manager changes in Settings, Your business. The website must be an https address; a time is HH:MM.

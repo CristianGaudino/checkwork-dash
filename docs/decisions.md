@@ -17,19 +17,22 @@ What the owner has decided about the dashboard as its own product, and what is s
 | Name | Checkwork, for now. |
 | Repo visibility | Public for now; the owner makes it private when ready (#13). |
 
-## One plan, everything included (owner, 2026-11-27, #212)
+## One system, three all-inclusive plans (owner, 2026-11-27 and 2026-11-28, #212)
 
-This replaces the plans below. Every dealer gets every part of the dashboard and the website: no modules, no plan picker, no add-ons.
+This replaces the plans below. Every dealer gets every part of the dashboard: no modules, no plan picker, no add-ons. "It's meant to be 1
+price for the website, 1 price for dash, and 1 price for both" (owner, 2026-11-28).
 
-- One price: EUR 249 a month before VAT, for one dealership, everything included (the website, the dashboard, social and ads and every
-  other part). No setup fee. `PLAN` in `src/lib/billing/rules.ts`.
-- Usage and lookups are paid by the dealer, with a small allowance included each month: 100 registration lookups and 500 WhatsApp
-  alerts and confirmations (the amounts the dashboard plans already included). Past that, pay as you go, as before: lookups, history
-  checks and WhatsApp messages. AI writing stays fair use, never billed.
+- Three plans, a month before VAT, for one dealership, each all-inclusive within itself, no setup fee: Website EUR 149, Dashboard EUR 149,
+  Website + Dashboard EUR 249 (`PLANS` in `src/lib/billing/rules.ts`). Social and ads, AI writing and every dashboard part are in any
+  plan with the dashboard. The plan is a billing fact only (`plan` in the dealer's profile), never a switch on what they see.
+- Usage and lookups are paid by the dealer, with the allowance each plan had: 100 registration lookups and 500 WhatsApp alerts and
+  confirmations a month with the dashboard, none on the website alone. Past that, pay as you go, as before: lookups, history checks
+  and WhatsApp messages. AI writing stays fair use, never billed.
 - The dealer sets a monthly limit per paid service in Settings, Monthly limits; Billing links there. Our ceilings stay as safety caps.
 - Role permissions stay as they are. A service that needs the dealer's own keys says "Not connected" until it is.
-- The owner API's `/api/owner/v1/modules` and `modules` in `/summary` are removed (nothing read them); `/summary` has `plan`.
-- A stored `modules` value in a dealer's profile is ignored; nothing is deleted. Bills already issued keep their lines.
+- The owner API's `/api/owner/v1/modules` and `modules` in `/summary` are removed (nothing read them); `/summary` has `plan` (its id, label and price).
+- A stored `modules` value in a dealer's profile is read once for the plan when `plan` is not set (the dashboard with a website part is
+  both, the dashboard alone dashboard, no dashboard website, unset dashboard); nothing is deleted. Bills already issued keep their lines.
 
 ## Pricing (owner, 2026-11-24, #147; replaced by #212 above)
 

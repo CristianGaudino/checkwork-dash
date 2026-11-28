@@ -6,16 +6,17 @@ const lastMonth = (() => { const d = new Date(); return new Date(Date.UTC(d.getU
 
 // Billing is for the owner and manager; Help is for everyone. The demo bar's role is a cookie (see admin-margins.spec.ts).
 
-// One plan (#212): everything included at EUR 249 a month, the allowance, and pay as you go past it. The limits are set in Settings.
-test("the owner sees the one plan, its allowance and pay as you go, and opens a bill", async ({ page }) => {
+// Three plans (#212), each all-inclusive: the demo is on Website + Dashboard at EUR 249 a month, with its allowance and pay as you go past
+// it. No add-ons, no setup fee. The limits are set in Settings.
+test("the owner sees their plan, its allowance and pay as you go, and opens a bill", async ({ page }) => {
   await page.goto("/billing");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Billing");
   const bill = page.getByRole("region", { name: "This month's bill" });
-  await expect(bill.getByRole("term").filter({ hasText: /^Checkwork plan$/ })).toBeVisible();
+  await expect(bill.getByRole("term").filter({ hasText: /^Website \+ Dashboard plan$/ })).toBeVisible();
   await expect(bill.getByRole("definition").filter({ hasText: /^€249$/ })).toBeVisible();
   await expect(bill.getByText("Pay as you go, by month end")).toBeVisible();
   await expect(bill).toContainText("no setup fee");
-  for (const old of ["Website + Dashboard plan", "Ask us to add", "Add to my plan"]) await expect(page.getByText(old)).toHaveCount(0);
+  for (const old of ["Social and ads plan", "Ask us to add", "Add to my plan"]) await expect(page.getByText(old)).toHaveCount(0);
   await expect(page.getByText("Estimate").first()).toBeVisible();
   // Pay as you go: each paid service with what the plan includes; no AI writing price, no alerts.
   const payg = page.getByRole("region", { name: "Pay as you go" });
@@ -35,7 +36,7 @@ test("the owner sees the one plan, its allowance and pay as you go, and opens a 
   await expect(bills.getByRole("table").getByText("Estimate")).toBeVisible();
   await bills.getByRole("table").getByRole("link").first().click();
   await expect(page.getByRole("heading", { level: 1 })).toContainText("Bill for");
-  await expect(page.getByText("Checkwork plan")).toBeVisible();
+  await expect(page.getByText("Website + Dashboard plan")).toBeVisible();
   await expect(page.getByText("VAT at 23%")).toBeVisible();
 });
 
@@ -86,7 +87,8 @@ test("at a dealer that is not a demo, the owner sets a EUR 0 limit on history ch
   const row = page.getByRole("region", { name: "Monthly limits" }).getByRole("row").filter({ hasText: "History check" });
   await expect(row.getByRole("cell", { name: "€0", exact: true })).toBeVisible(); // the limit
   await page.goto("/billing");
-  await expect(page.getByRole("region", { name: "This month's bill" }).getByText("Checkwork plan")).toBeVisible(); // the same plan as the demo's
+  await expect(page.getByRole("region", { name: "This month's bill" }).getByRole("term").filter({ hasText: /^Dashboard plan$/ })).toBeVisible(); // a dealer with nothing set is on the dashboard plan
+  await expect(page.getByRole("region", { name: "This month's bill" }).getByRole("definition").filter({ hasText: /^€149$/ })).toBeVisible();
   const billed = page.getByRole("region", { name: "Pay as you go" }).getByRole("row").filter({ hasText: "History check" });
   await expect(billed.getByRole("cell", { name: "€0", exact: true })).toHaveCount(2); // spent and the limit
 });

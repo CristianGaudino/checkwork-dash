@@ -12,8 +12,8 @@ vi.mock("@/lib/tenancy/membership", () => vi.importActual("@/lib/tenancy/members
 const { currentDealer } = await import("./current");
 const { stockSource } = await import("@/lib/stock-source");
 const { currentMember } = await import("@/lib/permissions");
-const { billingSettings, monthUsage, recordUsage, usageStore } = await import("@/lib/billing/usage");
-const { PLAN, planLines } = await import("@/lib/billing/rules");
+const { billingSettings, currentPlan, monthUsage, recordUsage, usageStore } = await import("@/lib/billing/usage");
+const { planLines } = await import("@/lib/billing/rules");
 const { eventsFor } = await import("@/lib/notify-rules");
 const { setDriveStatusAction } = await import("@/app/test-drives/actions");
 const { DEALER_COOKIE } = await import("./membership");
@@ -46,21 +46,27 @@ describe("the demo bar's switches", () => {
   });
 });
 
-// One system (#212): a profile stored before it may still hold "modules" (a plan of the dashboard alone, say). Nothing reads it: that dealer
-// has every page and action, every notification, and the one plan with its allowance, as any other.
+// One system (#212): a profile stored before it may still hold "modules". It only decides the plan billed (read once, src/lib/tenancy/profile.ts
+// planOf): that dealer has every page and action and every notification, as any other.
 describe("a dealer with an old stored modules value", () => {
-  it("sees and is billed the same as any other", async () => {
-    const seen = async (dealer: string) => {
-      at(dealer);
-      await setDriveStatusAction("no-such-drive", "confirmed"); // no plan check first: an unknown drive is the action's own answer
-      for (const d of await usageStore.list()) await usageStore.remove(d.id);
-      await recordUsage("lookup", "dashboard", 100);
-      return { plan: planLines(await billingSettings()), lookup: (await monthUsage()).lookup.costEur, events: eventsFor((await currentMember()).role) };
-    };
+  const seen = async (dealer: string) => {
+    at(dealer);
+    await setDriveStatusAction("no-such-drive", "confirmed"); // no plan check first: an unknown drive is the action's own answer
+    for (const d of await usageStore.list()) await usageStore.remove(d.id);
+    await recordUsage("lookup", "dashboard", 100);
+    return { plan: planLines(await currentPlan(), await billingSettings()), lookup: (await monthUsage()).lookup.costEur, events: eventsFor((await currentMember()).role) };
+  };
+  it("of the dashboard alone sees and is billed the same as a dealer with nothing stored: the dashboard plan, 100 lookups included", async () => {
     const plain = await seen("test-motors");
+    expect(plain).toEqual({ plan: [{ label: "Dashboard plan", eur: 149 }], lookup: 0, events: eventsFor("Owner") });
     await patchDealer("test-motors", "Test Motors", { modules: "dashboard" } as never);
     expect(await seen("test-motors")).toEqual(plain);
-    expect(plain).toEqual({ plan: [{ label: PLAN.label, eur: 249 }], lookup: 0, events: eventsFor("Owner") }); // 100 lookups included
-    expect(await seen("checkwork-motors")).toMatchObject({ plan: plain.plan, lookup: 0 });
+    expect(await seen("checkwork-motors")).toMatchObject({ plan: [{ label: "Website + Dashboard plan", eur: 249 }], lookup: 0 });
+  });
+  it("of website parts only is billed the Website plan, with no lookups included, and still sees everything", async () => {
+    await patchDealer("test-motors", "Test Motors", { modules: "tradeIn,finance" } as never);
+    expect(await seen("test-motors")).toEqual({ plan: [{ label: "Website plan", eur: 149 }], lookup: 30, events: eventsFor("Owner") }); // 100 x EUR 0.30
+    await patchDealer("test-motors", "Test Motors", { plan: "both" }); // a plan set later wins
+    expect((await seen("test-motors")).plan).toEqual([{ label: "Website + Dashboard plan", eur: 249 }]);
   });
 });

@@ -2,7 +2,7 @@
 // meters and the tests agree. The prices are the demo's: a real site reads the dealer's own prices and bills from the owner's billing
 // program, and these stand in until it does (docs/dealer-admin.md, Billing).
 
-// Usage counted per use. Lookups, history checks and WhatsApp messages are billed past the plan's monthly allowance (PLAN.allowance; none
+// Usage counted per use. Lookups, history checks and WhatsApp messages are billed past the plan's monthly allowance (PLANS' `allowance`; none
 // for history checks); AI writing is fair use: counted, never billed, and stopped at our ceiling (AI_FAIR_USE).
 const SERVICES = ["lookup", "history", "ai", "whatsapp"] as const;
 export type Service = (typeof SERVICES)[number];
@@ -30,11 +30,19 @@ export type AiModel = "opus" | "sonnet";
 // Our ceiling on AI writing, in actions a month.
 export const AI_FAIR_USE = 500;
 
-// One plan for every dealer (#212): the website, the dashboard, social and ads and everything else, a month before VAT, for one dealership.
-// No setup fee. Each month includes some lookups and WhatsApp alerts; past that, usage is pay as you go. No history check is included
-// (#170): every one is billed.
+// The plans (#147, #212), a month before VAT, for one dealership: the website, the dashboard, or both. Each is all-inclusive: no add-ons and
+// no setup fee, and a plan with the dashboard has every part of it (social and ads, AI writing and the rest). The plan is a billing fact
+// only: what a dealer sees never depends on it. Each month a plan with the dashboard includes some lookups and WhatsApp alerts; past
+// that, usage is pay as you go. No plan includes a history check (#170): every one is billed.
 // shortcut: one dealership only; the price per extra dealership comes back with multi-dealership (#16).
-export const PLAN = { label: "Checkwork plan", eur: 249, allowance: { lookup: 100, whatsapp: 500 } as Allowance } as const;
+export type PlanId = "website" | "dashboard" | "both";
+export const PLANS: Record<PlanId, { label: string; eur: number; allowance: Allowance }> = {
+  website: { label: "Website", eur: 149, allowance: {} }, // no paid service on the website alone
+  dashboard: { label: "Dashboard", eur: 149, allowance: { lookup: 100, whatsapp: 500 } },
+  both: { label: "Website + Dashboard", eur: 249, allowance: { lookup: 100, whatsapp: 500 } },
+};
+export const PLAN_IDS = Object.keys(PLANS) as PlanId[];
+export const isPlanId = (v: unknown): v is PlanId => typeof v === "string" && Object.hasOwn(PLANS, v); // not `in`: "toString" is in every object
 
 // The contract: 1 or 2 years. A record from before (#147) said "monthly", "annual" or "twoYear": read as 1, 1 and 2 years.
 export type Term = 1 | 2;
@@ -43,11 +51,12 @@ export const termOf = (t: unknown): Term => (t === 2 || t === "twoYear" ? 2 : 1)
 export type PlanOptions = { term: Term; freeMonth?: string };
 
 // The plan as bill lines for a month: the plan, and on the dealer's first month a line that takes it off.
-export function planLines(o: PlanOptions, month?: string): { label: string; eur: number }[] {
-  return [{ label: PLAN.label, eur: PLAN.eur }, ...(month && month === o.freeMonth ? [{ label: "First month free", eur: -PLAN.eur }] : [])];
+export function planLines(plan: PlanId, o: PlanOptions, month?: string): { label: string; eur: number }[] {
+  const p = PLANS[plan];
+  return [{ label: `${p.label} plan`, eur: p.eur }, ...(month && month === o.freeMonth ? [{ label: "First month free", eur: -p.eur }] : [])];
 }
 // The plan's price for a month (the first one free), before VAT.
-export const planEur = (o: PlanOptions, month?: string): number => planLines(o, month).reduce((n, l) => n + l.eur, 0);
+export const planEur = (plan: PlanId, o: PlanOptions, month?: string): number => planLines(plan, o, month).reduce((n, l) => n + l.eur, 0);
 
 export const VAT_PCT = 23;
 export const withVat = (eur: number) => round2(eur * (1 + VAT_PCT / 100));

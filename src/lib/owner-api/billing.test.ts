@@ -7,7 +7,7 @@ const { runAsDealer } = await import("@/lib/tenancy/current");
 const { listActivity } = await import("@/lib/admin/activity");
 const { billingSettings } = await import("@/lib/billing/usage");
 const { addMonths, dublinDay } = await import("@/lib/admin/format");
-const { PLAN, planLines } = await import("@/lib/billing/rules");
+const { PLANS, planLines } = await import("@/lib/billing/rules");
 
 const call = (method: string, dealer: string, body?: unknown, token = "right") =>
   ownerBilling(new Request("https://x.test/api/owner/v1/x", { method, headers: token ? { authorization: `Bearer ${token}` } : {}, body: body === undefined ? undefined : JSON.stringify(body) }), dealer);
@@ -41,7 +41,7 @@ describe("owner API billing terms (#177)", () => {
     const b = await stored();
     expect(b).toMatchObject({ term: 2, freeMonth: free });
     // What the Billing page shows from it: that month's plan taken off.
-    expect(planLines(b, free).at(-1)).toEqual({ label: "First month free", eur: -PLAN.eur });
+    expect(planLines("dashboard", b, free).at(-1)).toEqual({ label: "First month free", eur: -PLANS.dashboard.eur });
     const log = await runAsDealer("test-motors", () => listActivity({ area: "settings" }, 1, 2));
     expect(log.rows.map((r) => [r.actor, r.summary])).toEqual([
       ["Checkwork", expect.stringMatching(/^Set the first month free to /)],

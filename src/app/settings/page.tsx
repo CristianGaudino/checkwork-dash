@@ -30,8 +30,8 @@ import { staffIdentity } from "@/lib/staff";
 import { signInMode } from "@/lib/auth/gate";
 import { columnsFor, eventLabel, eventsFor, reachLine } from "@/lib/notify-rules";
 import { people, whatsappOn, type Person } from "@/lib/people";
-import { billingSettings, monthUsage } from "@/lib/billing/usage";
-import { PAID, PLAN, SERVICE_LABELS, capOf, type Scope } from "@/lib/billing/rules";
+import { billingSettings, monthAllowance, monthUsage } from "@/lib/billing/usage";
+import { PAID, SERVICE_LABELS, capOf, type Scope } from "@/lib/billing/rules";
 import { INCLUDED, eur } from "@/lib/billing/bills-rules";
 import { viewFor } from "@/lib/whatsapp/store";
 
@@ -374,7 +374,7 @@ async function Services({ synced, listingSite, listingUrl, name, profileLeadEmai
 // Dealership, Monthly limits (#212): one limit per paid service, read first and changed in the house dialog (#141). Past what the plan
 // includes, each use is paid; our ceilings stay the most a limit can be. What is spent and billed is in Billing.
 async function Limits() {
-  const [b, usage] = await Promise.all([billingSettings(), monthUsage()]);
+  const [b, usage, allowance] = await Promise.all([billingSettings(), monthUsage(), monthAllowance()]);
   return (
     <Panel title="Monthly limits" action={<LimitsEdit scopes={PAID} caps={b.caps} ceilings={b.ceilings} />}>
       <p className="max-w-measure text-body text-text-2">Past what your plan includes, each use is paid. At a limit the service stops for the rest of the month, and you are told.</p>
@@ -390,7 +390,7 @@ async function Limits() {
               <span className="flex flex-col">
                 <span className="font-medium">{SERVICE_LABELS[s]}</span>
                 <span className="text-meta text-text-2">
-                  {eur(usage[s].costEur)} spent this month{PLAN.allowance[s] ? `, ${fmtNum(PLAN.allowance[s])} ${INCLUDED[s]} included` : ""}
+                  {eur(usage[s].costEur)} spent this month{allowance[s] ? `, ${fmtNum(allowance[s])} ${INCLUDED[s]} included` : ""}
                 </span>
               </span>
             ),

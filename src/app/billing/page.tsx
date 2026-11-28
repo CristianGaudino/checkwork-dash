@@ -7,24 +7,30 @@ import { dublinDay, fmtDay, fmtNum, plural } from "@/lib/admin/format";
 import { can, currentMember } from "@/lib/permissions";
 import { billingDetails, listBills } from "@/lib/billing/bills";
 import { INCLUDED, eur, fmtMonth, itemise, nextBillDate, type Bill, type BillingDetails } from "@/lib/billing/bills-rules";
-import { PAID, PLAN, SERVICE_LABELS, VAT_PCT, capOf, planLines, round2, usageEstimate, withVat, type BillingSettings, type Scope } from "@/lib/billing/rules";
-import { billingSettings, monthCounts, monthUsage } from "@/lib/billing/usage";
+import { PAID, PLANS, SERVICE_LABELS, VAT_PCT, capOf, planLines, round2, usageEstimate, withVat, type BillingSettings, type PlanId, type Scope } from "@/lib/billing/rules";
+import { billingSettings, currentPlan, monthCounts, monthUsage } from "@/lib/billing/usage";
 import { NotForRole } from "@/components/admin/NotForRole";
 
 export const metadata = { title: "Billing" };
 
+// What each plan includes, under the bill: all of it, no add-ons.
+const INCLUDES: Record<PlanId, string> = {
+  website: "Your website and every part of it are included.",
+  dashboard: "The dashboard and every part of it, social and ads among them, are included.",
+  both: "Your website and the dashboard, with every part of both, social and ads among them, are included.",
+};
 const USE_WORD: Record<Scope, [string, string]> = { lookup: ["lookup", "lookups"], history: ["check", "checks"], whatsapp: ["message", "messages"] };
 
 // Owners and managers only (the "billing" permission): without it the page is not there, whatever the menu showed.
-// One page (#147): this month's bill with the one plan (#212), what is paid as you go, and the bills. The limits are in Settings.
+// One page (#147): this month's bill with the dealer's plan (#212), what is paid as you go, and the bills. The limits are in Settings.
 export default async function Page() {
   if (!(await can("billing"))) return <NotForRole title="Billing" permission="billing" />;
-  const [b, usage, counts, me, bills, details] = await Promise.all([billingSettings(), monthUsage(), monthCounts(), currentMember(), listBills(), billingDetails()]);
+  const [b, planId, usage, counts, me, bills, details] = await Promise.all([billingSettings(), currentPlan(), monthUsage(), monthCounts(), currentMember(), listBills(), billingDetails()]);
   const now = new Date();
   const today = dublinDay(now.getTime());
   const month = today.slice(0, 7);
-  const allowance = PLAN.allowance;
-  const plan = planLines(b, month); // the first month free is a line of its own
+  const allowance = PLANS[planId].allowance;
+  const plan = planLines(planId, b, month); // the first month free is a line of its own
   const planEur = round2(plan.reduce((n, l) => n + l.eur, 0));
   const estimate = usageEstimate(counts, allowance, b, today);
   const total = withVat(round2(planEur + estimate));
@@ -47,7 +53,7 @@ export default async function Page() {
           is the header's Ask about my bill, not a box of its own. */}
       <Panel title="This month's bill">
         <div className="@container">
-          <div className="grid gap-x-10 gap-y-4 @2xl:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)] @2xl:items-center">
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-x-10 gap-y-4 @2xl:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)] @2xl:items-center">
             <div>
               <p className="font-display text-[min(3.5rem,18cqi)] font-semibold leading-none tracking-[-0.03em] tabular-nums">{eur(total)}</p>
               <p className="mt-2 text-meta text-text-2">Estimate with {VAT_PCT}% VAT. Next bill on {nextBillDate(now)}</p>
@@ -55,7 +61,7 @@ export default async function Page() {
             <dl className="flex flex-col divide-y divide-hairline text-body">
               {lines.map(([label, n]) => (
                 <div key={label} className="flex justify-between gap-4 py-2">
-                  <dt>{label}</dt>
+                  <dt className="min-w-0 [overflow-wrap:anywhere]">{label}</dt>
                   <dd className="whitespace-nowrap tabular-nums">{n < 0 ? `-${eur(-n)}` : eur(n)}</dd>
                 </div>
               ))}
@@ -67,7 +73,7 @@ export default async function Page() {
           </div>
         </div>
         <p className="text-meta text-text-2">
-          Your website, the dashboard, social and ads and everything else are included. {b.term === 2 ? "2-year" : "1-year"} contract, no setup fee. Prices before VAT.
+          {INCLUDES[planId]} {b.term === 2 ? "2-year" : "1-year"} contract, no setup fee. Prices before VAT.
         </p>
       </Panel>
 

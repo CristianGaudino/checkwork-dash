@@ -28,9 +28,10 @@ export function PageHeader({ title, text, actions, back }: { title: string; text
         <h1 className="text-title font-bold [overflow-wrap:anywhere]">{title}</h1>
         {text && <p className="mt-0.5 max-w-measure text-meta text-text-2">{text}</p>}
       </div>
-      {/* On a phone two or more actions are one full-width row of equal buttons, each icon above its label, so three fit at 360px and
-          never wrap two and one. A single action (All leads) keeps its own size. From 640px they sit beside the title as they are. */}
-      {actions && <div className="flex flex-wrap gap-2 max-sm:has-[>:nth-child(2)]:w-full max-sm:has-[>:nth-child(2)]:flex-nowrap max-sm:has-[>:nth-child(2)]:[&>*]:h-auto max-sm:has-[>:nth-child(2)]:[&>*]:min-h-11 max-sm:has-[>:nth-child(2)]:[&>*]:flex-1 max-sm:has-[>:nth-child(2)]:[&>*]:flex-col max-sm:has-[>:nth-child(2)]:[&>*]:gap-1 max-sm:has-[>:nth-child(2)]:[&>*]:px-2 max-sm:has-[>:nth-child(2)]:[&>*]:py-2 max-sm:has-[>:nth-child(2)]:[&>*]:text-center">{actions}</div>}
+      {/* On a phone two or more actions are a full-width grid of equal buttons, each icon above its label: three to a row at 320px with
+          the usual text, and fewer to a row (as many as fit, at least 5.5rem each, which grows with the text) with large text, so they never
+          run off the screen. A single action (All leads) keeps its own size. From 640px they sit beside the title as they are. */}
+      {actions && <div className="flex flex-wrap gap-2 max-sm:has-[>:nth-child(2)]:grid max-sm:has-[>:nth-child(2)]:w-full max-sm:has-[>:nth-child(2)]:grid-cols-[repeat(auto-fit,minmax(min(100%,5.5rem),1fr))] max-sm:has-[>:nth-child(2)]:[&>*]:h-auto max-sm:has-[>:nth-child(2)]:[&>*]:min-h-11 max-sm:has-[>:nth-child(2)]:[&>*]:min-w-0 max-sm:has-[>:nth-child(2)]:[&>*]:flex-col max-sm:has-[>:nth-child(2)]:[&>*]:gap-1 max-sm:has-[>:nth-child(2)]:[&>*]:px-2 max-sm:has-[>:nth-child(2)]:[&>*]:py-2 max-sm:has-[>:nth-child(2)]:[&>*]:text-center max-sm:has-[>:nth-child(2)]:[&>*]:[overflow-wrap:anywhere]">{actions}</div>}
     </header>
   );
 }

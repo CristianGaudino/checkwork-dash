@@ -75,6 +75,7 @@ secrets.
      "address": { "street": "Main Street", "town": "Naas", "county": "Co. Kildare", "eircode": "W91 XXXX" },
      "hours": [{ "day": "Monday", "opens": "09:00", "closes": "18:00" }, { "day": "Tuesday", "opens": "09:00", "closes": "18:00" }, { "day": "Wednesday", "opens": "09:00", "closes": "18:00" }, { "day": "Thursday", "opens": "09:00", "closes": "18:00" }, { "day": "Friday", "opens": "09:00", "closes": "18:00" }, { "day": "Saturday", "opens": "10:00", "closes": "16:00" }, { "day": "Sunday" }],
      "logo": { "onLight": "/brand/example-motors/logo-on-light.svg", "onDark": "/brand/example-motors/logo.svg" },
+     "plan": "both",
      "stock": { "source": "checkwork" },
      "rules": { "oldStockDays": 90 },
      "leadEmail": "sales@example.com"
@@ -83,7 +84,8 @@ secrets.
 
    - `logo` is paths on this app: put the files in `public/brand/<dealer-id>/` and deploy (the app loads images from its own address
      only). Without a logo the menu shows the name.
-   - Every dealer has every part of the dashboard, on one plan (#212). `stock.source` is `checkwork` (kept here) or `donedeal`
+   - `plan`: what they pay for, `website`, `dashboard` or `both` (`docs/dealer-admin.md`, Billing; `dashboard` when left out). A billing
+     fact only: every dealer has every part of the dashboard (#212). `stock.source` is `checkwork` (kept here) or `donedeal`
      (synced from `stock.listingSite`, `DoneDeal` or `CarsIreland`, with `stock.listingUrl` their page there).
    - `placeId`: their Google place, for their reviews.
 

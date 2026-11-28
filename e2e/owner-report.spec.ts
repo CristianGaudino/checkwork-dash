@@ -19,7 +19,7 @@ test("the owner API answers 404 without the token, or with a wrong one, and coun
   expect(body.sales).not.toHaveProperty("valueEur"); // money is off without its own secret
   expect((await request.get("/api/owner/v1/summary?dealer=checkwork-motors&from=nope", { headers: auth })).status()).toBe(400);
   expect(body).not.toHaveProperty("modules"); // one system (#212): no modules, one plan
-  expect(body.plan).toEqual({ label: "Checkwork plan", eur: 249 });
+  expect(body.plan).toEqual({ id: "both", label: "Website + Dashboard", eur: 249 }); // the demo's plan
   expect((await request.get("/api/owner/v1/modules?dealer=checkwork-motors", { headers: auth })).status()).toBe(404); // the route is gone
   expect((await (await request.get("/api/owner/v1/usage?dealer=checkwork-motors&from=2026-01-01&to=2026-01-31", { headers: auth })).json()).months).toHaveLength(1);
 });

@@ -76,12 +76,14 @@ export const wrangler = (...args) => execFileSync("npx", ["wrangler", ...args], 
 
 // A dealer's profile from a JSON file (src/lib/tenancy/profile.ts has every field): an object whose keys are the profile's, so a typo is
 // caught here rather than ignored by the app. Returned as the JSON text the directory keeps.
-export const PROFILE_KEYS = ["siteUrl", "phone", "email", "address", "hours", "social", "logo", "mark", "stock", "rules", "placeId", "leadEmail"];
+export const PROFILE_KEYS = ["siteUrl", "phone", "email", "address", "hours", "social", "logo", "mark", "plan", "stock", "rules", "placeId", "leadEmail"];
 export function readProfile(path) {
   const p = JSON.parse(readFileSync(path, "utf8"));
   if (!p || typeof p !== "object" || Array.isArray(p)) throw new Error(`${path} is not a JSON object`);
   const unknown = Object.keys(p).filter((k) => !PROFILE_KEYS.includes(k));
   if (unknown.length) throw new Error(`Not profile fields: ${unknown.join(", ")} (the fields: ${PROFILE_KEYS.join(", ")})`);
+  // The plan billed (src/lib/billing/rules.ts PLANS): a billing fact only, every dealer sees every part.
+  if (p.plan !== undefined && !["website", "dashboard", "both"].includes(p.plan)) throw new Error('plan must be "website", "dashboard" or "both"');
   // Shown as links and images: the website and the listing page on https, the logo and mark from this app (its image policy).
   for (const [k, v] of [["siteUrl", p.siteUrl], ["stock.listingUrl", p.stock?.listingUrl]]) if (v && !/^https:\/\/[^\s"<>]+$/.test(v)) throw new Error(`${k} must be an https address`);
   for (const [k, v] of [["logo.onLight", p.logo?.onLight], ["logo.onDark", p.logo?.onDark], ["mark", p.mark]]) if (v && !/^\/[\w./-]+$/.test(v)) throw new Error(`${k} must be a path on this app, like /brand/<dealer-id>/logo.svg`);

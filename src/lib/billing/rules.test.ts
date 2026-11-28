@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AI_FAIR_USE, BILLING_DEFAULT, PLAN, inAllowance, alertsCrossed, capOf, monthEndEstimate, planEur, planLines, termOf, usageCosts, usageEstimate, withBillingDefaults, withinCaps, type BillingSettings, type UsageCount } from "./rules";
+import { AI_FAIR_USE, BILLING_DEFAULT, PLANS, PLAN_IDS, inAllowance, alertsCrossed, capOf, monthEndEstimate, planEur, planLines, termOf, usageCosts, usageEstimate, withBillingDefaults, withinCaps, type BillingSettings, type UsageCount } from "./rules";
 
 const c = (service: UsageCount["service"], kind: string, count: number): UsageCount => ({ id: `m:${service}:${kind}`, month: "2026-11", service, kind, count });
 
@@ -20,32 +20,35 @@ describe("usage costs", () => {
     expect(w.kinds.map((k) => k.included)).toEqual([500, 0, 0]);
   });
 
-  it("the plan includes 100 lookups and 500 WhatsApp alerts a month, no history check and no AI writing price", () => {
-    expect(PLAN.allowance).toEqual({ lookup: 100, whatsapp: 500 });
+  it("a plan with the dashboard includes 100 lookups and 500 WhatsApp alerts a month; the website alone none; no plan a history check", () => {
+    expect(PLANS.website.allowance).toEqual({});
+    expect(PLANS.dashboard.allowance).toEqual({ lookup: 100, whatsapp: 500 });
+    expect(PLANS.both.allowance).toEqual({ lookup: 100, whatsapp: 500 });
   });
 });
 
-// One plan for every dealer (#212): everything included, EUR 249 a month before VAT, no setup fee and no add-ons.
-describe("the plan", () => {
+// Three plans (#212): each all-inclusive, a month before VAT, no setup fee and no add-ons.
+describe("the plans", () => {
   const one = { term: 1 } as const;
   const two = { term: 2 } as const;
-  it("is one line at EUR 249 on either term", () => {
-    expect(PLAN).toMatchObject({ label: "Checkwork plan", eur: 249 });
-    expect(planLines(one)).toEqual([{ label: "Checkwork plan", eur: 249 }]);
-    expect(planLines(two)).toEqual([{ label: "Checkwork plan", eur: 249 }]);
-    expect(planEur(one)).toBe(249);
+  it("prices each plan as one line, the same on either term", () => {
+    expect(PLAN_IDS).toEqual(["website", "dashboard", "both"]);
+    expect(planLines("website", one)).toEqual([{ label: "Website plan", eur: 149 }]);
+    expect(planLines("dashboard", two)).toEqual([{ label: "Dashboard plan", eur: 149 }]);
+    expect(planLines("both", one)).toEqual([{ label: "Website + Dashboard plan", eur: 249 }]);
+    expect(planEur("both", two)).toBe(249);
   });
   it("takes the plan off the dealer's first month, and only that month", () => {
     const o = { term: 1, freeMonth: "2026-11" } as const;
-    expect(planLines(o, "2026-11")).toEqual([{ label: "Checkwork plan", eur: 249 }, { label: "First month free", eur: -249 }]);
-    expect(planEur(o, "2026-11")).toBe(0);
-    expect(planEur(o, "2026-12")).toBe(249);
-    expect(planEur(o)).toBe(249);
+    expect(planLines("dashboard", o, "2026-11")).toEqual([{ label: "Dashboard plan", eur: 149 }, { label: "First month free", eur: -149 }]);
+    expect(planEur("both", o, "2026-11")).toBe(0);
+    expect(planEur("both", o, "2026-12")).toBe(249);
+    expect(planEur("both", o)).toBe(249);
   });
   it("has no branches: a stored record from the tiers reads as one dealership, its term as 1 or 2 years", () => {
     const old = withBillingDefaults({ branches: 3, brands: 4, term: "twoYear", alerts: [{ scope: "total", amountEur: 5 }], alertAt80: true } as never);
     expect(old.term).toBe(2);
-    expect(planEur(old)).toBe(249);
+    expect(planEur("both", old)).toBe(249);
     expect(old.ceilings).toEqual({ lookup: 15, history: 25, whatsapp: 20 });
     expect([termOf("monthly"), termOf("annual"), termOf(undefined), termOf(2)]).toEqual([1, 1, 1, 2]);
   });
@@ -54,14 +57,14 @@ describe("the plan", () => {
 describe("limits", () => {
   it("a EUR 0 limit refuses every paid use, while a lookup the plan includes still goes", () => {
     const zero: BillingSettings = { ...BILLING_DEFAULT, caps: { history: 0, lookup: 0 } };
-    const none = usageCosts([], PLAN.allowance);
+    const none = usageCosts([], PLANS.dashboard.allowance);
     expect(capOf(zero, "history")).toBe(0); // a limit, not "no limit"
     expect(withinCaps(none, zero, "history")).toBe(false);
     expect(withinCaps(none, zero, "lookup")).toBe(false);
-    expect(inAllowance(none, PLAN.allowance, "history", "dashboard")).toBe(false); // no history check is included
-    expect(inAllowance(none, PLAN.allowance, "lookup", "dashboard")).toBe(true); // so usageAllowed lets it through
-    const used = usageCosts([c("lookup", "dashboard", 100)], PLAN.allowance);
-    expect(inAllowance(used, PLAN.allowance, "lookup", "dashboard")).toBe(false); // the 101st is paid, and the EUR 0 limit stops it
+    expect(inAllowance(none, PLANS.dashboard.allowance, "history", "dashboard")).toBe(false); // no history check is included
+    expect(inAllowance(none, PLANS.dashboard.allowance, "lookup", "dashboard")).toBe(true); // so usageAllowed lets it through
+    const used = usageCosts([c("lookup", "dashboard", 100)], PLANS.dashboard.allowance);
+    expect(inAllowance(used, PLANS.dashboard.allowance, "lookup", "dashboard")).toBe(false); // the 101st is paid, and the EUR 0 limit stops it
   });
   const b: BillingSettings = { ...BILLING_DEFAULT, caps: { lookup: 10, whatsapp: 30 }, ceilings: { lookup: 8 } };
   it("uses the lower of the dealer's limit and our ceiling", () => {
@@ -74,8 +77,8 @@ describe("limits", () => {
     expect(withinCaps(usageCosts([c("lookup", "dashboard", 27)], {}), b, "lookup")).toBe(false); // 8.10
     expect(withinCaps(usageCosts([c("ai", "opus", AI_FAIR_USE - 1)], {}), b, "ai")).toBe(true);
     // History checks: none in any plan, so each is billed, and our default limit stops them at EUR 25 (10 checks).
-    expect(withinCaps(usageCosts([c("history", "dashboard", 9)], PLAN.allowance), BILLING_DEFAULT, "history")).toBe(true);
-    expect(withinCaps(usageCosts([c("history", "dashboard", 10)], PLAN.allowance), BILLING_DEFAULT, "history")).toBe(false);
+    expect(withinCaps(usageCosts([c("history", "dashboard", 9)], PLANS.dashboard.allowance), BILLING_DEFAULT, "history")).toBe(true);
+    expect(withinCaps(usageCosts([c("history", "dashboard", 10)], PLANS.dashboard.allowance), BILLING_DEFAULT, "history")).toBe(false);
     expect(withinCaps(usageCosts([c("ai", "opus", AI_FAIR_USE)], {}), b, "ai")).toBe(false);
   });
   it("sends one notice as a limit is reached, and none on the way to it", () => {

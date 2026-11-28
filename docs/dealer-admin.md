@@ -10,7 +10,8 @@ and ads, WhatsApp, review replies, stock alert emails) says "Not connected" wher
 Connected services; simulated on a demo dealer), and permissions are checked on the server by role (`src/lib/permissions.ts`). Our own
 paid services (the registration lookup, history checks, AI writing) work for every dealer within their monthly limits. Stock kept in the
 dashboard or synced from a listing site follows where the stock comes from. The proxy only checks the Access token: it reads no
-directory. Before #212 a dealer's plan was `modules` in their profile: a stored value is ignored, and nothing was deleted.
+directory. What a dealer pays for is their profile's `plan`, a billing fact only (Billing and Help, below). Before #212 a dealer's plan was
+`modules` in their profile: it is read once for the plan when `plan` is not set (`planOf`), never for what they see, and nothing was deleted.
 
 ## Usage billed per use
 
@@ -90,10 +91,10 @@ What differs between dealers beyond their records is in their profile (#5): one 
   since images load from here only). The name is the directory's `name` column. Owners and managers change the name, website, phone,
   email, address and hours in Settings, Your business (`saveBusinessAction`, in the activity history); it merges into the profile, never
   over what is ours.
-- **Ours to set** (shown read only in Billing, "What we set for you"): `stock` (`source` "checkwork" or "donedeal",
+- **Ours to set** (shown read only in Billing: the plan, and "What we set for you"): `plan` (`website`, `dashboard` or `both`), `stock` (`source` "checkwork" or "donedeal",
   `listingSite`, `listingUrl`), `rules` (`oldStockDays`, `slowDropEur`, `soldVisibleDays`, `serviceMonths`), `placeId` (Google reviews)
   and `leadEmail` (where leads go when Settings has no address). How to set them: `docs/new-dealer.md`.
-- **Defaults:** a dealer with nothing set has stock kept here, the usual rules, no website and no logo (the menu
+- **Defaults:** a dealer with nothing set has the dashboard plan, stock kept here, the usual rules, no website and no logo (the menu
   shows the name). A demo dealer's base is the made-up demo business (`DEMO_PROFILE`: its facts and logo); the demo reset
   puts its profile back to that.
 - **Billing settings** (term, first month free, ceilings, caps) were already per dealer: the settings record in the dealer's own store.
@@ -469,10 +470,20 @@ Until both are set every page answers 404 for everyone. The Worker checks Access
 
 ## Billing and Help
 
-One plan for every dealer (#212, `PLAN` in `src/lib/billing/rules.ts`; the decision is in `docs/decisions.md`, Pricing): EUR 249 a
-month before VAT, for one dealership, with everything included (the website, the dashboard, social and ads and every other part). No
-setup fee and no add-ons. Each month includes 100 registration lookups and 500 WhatsApp alerts and confirmations (the amounts the
-dashboard plans already included); past that, usage is pay as you go, paid by the dealer.
+Three plans (#147, #212, `PLANS` in `src/lib/billing/rules.ts`; the decision is in `docs/decisions.md`, Pricing), a month before VAT,
+for one dealership. Each is all-inclusive: no add-ons and no setup fee. A plan with the dashboard has every part of it (social and ads,
+AI writing and the rest); the plan never changes what a dealer sees.
+
+| Plan (`plan`) | Monthly | Included each month |
+|---|---|---|
+| Website (`website`) | EUR 149 | none |
+| Dashboard (`dashboard`) | EUR 149 | 100 lookups, 500 WhatsApp alerts and confirmations |
+| Website + Dashboard (`both`) | EUR 249 | 100 lookups, 500 WhatsApp alerts and confirmations |
+
+- The plan is `plan` in the dealer's profile, ours to set (`docs/new-dealer.md`). Without it: `dashboard` for a new dealer, `both` for the
+  demo. A profile saved with the old `modules` list and no `plan` is read once (`planOf`): the dashboard with any website part (trade-in,
+  finance, car finder, commercial) is `both`, the dashboard alone `dashboard`, no dashboard `website`, `all` is `both`.
+- Past the allowance, usage is pay as you go, paid by the dealer.
 
 - **Over the allowance** each use is billed: lookup EUR 0.30, history check EUR 2.50 (a placeholder, to confirm against One Auto's
   price), WhatsApp alert EUR 0.05, reply EUR 0.03, marketing message EUR 0.12.

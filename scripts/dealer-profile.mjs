@@ -1,10 +1,10 @@
 // Changes a dealer's profile in the directory: the fields in the file are merged into what is stored (JSON merge patch: a field given
 // replaces that field, a group such as "rules" is merged one level down, null removes a field), the rest stays. The dealer's own facts
-// are theirs to change in Settings too; the stock source ("stock") and rules ("rules") are ours, here only.
+// are theirs to change in Settings too; the plan billed ("plan"), stock source ("stock") and rules ("rules") are ours, here only.
 // Dev unless --env production (scripts/dealers.mjs, target).
 // Usage: node scripts/dealer-profile.mjs <dealer-id> <file.json> --remote|--local [--env production]
-// Example file, to give a dealer stock synced from CarsIreland:
-//   { "stock": { "source": "donedeal", "listingSite": "CarsIreland", "listingUrl": "https://www.carsireland.ie/dealer/..." } }
+// Example file, to bill a dealer for the website and the dashboard, with stock synced from CarsIreland:
+//   { "plan": "both", "stock": { "source": "donedeal", "listingSite": "CarsIreland", "listingUrl": "https://www.carsireland.ie/dealer/..." } }
 import { DEALER_ID, announce, directoryRows, readProfile, sqlText as q, target } from "./dealers.mjs";
 
 const t = target(process.argv.slice(2));
