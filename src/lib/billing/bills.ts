@@ -2,11 +2,9 @@ import "server-only";
 import { defineCollection } from "@/lib/admin/docs";
 import { dublinDay } from "@/lib/admin/format";
 import { getSettings } from "@/lib/admin/collections";
-import { MODULE_IDS } from "@/lib/modules-rules";
-import { enabledModules } from "@/lib/modules";
-import { billingSettings } from "./usage";
+import { billingSettings, currentPlan } from "./usage";
 import { usageLines, type Bill, type BillingDetails } from "./bills-rules";
-import { BILLING_DEFAULT, allowanceFor, planLines, type Service } from "./rules";
+import { BILLING_DEFAULT, PLANS, planLines, type Service } from "./rules";
 import { currentDealer } from "@/lib/tenancy/current";
 import { addressText } from "@/lib/tenancy/profile";
 
@@ -23,12 +21,11 @@ export async function getBill(id: string): Promise<Bill | undefined> {
   const bill = await billsStore.get(id);
   return bill && (await asShown())(bill);
 }
-// A demo dealer's bills follow the plan the demo bar shows now, so the Bills tab never disagrees with the Plan tab. A real dealer's are as issued.
+// A demo dealer's bills follow its plan today, as this month's does. A real dealer's are as issued.
 async function asShown(): Promise<(bill: Bill) => Bill> {
   if (!(await currentDealer()).demo) return (bill) => bill;
-  const [modules, b] = await Promise.all([enabledModules(), billingSettings()]);
-  const allowance = allowanceFor(modules, b);
-  return (bill) => ({ ...bill, modules: planLines(modules, b, bill.id), usage: usageLines(bill.usage, allowance) });
+  const [b, plan] = await Promise.all([billingSettings(), currentPlan()]);
+  return ({ modules: _, ...bill }) => ({ ...bill, plan: planLines(plan, b, bill.id), usage: usageLines(bill.usage, PLANS[plan].allowance) });
 }
 
 export async function billingDetails(): Promise<BillingDetails> {
@@ -40,7 +37,6 @@ export async function billingDetails(): Promise<BillingDetails> {
 function seedBills(): Bill[] {
   const today = dublinDay();
   const [y, m] = today.slice(0, 7).split("-").map(Number);
-  const allowance = allowanceFor(MODULE_IDS, BILLING_DEFAULT);
   return Array.from({ length: 12 }, (_, i) => {
     const d = new Date(Date.UTC(y, m - 2 - i, 1)); // i = 0 is last month
     const id = d.toISOString().slice(0, 7);
@@ -54,6 +50,6 @@ function seedBills(): Bill[] {
       { service: "whatsapp", kind: "reply", count: 40 + grow * 5 },
       { service: "whatsapp", kind: "marketing", count: i % 3 === 0 ? 40 : 0 },
     ];
-    return { id, issuedOn, dueOn: issuedOn, status: issuedOn < today ? "paid" : "due", modules: planLines(MODULE_IDS, BILLING_DEFAULT, id), usage: usageLines(counts, allowance) }; // every module: Website + Dashboard and Social
+    return { id, issuedOn, dueOn: issuedOn, status: issuedOn < today ? "paid" : "due", plan: planLines("both", BILLING_DEFAULT, id), usage: usageLines(counts, PLANS.both.allowance) }; // the demo's plan
   });
 }

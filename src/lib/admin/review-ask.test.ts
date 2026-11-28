@@ -24,8 +24,7 @@ const store = (m: Map<string, Record<string, unknown>>) => ({
 vi.mock("./collections", () => ({ salesStore: store(db.sales), customersStore: store(db.customers), leadsStore: { list: async () => db.leads } }));
 vi.mock("./activity", () => ({ logActivity: async (_a: string, text: string) => void db.activity.push(text) }));
 vi.mock("@/lib/tenancy/current", () => ({ currentDealer: async () => ({ name: "Byrne Motors", demo: db.demo, profile: { placeId: db.placeId } }) }));
-vi.mock("@/lib/integrations", () => ({ simulating: async () => db.demo }));
-vi.mock("@/lib/modules", () => ({ hasModule: async () => db.whatsapp }));
+vi.mock("@/lib/integrations", () => ({ simulating: async () => db.demo, isUsable: async () => db.whatsapp }));
 vi.mock("@/lib/leads/mail", () => ({
   leadRecipients: async () => ["sales@byrne.ie"],
   sendTo: async (to: string[], m: { text: string; replyTo?: string }) => void db.mail.push({ to, text: m.text, replyTo: m.replyTo }),
@@ -36,7 +35,7 @@ vi.mock("@/lib/whatsapp/send", () => ({
   sendWhatsApp: async (d: Record<string, unknown>, _k: string, o: { email?: boolean; canEmail?: boolean } = {}) =>
     o.email ? (db.wa.push({ ...d, via: "email" }), { ...d, via: "email" }) : db.channel === "whatsapp" ? (db.wa.push(d), d) : o.canEmail === false ? null : (db.wa.push({ ...d, via: "email" }), { ...d, via: "email" }),
 }));
-const { DEMO_PLACE_ID, REVIEW_OPT_OUT, askForReview, leadsIndex, leadsOf, reviewByWhatsApp, reviewLink, reviewReach } = await import("./review-ask");
+const { DEMO_PLACE_ID, REVIEW_OPT_OUT, askForReview, leadsIndex, leadsOf, reviewByWhatsApp, reviewLink, reviewPlace, reviewReach } = await import("./review-ask");
 
 const lead = (o: Record<string, unknown>) => ({ id: "lead-1", type: "enquiry", status: "won", name: "Pat Byrne", email: "", phone: "+353 83 000 1234", message: "", source: "Website", notes: [], createdAt: 0, ...o });
 beforeEach(() => {
@@ -57,7 +56,7 @@ beforeEach(() => {
 describe("reviewReach", () => {
   it("is WhatsApp for a buyer who opted in, else email, else nobody", () => {
     expect(reviewReach({ email: "a@b.ie" }, [{ id: "l", whatsappOptIn: true, phone: "087 123 4567" }], true)).toEqual({ via: "whatsapp", leadId: "l" });
-    expect(reviewReach({ email: "a@b.ie" }, [{ id: "l", whatsappOptIn: true, phone: "087 123 4567" }], false)).toEqual({ via: "email" }); // not in the plan
+    expect(reviewReach({ email: "a@b.ie" }, [{ id: "l", whatsappOptIn: true, phone: "087 123 4567" }], false)).toEqual({ via: "email" }); // WhatsApp cannot send
     expect(reviewReach({ email: "a@b.ie" }, [], true)).toEqual({ via: "email" });
     expect(reviewReach({ email: "" }, [{ id: "l", phone: "087 123 4567" }], true)).toBeNull();
   });
@@ -133,6 +132,14 @@ ${REVIEW_OPT_OUT}`)).toBe(true);
     expect(db.wa).toMatchObject([{ leadId: "lead-1", via: "email" }]);
   });
 
+  it("goes by email alone, with nothing in a WhatsApp conversation, while the dealer's WhatsApp is not connected (#212)", async () => {
+    db.leads = [lead({ whatsappOptIn: true })];
+    db.whatsapp = false;
+    expect(await askForReview("car-1")).toBe("email");
+    expect(db.mail).toHaveLength(1);
+    expect(db.wa).toEqual([]);
+  });
+
   it("never says it went by email in their conversation when the email failed", async () => {
     db.leads = [lead({ whatsappOptIn: true })];
     db.channel = "email";
@@ -181,5 +188,18 @@ ${REVIEW_OPT_OUT}`)).toBe(true);
     expect(await askForReview("car-1")).toBeNull();
     expect(db.mail).toEqual([]);
     expect(db.sales.get("car-1")?.reviewAskedOn).toBeUndefined();
+  });
+});
+
+// The monthly report (page and email) shows reviews only when this gives a place: a dealer with Google not connected has none coming in.
+describe("reviewPlace", () => {
+  it("is the dealer's own place, the made-up one on a demo dealer, and none for a dealer with Google not connected", async () => {
+    db.demo = false;
+    db.placeId = "ChIJ1";
+    expect(await reviewPlace()).toBe("ChIJ1");
+    db.placeId = undefined;
+    expect(await reviewPlace()).toBeUndefined();
+    db.demo = true;
+    expect(await reviewPlace()).toBe(DEMO_PLACE_ID);
   });
 });

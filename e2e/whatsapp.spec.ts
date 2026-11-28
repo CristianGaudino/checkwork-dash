@@ -45,17 +45,6 @@ test("reply with a price: the lead gets the offer, and the buyer answers", async
   await expect(page.getByText("Offer sent by WhatsApp: €8,500").first()).toBeVisible();
 });
 
-test("without the WhatsApp module there is no WhatsApp column, demo or service panel", async ({ page, context, baseURL }) => {
-  await context.addCookies([{ name: "checkwork-demo-modules", value: "dashboard", url: baseURL! }]);
-  await page.goto("/settings?section=emails");
-  await expect(page.getByText("Try WhatsApp", { exact: true })).toHaveCount(0);
-  await page.getByRole("button", { name: "Edit your notifications" }).click();
-  await expect(page.getByRole("dialog", { name: "Notifications" }).getByRole("checkbox", { name: "WhatsApp" })).toHaveCount(0);
-  await page.keyboard.press("Escape");
-  await page.goto("/settings?section=services");
-  await expect(page.getByRole("region", { name: "WhatsApp", exact: true })).toHaveCount(0);
-});
-
 test("Finance has no WhatsApp: no column and no demo", async ({ page, context }) => {
   await as(context, "Finance");
   await page.goto("/settings?section=emails");

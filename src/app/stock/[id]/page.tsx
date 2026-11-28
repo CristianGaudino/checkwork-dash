@@ -28,8 +28,6 @@ import { syncStatus } from "@/lib/donedeal/sync";
 import { forSale, isReduced, onPublicSite } from "@/lib/stock/types";
 import { deleteCarAction, dropPriceAction, saveCostAction, undoDropAction } from "../actions";
 import { suggestedDrop } from "@/lib/admin/overview";
-import { enabledModules, hasModule } from "@/lib/modules";
-import { conditionShown } from "@/lib/modules-rules";
 import { HistoryPanel } from "@/components/admin/HistoryPanel";
 import { carHistoryStore } from "@/lib/history";
 import { checkHistoryAction } from "@/app/history-action";
@@ -44,7 +42,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
   const { id } = await params;
   const sp = await searchParams;
   // One read for the car and when it was written, so the form never pairs an older car with a newer time (#15).
-  const [opened, deposits] = await Promise.all([adminCarAt(id), hasModule("sales")]);
+  const opened = await adminCarAt(id);
   const car = opened?.car;
   const at = opened?.at;
   if (!car) notFound();
@@ -94,10 +92,10 @@ export default async function Page({ params, searchParams }: { params: Promise<{
         Drop to {fmtEur(drop.priceEur)}
       </ActButton>
     ),
-    (await hasModule("social")) && <PostToSocial key="post" car={car} className={quiet} />,
+    <PostToSocial key="post" car={car} className={quiet} />,
     // Going to the website, and showing or hiding the car there, are quieter than the jobs done here.
-    <ViewOnSite key="view" car={car} shown={conditionShown(await enabledModules(), car.condition)} className={rowButton} />,
-    deposits && !synced && !sold && (held || forSale(car)) && <Link key="reserve" href={`/stock/${id}/reserve`} className={quiet}><TagIcon className="shrink-0 size-4" />{held ? "See the deposit" : "Reserve"}</Link>,
+    <ViewOnSite key="view" car={car} className={rowButton} />,
+    !synced && !sold && (held || forSale(car)) && <Link key="reserve" href={`/stock/${id}/reserve`} className={quiet}><TagIcon className="shrink-0 size-4" />{held ? "See the deposit" : "Reserve"}</Link>,
     // A sold car too, while it is still on the site as Sold; one sold long ago is off it already.
     !synced && (!sold || onPublicSite({ soldAt: car.soldAt }, rules.soldVisibleDays)) && <ListingButton key="listing" car={car} className={rowButton} />,
     synced && sold && !sale && !car.takenDownAt && <a key="dd" href={listingHref(car, listingUrl)} {...NEW_TAB} className={quiet}>Edit on {listingSite}<span className="sr-only"> (opens in a new tab)</span></a>,
@@ -108,7 +106,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
   const facts = [
     car.listedAt && !sold ? (isOld(car, rules.oldStockDays) ? undefined : daysInStock(car.listedAt) === "Today" ? "Added today" : `${daysInStock(car.listedAt)} in stock`) : sale ? `Sold for ${fmtEur(sale.priceEur)} on ${day(sale.soldOn)}` : sold ? `Sold ${day(car.soldAt!)}` : undefined,
     sale?.reviewAskedOn ? `Asked for a review ${day(sale.reviewAskedOn)}` : undefined,
-    ...(sale && deposits ? reminderFacts(sale, { reg: car.reg, history: carHistory }, rules.serviceMonths, dublinDay()) : []), // the buyer's NCT and service (#171), the sales module
+    ...(sale ? reminderFacts(sale, { reg: car.reg, history: carHistory }, rules.serviceMonths, dublinDay()) : []), // the buyer's NCT and service (#171)
     plural(car.photos.length, "photo"),
     car.mileageKm !== undefined ? `${fmtNum(car.mileageKm)} km` : undefined,
   ].filter(Boolean).join(" · ");
@@ -138,7 +136,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
     </section>
   );
   // The history check (#170): the car's own, and a recorded sale's trade-in's. Kept beside the car, so synced stock has it too.
-  const checks = (await hasModule("history")) && (
+  const checks = (
     <>
       {car.reg && <HistoryPanel reg={car.reg} history={carHistory} act={checkHistoryAction.bind(null, "car", id)} />}
       {sale?.tradeIn && <HistoryPanel title="Trade-in history" reg={sale.tradeIn.reg} history={sale.tradeIn.history} act={checkHistoryAction.bind(null, "sale", id)} />}
@@ -153,7 +151,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
         {summary}
         {checks}
         {/* The site shows the feed's text, so a better one is written here and pasted into the listing site (#225). Not for an ad that is gone. */}
-        {!sold && !car.takenDownAt && (await hasModule("ai")) && <SyncedDescription description={car.description ?? ""} request={{ task: "carDescription", fields: carFields(car) }} site={listingSite} />}
+        {!sold && !car.takenDownAt && <SyncedDescription description={car.description ?? ""} request={{ task: "carDescription", fields: carFields(car) }} site={listingSite} />}
         {/* DoneDeal has the car; the cost is the dealer's own, so it is still entered here. */}
         {cost && (
           <div id="cost" className="scroll-mt-24">

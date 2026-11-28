@@ -3,8 +3,8 @@
 // Dev unless --env production (scripts/dealers.mjs, target): a dealer is added in each environment on its own.
 // Usage: node scripts/add-dealer.mjs <dealer-id> "<Dealer name>" <owner email> --remote|--local [--env production] [--demo] [--profile=<file.json>]
 //   --demo: a demo dealer (made-up records, the morning reset), with the made-up team (example.com) so the demo bar's roles have people.
-//   --profile: the dealer's facts, plan, stock source and rules (src/lib/tenancy/profile.ts). Without it: the plain defaults (the dashboard
-//   alone, stock kept here), or the demo business for --demo. Change it later with scripts/dealer-profile.mjs.
+//   --profile: the dealer's facts, plan, stock source and rules (src/lib/tenancy/profile.ts). Without it: the plain defaults (the
+//   dashboard plan, stock kept here), or the demo business for --demo. Change it later with scripts/dealer-profile.mjs.
 // Prints nothing personal beyond what you typed. Safe to run again: an existing dealer or member is left as it is.
 import { DEALER_ID, announce, bindingOf, readProfile, runDirectorySql, sqlText as q, target, wrangler } from "./dealers.mjs";
 

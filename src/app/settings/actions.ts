@@ -7,7 +7,6 @@ import { sendToDealer } from "@/lib/leads/mail";
 import { SETTINGS_DEFAULT, changeTeamMember, getSettings, leadsStore, moveTeamMember, reservationsStore, salesStore, settingsStore, type DealerSettings, type TeamMember, drivesStore } from "@/lib/admin/collections";
 import { noticesStore, readsStore } from "@/lib/admin/notifications";
 import { feedbackStore, helpStore } from "@/lib/admin/help";
-import { enabledModules } from "@/lib/modules";
 import { alertsOf, columnsFor, eventsFor, profileErrors, readGrid, roleDefaults, type Prefs } from "@/lib/notify-rules";
 import { people, whatsappOn, type Person } from "@/lib/people";
 import { resetDemoRecords } from "@/lib/admin/demo-reset";
@@ -82,7 +81,7 @@ export async function saveMarketingAction(_p: SettingsState, data: FormData): Pr
 }
 
 // The dealer's own facts (name, website, phone, email, address, hours), kept in their profile in the directory, not in their store. Only
-// the facts: the plan, stock source and rules are ours to set. Hours come as opens0..6 and closes0..6, Monday first; a day with neither is
+// the facts: the stock source and rules are ours to set. Hours come as opens0..6 and closes0..6, Monday first; a day with neither is
 // closed, and a day with one needs both, closing after opening.
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 export async function saveBusinessAction(_p: SettingsState, data: FormData): Promise<SettingsState> {
@@ -220,7 +219,7 @@ async function writePerson(p: Person, n: Next) {
 // they were when its column is not shown.
 async function readNotifications(data: FormData, p: Person, role: Role, phone: string) {
   const columns = columnsFor(role, { on: await whatsappOn(), phone });
-  const prefs = data.has("notify-grid") ? readGrid((c) => data.getAll(`notify-${c}`).map(String), eventsFor(role, await enabledModules()), columns, p.prefs) : p.prefs;
+  const prefs = data.has("notify-grid") ? readGrid((c) => data.getAll(`notify-${c}`).map(String), eventsFor(role), columns, p.prefs) : p.prefs;
   const wa = columns.includes("whatsapp");
   return { prefs, quietFrom: wa ? String(data.get("quietFrom") ?? "") : p.quietFrom, quietTo: wa ? String(data.get("quietTo") ?? "") : p.quietTo };
 }

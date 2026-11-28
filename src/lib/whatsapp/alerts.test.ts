@@ -6,7 +6,7 @@ const db = vi.hoisted(() => ({
   msgs: [] as Record<string, unknown>[],
   phones: [] as Record<string, unknown>[],
   team: [] as { id: string; role: string }[],
-  modules: new Set<string>(),
+  connected: true,
   allowed: true,
   used: 0,
   cars: [] as Record<string, unknown>[],
@@ -19,9 +19,8 @@ vi.mock("./store", () => ({
   isStaffAlert: (m: { thread: string; from: string; event?: string }) => m.thread === "staff" && m.from === "site" && Boolean(m.event),
   lastWeek: () => ({ leads: 4, drives: 2, sales: 1 }),
 }));
-vi.mock("@/lib/integrations", () => ({ modeOf: () => "simulated" }));
+vi.mock("@/lib/integrations", () => ({ modeOf: () => "simulated", isUsable: async () => db.connected }));
 vi.mock("@/lib/billing/usage", () => ({ usageAllowed: async () => db.allowed, recordUsage: async (_s: string, _k: string, n = 1) => void (db.used += n) }));
-vi.mock("@/lib/modules", () => ({ enabledModules: async () => db.modules }));
 vi.mock("@/lib/admin/collections", () => ({
   getSettings: async () => ({ team: db.team }),
   leadsStore: { list: async () => [] },
@@ -43,7 +42,7 @@ beforeEach(() => {
   db.msgs = [];
   db.team = [{ id: "a", role: "Owner" }, { id: "b", role: "Owner" }, { id: "c", role: "Owner" }, { id: "d", role: "Owner" }];
   db.phones = [phone("a"), phone("b", { quietFrom: "11:00", quietTo: "13:00" }), phone("c", { phone: "" }), phone("d", { alerts: ["enquiry"] }), phone("gone")];
-  db.modules = new Set(["dashboard", "whatsapp", "sales", "social", "reviews", "margins"]);
+  db.connected = true;
   db.allowed = true;
   db.used = 0;
   db.cars = [];
@@ -77,10 +76,8 @@ describe("alertStaff", () => {
     expect(db.msgs.find((m) => m.to === "a")).toMatchObject({ buttons: ["drop"], text: expect.stringContaining("Drop the price by €500?") });
     expect(db.msgs.find((m) => m.to === "b")).toMatchObject({ buttons: [], text: "The 2019 Ford Focus has been in stock 130 days." });
   });
-  it("sends nothing without WhatsApp, or without the alert's own module", async () => {
-    db.modules.delete("sales");
-    expect(await alertStaff("deposit", { eur: 1000 })).toBe(0);
-    db.modules = new Set(["dashboard", "sales"]);
+  it("sends nothing, not even by email, until the dealer's WhatsApp is connected (#212)", async () => {
+    db.connected = false;
     expect(await alertStaff("deposit", { eur: 1000 })).toBe(0);
     expect(db.msgs).toEqual([]);
   });
@@ -104,6 +101,13 @@ describe("alertStaffOnWhatsApp", () => {
     db.msgs = [];
     await alertStaffOnWhatsApp({ ...lead, phone: "(021) 496 1234" });
     expect(buyer()).toEqual([]);
+  });
+  it("writes nothing, not even by email, for a dealer whose WhatsApp is not connected (#212)", async () => {
+    db.connected = false;
+    await alertStaffOnWhatsApp({ id: "real-2", type: "enquiry", status: "new", name: "Pat Byrne", email: "pat@example.com", phone: "087 123 4567", message: "Hi", source: "Website", notes: [], createdAt: 1, whatsappOptIn: true } as Lead);
+    db.cars = [{ id: "old", listedAt: "2026-07-01", priceEur: 9000 }];
+    expect(await sendDailyAlerts()).toEqual({ sent: 0 });
+    expect(db.msgs).toEqual([]);
   });
 });
 

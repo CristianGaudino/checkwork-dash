@@ -10,7 +10,6 @@ import { helpGroups } from "@/lib/help/topics";
 import { dealerProfile } from "@/lib/tenancy/current";
 import { OpenFromHash } from "./OpenFromHash";
 import { DEALER_NAV } from "@/lib/admin/nav";
-import { enabledModules } from "@/lib/modules";
 import { listing, stockSource } from "@/lib/stock-source";
 import { NEW_TAB } from "@/components/ui";
 
@@ -18,58 +17,43 @@ export const metadata = { title: "Help" };
 
 const TONE: Record<HelpStatus, Tone> = { received: "neutral", inProgress: "info", done: "good" };
 const today = () => Date.now();
-const contact = `${adminButtonQuiet} !h-auto w-full justify-start gap-3 py-3 text-left`;
 
 // The page a request came from, as the menu names it ("Margins", "Settings"); a page deeper in an area takes its area's name.
 const pageName = (from: string) => DEALER_NAV.filter((i) => from === i.href || from.startsWith(`${i.href}/`)).sort((a, b) => b.href.length - a.href.length)[0]?.label ?? "the dashboard";
 
 // Every team member can reach us from here. First a person, one press away; then how to do the everyday jobs (most questions end there),
-// one topic per job, each closed until opened, grouped as the menu is, only those for this person's role and this dealer's plan (src/lib/help/topics.ts),
+// one topic per job, each closed until opened, grouped as the menu is, only those for this person's role (src/lib/help/topics.ts),
 // beside the form; then what they sent, with our replies. `from` is the page they came from, when a link sets it (the Billing page does).
 export default async function Page({ searchParams }: { searchParams: Promise<{ from?: string; type?: string }> }) {
-  const [me, sp, modules, source, { site: listingSite }, { rules }] = await Promise.all([currentMember(), searchParams, enabledModules(), stockSource(), listing(), dealerProfile()]);
+  const [me, sp, source, { site: listingSite }, { rules }] = await Promise.all([currentMember(), searchParams, stockSource(), listing(), dealerProfile()]);
   const types = typesFor(me.role);
   const first = types.find((t) => t === sp.type) ?? types[0];
   const [mine, last] = await Promise.all([requestsOf(me.name), feedbackStore.get(me.name.toLowerCase())]);
-  const groups = helpGroups({ role: me.role, modules, synced: source === "donedeal", listingSite, oldStockDays: rules.oldStockDays });
+  const groups = helpGroups({ role: me.role, synced: source === "donedeal", listingSite, oldStockDays: rules.oldStockDays });
 
   return (
     <>
-      <PageHeader title="Help" />
-
-      <Panel title="Talk to us" text={SUPPORT.hours}>
-        <ul className="grid grid-cols-1 gap-3 sm:@[35rem]/page:grid-cols-3">
-          <li>
-            <a href={supportTel} className={contact}>
-              <PhoneIcon className="size-5 shrink-0 text-text-2" />
-              <span className="flex flex-col">
-                <span>Call</span>
-                <span className="font-normal text-text-2">{SUPPORT.phone}</span>
-              </span>
+      {/* Talking to us is the page's first job (#213): the three ways sit in the header, the hours and number under the title. */}
+      <PageHeader
+        title="Help"
+        text={`${SUPPORT.hours}. ${SUPPORT.phone}`}
+        actions={
+          <>
+            <a href={supportTel} className={adminButtonQuiet}>
+              <PhoneIcon aria-hidden="true" className="size-5 shrink-0" />
+              Call
             </a>
-          </li>
-          <li>
-            <a href={`mailto:${SUPPORT.email}`} className={contact}>
-              <InboxIcon className="size-5 shrink-0 text-text-2" />
-              <span className="flex min-w-0 flex-col">
-                <span>Email</span>
-                <span className="truncate font-normal text-text-2">{SUPPORT.email}</span>
-              </span>
+            <a href={`mailto:${SUPPORT.email}`} className={adminButtonQuiet}>
+              <InboxIcon aria-hidden="true" className="size-5 shrink-0" />
+              Email
             </a>
-          </li>
-          <li>
-            <a href={supportWhatsApp} {...NEW_TAB} className={contact}>
-              <WhatsAppIcon className="size-5 shrink-0 text-whatsapp" />
-              <span className="flex flex-col">
-                <span>
-                  WhatsApp<span className="sr-only"> (opens in a new tab)</span>
-                </span>
-                <span className="font-normal text-text-2">{SUPPORT.phone}</span>
-              </span>
+            <a href={supportWhatsApp} {...NEW_TAB} className={adminButtonQuiet}>
+              <WhatsAppIcon aria-hidden="true" className="size-5 shrink-0 text-whatsapp" />
+              WhatsApp<span className="sr-only"> (opens in a new tab)</span>
             </a>
-          </li>
-        </ul>
-      </Panel>
+          </>
+        }
+      />
 
       <Columns
         aside={
@@ -87,18 +71,18 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ f
                   {g.title}
                 </h3>
                 {/* One topic per row, closed until asked for, as GOV.UK's and Apple Support's help pages do; several can be open at once. */}
-                <ul className="flex flex-col divide-y divide-hairline rounded-control border border-hairline">
+                <ul className="flex flex-col divide-y divide-hairline border-y border-hairline">
                   {g.topics.map((t) => (
                     <li key={t.id}>
                       <details id={t.id} className="group scroll-mt-24">
-                        <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 px-4 py-2 [&::-webkit-details-marker]:hidden">
+                        <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 rounded-control py-2 hover:bg-surface [&::-webkit-details-marker]:hidden">
                           <span className="flex min-w-0 flex-1 flex-col">
                             <span className="text-body font-medium">{t.title}</span>
                             <span className="text-meta text-text-2">{t.summary}</span>
                           </span>
                           <ChevronDownIcon aria-hidden="true" className="size-5 shrink-0 text-text-2 transition-transform group-open:rotate-180" />
                         </summary>
-                        <div className="flex flex-col gap-2 px-4 pb-3">
+                        <div className="flex flex-col gap-2 pb-3">
                           {t.steps && (
                             <ol className="flex list-decimal flex-col gap-1 pl-5 text-body text-text-2">
                               {t.steps.map((s) => (

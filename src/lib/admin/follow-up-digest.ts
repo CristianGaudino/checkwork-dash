@@ -1,6 +1,5 @@
 import "server-only";
 import { sendTo } from "@/lib/leads/mail";
-import { hasModule } from "@/lib/modules";
 import { gets } from "@/lib/notify-rules";
 import { people } from "@/lib/people";
 import { appUrl } from "@/lib/site";
@@ -25,8 +24,6 @@ export function digestGroups(leads: Lead[], team: TeamMember[], today: string, w
 }
 
 export async function sendFollowUpDigest(now = Date.now()): Promise<{ sent: number }> {
-  // The leads are a dashboard page: a dealer without the dashboard (#173) gets no email pointing at it, as with the monthly report.
-  if (!(await hasModule("dashboard"))) return { sent: 0 };
   const { team } = await getSettings();
   const on = new Set((await people()).filter((p) => gets(p.prefs, p.role, "email", "follow-ups")).map((p) => p.email.toLowerCase()));
   if (!on.size) return { sent: 0 };

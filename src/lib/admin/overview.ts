@@ -54,7 +54,7 @@ export function overview(input: { leads: Lead[]; drives: TestDrive[]; reviews: A
   const attention: Attention[] = ([
     // Each kind of lead is now (red) when any one of its leads is (leadsToAnswer).
     { key: "follow", label: "Follow-ups due", count: due.length, href: `/leads?need=due${withMe}`, urgency: due.some((t) => t.urgency === "now") ? "now" : "soon" },
-    // Where Reply to leads goes: Leads' To answer now, the same leads.
+    // Where This week's To answer goes: Leads' To answer now, the same leads.
     { key: "reply", label: "New leads to answer", count: reply.length, href: input.mine === undefined ? "/leads" : "/leads?mine=1", urgency: reply.some((t) => t.urgency === "now") ? "now" : "soon" },
     { key: "drives", label: "Test drives to confirm", count: toConfirm.length, href: "/test-drives?view=list&status=requested&when=ahead", urgency: "soon" },
     // Warranty requests from the website with no claim opened yet (openWarrantyRequests), as Aftersales' Requests.
@@ -77,7 +77,7 @@ export function overview(input: { leads: Lead[]; drives: TestDrive[]; reviews: A
   return {
     weeks,
     usualWeek: before[Math.floor(before.length / 2)],
-    answer, // every lead waiting on you, for the Reply to leads button
+    answer, // every lead waiting on you, for This week's To answer
     reply,
     due,
     toConfirm,

@@ -12,7 +12,6 @@ import { BAD_COST, parseCost } from "@/lib/admin/margins";
 import { fieldErrors, isoDay, type FormState } from "@/lib/admin/validation";
 import { tooLong } from "@/lib/leads/constants";
 import { can } from "@/lib/permissions";
-import { requireModule } from "@/lib/modules";
 import { requireStaff } from "@/lib/staff";
 import { STALE_STATUS, movedSince } from "@/lib/admin/stale";
 
@@ -34,7 +33,6 @@ const opening = z.object({
 // Whether it is in cover is worked out from the sale (the day sold and the months of cover), never typed.
 export async function openClaimAction(_prev: FormState, data: FormData): Promise<FormState> {
   await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
-  await requireModule("service"); // and only while the dealer has it
   const r = opening.safeParse(Object.fromEntries(data));
   if (!r.success) return { errors: fieldErrors(r.error) };
   const d = r.data;
@@ -53,7 +51,6 @@ export async function openClaimAction(_prev: FormState, data: FormData): Promise
 const status = z.enum(CLAIM_STATUSES);
 export async function setClaimStatusAction(id: string, data: FormData) {
   await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
-  await requireModule("service"); // and only while the dealer has it
   const to = status.safeParse(data.get("status"));
   const claim = await claimsStore.get(id);
   if (!to.success || !claim) return;
@@ -69,7 +66,6 @@ export async function setClaimStatusAction(id: string, data: FormData) {
 
 export async function addClaimNoteAction(id: string, data: FormData) {
   await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
-  await requireModule("service"); // and only while the dealer has it
   const claim = await appendNote(claimsStore, id, data);
   if (!claim) return;
   await logActivity("customers", "Added a note to the warranty claim", carRef(claim)); // never the note itself
@@ -79,7 +75,6 @@ export async function addClaimNoteAction(id: string, data: FormData) {
 export type CostState = { error?: string; saved?: number } | undefined;
 export async function setClaimCostAction(id: string, _prev: CostState, data: FormData): Promise<CostState> {
   await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
-  await requireModule("service"); // and only while the dealer has it
   const claim = (await can("margins")) ? await claimsStore.get(id) : undefined;
   if (!claim) return { error: "Only staff who see margins can enter the cost" };
   const cost = parseCost(String(data.get("costEur") ?? ""));

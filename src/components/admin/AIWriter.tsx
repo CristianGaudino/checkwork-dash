@@ -3,7 +3,6 @@
 import { useId, useRef, useState, useTransition } from "react";
 import { SparkleIcon } from "@/components/stock/icons";
 import { press } from "@/components/ui";
-import { useModules } from "@/components/DealerFacts";
 import { writeAction } from "@/lib/ai/actions";
 import { ADJUSTS, adjustsFor, type Adjust, type Task, type WriteRequest } from "@/lib/ai/tasks";
 import type { PostFormat } from "@/lib/admin/networks";
@@ -20,15 +19,13 @@ const BRIEF_SAID = { limit: "The monthly AI limit is reached. Ask us in Help to 
 
 // "Write with AI" for any text box (#179): a first draft from the record's facts, then buttons that rewrite it, Undo for one step back, and a
 // label so AI text is never taken for the dealer's own. The box stays the host's own and stays editable. `request` is read when a button is
-// pressed (the car form's boxes may have changed). Hidden entirely when the dealer has no AI module. `onBusy`: a write started (true) or ended (false), so the box can hold still while it is written.
+// pressed (the car form's boxes may have changed). `onBusy`: a write started (true) or ended (false), so the box can hold still while it is written.
 export function AIWriter({ task, request, text, onText, onBusy, format }: { task: Task; request: () => WriteRequest | null; text: string; onText: (text: string) => void; onBusy?: (busy: boolean) => void; format?: PostFormat }) {
-  const has = useModules().has("ai");
   const [pending, start] = useTransition();
   const [said, setSaid] = useState("");
   const [written, setWritten] = useState(false); // for a screen reader: the draft arrived
   const [ai, setAi] = useState<string | null>(null); // the last text AI wrote
   const [back, setBack] = useState<{ text: string; ai: string | null } | null>(null);
-  if (!has) return null;
 
   const run = (adjust?: Adjust) => {
     const req = request();
@@ -138,11 +135,9 @@ export function AITextarea({ id, name, label, defaultValue = "", rows = 5, maxLe
 // "Prepare me" on a lead (#34): a short brief to read before calling them back, from the lead, their visit and the stock. The same button as
 // Write with AI, then the brief under an AI tag. Nothing to edit or send, so no box, no changes and no Undo; Prepare again writes it afresh.
 export function AIBrief({ leadId }: { leadId: string }) {
-  const has = useModules().has("ai");
   const [pending, start] = useTransition();
   const [said, setSaid] = useState("");
   const [brief, setBrief] = useState("");
-  if (!has) return null;
   const run = () => {
     setSaid("");
     start(async () => {

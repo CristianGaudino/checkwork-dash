@@ -70,8 +70,8 @@ misalignment, uneven spacing, controls that do not line up, text that wraps badl
 - The gearbox icon on the car page was the same sun as Settings: now a gear-stick pattern.
 - Stat tiles: the figure is sized from the tile (a container query), so tiles side by side match and €117,565 fits a half tile at 360px.
   The figure keeps the display font.
-- Dashboard page actions: on a phone, two or more share one full-width row, each icon above its label (Overview's three no longer wrap
-  two and one). A single action keeps its size.
+- Dashboard page actions: on a phone, two or more are a full-width grid of equal buttons, each icon above its label: three to a row at
+  320px with the usual text, fewer to a row with large text so none runs off the screen. A single action keeps its size.
 - Dashboard tables: the floor is 18rem, not 22rem, so two-column tables (stock, leads, team) fit a phone. The stock list drops the
   thumbnail under 400px to keep the car's name readable. Customers shows Marketing from 640px.
 - Task rows (Overview, To do, Leads, Stock, Marketing) and the other lists with row buttons (Test drives, Customers, Billing): the

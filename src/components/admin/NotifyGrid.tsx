@@ -3,7 +3,7 @@ import type { Role } from "@/lib/permission-rules";
 import { CheckIcon } from "@/components/stock/icons";
 
 export type GridRow = { id: NotifyEvent; label: string };
-// The events a role may get, from the plan's (src/lib/notify-rules.ts): a row only where one of the columns can carry it.
+// The events a role may get (src/lib/notify-rules.ts): a row only where one of the columns can carry it.
 export const rowsFor = (rows: GridRow[], role: Role | null, columns: Channel[]) => rows.filter((r) => columns.some((c) => mayGet(role, c, r.id)));
 
 // What reaches a person, and how (#142): one row per event and one column per channel. From 640px a table-like grid with the channels as

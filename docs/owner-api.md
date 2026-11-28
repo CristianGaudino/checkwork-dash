@@ -15,7 +15,6 @@ Send `Authorization: Bearer <OWNER_API_TOKEN>`. No token or a wrong one: `404`, 
 - `GET /api/owner/v1/dealers`: every dealer the app serves, `{"version": 1, "dealers": [{"id", "name", "status", "demo"}]}`. Ids and names only.
 - `GET /api/owner/v1/summary?dealer=<id>&from=YYYY-MM-DD&to=YYYY-MM-DD`
 - `GET /api/owner/v1/usage?dealer=<id>&from=&to=`: billing counts by month, with costs for the month in progress only (a past month may have been on another plan; its bill is the record)
-- `GET /api/owner/v1/modules?dealer=<id>`: the modules on and the monthly plan price (`planEur`: the plan and its add-ons, before VAT)
 
 `dealer` is required: an id from `/dealers`. Missing or malformed: `400`; no such dealer: `404`. The figures are worked out inside that dealer's own store. `from` and `to` are Irish days, inclusive; the default is the last 30 days. More than a year, or a bad day: `400`. Answers are cached for an hour per dealer and range (`Cache-Control: private, max-age=3600`, and in the Worker).
 
@@ -49,7 +48,7 @@ curl -X DELETE -H "Authorization: Bearer $OWNER_API_TOKEN" https://www.dash.chec
 
 ## Dealer contract term (#177)
 
-Checkwork sets each dealer's contract term (1 or 2 years; no setup fee on 2) and their free first month; the dealer sees both on Billing
+Checkwork sets each dealer's contract term (1 or 2 years) and their free first month; the dealer sees both on Billing
 (the term under "This month's bill", the free month under "What we set for you") and never changes them. The same bearer token; no token or a wrong one: `404`. Written to the dealer's
 billing settings (the record Billing reads) inside their own store, and the activity history says what changed, by Checkwork ("Set the
 contract to 2 years", "Set the first month free to December 2026", "Removed the first month free"). The demo dealer is allowed: it is
@@ -79,7 +78,7 @@ curl -X PUT -H "Authorization: Bearer $OWNER_API_TOKEN" -H "Content-Type: applic
   "reviews": { "count": 3, "average": 4.7 },
   "features": { "saved": 120, "compare": 31, "finance": 18, "units": 9, "no-results": 14, "filter:fuel": 52 },
   "dashboard": { "leads": 88, "stock": 40, "monthly-report": 2 },
-  "modules": ["dashboard", "sales", "reviews"],
+  "plan": { "id": "both", "label": "Website + Dashboard", "eur": 249 },
   "listingSync": { "lastRunAt": 1760000000000, "lastOkAt": 1760000000000, "result": { "added": 0, "changed": 0, "takenDown": 0 }, "ok": true },
   "usage": [{ "month": "2026-10", "totalEur": 12.4, "services": { "lookup": { "count": 40, "costEur": 12, "kinds": [{ "kind": "dashboard", "count": 30, "costEur": 9 }] } } }]
 }
@@ -89,6 +88,7 @@ curl -X PUT -H "Authorization: Bearer $OWNER_API_TOKEN" -H "Content-Type: applic
 - `replies`: minutes from a lead arriving to the first note on it, by when it arrived. `none`: leads with no note within 24 hours, once those 24 hours have passed. `null` when there are none.
 - `stock`: `added` and `sold` are in the range. `inStock`, `avgDaysInStock`, `oldStock` (for sale the dealer's `rules.oldStockDays` or more, 60 by default) and `priceDrops` are the stock now (the site keeps no daily history).
 - `sales.valueEur` appears only with `OWNER_API_MONEY=1`. Orders and deposits are not counted yet.
+- `plan`: the plan the dealer pays for (`website`, `dashboard` or `both`, #212), with its price a month before VAT (the list price: a free first month is on the bill). `/api/owner/v1/modules` and `modules` here were removed with the modules.
 - `features`: anonymous daily counters (`saved`, `compare`, `finance`, `units` for km or miles, `no-results`, `contact-topic`, `filter:<make|model|body|fuel|price|year|km|gearbox>`; `visit:<channel>`, one per visit by where it came from; `band:<price band>`; `missed:<make>` for a search with no cars to show). The lists are in `src/lib/visit-rules.ts`. `dashboard`: page opens per dashboard area, counted by the dashboard itself behind Access. Neither says who.
 - Visits are the `visit:*` counts in `features`. Errors in the last 24 hours are not included yet.
 

@@ -4,12 +4,6 @@ vi.mock("server-only", () => ({}));
 vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
 vi.mock("@/lib/staff", () => ({ requireStaff: async () => {} }));
 vi.mock("@/lib/admin/activity", () => ({ logActivity: async () => {} }));
-const on = vi.hoisted(() => ({ history: true }));
-vi.mock("@/lib/modules", () => ({
-  requireModule: async () => {
-    if (!on.history) throw new Error("NEXT_HTTP_ERROR_FALLBACK;404");
-  },
-}));
 const usage = vi.hoisted(() => ({ allowed: vi.fn(async () => true), recorded: vi.fn(async () => {}) }));
 vi.mock("@/lib/billing/usage", () => ({ usageAllowed: usage.allowed, recordUsage: usage.recorded }));
 // One lead in memory: update() runs the change on it, as the real store does.
@@ -24,17 +18,9 @@ const { historyCache } = await import("@/lib/history");
 
 describe("checkHistoryAction", () => {
   beforeEach(async () => {
-    on.history = true;
     lead = { id: "l1", type: "trade-in", reg: "151-D-1000" };
     usage.recorded.mockClear();
     await historyCache.reset();
-  });
-
-  it("refuses without the history module, and checks nothing", async () => {
-    on.history = false;
-    await expect(checkHistoryAction("lead", "l1")).rejects.toThrow(/404/);
-    expect(usage.recorded).not.toHaveBeenCalled();
-    expect(lead.history).toBeUndefined();
   });
 
   it("keeps the check on the lead, counted once as a history check in the dashboard", async () => {

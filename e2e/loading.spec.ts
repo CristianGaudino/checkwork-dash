@@ -17,7 +17,7 @@ test("an unknown record answers 404, and sign-in answers as before", async ({ re
 // Each page that streams, and a tab or view link in its first chunk. The page is opened fresh (a new context per test) and the link tapped
 // as soon as it is there: no waiting for the load event or the network to go quiet.
 const TAPS: [path: string, link: (page: Page) => ReturnType<Page["getByRole"]>, to: RegExp][] = [
-  ["/", (page) => page.getByRole("link", { name: /Reply to leads/ }), /\/leads/],
+  ["/", (page) => page.getByRole("region", { name: "This week" }).getByRole("link", { name: /^To answer/ }), /\/leads/],
   ["/analytics", (page) => page.getByRole("navigation", { name: "Period" }).getByRole("link", { name: "7 days" }), /range=7$/],
   ["/reports", (page) => page.getByRole("navigation", { name: "Period" }).getByRole("link", { name: "6 months" }), /period=6$/],
   ["/monthly-report", (page) => page.getByRole("link", { name: "Previous month" }), /month=\d{4}-\d{2}$/],

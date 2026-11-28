@@ -16,10 +16,9 @@ describe("dublinMs", () => {
 });
 
 describe("mirrorOf", () => {
-  it("files a warranty claim as a general message for a dealer without the service module, so it shows in Leads", () => {
+  it("files a message sent from the warranty page as a warranty claim", () => {
     const claim = row({ type: "general", sourcePath: "/warranty" });
     expect(mirrorOf(claim).lead?.type).toBe("warranty");
-    expect(mirrorOf(claim, true, false).lead?.type).toBe("general");
   });
 
   it("makes a lead with the visitor's words and marks it as real", () => {
@@ -83,17 +82,17 @@ describe("mirrorLead", () => {
 describe("the spam check on arrival (#56)", () => {
   const pitch = "Cheap backlinks [url=https://linkfarm.top]here[/url]";
   it("files clear spam as spam, an unsure one as possible spam, and a real one as it is", () => {
-    expect(mirrorOf(row({ message: pitch }), true, true, 0, undefined, "spam").lead).toMatchObject({ status: "spam", statusBefore: "new" });
-    expect(mirrorOf(row({}), true, true, 0, undefined, "maybe").lead).toMatchObject({ status: "new", maybeSpam: true });
+    expect(mirrorOf(row({ message: pitch }), true, 0, undefined, "spam").lead).toMatchObject({ status: "spam", statusBefore: "new" });
+    expect(mirrorOf(row({}), true, 0, undefined, "maybe").lead).toMatchObject({ status: "new", maybeSpam: true });
     expect(mirrorOf(row({})).lead).toMatchObject({ status: "new" });
     expect(mirrorOf(row({})).lead).not.toHaveProperty("maybeSpam");
   });
   it("never files a test drive booking or a warranty request as clear spam, only possible spam", () => {
-    const drive = mirrorOf(row({ type: "test_drive", message: null, details: { driveDate: "2030-01-17", driveTime: "10:00" } }), true, true, 0, undefined, "spam");
+    const drive = mirrorOf(row({ type: "test_drive", message: null, details: { driveDate: "2030-01-17", driveTime: "10:00" } }), true, 0, undefined, "spam");
     expect(drive.lead).toMatchObject({ status: "new", maybeSpam: true });
     expect(drive.drive).toBeDefined();
-    expect(mirrorOf(row({ type: "general", sourcePath: "/warranty" }), true, true, 0, undefined, "spam").lead).toMatchObject({ type: "warranty", status: "new", maybeSpam: true });
-    expect(mirrorOf(row({ type: "general", sourcePath: "/contact", details: { topic: "bought" } }), true, true, 0, undefined, "spam").lead?.status).toBe("new");
+    expect(mirrorOf(row({ type: "general", sourcePath: "/warranty" }), true, 0, undefined, "spam").lead).toMatchObject({ type: "warranty", status: "new", maybeSpam: true });
+    expect(mirrorOf(row({ type: "general", sourcePath: "/contact", details: { topic: "bought" } }), true, 0, undefined, "spam").lead?.status).toBe("new");
   });
   it("keeps spam, and nothing more: no booking, no customer, no notice", async () => {
     const notices = (await noticesStore.list()).length;

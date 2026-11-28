@@ -4,7 +4,7 @@ import { waHref } from "@/lib/phone";
 
 const SITE = "https://www.demo.checkwork.ie";
 const car = { slug: "2021-toyota-corolla-4508173", priceEur: 21950, soldAt: undefined, listing: undefined, condition: "used" } as const;
-const base = { name: "Mary Byrne", from: "Sean Walsh", dealer: "Checkwork Motors", title: "2021 Toyota Corolla", car, siteUrl: SITE, modules: new Set<never>() };
+const base = { name: "Mary Byrne", from: "Sean Walsh", dealer: "Checkwork Motors", title: "2021 Toyota Corolla", car, siteUrl: SITE };
 
 describe("the first reply to a lead", () => {
   it("says who it is from, the car, its price and its full link on the website", () => {
@@ -38,7 +38,6 @@ describe("the first reply to a lead", () => {
     expect(firstReply({ ...base, car: { ...car, priceEur: 0 } }).body).not.toContain("€");
     expect(firstReply({ ...base, siteUrl: "" }).body).not.toContain("https:");
     expect(firstReply({ ...base, car: { ...car, listing: "hidden" } }).body).not.toContain("https:");
-    expect(firstReply({ ...base, car: { ...car, condition: "commercial" } }).body).not.toContain("https:"); // a van with no commercial section
   });
 
   it("greets them as there with no usable first name, and signs as the dealer with no staff name", () => {

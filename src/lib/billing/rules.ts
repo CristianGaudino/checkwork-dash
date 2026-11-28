@@ -1,10 +1,8 @@
-import { MODULES, MODULE_IDS, modulesValue, parseModules, type ModuleId } from "@/lib/modules-rules";
-
 // What a dealer pays us, and the rules for the usage billed on top (#147, #181). Plain data and pure functions, so the Billing page, the
 // meters and the tests agree. The prices are the demo's: a real site reads the dealer's own prices and bills from the owner's billing
 // program, and these stand in until it does (docs/dealer-admin.md, Billing).
 
-// Usage counted per use. Lookups, history checks and WhatsApp messages are billed past the plan's monthly allowance (allowanceFor; none
+// Usage counted per use. Lookups, history checks and WhatsApp messages are billed past the plan's monthly allowance (PLANS' `allowance`; none
 // for history checks); AI writing is fair use: counted, never billed, and stopped at our ceiling (AI_FAIR_USE).
 const SERVICES = ["lookup", "history", "ai", "whatsapp"] as const;
 export type Service = (typeof SERVICES)[number];
@@ -32,59 +30,33 @@ export type AiModel = "opus" | "sonnet";
 // Our ceiling on AI writing, in actions a month.
 export const AI_FAIR_USE = 500;
 
-// The plans (#147), a month before VAT, for one dealership. Everything in a plan is included; the only add-on is Social and ads, at its
-// own price until marketing is priced (#148). A setup fee for a plan with the website, none on a 2-year term.
+// The plans (#147, #212), a month before VAT, for one dealership: the website, the dashboard, or both. Each is all-inclusive: no add-ons and
+// no setup fee, and a plan with the dashboard has every part of it (social and ads, AI writing and the rest). The plan is a billing fact
+// only: what a dealer sees never depends on it. Each month a plan with the dashboard includes some lookups and WhatsApp alerts; past
+// that, usage is pay as you go. No plan includes a history check (#170): every one is billed.
 // shortcut: one dealership only; the price per extra dealership comes back with multi-dealership (#16).
-const WEBSITE_ONLY: ModuleId[] = ["tradeIn", "finance", "carFinder", "commercial"];
-const ADD_ON_EUR: Partial<Record<ModuleId, number>> = { social: 99 };
-const ADD_ON_SETUP_EUR: Partial<Record<ModuleId, number>> = { social: 150 };
-// The dashboard plan: every other module (reviews is in both: shown on the website, answered from the dashboard). No plan includes a
-// history check (#170): every one is billed, so none is in an allowance.
-const DASHBOARD = MODULE_IDS.filter((m) => !WEBSITE_ONLY.includes(m) && !ADD_ON_EUR[m]);
-export const PLANS: { id: string; label: string; modules: readonly ModuleId[]; eur: number; setupEur: number; allowance: Allowance }[] = [
-  { id: "website", label: "Website", modules: [...WEBSITE_ONLY, "reviews"], eur: 149, setupEur: 500, allowance: {} }, // no paid service on the website alone
-  { id: "dashboard", label: "Dashboard", modules: DASHBOARD, eur: 149, setupEur: 0, allowance: { lookup: 100, whatsapp: 500 } },
-  { id: "both", label: "Website + Dashboard", modules: [...WEBSITE_ONLY, ...DASHBOARD], eur: 249, setupEur: 500, allowance: { lookup: 100, whatsapp: 500 } },
-];
-type Plan = (typeof PLANS)[number];
+export type PlanId = "website" | "dashboard" | "both";
+export const PLANS: Record<PlanId, { label: string; eur: number; allowance: Allowance }> = {
+  website: { label: "Website", eur: 149, allowance: {} }, // no paid service on the website alone
+  dashboard: { label: "Dashboard", eur: 149, allowance: { lookup: 100, whatsapp: 500 } },
+  both: { label: "Website + Dashboard", eur: 249, allowance: { lookup: 100, whatsapp: 500 } },
+};
+export const PLAN_IDS = Object.keys(PLANS) as PlanId[];
+export const isPlanId = (v: unknown): v is PlanId => typeof v === "string" && Object.hasOwn(PLANS, v); // not `in`: "toString" is in every object
 
 // The contract: 1 or 2 years. A record from before (#147) said "monthly", "annual" or "twoYear": read as 1, 1 and 2 years.
 export type Term = 1 | 2;
 export const termOf = (t: unknown): Term => (t === 2 || t === "twoYear" ? 2 : 1);
-// What the price depends on besides the modules (BillingSettings has both). `freeMonth`: the dealer's first month, "YYYY-MM", free.
+// What the price depends on (BillingSettings has both). `freeMonth`: the dealer's first month, "YYYY-MM", free.
 export type PlanOptions = { term: Term; freeMonth?: string };
-const ONE_YEAR: PlanOptions = { term: 1 };
 
-// The plan for these modules: the cheapest that holds them all (the add-ons aside), the add-ons on top, and the setup fee on this term.
-// No modules is Website.
-export function planFor(modules: Iterable<ModuleId>, o: PlanOptions = ONE_YEAR): { plan: Plan; extras: ModuleId[]; eur: number; setupEur: number; name: string } {
-  const set = new Set(modules);
-  const on = MODULE_IDS.filter((m) => set.has(m)); // the list's order, each once
-  const extras = on.filter((m) => ADD_ON_EUR[m]);
-  const plan = PLANS.find((p) => on.every((m) => ADD_ON_EUR[m] || p.modules.includes(m)))!; // cheapest first; the last holds every module
-  const setupEur = o.term === 2 ? 0 : plan.setupEur + extras.reduce((n, m) => n + (ADD_ON_SETUP_EUR[m] ?? 0), 0);
-  return { plan, extras, eur: plan.eur + extras.reduce((n, m) => n + ADD_ON_EUR[m]!, 0), setupEur, name: plan.label };
-}
-// Choosing a plan keeps the add-ons the dealer had. One that needs what the new plan lacks (Social on Website) cannot stay: it is
-// dropped, and listed so the switch can say so.
-export function switchPlan(modules: Iterable<ModuleId>, plan: Plan): { modules: Set<ModuleId>; dropped: ModuleId[] } {
-  const { extras } = planFor(modules);
-  const next = parseModules(modulesValue([...plan.modules, ...extras]));
-  return { modules: next, dropped: extras.filter((m) => !next.has(m)) };
-}
-// The plan as bill lines for a month: the plan, each add-on, and on the dealer's first month a line that takes them off.
-export function planLines(modules: Iterable<ModuleId>, o: PlanOptions = ONE_YEAR, month?: string): { label: string; eur: number }[] {
-  const p = planFor(modules, o);
-  return [
-    { label: `${p.plan.label} plan`, eur: p.plan.eur },
-    ...MODULES.filter((m) => p.extras.includes(m.id)).map((m) => ({ label: m.label, eur: ADD_ON_EUR[m.id]! })),
-    ...(month && month === o.freeMonth ? [{ label: "First month free", eur: -p.eur }] : []),
-  ];
+// The plan as bill lines for a month: the plan, and on the dealer's first month a line that takes it off.
+export function planLines(plan: PlanId, o: PlanOptions, month?: string): { label: string; eur: number }[] {
+  const p = PLANS[plan];
+  return [{ label: `${p.label} plan`, eur: p.eur }, ...(month && month === o.freeMonth ? [{ label: "First month free", eur: -p.eur }] : [])];
 }
 // The plan's price for a month (the first one free), before VAT.
-export const planEur = (modules: Iterable<ModuleId>, o: PlanOptions = ONE_YEAR, month?: string): number => planLines(modules, o, month).reduce((n, l) => n + l.eur, 0);
-// What the plan includes each month before lookups and WhatsApp are billed.
-export const allowanceFor = (modules: Iterable<ModuleId>, o: PlanOptions): Allowance => planFor(modules, o).plan.allowance;
+export const planEur = (plan: PlanId, o: PlanOptions, month?: string): number => planLines(plan, o, month).reduce((n, l) => n + l.eur, 0);
 
 export const VAT_PCT = 23;
 export const withVat = (eur: number) => round2(eur * (1 + VAT_PCT / 100));

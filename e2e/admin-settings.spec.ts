@@ -125,7 +125,7 @@ test("the plan's rules we set are in Billing", async ({ page }) => {
 test("Sales and Finance have their own account only: the dealership's sections send them back to it", async ({ page, context }) => {
   for (const role of ["Sales", "Finance"]) {
     await as(context, role);
-    for (const section of ["?section=targets", "?section=team", "?section=routing", "?section=marketing", "?section=services", "?section=demo"]) {
+    for (const section of ["?section=targets", "?section=team", "?section=routing", "?section=marketing", "?section=services", "?section=limits", "?section=demo"]) {
       await page.goto(`/settings${section}`);
       await expect(page, `${role} ${section}`).toHaveURL(/\/settings$/);
       await expect(page.getByRole("region", { name: "Profile" })).toBeVisible();

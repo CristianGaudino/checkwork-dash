@@ -1,15 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ClaimStatusBadge, CoverBadge, DriveStatusBadge, LeadStatusBadge } from "@/components/admin/badges";
-import { Badge, PageHeader, Panel, Task, TaskList, rowButton } from "@/components/admin/kit";
+import { Badge, Facts, PageHeader, Panel, Task, TaskList, rowButton } from "@/components/admin/kit";
 import { LEAD_TYPE_LABELS, claimOpen, getSettings, claimsStore, coverEnds, customersStore, drivesStore, leadsStore, reservationsStore, salesStore } from "@/lib/admin/collections";
 import { dublinDay, fmtDate, fmtEur, fmtTime } from "@/lib/admin/format";
 import { isOpenDrive } from "@/lib/admin/drives";
 import { answerNow, isOpenLead, openWarrantyRequests } from "@/lib/admin/leads";
 import { currentMember } from "@/lib/permissions";
 import { matchesAny, parsePersonQuery, type PersonQuery } from "@/lib/admin/person-match";
-import { hasModule } from "@/lib/modules";
-import { NotInPlan } from "@/components/admin/NotInPlan";
 import { ContactButtons } from "@/components/admin/ContactButtons";
 import { stockSource } from "@/lib/stock-source";
 import { reminderFacts } from "@/lib/admin/reminders";
@@ -30,11 +28,8 @@ const item = "flex flex-wrap items-center justify-between gap-x-4 gap-y-2 py-3";
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  if (!(await hasModule("sales"))) return <NotInPlan id="sales" />; // the customer list is the sales module (src/lib/modules-rules.ts)
   const c = await customersStore.get(id);
   if (!c) notFound();
-  // Claims and test drives are modules of their own: with one off, its records stay but its links go (#173).
-  const [service, drivesOn] = await Promise.all([hasModule("service"), hasModule("testDrives")]);
   // Deposits are our version only: with DoneDeal stock their pages are not there.
   const synced = (await stockSource()) === "donedeal";
   const [sales, reservations, claims, leads, drives, { leadSlaHours }, me] = await Promise.all([salesStore.list(), reservationsStore.list(), claimsStore.list(), leadsStore.list(), drivesStore.list(), getSettings(), currentMember()]);
@@ -54,32 +49,23 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const theirLeads = qs.length ? leads.filter((l) => matchesAny(l, qs)).sort((a, b) => b.createdAt - a.createdAt) : [];
   const theirDrives = qs.length ? drives.filter((d) => matchesAny(d, qs)).sort((a, b) => b.startsAt - a.startsAt) : [];
   const none = (what: string) => <p className="text-body text-text-2">{what}</p>;
-  const leadHref = (l: { id: string; type: string }) => (l.type === "warranty" && service ? `/aftersales/requests/${l.id}` : `/leads/${l.id}`);
+  const leadHref = (l: { id: string; type: string }) => (l.type === "warranty" ? `/aftersales/requests/${l.id}` : `/leads/${l.id}`);
 
   // What is still open for them goes first in its list, marked: red to do now, amber otherwise. A drive coming up is soonest first.
-  const openDrives = drivesOn ? theirDrives.filter((d) => isOpenDrive(d) && dublinDay(d.startsAt) >= today).reverse() : [];
+  const openDrives = theirDrives.filter((d) => isOpenDrive(d) && dublinDay(d.startsAt) >= today).reverse();
   // A warranty request that became a claim is done, as on Aftersales: the claim is what is open.
   const openRequests = new Set(openWarrantyRequests(theirLeads, claims).map((l) => l.id));
-  const openLeads = theirLeads.filter((l) => (l.type === "warranty" ? service && openRequests.has(l.id) : isOpenLead(l)));
-  const openClaims = service ? theirClaims.filter((k) => claimOpen(k.status)) : [];
+  const openLeads = theirLeads.filter((l) => (l.type === "warranty" ? openRequests.has(l.id) : isOpenLead(l)));
+  const openClaims = theirClaims.filter((k) => claimOpen(k.status));
   const held = synced ? [] : deposits.filter((r) => r.status === "held");
   const openFirst = <T,>(all: T[], open: T[]) => [...open, ...all.filter((x) => !open.includes(x))];
 
   return (
     <>
-      <PageHeader title={c.name} text={`Customer since ${fmtDate(c.createdAt)} · ${c.source}`} back={{ href: "/customers", label: "Customers" }} />
-      <Panel title="Contact">
-        <div className="flex min-w-0 flex-col gap-3">
-          <p className="flex flex-col text-body">
-            {c.email && <span className="[overflow-wrap:anywhere]">{c.email}</span>}
-            {c.phone && <span>{c.phone}</span>}
-          </p>
-          <ContactButtons phone={c.phone || undefined} email={c.email || undefined} />
-          <p className="text-meta text-text-2">{c.marketingConsent ? "Agreed to marketing" : "No marketing: do not send offers"}</p>
-        </div>
-      </Panel>
+      {/* Reaching them is in the header (#213); their details are rows beside what they bought. */}
+      <PageHeader title={c.name} text={`Customer since ${fmtDate(c.createdAt)} · ${c.source}`} back={{ href: "/customers", label: "Customers" }} actions={<ContactButtons phone={c.phone || undefined} email={c.email || undefined} />} />
 
-      <div className="grid grid-cols-1 gap-6 wide:grid-cols-2">
+      <div className="grid grid-cols-1 items-start gap-6 wide:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
         <div className="flex min-w-0 flex-col gap-6">
           <Panel title="Purchases">
             {bought.length === 0
@@ -100,7 +86,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
                       {!s.returnedOn && (
                         <span className="ml-auto flex flex-wrap items-center justify-end gap-2">
                           <CoverBadge inCover={coverEnds(s) >= today} />
-                          {service && <Link href={`/aftersales/new?sale=${s.id}`} className={rowButton}>Open a claim</Link>}
+                          <Link href={`/aftersales/new?sale=${s.id}`} className={rowButton}>Open a claim</Link>
                         </span>
                       )}
                     </li>
@@ -108,7 +94,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
                 </ul>
               )}
           </Panel>
-          {service && theirClaims.length > 0 && (
+          {theirClaims.length > 0 && (
             <Panel title="Warranty claims">
               <TaskList label="Warranty claims">
                 {openFirst(theirClaims, openClaims).map((k) => (
@@ -128,6 +114,9 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           )}
         </div>
         <div className="flex min-w-0 flex-col gap-6">
+          <Panel title="Details" quiet>
+            <Facts items={[...(c.email ? [["Email", c.email] as const] : []), ...(c.phone ? [["Phone", c.phone] as const] : []), ["Marketing", c.marketingConsent ? "Agreed" : "No offers"]]} />
+          </Panel>
           <Panel title="Leads" quiet>
             {theirLeads.length === 0
               ? none("No leads from them yet.")
@@ -145,7 +134,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
               <TaskList label="Test drives">
                 {openFirst(theirDrives, openDrives).map((d) => {
                   const open = openDrives.includes(d);
-                  return <Task key={d.id} href={drivesOn ? `/test-drives/${d.id}` : undefined} urgency={!open ? "info" : dublinDay(d.startsAt) === today ? "now" : "soon"} title={d.carTitle} detail={open ? `${who(d.assignedTo)} · ${fmtDate(d.startsAt)}, ${fmtTime(d.startsAt)}` : fmtDate(d.startsAt)} action={<DriveStatusBadge status={d.status} />} />;
+                  return <Task key={d.id} href={`/test-drives/${d.id}`} urgency={!open ? "info" : dublinDay(d.startsAt) === today ? "now" : "soon"} title={d.carTitle} detail={open ? `${who(d.assignedTo)} · ${fmtDate(d.startsAt)}, ${fmtTime(d.startsAt)}` : fmtDate(d.startsAt)} action={<DriveStatusBadge status={d.status} />} />;
                 })}
               </TaskList>
             </Panel>

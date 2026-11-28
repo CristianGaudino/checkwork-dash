@@ -3,7 +3,6 @@ import { PostComposer } from "@/components/admin/PostComposer";
 import { carCards } from "@/lib/admin/car-cards";
 import { mediaStore, postsStore } from "@/lib/admin/collections";
 import { POST_FORMATS, STORY_LAYOUTS } from "@/lib/admin/networks";
-import { requireModule } from "@/lib/modules";
 import { newestForSale, worthPosting } from "@/lib/admin/marketing";
 import { adminCars } from "@/lib/admin/stock-admin";
 import { isUsable } from "@/lib/integrations";
@@ -13,7 +12,6 @@ export const metadata = { title: "New post" };
 
 // The composer on its own page, so the Marketing list stays short on a phone. ?car= starts on that car ("Write a post" on an idea).
 export default async function Page({ searchParams }: { searchParams: Promise<{ car?: string; format?: string; layout?: string }> }) {
-  await requireModule("social");
   const sp = await searchParams;
   const [cars, posts, library] = await Promise.all([adminCars(), postsStore.list(), mediaStore.list()]);
   const onSale = newestForSale(cars);

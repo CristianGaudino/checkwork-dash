@@ -28,7 +28,7 @@ describe("parseLimits", () => {
 
 describe("itemise", () => {
   const bill: Bill = {
-    id: "2026-10", issuedOn: "2026-11-01", dueOn: "2026-12-01", status: "due", modules: [{ label: "Website + Dashboard plan", eur: 249 }, { label: "Social and ads", eur: 29 }], // as stored, whatever today's prices
+    id: "2026-10", issuedOn: "2026-11-01", dueOn: "2026-12-01", status: "due", plan: [{ label: "Checkwork plan", eur: 249 }, { label: "Extra line", eur: 29 }], // as stored, whatever today's prices
     usage: [{ service: "ai", kind: "opus", count: 10, unitEur: 0.05 }, { service: "whatsapp", kind: "alert", count: 0, unitEur: 0.05 }],
   };
   it("adds the plan and the usage, then VAT, and takes a first month free off", () => {
@@ -40,7 +40,9 @@ describe("itemise", () => {
     expect(t.total).toBe(342.56);
     expect(t.usage).toHaveLength(1); // a line with no uses is left out
     expect(t.usage[0].detail).toBe("10 x €0.05");
-    expect(itemise({ ...bill, modules: [...bill.modules, { label: "First month free", eur: -278 }] }).planEur).toBe(0);
+    expect(itemise({ ...bill, plan: [...bill.plan, { label: "First month free", eur: -278 }] }).planEur).toBe(0);
+    // A bill stored before #212 kept its plan lines under `modules`: still read as issued.
+    expect(itemise({ id: bill.id, issuedOn: bill.issuedOn, dueOn: bill.dueOn, status: bill.status, usage: bill.usage, modules: [{ label: "Website + Dashboard plan", eur: 249 }] } as unknown as Bill).plan).toEqual([{ label: "Website + Dashboard plan", eur: 249 }]);
   });
   it("still labels a stored line for the website's lookup, which is no longer billed (#182)", () => {
     expect(itemise({ ...bill, usage: [{ service: "lookup", kind: "website", count: 3, unitEur: 0.3 }] }).usage[0].label).toBe("Registration lookup: On the website");
@@ -57,13 +59,5 @@ describe("itemise", () => {
 describe("dates", () => {
   it("bills on the first of next month", () => {
     expect(nextBillDate(new Date("2026-12-31T10:00:00Z"))).toBe("1 January 2027");
-  });
-});
-
-import { servicesOf } from "./bills-rules";
-describe("servicesOf", () => {
-  it("lists a paid service only when its module is on, and never AI writing", () => {
-    expect(servicesOf(new Set(["lookupDashboard", "ai", "whatsapp"]))).toEqual(["lookup", "whatsapp"]);
-    expect(servicesOf(new Set(["dashboard"]))).toEqual([]);
   });
 });

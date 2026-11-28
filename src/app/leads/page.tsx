@@ -16,7 +16,6 @@ import { dublinDay, fmtAgo, fmtAgoOn, fmtDate, fmtDay } from "@/lib/admin/format
 import { SALES_LEAD_TYPES, filterLeads, followUpDue, forPerson, isOpenLead, onLeadsList, leadFlag, leadsToAnswer, parseLeadFilter, possibleSpam, statusCounts, urgentFirst, type LeadTask } from "@/lib/admin/leads";
 import { TOPICS, leadTags } from "@/lib/leads/contact-topics";
 import { LeadKind, LeadTags, leadChips } from "@/components/admin/LeadKind";
-import { enabledModules } from "@/lib/modules";
 import { readLead } from "@/lib/leads/lead-text";
 import { BrandIcon } from "@/components/admin/BrandIcon";
 
@@ -45,7 +44,7 @@ type Params = { mine?: string; status?: string; type?: string; topic?: string; q
 export default async function Page({ searchParams }: { searchParams: Promise<Params> }) {
   const sp = await searchParams;
   const f = parseLeadFilter(sp);
-  const [everyLead, { leadSlaHours, team }, modules] = await Promise.all([leadsStore.list(), getSettings(), enabledModules()]);
+  const [everyLead, { leadSlaHours, team }] = await Promise.all([leadsStore.list(), getSettings()]);
   const all = everyLead.filter(onLeadsList);
   const today = dublinDay();
   const at = now(); // one clock for the badges, the pinning and To answer now, so they agree
@@ -60,7 +59,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
   // Every filter in one panel: what kind of lead, whether it needs a reply, who has it, where it came from.
   const filters: FilterGroup[] = [
     { name: "type", label: "What they want", any: "Anything", options: SALES_LEAD_TYPES.map((t) => [t, LEAD_TYPE_LABELS[t]] as const) },
-    { name: "topic", label: "Topic", any: "Any topic", options: TOPICS.filter((t) => t.id !== "bought" && (!("module" in t) || modules.has(t.module))).map((t) => [t.id, t.label] as const) }, // "bought" is filed in Aftersales
+    { name: "topic", label: "Topic", any: "Any topic", options: TOPICS.filter((t) => t.id !== "bought").map((t) => [t.id, t.label] as const) }, // "bought" is filed in Aftersales
     { name: "need", label: "Needs a reply", any: "Any", options: [["due", `Follow-up due (${due})`], ["late", `Waiting too long (${late})`]] },
     { name: "with", label: "Who has it", any: "Anyone", options: [["none", "Not taken"], ...team.map((t) => [t.name, t.name] as const)] },
     { name: "source", label: "Where it came from", any: "Any source", options: LEAD_SOURCES.map((s) => [s, s] as const) },
@@ -75,7 +74,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Par
   };
 
   // What to answer now, worked down from the top, by the same rule as the Overview's To do (leadsToAnswer). On the plain list, or one
-  // person's: For me (forPerson, as the Overview's, whose Reply to leads opens it so) or Who has it. Any other filter is
+  // person's: For me (forPerson, as the Overview's, whose To answer row opens it so) or Who has it. Any other filter is
   // looking for something else. A search keeps it, so the search box does not jump up under the cursor while typing (#85).
   const filtered = Boolean(f.status || f.type || f.topic || f.due || f.late || f.source || (sp.page && sp.page !== "1"));
   const mine = sp.mine === "1" && Boolean(me.name) && !f.with; // Who has it wins: its pill hides Everyone | For me

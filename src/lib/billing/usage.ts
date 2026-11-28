@@ -3,8 +3,7 @@ import { defineCollection } from "@/lib/admin/docs";
 import { dublinDay } from "@/lib/admin/format";
 import { SETTINGS_DEFAULT, getSettings, settingsStore, type DealerSettings } from "@/lib/admin/collections";
 import { notify } from "@/lib/admin/notifications";
-import { alertsCrossed, allowanceFor, inAllowance, usageCosts, usageId, withinCaps, type BillingSettings, type Kind, type Service, type UsageCount, withBillingDefaults } from "./rules";
-import { enabledModules } from "@/lib/modules";
+import { PLANS, alertsCrossed, inAllowance, usageCosts, usageId, withinCaps, type BillingSettings, type Kind, type Service, type UsageCount, type PlanId, withBillingDefaults } from "./rules";
 import { roleCan } from "@/lib/permission-rules";
 import { currentDealer } from "@/lib/tenancy/current";
 
@@ -19,13 +18,14 @@ export const monthOf = (t: number = Date.now()) => dublinDay(t).slice(0, 7);
 
 // A record saved before the AI assistant was dropped may still carry `aiPlan`: nothing reads it.
 export const billingSettings = async (): Promise<BillingSettings> => withBillingDefaults((await getSettings()).billing);
-// What the plan includes this month before usage is billed.
-export const monthAllowance = async (b: BillingSettings) => allowanceFor(await enabledModules(), b);
+// The plan the dealer pays for (their profile), and what it includes each month before usage is billed.
+export const currentPlan = async (): Promise<PlanId> => (await currentDealer()).profile.plan;
+export const monthAllowance = async () => PLANS[await currentPlan()].allowance;
 export async function monthCounts(month = monthOf()): Promise<UsageCount[]> {
   return (await usageStore.list()).filter((c) => c.month === month);
 }
 export async function monthUsage(month = monthOf()) {
-  return usageCosts(await monthCounts(month), await monthAllowance(await billingSettings()));
+  return usageCosts(await monthCounts(month), await monthAllowance());
 }
 
 // Whether one more use is allowed: false once the month's spend reaches a limit (the dealer's or ours), unless the plan still includes it
@@ -34,7 +34,7 @@ export async function monthUsage(month = monthOf()) {
 export async function usageAllowed(service: Service, kind?: string): Promise<boolean> {
   try {
     const b = await billingSettings();
-    const allowance = await monthAllowance(b);
+    const allowance = await monthAllowance();
     const usage = usageCosts(await monthCounts(), allowance);
     return withinCaps(usage, b, service) || inAllowance(usage, allowance, service, kind);
   } catch {
@@ -56,7 +56,7 @@ export async function recordUsage<S extends Service>(service: S, kind: Kind<S>, 
     const next: UsageCount = { id, month, service, kind, count: (prev?.count ?? 0) + n };
     await usageStore.put(next);
     const after = [...before.filter((c) => c.id !== id), next];
-    const allowance = await monthAllowance(b);
+    const allowance = await monthAllowance();
     const alerts = alertsCrossed(usageCosts(before, allowance), usageCosts(after, allowance), b, month);
     if (!alerts.length) return;
     const { team } = await getSettings();

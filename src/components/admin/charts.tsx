@@ -28,13 +28,13 @@ export function AreaChart({ data, summary, format = fmtCompact, empty = "No sale
       <div className="relative">
       {data.length > 0 && (
         <>
-          <span data-chart-peak aria-hidden="true" className="absolute size-2 -translate-1/2 rounded-full bg-accent" style={{ left: `${at}%`, top: `${(y(peak.value) / H) * 100}%` }} />
-          <span data-chart-peak aria-hidden="true" className={`absolute top-0 whitespace-nowrap text-meta font-semibold tabular-nums ${at < 15 ? "" : at > 85 ? "-translate-x-full" : "-translate-x-1/2"}`} style={{ left: `${at}%` }}>
+          <span aria-hidden="true" className="absolute size-2 -translate-1/2 rounded-full bg-accent" style={{ left: `${at}%`, top: `${(y(peak.value) / H) * 100}%` }} />
+          <span aria-hidden="true" className={`absolute top-0 whitespace-nowrap text-meta font-semibold tabular-nums ${at < 15 ? "" : at > 85 ? "-translate-x-full" : "-translate-x-1/2"}`} style={{ left: `${at}%` }}>
             {format(peak.value)}
           </span>
         </>
       )}
-      <svg data-chart viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label={summary} className="h-44 w-full text-accent-text">
+      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label={summary} className="h-44 w-full text-accent-text">
         {[0.25, 0.5, 0.75].map((f) => (
           <line key={f} x1="0" x2={W} y1={y(f * max)} y2={y(f * max)} stroke="var(--color-hairline)" strokeWidth="1" vectorEffect="non-scaling-stroke" />
         ))}
@@ -70,8 +70,7 @@ export function BarList({ items, of, format = fmtCompact }: { items: { label: st
   // A list with any network's mark keeps a mark's room on every row, so Website and Phone start where WhatsApp does.
   const marks = items.some((i) => brandsIn(i.label).length > 0);
   return (
-    // data-bars: under a Fresh each fill grows from the left (globals.css); a Meter elsewhere stays still.
-    <ul data-bars className="flex flex-col gap-3">
+    <ul className="flex flex-col gap-3">
       {items.map((i, index) => (
         <li key={i.label} className="flex flex-col gap-1">
           {/* The figure wraps under the label, on the right, only when both cannot share a line (large text). */}

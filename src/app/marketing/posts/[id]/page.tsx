@@ -10,7 +10,6 @@ import { dublinDateTime, fmtDateTime, fmtNum } from "@/lib/admin/format";
 import { newestForSale, worthPosting } from "@/lib/admin/marketing";
 import { adminCars } from "@/lib/admin/stock-admin";
 import { slugId } from "@/lib/admin/stock-admin-pure";
-import { requireModule } from "@/lib/modules";
 import { composeAction, composerCarAction } from "../../actions";
 
 const back = { href: "/marketing", label: "Marketing" };
@@ -23,7 +22,6 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 // One post. A draft or a scheduled one opens in the composer, filled in from what was saved, on its words and photos; saving updates it, and
 // posting or scheduling works as from a new one. One that went out is shown as it went, with how it did: it is never changed.
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
-  await requireModule("social");
   const post = await postsStore.get((await params).id);
   if (!post) notFound();
   const name = postName(post);

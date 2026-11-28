@@ -1,4 +1,3 @@
-import type { ModuleId } from "@/lib/modules-rules";
 import { KINDS, PAID, SERVICE_LABELS, UNIT_PRICE_EUR, VAT_PCT, round2, usageCosts, type Allowance, type Scope, type Service } from "./rules";
 
 // The Billing page's pure rules: reading the limits form, and what a bill is made of. No server code,
@@ -46,14 +45,15 @@ export type Bill = {
   issuedOn: string; // YYYY-MM-DD
   dueOn: string;
   status: "paid" | "due";
-  modules: { label: string; eur: number }[]; // the plan's lines: the plan, each add-on, the first month free (planLines)
+  plan: { label: string; eur: number }[]; // the plan's lines: the plan and the first month free (planLines)
+  modules?: { label: string; eur: number }[]; // history: the same lines, as bills stored before #212 named them
   usage: BillUsage[];
 };
 export type BillLine = { label: string; detail?: string; eur: number };
 // Kinds no longer billed that a stored bill may still list: the website's lookup (#182).
 const OLD_KINDS: Record<string, string> = { website: "On the website" };
 export function itemise(b: Bill) {
-  const plan: BillLine[] = b.modules;
+  const plan: BillLine[] = b.plan ?? b.modules ?? [];
   const billed = (u: BillUsage) => u.count - (u.included ?? 0);
   const usage: BillLine[] = b.usage.filter((u) => billed(u) > 0).map((u) => ({ label: `${SERVICE_LABELS[u.service]}: ${(KINDS[u.service] as Record<string, string>)[u.kind] ?? OLD_KINDS[u.kind] ?? u.kind}`, detail: `${billed(u)} x ${eur(u.unitEur)}`, eur: round2(billed(u) * u.unitEur) }));
   const planEur = round2(plan.reduce((n, l) => n + l.eur, 0));
@@ -70,13 +70,8 @@ export function usageLines(counts: { service: Service; kind: string; count: numb
   return PAID.flatMap((service) => c[service].kinds.map(({ kind, count, included }) => ({ service, kind, count, included, unitEur: (UNIT_PRICE_EUR[service] as Record<string, number>)[kind] })));
 }
 
-// What can have a limit, and is listed on the Billing page: each paid service the dealer has, and one used this month before it was
-// switched off. The page and the save action both use this, so a field shown is a field saved.
-export const billedServices = (modules: { has(m: ModuleId): boolean }, used: Record<Service, { count: number }>): Scope[] => PAID.filter((s) => servicesOf(modules).includes(s) || used[s].count > 0);
-// The paid services a dealer has, from their modules: the lookup in the dashboard, the history check, WhatsApp.
-export function servicesOf(modules: { has(m: ModuleId): boolean }): Scope[] {
-  return PAID.filter((s) => (s === "lookup" ? modules.has("lookupDashboard") : modules.has(s)));
-}
+// What the plan's allowance counts, per paid service, in words: "500 alerts included" (only WhatsApp alerts are, never replies).
+export const INCLUDED: Record<Scope, string> = { lookup: "lookups", history: "checks", whatsapp: "alerts" };
 
 export const fmtMonth = (id: string) => new Intl.DateTimeFormat("en-IE", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${id}-01T12:00:00Z`));
 

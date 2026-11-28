@@ -8,7 +8,6 @@ import { getSettings, leadsStore, LEAD_TYPE_LABELS, reviewsStore, type Lead } fr
 import { noContacts, type CarFacts, type FactsOf, type VisitFacts, type WriteRequest } from "./tasks";
 import { firstName } from "@/lib/whatsapp/rules";
 import { replyLink, replyPrice } from "@/lib/leads/first-reply";
-import { enabledModules } from "@/lib/modules";
 
 const num = (s: string | undefined) => (s && Number.isFinite(Number(s)) && Number(s) > 0 ? Number(s) : undefined);
 const text = (s: string | undefined, max = 80) => s?.trim().slice(0, max) || undefined;
@@ -56,7 +55,7 @@ export async function buildFacts(req: WriteRequest, dealer: string, siteUrl: str
       // the first reply gives them (#160): none for a sold or reserved car or one on request, and no link to a page the website does not show.
       const car = askedCar(await adminCars(), lead.carSlug);
       const price = car && replyPrice(car);
-      const carDetails = car && { ...carFacts(car, siteUrl), price, ...(!price && { was: undefined }), link: replyLink(car, siteUrl, await enabledModules()), forSale: forSale(car), ...(car.reserved && !isSold(car) && { reserved: true as const }) };
+      const carDetails = car && { ...carFacts(car, siteUrl), price, ...(!price && { was: undefined }), link: replyLink(car, siteUrl), forSale: forSale(car), ...(car.reserved && !isSold(car) && { reserved: true as const }) };
       return { task: "leadReply", facts: { dealer, firstName: firstName(lead.name, ""), kind: LEAD_TYPE_LABELS[lead.type], type: lead.type, ...said(lead), car: lead.carTitle, carDetails } };
     }
     case "leadBrief": {

@@ -6,10 +6,10 @@ export const SUPPORT = { phone: "+353 1 906 0099", email: "support@checkwork.ie"
 export const supportTel = `tel:${SUPPORT.phone.replace(/\s/g, "")}`;
 export const supportWhatsApp = `https://wa.me/${SUPPORT.phone.replace(/\D/g, "")}`;
 
-export const HELP_TYPES = ["Question", "Something isn't working", "Request a change", "Feedback or an idea", "Billing", "Add to my plan"] as const;
+export const HELP_TYPES = ["Question", "Something isn't working", "Request a change", "Feedback or an idea", "Billing"] as const;
 export type HelpType = (typeof HELP_TYPES)[number];
-// Billing and module requests are the Owner's and Manager's: they are the ones who see Billing.
-export const typesFor = (role: Role | null): HelpType[] => HELP_TYPES.filter((t) => (t !== "Billing" && t !== "Add to my plan") || roleCan(role, "billing"));
+// Billing requests are the Owner's and Manager's: they are the ones who see Billing.
+export const typesFor = (role: Role | null): HelpType[] => HELP_TYPES.filter((t) => t !== "Billing" || roleCan(role, "billing"));
 
 export const HELP_STATUSES = ["received", "inProgress", "done"] as const;
 export type HelpStatus = (typeof HELP_STATUSES)[number];

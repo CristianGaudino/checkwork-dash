@@ -1,6 +1,5 @@
 import { NAME_REQUIRED } from "@/lib/copy";
 import { LIMITS, tooLong } from "@/lib/leads/constants";
-import type { ModuleId } from "@/lib/modules-rules";
 import { roleCan, type Role } from "@/lib/permission-rules";
 import { EVENTS, defaultAlerts, eventText, staffErrors, type EventId } from "@/lib/whatsapp/rules";
 
@@ -24,13 +23,12 @@ export function channelsOf(e: NotifyEvent): Channel[] {
   if (e === "follow-ups") return ["email"];
   return PUSHED.includes(e) ? ["push", "whatsapp"] : ["whatsapp"];
 }
-const moduleOf = (e: NotifyEvent): ModuleId => (e === "assigned" || e === "follow-ups" ? "dashboard" : EVENTS[e].module);
 export const eventLabel = (e: NotifyEvent, oldDays: number) => (e === "assigned" ? "A lead or test drive given to you" : e === "follow-ups" ? "Your follow-ups due, each morning" : eventText(e, oldDays).label);
 
-// What a role may get: the plan's events, and the Monday summary (the dealership's figures) only for those who see the full reports.
+// What a role may get: every event, and the Monday summary (the dealership's figures) only for those who see the full reports.
 // Finance never gets WhatsApp (owner, 2026-11-23). Checked by every sender, whatever is stored.
 export const mayGet = (role: Role | null, channel: Channel, e: NotifyEvent) => role !== null && channelsOf(e).includes(channel) && (e !== "monday" || roleCan(role, "margins")) && (channel !== "whatsapp" || role !== "Finance");
-export const eventsFor = (role: Role | null, modules: ReadonlySet<ModuleId>) => NOTIFY_EVENTS.filter((e) => modules.has(moduleOf(e)) && CHANNELS.some((c) => mayGet(role, c, e)));
+export const eventsFor = (role: Role | null) => NOTIFY_EVENTS.filter((e) => CHANNELS.some((c) => mayGet(role, c, e)));
 
 // The columns a person sees: WhatsApp once the dealer has it connected and the person has a phone, never for Finance.
 export const columnsFor = (role: Role | null, whatsapp: { on: boolean; phone: string }): Channel[] => CHANNELS.filter((c) => c !== "whatsapp" || (whatsapp.on && Boolean(whatsapp.phone.trim()) && role !== "Finance"));
@@ -51,8 +49,8 @@ export function prefsOf(rec: PersonRecord | undefined, role: Role, s: { followUp
 export const alertsOf = (p: Prefs): EventId[] => p.whatsapp.filter((e): e is EventId => e in EVENTS);
 export const gets = (p: Prefs, role: Role | null, channel: Channel, e: NotifyEvent) => p[channel].includes(e) && mayGet(role, channel, e);
 
-// A grid as a form sends it: a checkbox per cell, named by its channel with the event as its value. Cells not shown (a module off, a
-// column hidden) keep what was chosen, so switching it on again finds them.
+// A grid as a form sends it: a checkbox per cell, named by its channel with the event as its value. Cells not shown (a column hidden, an
+// event the role may not get) keep what was chosen, so showing it again finds them.
 export function readGrid(get: (channel: Channel) => string[], shown: NotifyEvent[], columns: Channel[], was: Prefs): Prefs {
   const one = (c: Channel) => {
     if (!columns.includes(c)) return was[c];

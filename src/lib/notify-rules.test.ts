@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseModules } from "@/lib/modules-rules";
 import { channelsOf, columnsFor, eventsFor, gets, mayGet, prefsOf, profileErrors, reachLine, readGrid, roleDefaults, type Prefs } from "./notify-rules";
-
-const all = parseModules("all");
 
 describe("who may get what, and how (#142)", () => {
   it("carries each event only on the channels that really send it", () => {
@@ -17,9 +14,9 @@ describe("who may get what, and how (#142)", () => {
     expect(mayGet("Sales", "whatsapp", "monday")).toBe(false);
     expect(mayGet("Owner", "whatsapp", "monday")).toBe(true);
     expect(mayGet(null, "push", "enquiry")).toBe(false);
-    expect(eventsFor("Finance", all)).not.toContain("deposit"); // only WhatsApp carries it
-    expect(eventsFor("Sales", all)).not.toContain("monday");
-    expect(eventsFor("Owner", parseModules("dashboard"))).toEqual(["enquiry", "assigned", "follow-ups", "slow-stock"]);
+    expect(eventsFor("Finance")).not.toContain("deposit"); // only WhatsApp carries it
+    expect(eventsFor("Sales")).not.toContain("monday");
+    expect(eventsFor("Owner")).toEqual(["enquiry", "trade-in", "test-drive", "service", "finance", "assigned", "follow-ups", "deposit", "review", "slow-stock", "new-in", "monday"]); // every event for every dealer (#212)
   });
   it("shows the WhatsApp column with it connected and a phone, never for Finance", () => {
     expect(columnsFor("Sales", { on: true, phone: "+353 85 000 0000" })).toEqual(["push", "email", "whatsapp"]);
@@ -44,23 +41,23 @@ describe("reading what is stored", () => {
 });
 
 describe("readGrid", () => {
-  const was: Prefs = { push: ["enquiry", "trade-in"], email: ["follow-ups"], whatsapp: ["deposit", "trade-in"] };
+  const was: Prefs = { push: ["enquiry"], email: ["follow-ups"], whatsapp: ["deposit", "monday"] };
   const sent = (o: Partial<Record<string, string[]>>) => (c: string) => o[c] ?? [];
-  it("takes the ticked cells, and keeps what a module that is off or a hidden column had", () => {
-    const shown = eventsFor("Sales", parseModules("dashboard,whatsapp,sales"));
-    expect(shown).not.toContain("trade-in");
+  it("takes the ticked cells, and keeps what an event not shown to the role or a hidden column had", () => {
+    const shown = eventsFor("Sales");
+    expect(shown).not.toContain("monday");
     const next = readGrid(sent({ push: ["assigned"], whatsapp: ["enquiry"] }), shown, ["push", "email", "whatsapp"], was);
-    expect(next).toEqual({ push: ["trade-in", "assigned"], email: [], whatsapp: ["trade-in", "enquiry"] });
+    expect(next).toEqual({ push: ["assigned"], email: [], whatsapp: ["monday", "enquiry"] });
     expect(readGrid(sent({}), shown, ["push", "email"], was).whatsapp).toEqual(was.whatsapp); // no column: untouched
   });
   it("ignores a cell the channel cannot carry, or an event not shown", () => {
-    expect(readGrid(sent({ email: ["enquiry", "nonsense"], push: ["deposit"] }), eventsFor("Owner", all), ["push", "email"], { push: [], email: [], whatsapp: [] })).toEqual({ push: [], email: [], whatsapp: [] });
+    expect(readGrid(sent({ email: ["enquiry", "nonsense"], push: ["deposit"] }), eventsFor("Owner"), ["push", "email"], { push: [], email: [], whatsapp: [] })).toEqual({ push: [], email: [], whatsapp: [] });
   });
 });
 
 describe("reachLine", () => {
   const p: Prefs = { push: ["enquiry"], email: ["follow-ups"], whatsapp: ["enquiry"] };
-  const events = eventsFor("Owner", all);
+  const events = eventsFor("Owner");
   it("names each way that reaches them, WhatsApp first", () => {
     expect(reachLine(p, "Sales", { devices: true, whatsapp: true }, events)).toBe("WhatsApp, push, email");
     expect(reachLine(p, "Sales", { devices: false, whatsapp: true }, events)).toBe("WhatsApp, email");

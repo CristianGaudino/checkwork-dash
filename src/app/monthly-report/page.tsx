@@ -4,6 +4,7 @@ import { PanelBones, Skeleton, TextBones, TileBones } from "@/components/admin/S
 import { BarList } from "@/components/admin/charts";
 import { DataTable, PageHeader, Panel, StatCard, StatGrid, rowButton } from "@/components/admin/kit";
 import Link from "next/link";
+import { card } from "@/components/ui";
 import { LEAD_TYPE_LABELS, type LeadType } from "@/lib/admin/collections";
 import { buildAnalytics } from "@/lib/admin/analytics";
 import { carCosts } from "@/lib/admin/costs";
@@ -12,7 +13,7 @@ import { visitorFigures } from "@/lib/admin/visitor-figures";
 import { countsBetween } from "@/lib/owner-api/counters";
 import { counted, monthLabel } from "@/lib/admin/reports";
 import { simulating } from "@/lib/integrations";
-import { hasModule } from "@/lib/modules";
+import { reviewPlace } from "@/lib/admin/review-ask";
 import { can, currentMember } from "@/lib/permissions";
 import { roleCan } from "@/lib/permission-rules";
 import { loadReportData } from "@/lib/reports/load";
@@ -42,10 +43,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
   const month = isIsoMonth(asked) && months.includes(asked) ? asked : last;
   const earlier = months[months.indexOf(month) + 1];
   const later = months[months.indexOf(month) - 1];
-  const [me, hasMargins] = await Promise.all([currentMember(), hasModule("margins")]);
+  const me = await currentMember();
   // As on Reports (owner's decision): the roles allowed margins see the dealership; a salesperson sees their own leads and sales, and
-  // nothing of the stock, visitors or reviews. By role, not by `can`: with the Margins module off an owner still sees the dealership (only
-  // the money goes, `seeMargins`).
+  // nothing of the stock, visitors or reviews. By role; the money is `seeMargins`.
   const whole = roleCan(me.role, "margins");
   const prevMonth = monthBefore(month);
   return (
@@ -54,8 +54,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
       <style>{"@media print { aside, [data-demo-bar], .no-print { display: none !important; } main { padding: 0 !important; } * { box-shadow: none !important; } }"}</style>
       {/* The same header as Reports' (no actions), so the views control sits where it does there. */}
       <PageHeader title="Monthly report" text={`${whole ? "" : `${me.name}, `}${monthLabel(month)}, compared with ${monthLabel(prevMonth)}`} />
-      {/* A view of Reports: its other views, for a dealer who has Reports (the Margins module). */}
-      {hasMargins && <div className="no-print"><ReportViews /></div>}
+      {/* A view of Reports: its other views. */}
+      <div className="no-print"><ReportViews /></div>
       {/* The months before and after, one tap each, as Test drives moves by week; twelve months back at most. Both arrows always there,
           the one with no month to go to dimmed, so neither moves under a second click. */}
       <div className="no-print flex items-center gap-2">
@@ -67,7 +67,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
       {/* The report itself streams in under the controls, so a tap on another month or view works from the first paint (#109). */}
       <Suspense key={month} fallback={<ReportBones />}>
         <Fresh className="flex flex-col gap-6">
-          <Report month={month} prevMonth={prevMonth} now={now} name={me.name} whole={whole} hasMargins={hasMargins} />
+          <Report month={month} prevMonth={prevMonth} now={now} name={me.name} whole={whole} />
         </Fresh>
       </Suspense>
     </>
@@ -87,8 +87,8 @@ function ReportBones() {
   );
 }
 
-async function Report({ month, prevMonth, now, name, whole, hasMargins }: { month: string; prevMonth: string; now: number; name: string; whole: boolean; hasMargins: boolean }) {
-  const [all, seeMargins, hasSales, hasReviews, hasAnalytics, profile] = await Promise.all([loadReportData(), can("margins"), hasModule("sales"), hasModule("reviews"), hasModule("analytics"), dealerProfile()]);
+async function Report({ month, prevMonth, now, name, whole }: { month: string; prevMonth: string; now: number; name: string; whole: boolean }) {
+  const [all, seeMargins, profile, place] = await Promise.all([loadReportData(), can("margins"), dealerProfile(), reviewPlace()]);
   const oldDays = profile.rules.oldStockDays;
   const data = whole ? all : { leads: all.leads.filter((l) => l.assignedTo === name), sales: all.sales.filter((x) => x.salesperson === name), cars: [], reviews: [] };
   const { from, to } = monthRange(month);
@@ -97,18 +97,18 @@ async function Report({ month, prevMonth, now, name, whole, hasMargins }: { mont
   const p = summarise(data, prevRange.from, prevRange.to, now, profile);
 
   let profit: number | undefined;
-  if (hasSales && hasMargins && seeMargins) {
+  if (seeMargins) {
     const costs = await carCosts();
     profit = data.sales.filter((x) => !x.returnedOn && x.soldOn >= from && x.soldOn <= to && costs.has(x.id)).reduce((n, x) => n + x.priceEur - costs.get(x.id)!.total, 0);
   }
 
   const sim = await simulating();
   // shortcut: the demo's visitor figures are generated for the 30 days to the month's end, not the calendar month; real analytics replaces it.
-  const a = whole && hasAnalytics && sim ? buildAnalytics({ range: 30, cars: data.cars.filter(forSale).map((c) => ({ slug: c.slug, title: carName(c) })), now: bounds(from, to)[1] - 1, leadTimes: data.leads.filter(counted).map((l) => l.createdAt) }) : undefined;
+  const a = whole && sim ? buildAnalytics({ range: 30, cars: data.cars.filter(forSale).map((c) => ({ slug: c.slug, title: carName(c) })), now: bounds(from, to)[1] - 1, leadTimes: data.leads.filter(counted).map((l) => l.createdAt) }) : undefined;
   // A dealer's own site: the visits its visitors really made, from the site's anonymous counts, and where its website leads came from.
   const inMonth = (r: { from: string; to: string }) => data.leads.filter((l) => counted(l) && l.createdAt >= bounds(r.from, r.to)[0] && l.createdAt < bounds(r.from, r.to)[1]);
   const real =
-    whole && hasAnalytics && !sim
+    whole && !sim
       ? await Promise.all([countsBetween(from, to), countsBetween(prevRange.from, prevRange.to)]).then(([c, pc]) => ({
           now: visitorFigures({ counts: c.features, leads: inMonth({ from, to }), alerts: [] }),
           before: visitorFigures({ counts: pc.features, leads: inMonth(prevRange), alerts: [] }),
@@ -130,29 +130,27 @@ async function Report({ month, prevMonth, now, name, whole, hasMargins }: { mont
         <StatCard lead label="Leads" value={fmtCompact(s.leads.total)} hint={compare(s.leads.total, p.leads.total)} />
         {a && <StatCard label="Visitors" value={fmtCompact(a.totals.visitors)} hint={compare(a.totals.visitors, a.previous.visitors)} />}
         {real && <StatCard label="Visits" value={fmtCompact(real.now.totals.visits)} hint={compare(real.now.totals.visits, real.before.totals.visits)} />}
-        {hasSales ? (
-          <StatCard label="Cars sold" value={fmtCompact(s.sales.count)} hint={compare(s.sales.count, p.sales.count)} />
-        ) : (
-          whole && <StatCard label="Cars sold" value={fmtCompact(s.stock.sold)} hint={compare(s.stock.sold, p.stock.sold)} />
-        )}
+        {/* Every car sold, as the email says it: marked sold or gone from the listing site, recorded sales among them. A salesperson's own view
+            has no stock, so it is their recorded sales. */}
+        <StatCard label="Cars sold" value={fmtCompact(s.stock.sold)} hint={compare(s.stock.sold, p.stock.sold)} />
         {topSource && <StatCard label="Most leads from" value={topSource[0]} hint={plural(topSource[1], "lead")} />}
       </StatGrid>
 
-      <h2 className="text-heading font-semibold">Leads</h2>
-      <StatGrid>
+      <StatGrid title="Leads">
         <StatCard label="Out of hours" value={fmtCompact(s.leads.outOfHours)} hint={s.leads.total ? `${Math.round((s.leads.outOfHours / s.leads.total) * 100)}% of leads` : undefined} />
         <StatCard label="First reply, when open" value={fmtWait(s.replies.medianInHoursMin)} hint="Typical" />
         <StatCard label="First reply, when closed" value={fmtWait(s.replies.medianOutOfHoursMin)} hint="Typical" />
         <StatCard label="No reply in 24 hours" value={fmtCompact(s.replies.none)} tone={s.replies.none ? "warn" : undefined} />
       </StatGrid>
-      <div className="grid grid-cols-1 gap-6 wide:grid-cols-2 wider:grid-cols-3">
-        <Panel title="Where they came from">
+      {/* Three short ranked lists in one panel, hairlines between them, rather than three equal cards (#213). */}
+      <div className={`${card} grid grid-cols-1 gap-x-8 gap-y-6 p-5 wide:grid-cols-2 wider:grid-cols-3`}>
+        <Panel plain title="Where they came from">
           {sources.length ? <BarList items={sources.map(([name, n]) => ({ label: name, value: n }))} /> : <p className="text-meta text-text-2">No leads this month.</p>}
         </Panel>
-        <Panel title="What they asked about">
+        <Panel plain title="What they asked about">
           {topTypes.length ? <BarList items={topTypes.map(([t, n]) => ({ label: LEAD_TYPE_LABELS[t as LeadType] ?? t, value: n }))} /> : <p className="text-meta text-text-2">No leads this month.</p>}
         </Panel>
-        <Panel title="By day of the week">
+        <Panel plain title="By day of the week">
           {s.leads.total ? <BarList items={DAYS.map((d, i) => ({ label: d, value: s.leads.byWeekday[i] }))} /> : <p className="text-meta text-text-2">No leads this month.</p>}
         </Panel>
       </div>
@@ -160,7 +158,7 @@ async function Report({ month, prevMonth, now, name, whole, hasMargins }: { mont
       {a && (
         <>
           <h2 className="text-heading font-semibold">Visitors</h2>
-          <Panel plain title="Where visits came from">
+          <Panel title="Where visits came from">
             <VisitSources now={a.channels} before={a.previous.channels} />
           </Panel>
           <Panel title="Top 5 cars viewed">
@@ -174,11 +172,10 @@ async function Report({ month, prevMonth, now, name, whole, hasMargins }: { mont
 
       {real && (
         <>
-          <h2 className="text-heading font-semibold">Visitors</h2>
-          <StatGrid>
+          <StatGrid title="Visitors">
             <StatCard label="Visits that became leads" value={fmtPct(real.now.totals.conversion)} />
           </StatGrid>
-          <Panel plain title="Where visits came from">
+          <Panel title="Where visits came from">
             <VisitSources now={real.now.channels} before={real.before.channels} />
             {real.now.unknownLeads > 0 && <p className="text-meta text-text-2">{plural(real.now.unknownLeads, "website lead")} came with no source known.</p>}
           </Panel>
@@ -187,8 +184,7 @@ async function Report({ month, prevMonth, now, name, whole, hasMargins }: { mont
 
       {whole && (
         <>
-          <h2 className="text-heading font-semibold">Stock</h2>
-          <StatGrid>
+          <StatGrid title="Stock">
             <StatCard label="Cars added" value={fmtCompact(s.stock.added)} hint={compare(s.stock.added, p.stock.added)} />
             <StatCard label="Days in stock" value={s.stock.avgDaysInStock === null ? "None" : fmtNum(s.stock.avgDaysInStock)} hint="Average, cars for sale now" />
             <StatCard href="/stock?view=old" label={`${oldDays} days or more`} value={fmtCompact(s.stock.oldStock)} tone={s.stock.oldStock ? "warn" : undefined} hint="Cars for sale now" />
@@ -198,26 +194,19 @@ async function Report({ month, prevMonth, now, name, whole, hasMargins }: { mont
 
       {/* Sales and reviews side by side on a wide screen: each is two or three figures, too few to fill the width alone. */}
       <div className="grid grid-cols-1 gap-6 wider:grid-cols-2">
-        {hasSales && (
-          <section className="flex flex-col gap-4">
-            <h2 className="text-heading font-semibold">Sales</h2>
-            <StatGrid>
-              {/* Cars sold is in the month in short at the top; here it shows only when there is no money to show beside it. */}
-              {s.sales.valueEur === undefined && profit === undefined && <StatCard label="Cars sold" value={fmtCompact(s.sales.count)} hint={compare(s.sales.count, p.sales.count)} />}
-              {s.sales.valueEur !== undefined && <StatCard label="Sales" value={fmtCompactEur(s.sales.valueEur)} hint={fmtCompactEur(s.sales.valueEur) === fmtEur(s.sales.valueEur) ? undefined : fmtEur(s.sales.valueEur)} />}
-              {profit !== undefined && <StatCard label="Profit" value={fmtEur(profit)} hint="Cars with their cost entered" />}
-            </StatGrid>
-          </section>
-        )}
+        <StatGrid title="Sales">
+            {/* Cars sold is in the month in short at the top; here it shows only when there is no money to show beside it. */}
+            {s.sales.valueEur === undefined && profit === undefined && <StatCard label="Cars sold" value={fmtCompact(s.sales.count)} hint={compare(s.sales.count, p.sales.count)} />}
+            {s.sales.valueEur !== undefined && <StatCard label="Sales" value={fmtCompactEur(s.sales.valueEur)} hint={fmtCompactEur(s.sales.valueEur) === fmtEur(s.sales.valueEur) ? undefined : fmtEur(s.sales.valueEur)} />}
+            {profit !== undefined && <StatCard label="Profit" value={fmtEur(profit)} hint="Cars with their cost entered" />}
+          </StatGrid>
 
-        {whole && hasReviews && (
-          <section className="flex flex-col gap-4">
-            <h2 className="text-heading font-semibold">Reviews</h2>
-            <StatGrid>
+        {/* Only with Google reviews connected: with none coming in, "0 new" would read as a bad month. */}
+        {whole && place && (
+          <StatGrid title="Reviews">
               <StatCard label="New reviews" value={fmtCompact(s.reviews.count)} hint={compare(s.reviews.count, p.reviews.count)} />
               <StatCard label="Average rating" value={s.reviews.average === null ? "None" : s.reviews.average.toFixed(1)} hint={s.reviews.average === null ? undefined : `From ${plural(s.reviews.count, "review")}`} />
             </StatGrid>
-          </section>
         )}
       </div>
     </>

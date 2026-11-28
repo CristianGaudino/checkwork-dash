@@ -35,9 +35,11 @@ export function OpenClaimForm({ sales, today, defaults }: { sales: { id: string;
 
 // A cost on a car (a warranty repair, a car's cost price), read first: the figure, and Edit to change it in the house dialog (#141). A
 // refused figure says why under the box and keeps the dialog open; a save closes it and says so.
-export function CostPanel({ title, act, label, hint, costEur }: { title: string; act: (prev: CostState, data: FormData) => Promise<CostState>; label: string; hint: string; costEur?: number }) {
+// `plain`: a section of a panel around it (a claim's aside), with no frame of its own.
+export function CostPanel({ title, act, label, hint, costEur, plain = false }: { title: string; act: (prev: CostState, data: FormData) => Promise<CostState>; label: string; hint: string; costEur?: number; plain?: boolean }) {
   return (
     <Panel
+      plain={plain}
       title={title}
       action={
         <EditDialog title={title} what={title.toLowerCase()} saved="Cost saved">

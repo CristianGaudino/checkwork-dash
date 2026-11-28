@@ -121,6 +121,7 @@ test("a post that goes out shows on the calendar's week, and the week can move",
 
 test("an idea offers a story as well as a post", async ({ page }) => {
   await page.goto("/marketing");
+  await page.getByRole("link", { name: /^Posts and ads/ }).waitFor(); // the tabs and ideas stream in after the header (#200)
   const story = page.getByRole("link", { name: "Make a story" }).first();
   if (await story.count()) {
     await story.click();
@@ -156,23 +157,4 @@ test("write a car description, a lead reply and a review reply with AI", async (
   await page.getByRole("button", { name: "Write with AI" }).first().click();
   await expect(page.getByRole("textbox", { name: /^Reply to / }).first()).not.toHaveValue("");
   await expect(page.getByRole("button", { name: "More apologetic" }).first()).toBeVisible();
-});
-
-test("with the AI module off there is no AI anywhere; with Social off there is no Marketing; stock alerts alone are on Customers", async ({ page, context, baseURL }) => {
-  const modules = (value: string) => context.addCookies([{ name: "checkwork-demo-modules", value, url: baseURL! }]);
-  await modules("dashboard,social,newsletter,reviews");
-  await startPost(page);
-  await next(page);
-  await expect(text(page)).toBeVisible();
-  await expect(page.getByRole("button", { name: "Write with AI" })).toHaveCount(0);
-  await page.goto("/leads/lead-1000");
-  await expect(page.getByRole("button", { name: "Write with AI" })).toHaveCount(0);
-  await expect(page.getByRole("heading", { name: "Draft a reply" })).toHaveCount(0);
-
-  await modules("dashboard,newsletter,ai");
-  expect((await page.goto("/marketing"))?.status()).toBe(404);
-  await page.goto("/marketing/new");
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Not in your plan");
-  await page.goto("/customers");
-  await expect(page.getByRole("link", { name: /^Stock alerts/ })).toHaveAttribute("aria-current", "true");
 });

@@ -33,12 +33,12 @@ describe("business details", () => {
   const HOURS = Object.fromEntries([0, 1, 2, 3, 4].flatMap((i) => [[`opens${i}`, "09:00"], [`closes${i}`, "17:30"]]));
   const facts = { name: "Checkwork Motors", siteUrl: "https://www.example.com/", phone: "01 234 5678", email: "sales@example.com", street: "Main Street", town: "Naas", county: "Co. Kildare", eircode: "W91 X2Y3", ...HOURS };
 
-  it("lets an owner or manager change the dealer's own facts in the directory, and logs it; the plan stays ours", async () => {
+  it("lets an owner or manager change the dealer's own facts in the directory, and logs it; the stock source stays ours", async () => {
     role = "Manager";
     const before = (await listActivity({ area: "settings" }, 1, 1)).total;
     expect(await saveBusinessAction(undefined, form(facts))).toEqual({ saved: true });
     const d = (await dealerById("checkwork-motors"))!;
-    expect(d.profile).toMatchObject({ siteUrl: "https://www.example.com", phone: "01 234 5678", address: { town: "Naas" }, modules: "all" });
+    expect(d.profile).toMatchObject({ siteUrl: "https://www.example.com", phone: "01 234 5678", address: { town: "Naas" }, stock: { source: "checkwork" } });
     expect(d.profile.hours[0]).toEqual({ day: "Monday", opens: "09:00", closes: "17:30" });
     expect(d.profile.hours[6]).toEqual({ day: "Sunday" });
     expect((await listActivity({ area: "settings" }, 1, 1)).rows[0]).toMatchObject({ summary: "Changed the business details" });
@@ -289,7 +289,7 @@ describe("your account and a person's details (#142)", () => {
     expect((await saveProfileAction(undefined, form({ name: "Conor D", phone: "abc" })))?.errors?.phone).toBeTruthy();
   });
 
-  it("saves their own grid, keeping what a hidden column or module had, and never WhatsApp for Finance", async () => {
+  it("saves their own grid, keeping what a hidden column had, and never WhatsApp for Finance", async () => {
     role = "Sales";
     const me = await find("Sales");
     expect(await saveMyNotificationsAction(undefined, form({ "notify-grid": "1", "notify-push": ["enquiry"], "notify-email": ["follow-ups"], "notify-whatsapp": ["trade-in"], quietFrom: "21:00", quietTo: "08:00" }))).toEqual({ saved: true });

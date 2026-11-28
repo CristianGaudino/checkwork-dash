@@ -6,7 +6,6 @@ import { leadsStore, salesStore } from "@/lib/admin/collections";
 import { adminCar } from "@/lib/admin/stock-admin";
 import { recordUsage, usageAllowed } from "@/lib/billing/usage";
 import { carHistoryStore, checkHistory, type HistoryAnswer } from "@/lib/history";
-import { requireModule } from "@/lib/modules";
 import { requireStaff } from "@/lib/staff";
 import { fmtDate } from "@/lib/admin/format";
 
@@ -19,12 +18,10 @@ const SAYS: Record<Extract<HistoryAnswer, { error: string }>["error"], string> =
 };
 
 // Check history (#170) for a car in stock, a trade-in or sell lead's car, or a recorded sale's trade-in (by the sale's id, the car's). The
-// plate is read from the record on the server, never taken from the browser. Everyone on the dashboard may run it, as the lookup; the
-// module must be on. The answer is kept on the record with the day it was checked. A plate checked in the last 30 days comes from the
+// plate is read from the record on the server, never taken from the browser. Everyone on the dashboard may run it, as the lookup. The answer is kept on the record with the day it was checked. A plate checked in the last 30 days comes from the
 // cache, free, with its first day, and the toast says so (ActButton shows a returned `error` in place of its done text).
 export async function checkHistoryAction(of: "car" | "lead" | "sale", id: string): Promise<{ error?: string }> {
   await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
-  await requireModule("history");
   if (typeof id !== "string" || id.length > 80) return { error: SAYS.failed };
   const car = of === "car" ? await adminCar(id) : undefined;
   const lead = of === "lead" ? await leadsStore.get(id) : undefined;

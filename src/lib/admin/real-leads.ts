@@ -9,7 +9,6 @@ import { dublinMs } from "./format";
 import { noticeOfLead, notify } from "./notifications";
 import { MINUTE } from "@/lib/time";
 import { alertStaffOnWhatsApp } from "@/lib/whatsapp/alerts";
-import { enabledModules, hasModule } from "@/lib/modules";
 import { eventOfLead } from "@/lib/whatsapp/rules";
 import type { SpamVerdict } from "@/lib/leads/spam";
 
@@ -18,10 +17,9 @@ import type { SpamVerdict } from "@/lib/leads/spam";
 // are marked by an id starting "real-" and are deleted with the lead by the daily purge (src/lib/leads/purge.ts).
 const LEAD_TYPE: Record<Exclude<LeadRow["type"], "alert">, LeadType> = { enquiry: "enquiry", sourcing: "find-a-car", trade_in: "trade-in", finance: "finance", general: "general", test_drive: "test-drive", order: "enquiry" };
 // A general message is a warranty claim or a service request when it was sent from that page.
-// The guided form's topic says the same when it is sent from /contact. Both are Aftersales work, the service module (#173): a dealer
-// without it gets them as general messages, in Leads, so none is filed where nobody can open it.
-const pageType = (path: string, topic: string | number | undefined, service: boolean): LeadType =>
-  !service ? "general" : path.startsWith("/warranty") || topic === "bought" ? "warranty" : path.startsWith("/service") || topic === "service" ? "service" : "general";
+// The guided form's topic says the same when it is sent from /contact. Both are Aftersales work.
+const pageType = (path: string, topic: string | number | undefined): LeadType =>
+  path.startsWith("/warranty") || topic === "bought" ? "warranty" : path.startsWith("/service") || topic === "service" ? "service" : "general";
 
 // Their own words only (#59): the other answers are kept as the lead's details (detailsOf). A new car order, still sent by an older
 // website though the dashboard has no new cars (#168), is filed as a car enquiry that reads as the car asked for ("Hyundai Tucson,
@@ -49,7 +47,7 @@ export const arrivalSpam = (row: Pick<LeadRow, "type" | "sourcePath" | "details"
 // `journey`: the visit note the website sent with it (src/lib/leads/journey.ts), kept on the lead so it goes with it (purge, erasure, export).
 // `spam`: the spam check's verdict (spamCheck, run once by the site API, #56): clear spam is filed as spam, and a lead it is unsure of is
 // marked possible spam, left new for a person to decide.
-export function mirrorOf(row: LeadRow, emailed = true, service = true, photos = 0, journey?: Journey, spam?: SpamVerdict): Mirror {
+export function mirrorOf(row: LeadRow, emailed = true, photos = 0, journey?: Journey, spam?: SpamVerdict): Mirror {
   const id = `real-${row.id}`;
   const at = row.consentAt.getTime();
   if (row.type === "alert") {
@@ -61,7 +59,7 @@ export function mirrorOf(row: LeadRow, emailed = true, service = true, photos = 
   const verdict = arrivalSpam(row, spam);
   const lead: Lead = {
     id,
-    type: row.type === "trade_in" && row.details.intent === "sell" ? "sell" : row.type === "general" ? pageType(row.sourcePath, row.details.topic, service) : LEAD_TYPE[row.type],
+    type: row.type === "trade_in" && row.details.intent === "sell" ? "sell" : row.type === "general" ? pageType(row.sourcePath, row.details.topic) : LEAD_TYPE[row.type],
     status: verdict === "spam" ? "spam" : "new",
     ...(verdict === "spam" && { statusBefore: "new" as const }),
     ...(verdict === "maybe" && { maybeSpam: true as const }),
@@ -89,7 +87,7 @@ export function mirrorOf(row: LeadRow, emailed = true, service = true, photos = 
 
 // Best effort: the lead is already stored, so a failure here must never turn into a failed form.
 export async function mirrorLead(row: LeadRow, emailed = true, photos = 0, journey?: Journey, spam?: SpamVerdict): Promise<void> {
-  const m = mirrorOf(row, emailed, await hasModule("service"), photos, journey, spam);
+  const m = mirrorOf(row, emailed, photos, journey, spam);
   if (m.alert) await alertsStore.put(m.alert);
   if (m.lead) await leadsStore.put(m.lead);
   // Spam is kept, on the Spam tab, and nothing more: no booking, no customer, no bell and no WhatsApp alert (#56).
@@ -105,7 +103,7 @@ export async function mirrorLead(row: LeadRow, emailed = true, photos = 0, journ
     const known = await customersStore.get(id);
     const c: Customer = known ?? { id, name: row.name, email: row.email ?? "", phone: row.phone ?? "", source: "Website", marketingConsent: false, createdAt: row.consentAt.getTime(), lastContactAt: 0 };
     await customersStore.put({ ...c, lastContactAt: row.consentAt.getTime() });
-    await notify(noticeOfLead(m.lead, m.drive), row.consentAt.getTime(), eventOfLead(m.lead.type, await enabledModules()));
+    await notify(noticeOfLead(m.lead, m.drive), row.consentAt.getTime(), eventOfLead(m.lead.type));
     await alertStaffOnWhatsApp(m.lead);
   }
 }

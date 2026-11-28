@@ -11,14 +11,12 @@ const db = vi.hoisted(() => ({
   drives: new Map<string, Record<string, unknown>>(),
   reviews: new Map<string, Record<string, unknown>>(),
   deposits: new Map<string, Record<string, unknown>>(),
-  modules: new Set<string>(),
   phone: "+353 83 000 1100",
   activity: [] as string[],
   role: "Owner",
   staff: [] as Record<string, unknown>[],
 }));
 vi.mock("@/lib/admin/activity", () => ({ logActivity: async (_area: string, text: string) => void db.activity.push(text) }));
-vi.mock("@/lib/modules", () => ({ enabledModules: async () => db.modules }));
 vi.mock("@/lib/admin/activity-text", () => ({ carEditSummary: () => "Changed a car" }));
 vi.mock("@/lib/admin/seed-data", () => ({ carTitleOf: () => "2019 Ford Focus" }));
 vi.mock("@/lib/admin/publishers", () => ({ postReviewReply: async () => ({ ok: true }) }));
@@ -82,7 +80,6 @@ beforeEach(() => {
   db.deposits.clear();
   db.activity.length = 0;
   db.phone = "+353 83 000 1100";
-  db.modules = new Set(["dashboard", "whatsapp", "tradeIn", "testDrives", "reviews", "sales"]);
 });
 const said = () => [...db.msgs.values()].map((m) => String(m.text));
 
@@ -312,27 +309,6 @@ describe("a typed review reply", () => {
     await typed("Aoife", "Thanks Orla!");
     expect(db.reviews.get("rev-1")?.reply).toBe("Thanks Orla!");
     expect(said()).toContain("Posted on Google.");
-  });
-  it("is refused with Reviews off", async () => {
-    db.reviews.set("rev-1", { id: "rev-1", author: "Orla R.", rating: 5, text: "Great", createdAt: 1 });
-    alert("a1", ["review"], { ref: "rev-1", event: "review" });
-    await tap("Aoife", "a1", "review", db.role as Role);
-    db.modules.delete("reviews");
-    await typed("Aoife", "Thanks Orla!");
-    expect(db.reviews.get("rev-1")?.reply).toBeUndefined();
-  });
-});
-
-describe("an alert whose module is off", () => {
-  it("sends no offer when Trade-in is switched off after Reply with a price", async () => {
-    db.leads.set("real-1", lead("new"));
-    alert("a1", ["price"], { leadId: "real-1", event: "trade-in" });
-    await tap("Aoife", "a1", "price", db.role as Role);
-    db.modules.delete("tradeIn");
-    await typed("Aoife", "8,500");
-    expect(sent).toHaveLength(0);
-    await tap("Aoife", "a1", "price", db.role as Role);
-    expect(said().at(-1)).toMatch(/is off, so I did nothing/);
   });
 });
 

@@ -7,12 +7,11 @@ import { newId } from "@/lib/admin/ids";
 import demoCars from "@/lib/stock/demo-cars.json";
 import { forSale, onRequest, type Car } from "@/lib/stock/types";
 import { carTitleOf } from "@/lib/admin/seed-data";
-import type { ModuleId } from "@/lib/modules-rules";
 import { roleCan, type Role } from "@/lib/permission-rules";
 import { HOUR, MINUTE } from "@/lib/time";
 import { DEMO_PROFILE, type DealerProfile } from "@/lib/tenancy/profile";
 import type { PersonRecord } from "@/lib/notify-rules";
-import { EVENTS, alertText, defaultAlerts, firstName, moduleOf, type ButtonId, type EventId, type Facts } from "./rules";
+import { EVENTS, alertText, defaultAlerts, firstName, type ButtonId, type EventId, type Facts } from "./rules";
 
 // The conversation between the site and the dealer's phones, and between the site and buyers (#178). One record per message, so a message
 // is one small write. Two threads: "staff" (the site and one team member's phone, `to` is their name) and "buyer" (the site and the buyer
@@ -103,14 +102,9 @@ export const isStaffAlert = (m: Msg) => m.thread === "staff" && m.from === "site
 // What the page shows: the person's own phone, the buyer's phone for the lead last written to, and whether an answer is on its way.
 export type View = { staff: Msg[]; buyer: Msg[]; buyerName: string; typing: boolean };
 
-export async function viewFor(name: string, modules: ReadonlySet<ModuleId>, now = Date.now()): Promise<View> {
+export async function viewFor(name: string, now = Date.now()): Promise<View> {
   const live = (await messagesStore.list()).sort((a, b) => a.at - b.at);
-  const byId = new Map(live.map((m) => [m.id, m]));
-  // An alert, and a question asked from one, only while its module is on.
-  const shown = live.filter((m) => {
-    const needs = moduleOf(m, m.ref ? byId.get(m.ref) : undefined);
-    return m.at <= now && (!needs || modules.has(needs));
-  });
+  const shown = live.filter((m) => m.at <= now);
   const staff = shown.filter((m) => m.thread === "staff" && m.to === name);
   const buyerAll = shown.filter((m) => m.thread === "buyer");
   const focus = buyerAll.at(-1)?.leadId;

@@ -10,7 +10,7 @@ import { marginOf } from "@/lib/admin/margins";
 import { adminCars } from "@/lib/admin/stock-admin";
 import { can } from "@/lib/permissions";
 import { daysSince, fmtAgoOn, fmtDate, fmtEur, fmtNum } from "@/lib/admin/format";
-import { carName, siteCarUrl, priceLabel } from "@/lib/stock/format";
+import { carName, priceLabel } from "@/lib/stock/format";
 import { FUEL_LABELS, FUELS, GEARBOXES, GEARBOX_LABELS, forSale, isReduced, isSold, type Car, onPublicSite } from "@/lib/stock/types";
 import { stockSource } from "@/lib/stock-source";
 import { listingHref } from "@/lib/stock-source-rules";
@@ -31,8 +31,6 @@ import { syncStatus } from "@/lib/donedeal/sync";
 import { dropPriceAction, syncNowAction, toggleSoldAction, undoDropAction, withdrawnAction } from "./actions";
 import { suggestedDrop } from "@/lib/admin/overview";
 import { SubmitButton } from "@/components/admin/SubmitButton";
-import { enabledModules, hasModule } from "@/lib/modules";
-import { conditionShown } from "@/lib/modules-rules";
 
 export const metadata = { title: "Stock" };
 
@@ -43,7 +41,7 @@ type StockParams = { view?: string; status?: string; q?: string; make?: string; 
 export default async function Page({ searchParams }: { searchParams: Promise<StockParams> }) {
   const sp = await searchParams;
   const { view, q, make, fuel, gearbox } = parseStockList(sp);
-  const [all, source, deposits, { site: listingSite, url: listingUrl }, { siteUrl, rules }] = await Promise.all([adminCars(), stockSource(), hasModule("sales"), listing(), dealerProfile()]);
+  const [all, source, { site: listingSite, url: listingUrl }, { siteUrl, rules }] = await Promise.all([adminCars(), stockSource(), listing(), dealerProfile()]);
   const OLD_DAYS = rules.oldStockDays;
   const STOCK_VIEWS = stockViews(OLD_DAYS);
   const synced = source === "donedeal";
@@ -61,7 +59,6 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sto
   const href = (v: StockView) => `/stock?${new URLSearchParams(Object.entries({ view: v, q, make, fuel, gearbox }).filter((e): e is [string, string] => Boolean(e[1])))}`;
   const takenDown = synced ? all.filter((c) => c.takenDownAt) : [];
   const canUndo = await can("settings"); // undoing a sale is money going back: owners and managers
-  const social = await hasModule("social");
   // Every filter in one panel: the make (those in stock), the fuel, the gearbox.
   const filters: FilterGroup[] = [
     { name: "make", label: "Make", any: "Every make", options: makes },
@@ -89,7 +86,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sto
         action={<Link href={`/stock/${needPhotos[0].id}#photos`} className={rowButtonStrong}>Add photos</Link>} />
     ),
     old.length > 0 && (
-      <Task key="old" urgency="soon" icon={<HistoryIcon />} count={old.length} title={one(old, `cars for sale ${OLD_DAYS} days or more`, `car for sale ${OLD_DAYS} days or more`)} detail={phoneless(synced ? `Think about a price drop on ${listingSite}.` : social ? "Tick them below to drop the price, or post them to social." : "Tick them below to drop the price.")} href={href("old")}
+      <Task key="old" urgency="soon" icon={<HistoryIcon />} count={old.length} title={one(old, `cars for sale ${OLD_DAYS} days or more`, `car for sale ${OLD_DAYS} days or more`)} detail={phoneless(synced ? `Think about a price drop on ${listingSite}.` : "Tick them below to drop the price, or post them to social.")} href={href("old")}
         action={<Link href={href("old")} className={rowButton}>See them</Link>} />
     ),
     drafts.length > 0 && (
@@ -206,7 +203,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sto
           Keyed by the view only: a new view shows the bones, a search, sort or page keeps the old rows until the new ones come. */}
       <Suspense key={view} fallback={<Skeleton><TableBones /></Skeleton>}>
         <Fresh className="flex flex-col gap-6">
-          <StockTable sp={sp} matching={matching} sales={sales} view={view} q={q} synced={synced} social={social} canUndo={canUndo} deposits={deposits} siteUrl={siteUrl} rules={rules} listingSite={listingSite} listingUrl={listingUrl} oldDays={OLD_DAYS} />
+          <StockTable sp={sp} matching={matching} sales={sales} view={view} q={q} synced={synced} canUndo={canUndo} siteUrl={siteUrl} rules={rules} listingSite={listingSite} listingUrl={listingUrl} oldDays={OLD_DAYS} />
         </Fresh>
       </Suspense>
     </>
@@ -214,7 +211,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sto
 }
 
 // The table: every row, its buttons and the margin column. Rendering a page of cars with their buttons is the slow part, so it streams in.
-async function StockTable({ sp, matching, sales, view, q, synced, social, canUndo, deposits, siteUrl, rules, listingSite, listingUrl, oldDays: OLD_DAYS }: { sp: StockParams; matching: Car[]; sales: Map<string, Sale>; view: StockView; q?: string; synced: boolean; social: boolean; canUndo: boolean; deposits: boolean; siteUrl?: string; rules: DealerRules; listingSite: string; listingUrl: string; oldDays: number }) {
+async function StockTable({ sp, matching, sales, view, q, synced, canUndo, siteUrl, rules, listingSite, listingUrl, oldDays: OLD_DAYS }: { sp: StockParams; matching: Car[]; sales: Map<string, Sale>; view: StockView; q?: string; synced: boolean; canUndo: boolean; siteUrl?: string; rules: DealerRules; listingSite: string; listingUrl: string; oldDays: number }) {
   // A sold car with no sale recorded gets the button: Mark sold in our version records it; after the DoneDeal sync it is asked for here.
   const recordSale = (c: Car) =>
     isSold(c) && !sales.has(c.id) ? (
@@ -225,11 +222,8 @@ async function StockTable({ sp, matching, sales, view, q, synced, social, canUnd
   // The margin column is for staff with the margins permission; without it the costs are not even read.
   const costs = (await can("margins")) ? new Map([...(await carCosts())].map(([id, c]) => [id, c.total])) : null;
   const marginPrice = (c: Car) => (isSold(c) ? sales.get(c.id)?.priceEur : undefined) ?? c.priceEur;
-  // Where a row goes: the car's editor here, or, for synced stock, the car on the dealer's website in a new tab (it is changed on DoneDeal).
-  // A synced car off the website (its ad came down) has no page there, so it opens here; so does every car with AI, to improve its description.
-  const ai = synced && (await hasModule("ai"));
-  const mods = await enabledModules();
-  const open = (c: Car) => (synced && !ai && siteUrl && onPublicSite(c, rules.soldVisibleDays) && conditionShown(mods, c.condition) ? siteCarUrl(siteUrl, c.slug) : `/stock/${c.id}`);
+  // Where a row goes: the car's page here, synced stock too, to improve its description with AI (it is changed on DoneDeal).
+  const open = (c: Car) => `/stock/${c.id}`;
   const undoSale = (c: Car) =>
     canUndo && isSold(c) && sales.has(c.id) ? (
       <Link href={`/stock/${c.id}/undo-sale`} className={rowButton}>
@@ -239,8 +233,8 @@ async function StockTable({ sp, matching, sales, view, q, synced, social, canUnd
   // Post and View, menu items at every width; anyShareItems mirrors when they show (CarActions), so a synced car's menu is never empty.
   const shareItems = (c: Car) => (
     <>
-      {social && <PostToSocial car={c} className={rowButton} />}
-      <ViewOnSite car={c} shown={conditionShown(mods, c.condition)} className={rowButton} />
+      <PostToSocial car={c} className={rowButton} />
+      <ViewOnSite car={c} className={rowButton} />
     </>
   );
   // The price drop suggested on old stock (#172), in the old stock view, for owners and managers (the settings permission, as the action
@@ -257,7 +251,7 @@ async function StockTable({ sp, matching, sales, view, q, synced, social, canUnd
       Edit on {listingSite}
     </a>
   );
-  const anyShareItems = (c: Car) => (social && forSale(c)) || (conditionShown(mods, c.condition) && Boolean(siteUrl) && onPublicSite(c, rules.soldVisibleDays));
+  const anyShareItems = (c: Car) => forSale(c) || (Boolean(siteUrl) && onPublicSite(c, rules.soldVisibleDays));
 
   const columns: Column<Car>[] = [
     // Tick several cars to change them at once (#104). Our version only: DoneDeal stock is changed on DoneDeal.
@@ -276,7 +270,7 @@ async function StockTable({ sp, matching, sales, view, q, synced, social, canUnd
           {/* The name, then the year, variant and registration, then what needs doing about the car (few photos, hidden, in stock too long). */}
           <div className="flex min-w-0 flex-col gap-1 py-1">
             <span className="min-w-0">
-              <Link href={open(c)} {...(open(c).startsWith("/") ? {} : NEW_TAB)} title={`${c.make} ${c.model}`} className="line-clamp-2 font-medium after:absolute after:inset-0">
+              <Link href={open(c)} title={`${c.make} ${c.model}`} className="line-clamp-2 font-medium after:absolute after:inset-0">
                 {c.make} {c.model}
               </Link>
               {/* The reg on a line of its own, never clamped away by a long variant nor split at a dash. */}
@@ -378,7 +372,7 @@ async function StockTable({ sp, matching, sales, view, q, synced, social, canUnd
                   <PencilIcon className="shrink-0 size-4" />
                   Edit details and photos
                 </Link>
-                {deposits && (forSale(c) || c.reserved) && !isSold(c) && (
+                {(forSale(c) || c.reserved) && !isSold(c) && (
                   <Link href={`/stock/${c.id}/reserve`} className={rowButton}>
                     {c.reserved ? "Deposit" : "Reserve"}
                   </Link>

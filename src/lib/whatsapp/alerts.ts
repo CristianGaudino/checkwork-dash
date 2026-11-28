@@ -2,10 +2,9 @@ import "server-only";
 import { wantsWhatsApp } from "@/lib/phone";
 import { readLead } from "@/lib/leads/lead-text";
 import { addMessage, isStaffAlert, lastWeek, messagesStore, staffStore, type Msg } from "./store";
-import { modeOf } from "@/lib/integrations";
+import { isUsable, modeOf } from "@/lib/integrations";
 import { recordUsage, usageAllowed } from "@/lib/billing/usage";
 import { EVENTS, alertText, eventOfLead, firstName, inQuiet, type EventId, type Facts } from "./rules";
-import { enabledModules } from "@/lib/modules";
 import { mayGet } from "@/lib/notify-rules";
 import { roleCan } from "@/lib/permission-rules";
 import { TIME_ZONE } from "@/lib/site";
@@ -46,13 +45,12 @@ async function deliver(drafts: Draft[], kind: "alert" | "marketing", canEmail: (
 }
 
 // A new website request reaches each team member who has that alert on, in their WhatsApp, with the buttons for it; and its buyer, if they
-// ticked the WhatsApp box, gets a confirmation. Best effort and silent without the module: the lead is already stored and the dashboard has
-// it, so a failure here is never a failed form (called from src/lib/admin/real-leads.ts, outside the dashboard, so it checks the module itself).
+// ticked the WhatsApp box, gets a confirmation. Best effort and silent until the dealer's WhatsApp is connected: the lead is already stored
+// and the dashboard has it, so a failure here is never a failed form (called from src/lib/admin/real-leads.ts, outside the dashboard).
 export async function alertStaffOnWhatsApp(lead: Lead): Promise<void> {
   try {
-    const modules = await enabledModules();
-    if (!modules.has("whatsapp")) return;
-    const event = eventOfLead(lead.type, modules);
+    if (!(await isUsable("whatsapp"))) return;
+    const event = eventOfLead(lead.type);
     const { text: words, facts } = readLead(lead);
     const text = alertText(event, { first: firstName(lead.name), car: lead.carTitle, reg: lead.reg, text: words, when: facts["Test drive"], sell: lead.type === "sell", warranty: lead.type === "warranty" });
     const drafts = await staffCopies(event, text, { leadId: lead.id, ref: lead.id, ...(event === "enquiry" && !lead.carTitle && { buttons: ["call", "handled"] }) });
@@ -65,11 +63,10 @@ export async function alertStaffOnWhatsApp(lead: Lead): Promise<void> {
 }
 
 // Any other alert (a deposit, a new car, a review, a slow car, the Monday summary), to the team members who have it on, while the dealer has
-// both WhatsApp and the alert's own module. Best effort, as above: the action that caused it has already happened. Returns how many went.
+// WhatsApp connected. Best effort, as above: the action that caused it has already happened. Returns how many went.
 export async function alertStaff(event: EventId, facts: Facts, extra: Partial<Draft> = {}): Promise<number> {
   try {
-    const modules = await enabledModules();
-    if (!modules.has("whatsapp") || !modules.has(EVENTS[event].module)) return 0;
+    if (!(await isUsable("whatsapp"))) return 0;
     const plain = event === "slow-stock" ? alertText(event, { ...facts, dropEur: undefined }) : undefined;
     return await deliver(await staffCopies(event, alertText(event, facts), extra, plain), EVENTS[event].kind);
   } catch {
@@ -83,7 +80,7 @@ export const alertNewIn = (car: Car) => alertStaff("new-in", { car: carTitleOf(c
 // The morning job (worker.mjs, /api/whatsapp/daily): each old stock car (the dealer's oldStockDays) and each review from the last two days, once while its
 // alert is kept (30 days, so a car still unsold a month on is raised again), and on a Monday last week's summary.
 export async function sendDailyAlerts(now = Date.now()): Promise<{ sent: number }> {
-  if (!(await enabledModules()).has("whatsapp")) return { sent: 0 };
+  if (!(await isUsable("whatsapp"))) return { sent: 0 };
   const said = new Set((await messagesStore.list()).filter(isStaffAlert).map((m) => `${m.event}:${m.ref}`));
   const [cars, reviews, { profile }] = await Promise.all([adminCars(), reviewsStore.list(), currentDealer()]);
   let sent = 0;

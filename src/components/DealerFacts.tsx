@@ -1,7 +1,6 @@
 "use client";
 
-import { createContext, useContext, useMemo } from "react";
-import { parseModules, type ModuleId } from "@/lib/modules-rules";
+import { createContext, useContext } from "react";
 import type { DealerFacts } from "@/lib/tenancy/profile";
 
 // The dealer being viewed, for the browser (factsOf in src/lib/tenancy/profile.ts, set by src/app/layout.tsx for this request).
@@ -14,9 +13,4 @@ export function useDealerFacts(): DealerFacts {
   const f = useContext(Facts);
   if (!f) throw new Error("No dealer open"); // never another dealer's facts, nor made-up ones
   return f;
-}
-// The modules the dealer has now (#173). A demo bar switch refreshes the page, which brings the new plan from the server.
-export function useModules(): Set<ModuleId> {
-  const raw = useDealerFacts().modules;
-  return useMemo(() => parseModules(raw), [raw]);
 }

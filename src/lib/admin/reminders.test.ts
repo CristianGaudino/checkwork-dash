@@ -7,7 +7,6 @@ const db = vi.hoisted(() => ({
   leads: [] as Record<string, unknown>[],
   histories: [] as { id: string; history: Record<string, unknown> }[],
   demo: false,
-  modules: new Set(["sales", "whatsapp"]),
   channel: "whatsapp" as "whatsapp" | "none", // what a marketing message would go by now
   wa: [] as { d: Record<string, unknown>; kind: string }[],
   mail: [] as { to: string[]; subject: string; text: string; replyTo?: string }[],
@@ -26,7 +25,6 @@ vi.mock("@/lib/history", () => ({ carHistoryStore: { list: async () => db.histor
 vi.mock("./stock-admin", () => ({ adminCars: async () => [{ id: "car-1", reg: "191-D-1" }] }));
 vi.mock("@/lib/tenancy/current", () => ({ currentDealer: async () => ({ name: "Byrne Motors", demo: db.demo, profile: { phone: "01 234 5678", rules: { serviceMonths: 12 } } }) }));
 vi.mock("@/lib/integrations", () => ({ simulating: async () => db.demo }));
-vi.mock("@/lib/modules", () => ({ hasModule: async (m: string) => db.modules.has(m) }));
 vi.mock("@/lib/leads/mail", () => ({
   leadRecipients: async () => ["sales@byrne.ie"],
   sendTo: async (to: string[], m: { subject: string; text: string; replyTo?: string }) => {
@@ -51,7 +49,6 @@ beforeEach(() => {
   db.leads = [];
   db.histories = [];
   db.demo = false;
-  db.modules = new Set(["sales", "whatsapp"]);
   db.channel = "whatsapp";
   db.wa = [];
   db.mail = [];
@@ -179,14 +176,11 @@ describe("the daily job", () => {
     expect(db.mail).toEqual([]);
     expect(db.sales.get("car-1")!.reminders).toMatchObject([{ kind: "service", via: "email" }]);
   });
-  it("uses the history check's NCT, and does nothing without the sales module", async () => {
+  it("uses the history check's NCT", async () => {
     db.sales.set("car-1", sale({ soldOn: "2026-06-01" }));
     db.histories = [{ id: "car-1", history: history("2026-12-20") }];
     expect(await sendReminders(NOW)).toEqual({ sent: 1, failed: 0 });
     expect(db.mail[0].text).toContain("the NCT on your 2019 Ford Focus is due on 20 December");
-    db.modules = new Set();
-    db.sales.set("car-1", sale());
-    expect(await sendReminders(NOW)).toEqual({ sent: 0, failed: 0 });
   });
   it("counts a failed send, never marks it sent, and goes on to the next", async () => {
     db.sales.set("car-2", sale({ id: "car-2", customerId: "cust-2" }));

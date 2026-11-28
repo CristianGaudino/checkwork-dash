@@ -8,7 +8,6 @@ vi.mock("@/lib/admin/collections", () => ({
 }));
 const notices = vi.hoisted(() => [] as { for?: string }[]);
 vi.mock("@/lib/admin/notifications", () => ({ notify: async (n: { for?: string }) => void notices.push(n) }));
-vi.mock("@/lib/modules", () => ({ enabledModules: async () => new Set(["tradeIn"]) })); // Website: no lookups included
 const { recordUsage, usageStore, sentAlertsStore } = await import("./usage");
 
 beforeEach(async () => {
@@ -25,13 +24,13 @@ describe("who hears that a limit is reached", () => {
       { id: "2", name: "Conor Doyle", email: "conor@example.com", role: "Sales" },
       { id: "3", name: "owner@example.com", email: "owner@example.com", role: "Owner" },
     ];
-    await recordUsage("lookup", "dashboard", 4); // none included: 4 at €1.20, past the €1 limit
+    await recordUsage("lookup", "dashboard", 104); // 100 included, then 4 at €1.20, past the €1 limit
     expect([...new Set(notices.map((n) => n.for))].sort()).toEqual(["Ciara Walsh", "owner@example.com"]);
   });
 
   it("nobody at all when there is no owner or manager, rather than everyone", async () => {
     team.list = [{ id: "2", name: "Conor Doyle", email: "conor@example.com", role: "Sales" }];
-    await recordUsage("lookup", "dashboard", 4);
+    await recordUsage("lookup", "dashboard", 104);
     expect(notices).toEqual([]);
   });
 });
@@ -45,8 +44,9 @@ describe("a record from before the plans (#147)", () => {
 
 describe("a stored AI assistant plan", () => {
   it("is ignored: the allowance is the plan's", async () => {
-    const { billingSettings, monthAllowance } = await import("./usage");
-    expect(await monthAllowance(await billingSettings())).toEqual({});
+    const { monthUsage } = await import("./usage");
+    await recordUsage("lookup", "dashboard", 100);
+    expect((await monthUsage()).lookup).toMatchObject({ count: 100, costEur: 0 }); // the plan's 100 lookups
   });
 });
 

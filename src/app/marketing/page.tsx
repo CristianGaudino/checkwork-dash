@@ -9,8 +9,6 @@ import { RowMenu } from "@/components/admin/RowMenu";
 import { sendDuePosts } from "@/lib/admin/scheduler";
 import { adsStore, mediaStore, postsStore, type Ad, type SocialPost } from "@/lib/admin/collections";
 import { LibraryUpload } from "@/components/admin/MediaUpload";
-import { hasModule } from "@/lib/modules";
-import { notFound } from "next/navigation";
 import { TIME_ZONE } from "@/lib/site";
 import { AD_PLATFORM_LABELS } from "@/lib/admin/networks";
 import { PostNow, postLabel, postName, prepared } from "@/components/admin/PostNow";
@@ -24,7 +22,6 @@ import { BrandIcon } from "@/components/admin/BrandIcon";
 
 export const metadata = { title: "Marketing" };
 
-// Every tab is the Social and ads module (#173).
 const TABS = ["posts", "calendar", "media"];
 
 // Every message the page can show. The URL carries only a code from this list.
@@ -71,7 +68,6 @@ type Params = { tab?: string; notice?: string; show?: string; status?: string; p
 // The header and any notice first; the tabs (their counts are the records) and the tab stream in under them (#200). Not keyed: a tab change keeps the old list until the new one lands, so the tabs never turn to bones.
 export default async function Page({ searchParams }: { searchParams: Promise<Params> }) {
   const sp = await searchParams;
-  if (!(await hasModule("social"))) notFound();
   const tab = TABS.includes(sp.tab ?? "") ? sp.tab! : TABS[0];
   const notice = sp.notice ? NOTICES[sp.notice] : undefined;
   return (

@@ -2,7 +2,6 @@
 
 import { z } from "zod";
 import { billingSettings, usageAllowed, recordUsage } from "@/lib/billing/usage";
-import { requireModule } from "@/lib/modules";
 import { currentDealer } from "@/lib/tenancy/current";
 import { POST_FORMATS, STORY_LAYOUTS, NETWORKS } from "@/lib/admin/networks";
 import { buildFacts } from "./facts";
@@ -18,11 +17,10 @@ const request = z.discriminatedUnion("task", [
   z.object({ task: z.literal("leadBrief"), leadId: z.string().max(80) }),
 ]);
 
-// Called by the writing buttons. Order matters: the module (a dealer without AI gets nothing), then the monthly cap (past it the text is
+// Called by the writing buttons. Order matters: the monthly cap (past it the text is
 // left alone and the button says so), then the writer, then the count, so a failed write is never billed.
 export async function writeAction(req: WriteRequest, adjust?: Adjust, current = ""): Promise<WriteResult> {
   await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
-  await requireModule("ai");
   const parsed = request.safeParse(req);
   if (!parsed.success) return { ok: false, reason: "failed" };
   if (adjust && !(Object.hasOwn(ADJUSTS, adjust) && adjustsFor(parsed.data.task).includes(adjust))) return { ok: false, reason: "failed" };

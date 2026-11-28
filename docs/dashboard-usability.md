@@ -12,7 +12,7 @@ a page to do one of a few jobs. They should know within five seconds what needs 
 1. **Start with what needs doing.** A page that has work waiting opens with it, as a task list (`TaskList` and `Task` in the kit): what it is,
    why now, and the button that does it in the row (Reply, Call, Confirm, Record sale). Never a count that only links somewhere else.
 2. **One main job, obvious.** One filled accent button per page, for the job people come for (Add a car, Book a test drive, New post). Other
-   actions are quiet buttons. On the Overview, the main jobs are `ActionTiles`: an icon, a verb and one short line each.
+   actions are quiet buttons. On the Overview, the main jobs are the page header's actions (`docs/dashboard-polish.md` rule 12): an icon and a verb each.
 3. **Actions where the thing is.** A row shows only its next step, as a labelled button, and a menu (`RowMenu`: three dots, named "More
    for <name>") with the rest: Call, Open, Cancel, Delete (#95). With no step due, only the menu. A
    phone gets the same actions on the record's own page, at the top.
@@ -27,13 +27,13 @@ a page to do one of a few jobs. They should know within five seconds what needs 
    be undone happens at once with Undo in the toast.
 9. **Phone first.** The main content is on the first screen of a 390px phone, under the title (`feedback: mobile-first-screen`). Tap
    targets 44px.
-10. **Keep what works.** Server permission checks, module gates (`hasModule`, `enabledModules`), the DoneDeal synced mode, simulated
+10. **Keep what works.** Server permission checks, the DoneDeal synced mode, simulated
     integrations and every feature stay. This is presentation and flow, not a rewrite of the data layer.
 
 ## Kit
 `src/components/admin/kit.tsx`: PageHeader, Panel (raised or `quiet`), StatCard and StatGrid, Badge, EmptyState, DataTable, SummaryTabs,
-Segmented, Notice, Facts, Avatar, and new in this pass `TaskList`/`Task` (urgency marker, icon, detail, inline action) and
-`ActionTiles`/`ActionTile` (the main jobs as big buttons). Button classes: `adminButton` (primary), `adminButtonQuiet`, `rowButton`,
+Segmented, Notice, Facts, Avatar, and new in this pass `TaskList`/`Task` (urgency marker, icon, detail, inline action); a page's
+main jobs are the page header's actions (`docs/dashboard-polish.md` rule 12). Button classes: `adminButton` (primary), `adminButtonQuiet`, `rowButton`,
 `dangerButton`. `FormActions` is the row of buttons at the foot of a form, a dialog or a panel's actions, and `Dialog` (`Dialog.tsx`)
 is where a small edit happens (#133): both in `docs/dashboard-polish.md`, "Dialogs and button rows".
 

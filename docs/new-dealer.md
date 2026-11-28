@@ -75,7 +75,7 @@ secrets.
      "address": { "street": "Main Street", "town": "Naas", "county": "Co. Kildare", "eircode": "W91 XXXX" },
      "hours": [{ "day": "Monday", "opens": "09:00", "closes": "18:00" }, { "day": "Tuesday", "opens": "09:00", "closes": "18:00" }, { "day": "Wednesday", "opens": "09:00", "closes": "18:00" }, { "day": "Thursday", "opens": "09:00", "closes": "18:00" }, { "day": "Friday", "opens": "09:00", "closes": "18:00" }, { "day": "Saturday", "opens": "10:00", "closes": "16:00" }, { "day": "Sunday" }],
      "logo": { "onLight": "/brand/example-motors/logo-on-light.svg", "onDark": "/brand/example-motors/logo.svg" },
-     "modules": "dashboard,testDrives,sales,reviews",
+     "plan": "both",
      "stock": { "source": "checkwork" },
      "rules": { "oldStockDays": 90 },
      "leadEmail": "sales@example.com"
@@ -84,7 +84,8 @@ secrets.
 
    - `logo` is paths on this app: put the files in `public/brand/<dealer-id>/` and deploy (the app loads images from its own address
      only). Without a logo the menu shows the name.
-   - `modules`: ids from `src/lib/modules-rules.ts`, comma separated, or `all`. `stock.source` is `checkwork` (kept here) or `donedeal`
+   - `plan`: what they pay for, `website`, `dashboard` or `both` (`docs/dealer-admin.md`, Billing; `dashboard` when left out). A billing
+     fact only: every dealer has every part of the dashboard (#212). `stock.source` is `checkwork` (kept here) or `donedeal`
      (synced from `stock.listingSite`, `DoneDeal` or `CarsIreland`, with `stock.listingUrl` their page there).
    - `placeId`: their Google place, for their reviews.
 
@@ -107,8 +108,7 @@ secrets.
 6. If their website is ours: make its key with the owner API in each environment (`POST /api/owner/v1/dealers/<id>/site-keys`,
    `docs/owner-api.md`) and set it on the website. The answer is the only time the key is shown.
 
-7. Set their contract as signed, in production (and on dev if you want Billing there to match): the term, 1 or 2 years (no setup fee
-   on 2), and the free first month if they have one (`PUT /api/owner/v1/dealers/<id>/billing` with `{"term": 2, "freeMonth": "2026-12"}`,
+7. Set their contract as signed, in production (and on dev if you want Billing there to match): the term, 1 or 2 years, and the free first month if they have one (`PUT /api/owner/v1/dealers/<id>/billing` with `{"term": 2, "freeMonth": "2026-12"}`,
    `docs/owner-api.md`, "Dealer contract term"). Without it a dealer is on 1 year with no free month.
 
 ## A dealer whose stock is synced (DoneDeal or CarsIreland)
@@ -148,12 +148,11 @@ the fields to change in a JSON file and merge it in. A field given replaces that
 one level down, `null` removes a field; the rest stays. Each page and job reads it on its next request.
 
 ```sh
-node scripts/dealer-profile.mjs example-motors plan.json --remote                    # dev
-node scripts/dealer-profile.mjs example-motors plan.json --remote --env production   # production
+node scripts/dealer-profile.mjs example-motors stock.json --remote                    # dev
+node scripts/dealer-profile.mjs example-motors stock.json --remote --env production   # production
 ```
 
-with, for example, `plan.json` holding `{ "modules": "all" }` for Website + Dashboard with Social and ads, or `{ "stock": { "source": "donedeal" } }` once
-their DoneDeal sync is connected.
+with `stock.json` holding `{ "stock": { "source": "donedeal" } }` once their DoneDeal sync is connected.
 
 ## Pausing a dealer
 

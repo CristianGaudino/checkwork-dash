@@ -19,7 +19,6 @@ import { fieldErrors, isoDay } from "@/lib/admin/validation";
 import { addMonths, dublinDay, dublinMs, fmtDateTime } from "@/lib/admin/format";
 import { isBankHoliday } from "@/lib/bank-holidays";
 import { LIMITS, TEST_DRIVE, driveTimes, inDriveHours } from "@/lib/leads/constants";
-import { requireModule } from "@/lib/modules";
 import { requireStaff } from "@/lib/staff";
 import { STALE_STATUS, changedSince } from "@/lib/admin/stale";
 
@@ -29,7 +28,6 @@ export type DriveFormState = { errors?: Record<string, string>; done?: string; i
 // `from`: the status the button showed; a press from a page loaded before someone else moved the drive is refused, never undoing it.
 export async function setDriveStatusAction(id: string, status: string, from?: string) {
   await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
-  await requireModule("testDrives"); // and only while the dealer has it
   const next = parseDriveStatus(status);
   const drive = await drivesStore.get(id);
   if (!next || !drive) return;
@@ -45,7 +43,6 @@ export async function setDriveStatusAction(id: string, status: string, from?: st
 // Who takes the customer out (`assignedTo`, from the PersonPicker): a team member's name, or "" for nobody yet. Anything else is refused.
 export async function assignDriveAction(id: string, data: FormData) {
   await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
-  await requireModule("testDrives"); // and only while the dealer has it
   const name = String(data.get("assignedTo") ?? "").slice(0, LIMITS.name); // a team member's name, up to 100
   const drive = await drivesStore.get(id);
   const { team } = await getSettings();
@@ -93,7 +90,6 @@ async function checkSlot(carSlug: string, carTitle: string, date: string, time: 
 const moving = z.object({ date: booking.shape.date, time: booking.shape.time });
 export async function moveDriveAction(id: string, _prev: DriveFormState, data: FormData): Promise<DriveFormState> {
   await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
-  await requireModule("testDrives"); // and only while the dealer has it
   const drive = await drivesStore.get(id);
   if (!drive || (drive.status !== "requested" && drive.status !== "confirmed")) return { errors: { date: "This booking can no longer be moved" } };
   const parsed = moving.safeParse(Object.fromEntries(data));
@@ -109,7 +105,6 @@ export async function moveDriveAction(id: string, _prev: DriveFormState, data: F
 // A booking the dealer takes by phone or in person. It refuses a time when the same car is already out within the hour.
 export async function addDriveAction(_prev: DriveFormState, data: FormData): Promise<DriveFormState> {
   await requireStaff(); // a server action can be posted to any page: only staff Access let in (src/lib/staff.ts)
-  await requireModule("testDrives"); // and only while the dealer has it
   const parsed = booking.safeParse(Object.fromEntries(data));
   if (!parsed.success) return { errors: fieldErrors(parsed.error) };
   const b = parsed.data;
